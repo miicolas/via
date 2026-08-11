@@ -30,11 +30,15 @@ export const networkRouteSchema = z.object({
 export const networkStationSchema = z.object({
   id: z.string(),
   name: z.string(),
-  routeIds: z.array(z.string()),
   /**
    * Keyed by route id: an interchange sits at a different snapped point on each
    * line it serves, which is what lets the client move a single station dot as
    * the selected line changes.
+   *
+   * The keys are also the answer to "which lines serve this station". A separate
+   * `routeIds` array used to carry that same fact: built in the same loop, from
+   * the same rows, so equal by construction — but with no invariant saying so,
+   * and consumers split between trusting one or the other.
    */
   positions: z.record(z.string(), coordinateSchema),
 });

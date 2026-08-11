@@ -38,7 +38,6 @@ function toStations(rows: MetroStationPositionRow[]): NetworkStation[] {
     return {
       id: station.id,
       name: station.name,
-      routeIds: stationRows.map((row) => row.routeId),
       positions: Object.fromEntries(
         stationRows.map((row) => [
           row.routeId,

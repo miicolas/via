@@ -51,11 +51,12 @@ function distanceToRoute(point: Coordinate, route: NetworkMap['routes'][number])
 
 const failures: Array<{ station: string; line: string; distance: number }> = [];
 for (const station of network.stations) {
-  for (const routeId of station.routeIds) {
+  for (const [routeId, position] of Object.entries(station.positions)) {
     const route = routesById.get(routeId);
-    const position = station.positions?.[routeId];
-    if (!route || !position) {
-      failures.push({ station: station.name, line: route?.shortName ?? routeId, distance: Infinity });
+    if (!route) {
+      // A position keyed by a line the payload does not carry: the two halves of
+      // the network disagree, which is a failure in itself.
+      failures.push({ station: station.name, line: routeId, distance: Infinity });
       continue;
     }
     const distance = distanceToRoute(position, route);

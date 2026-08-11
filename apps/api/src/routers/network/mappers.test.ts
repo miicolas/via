@@ -97,7 +97,7 @@ describe('toNetworkMap', () => {
 
     const [chatelet] = stations;
     expect(chatelet.name).toBe('Châtelet');
-    expect(chatelet.routeIds).toEqual(['IDFM:C01371', 'IDFM:C01374']);
+    expect(Object.keys(chatelet.positions)).toEqual(['IDFM:C01371', 'IDFM:C01374']);
     expect(chatelet.positions['IDFM:C01371']).toEqual({ latitude: 48.8583, longitude: 2.347 });
     expect(chatelet.positions['IDFM:C01374']).toEqual({ latitude: 48.859, longitude: 2.3475 });
   });

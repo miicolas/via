@@ -33,7 +33,7 @@ function station(
   name: string,
   positions: Record<string, { latitude: number; longitude: number }>
 ): NetworkStation {
-  return { id: `stop-${name}`, name, routeIds: Object.keys(positions), positions };
+  return { id: `stop-${name}`, name, positions };
 }
 
 const LINE_1 = route('1');
