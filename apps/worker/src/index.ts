@@ -12,7 +12,6 @@ import {
   type LonLat,
 } from '@via/db';
 import { parse } from 'csv-parse';
-import { eq, sql } from 'drizzle-orm';
 
 type CsvRow = Record<string, string>;
 type RouteRow = CsvRow & {
@@ -24,13 +23,23 @@ type RouteRow = CsvRow & {
   route_color: string;
   route_text_color: string;
 };
-type Pattern = {
+type PatternCandidate = {
+  routeId: string;
   directionId: number;
   headsign: string;
   shapeId: string;
   representativeTripId: string;
   tripCount: number;
 };
+type SourceStop = {
+  id: string;
+  name: string;
+  parentStation?: string;
+  location: LonLat;
+};
+
+const METRO_ROUTE_TYPE = '1';
+const MIN_BRANCH_SHARE = 0.1;
 
 async function* readCsv(path: string): AsyncGenerator<CsvRow> {
   const parser = createReadStream(path).pipe(
@@ -48,50 +57,84 @@ function required(row: CsvRow, key: string): string {
   return value;
 }
 
-async function importLineOne(gtfsPath: string) {
+/**
+ * Keeps, per direction, the busiest branch of each headsign — minus the ones too
+ * marginal to be a real branch — and names the busiest of them the canonical one.
+ */
+function selectPatterns(candidates: PatternCandidate[], routeId: string) {
+  const byDirection = Map.groupBy(candidates, (candidate) => candidate.directionId);
+  const selectedByShape = new Map<string, PatternCandidate>();
+
+  for (const directionCandidates of byDirection.values()) {
+    const byHeadsign = Map.groupBy(directionCandidates, (candidate) => candidate.headsign);
+    const primaryByHeadsign = [...byHeadsign.values()].map((headsignCandidates) =>
+      headsignCandidates.toSorted((a, b) => b.tripCount - a.tripCount)[0]!
+    );
+    const busiest = Math.max(...primaryByHeadsign.map((candidate) => candidate.tripCount));
+
+    for (const candidate of primaryByHeadsign) {
+      if (candidate.tripCount < busiest * MIN_BRANCH_SHARE) continue;
+      const current = selectedByShape.get(candidate.shapeId);
+      if (!current || candidate.tripCount > current.tripCount) {
+        selectedByShape.set(candidate.shapeId, candidate);
+      }
+    }
+  }
+
+  const patterns = [...selectedByShape.values()];
+  const [first] = patterns;
+  if (!first) throw new Error(`No representative pattern found for ${routeId}`);
+  const canonical = patterns.reduce(
+    (best, pattern) => (pattern.tripCount > best.tripCount ? pattern : best),
+    first
+  );
+  return { patterns, canonicalShapeId: canonical.shapeId };
+}
+
+async function importMetroNetwork(gtfsPath: string) {
   for (const filename of ['routes.txt', 'trips.txt', 'shapes.txt', 'stops.txt', 'stop_times.txt']) {
     await access(join(gtfsPath, filename));
   }
 
-  let route: RouteRow | undefined;
+  const routes: RouteRow[] = [];
   for await (const row of readCsv(join(gtfsPath, 'routes.txt'))) {
-    if (row.route_type === '1' && row.route_short_name.trim() === '1') {
-      if (route) throw new Error('More than one metro route named 1 was found');
-      route = row as RouteRow;
-    }
+    if (row.route_type === METRO_ROUTE_TYPE) routes.push(row as RouteRow);
   }
-  if (!route) throw new Error('Metro line 1 was not found in routes.txt');
+  if (routes.length === 0) throw new Error('No metro route was found in routes.txt');
 
-  const patternCounts = new Map<string, Pattern>();
+  const routeIds = new Set(routes.map((route) => route.route_id));
+  const candidateByKey = new Map<string, PatternCandidate>();
   for await (const trip of readCsv(join(gtfsPath, 'trips.txt'))) {
-    if (trip.route_id !== route.route_id) continue;
+    if (!routeIds.has(trip.route_id)) continue;
     const directionId = Number(required(trip, 'direction_id'));
     const shapeId = required(trip, 'shape_id');
     const headsign = required(trip, 'trip_headsign');
-    const key = `${directionId}\u0000${shapeId}\u0000${headsign}`;
-    const current = patternCounts.get(key);
+    const key = `${trip.route_id}\u0000${directionId}\u0000${shapeId}\u0000${headsign}`;
+    const current = candidateByKey.get(key);
     if (current) {
       current.tripCount += 1;
     } else {
-      patternCounts.set(key, {
+      candidateByKey.set(key, {
+        routeId: trip.route_id,
         directionId,
-        shapeId,
         headsign,
+        shapeId,
         representativeTripId: required(trip, 'trip_id'),
         tripCount: 1,
       });
     }
   }
 
-  const patterns = [0, 1].map((directionId) => {
-    const candidates = [...patternCounts.values()].filter(
-      (pattern) => pattern.directionId === directionId
-    );
-    const primary = candidates.sort((a, b) => b.tripCount - a.tripCount)[0];
-    if (!primary) throw new Error(`No primary pattern found for direction ${directionId}`);
-    return primary;
-  });
-  const canonical = [...patterns].sort((a, b) => b.tripCount - a.tripCount)[0]!;
+  const candidatesByRoute = Map.groupBy(
+    [...candidateByKey.values()],
+    (candidate) => candidate.routeId
+  );
+  const selections = routes.map((route) =>
+    selectPatterns(candidatesByRoute.get(route.route_id) ?? [], route.route_id)
+  );
+  const patterns = selections.flatMap((selection) => selection.patterns);
+  // Shape ids are pattern primary keys, so one route can never claim another's.
+  const canonicalShapeIds = new Set(selections.map((selection) => selection.canonicalShapeId));
 
   const coordinatesByShape = new Map<string, Array<LonLat & { sequence: number }>>(
     patterns.map((pattern) => [pattern.shapeId, []])
@@ -105,100 +148,101 @@ async function importLineOne(gtfsPath: string) {
       sequence: Number(required(point, 'shape_pt_sequence')),
     });
   }
-  for (const coordinates of coordinatesByShape.values()) {
+  for (const [shapeId, coordinates] of coordinatesByShape) {
     coordinates.sort((a, b) => a.sequence - b.sequence);
+    if (coordinates.length < 2) throw new Error(`Shape ${shapeId} is empty`);
+  }
+
+  const sourceStops = new Map<string, SourceStop>();
+  for await (const stop of readCsv(join(gtfsPath, 'stops.txt'))) {
+    const lon = Number(stop.stop_lon);
+    const lat = Number(stop.stop_lat);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+    sourceStops.set(required(stop, 'stop_id'), {
+      id: stop.stop_id,
+      name: required(stop, 'stop_name'),
+      parentStation: stop.parent_station || undefined,
+      location: { lon, lat },
+    });
+  }
+
+  /** Platforms collapse into their parent station, so lines meet on one shared stop. */
+  function canonicalStopOf(stopId: string) {
+    const stop = sourceStops.get(stopId);
+    if (!stop) throw new Error(`Stop ${stopId} is missing from stops.txt`);
+    const id = stop.parentStation ?? stop.id;
+    return { id, stop: sourceStops.get(id) ?? stop };
   }
 
   const patternByTrip = new Map(
     patterns.map((pattern) => [pattern.representativeTripId, pattern])
   );
-  const stopSequenceByShape = new Map<string, Array<{ stopId: string; sequence: number }>>(
+  const canonicalStops = new Map<string, SourceStop>();
+  const stopsByShape = new Map<string, Array<{ stopId: string; sequence: number }>>(
     patterns.map((pattern) => [pattern.shapeId, []])
   );
   for await (const stopTime of readCsv(join(gtfsPath, 'stop_times.txt'))) {
     const pattern = patternByTrip.get(stopTime.trip_id);
     if (!pattern) continue;
-    stopSequenceByShape.get(pattern.shapeId)!.push({
-      stopId: required(stopTime, 'stop_id'),
+    const { id, stop } = canonicalStopOf(required(stopTime, 'stop_id'));
+    canonicalStops.set(id, stop);
+    stopsByShape.get(pattern.shapeId)!.push({
+      stopId: id,
       sequence: Number(required(stopTime, 'stop_sequence')),
     });
   }
-  for (const sequence of stopSequenceByShape.values()) {
+  // Two platforms of one station in a row collapse into a single call.
+  for (const [shapeId, sequence] of stopsByShape) {
     sequence.sort((a, b) => a.sequence - b.sequence);
+    stopsByShape.set(
+      shapeId,
+      sequence.filter((stop, index) => stop.stopId !== sequence[index - 1]?.stopId)
+    );
   }
 
-  const wantedStopIds = new Set(
-    [...stopSequenceByShape.values()].flatMap((sequence) => sequence.map(({ stopId }) => stopId))
-  );
-  const stopRows: Array<{ id: string; name: string; location: LonLat }> = [];
-  for await (const stop of readCsv(join(gtfsPath, 'stops.txt'))) {
-    if (!wantedStopIds.has(stop.stop_id)) continue;
-    stopRows.push({
-      id: required(stop, 'stop_id'),
-      name: required(stop, 'stop_name'),
-      location: {
-        lon: Number(required(stop, 'stop_lon')),
-        lat: Number(required(stop, 'stop_lat')),
-      },
-    });
-  }
-
-  if (stopRows.length !== wantedStopIds.size) {
-    throw new Error(`Found ${stopRows.length} of ${wantedStopIds.size} required stops`);
-  }
-
+  const importedAt = new Date();
   await db.transaction(async (tx) => {
-    await tx
-      .insert(transitRoutes)
-      .values({
+    await tx.delete(transitRoutes);
+    await tx.delete(transitStops);
+
+    await tx.insert(transitRoutes).values(
+      routes.map((route) => ({
         id: route.route_id,
         agencyId: route.agency_id,
         shortName: route.route_short_name,
         longName: route.route_long_name,
         routeType: Number(route.route_type),
-        color: route.route_color || 'FFBE00',
-        textColor: route.route_text_color || '000000',
-        importedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: transitRoutes.id,
-        set: {
-          agencyId: route.agency_id,
-          shortName: route.route_short_name,
-          longName: route.route_long_name,
-          routeType: Number(route.route_type),
-          color: route.route_color || 'FFBE00',
-          textColor: route.route_text_color || '000000',
-          importedAt: new Date(),
-        },
-      });
+        color: route.route_color || '666666',
+        textColor: route.route_text_color || 'FFFFFF',
+        importedAt,
+      }))
+    );
 
-    await tx.delete(transitRoutePatterns).where(eq(transitRoutePatterns.routeId, route.route_id));
-    await tx
-      .insert(transitStops)
-      .values(stopRows)
-      .onConflictDoUpdate({
-        target: transitStops.id,
-        set: {
-          name: sql`excluded.name`,
-          location: sql`excluded.location`,
-        },
-      });
+    await tx.insert(transitStops).values(
+      [...canonicalStops].map(([id, stop]) => ({
+        id,
+        name: stop.name,
+        location: stop.location,
+      }))
+    );
 
     for (const pattern of patterns) {
-      const coordinates = coordinatesByShape.get(pattern.shapeId)!;
-      if (coordinates.length < 2) throw new Error(`Shape ${pattern.shapeId} is empty`);
       await tx.insert(transitRoutePatterns).values({
         id: pattern.shapeId,
-        routeId: route.route_id,
+        routeId: pattern.routeId,
         directionId: pattern.directionId,
         headsign: pattern.headsign,
         tripCount: pattern.tripCount,
-        isCanonical: pattern.shapeId === canonical.shapeId,
-        geometry: coordinates.map(({ lon, lat }) => ({ lon, lat })),
+        isCanonical: canonicalShapeIds.has(pattern.shapeId),
+        geometry: coordinatesByShape
+          .get(pattern.shapeId)!
+          .map(({ lon, lat }) => ({ lon, lat })),
       });
+
+      const patternStops = stopsByShape.get(pattern.shapeId)!;
+      if (patternStops.length === 0) throw new Error(`Pattern ${pattern.shapeId} has no stops`);
       await tx.insert(transitRoutePatternStops).values(
-        stopSequenceByShape.get(pattern.shapeId)!.map(({ stopId, sequence }) => ({
+        patternStops.map(({ stopId, sequence }) => ({
           patternId: pattern.shapeId,
           stopId,
           stopSequence: sequence,
@@ -207,10 +251,19 @@ async function importLineOne(gtfsPath: string) {
     }
   });
 
+  const routesByStop = new Map<string, Set<string>>();
+  for (const pattern of patterns) {
+    for (const { stopId } of stopsByShape.get(pattern.shapeId)!) {
+      const servedRoutes = routesByStop.get(stopId) ?? new Set<string>();
+      servedRoutes.add(pattern.routeId);
+      routesByStop.set(stopId, servedRoutes);
+    }
+  }
+  const interchangeCount = [...routesByStop.values()].filter((routeSet) => routeSet.size > 1).length;
+
   console.log(
-    `Imported metro ${route.route_short_name}: ${patterns.length} directions, ` +
-      `${coordinatesByShape.get(canonical.shapeId)!.length} points on the canonical line, ` +
-      `${stopSequenceByShape.get(canonical.shapeId)!.length} stations.`
+    `Imported ${routes.length} metro lines, ${patterns.length} representative branches, ` +
+      `${canonicalStops.size} shared stations and ${interchangeCount} interchanges.`
   );
 }
 
@@ -220,7 +273,7 @@ if (!gtfsPath) {
 }
 
 try {
-  await importLineOne(gtfsPath);
+  await importMetroNetwork(gtfsPath);
 } finally {
   await client.end();
 }
