@@ -14,6 +14,8 @@ import {
 import { parse } from 'csv-parse';
 import { sql } from 'drizzle-orm';
 
+import { selectPatterns, type PatternCandidate } from './pattern-selection';
+
 type CsvRow = Record<string, string>;
 type RouteRow = CsvRow & {
   route_id: string;
@@ -24,14 +26,6 @@ type RouteRow = CsvRow & {
   route_color: string;
   route_text_color: string;
 };
-type PatternCandidate = {
-  routeId: string;
-  directionId: number;
-  headsign: string;
-  shapeId: string;
-  representativeTripId: string;
-  tripCount: number;
-};
 type SourceStop = {
   id: string;
   name: string;
@@ -40,7 +34,6 @@ type SourceStop = {
 };
 
 const METRO_ROUTE_TYPE = '1';
-const MIN_BRANCH_SHARE = 0.1;
 
 async function* readCsv(path: string): AsyncGenerator<CsvRow> {
   const parser = createReadStream(path).pipe(
@@ -56,40 +49,6 @@ function required(row: CsvRow, key: string): string {
   const value = row[key];
   if (!value) throw new Error(`Missing ${key} in GTFS row`);
   return value;
-}
-
-/**
- * Keeps, per direction, the busiest branch of each headsign — minus the ones too
- * marginal to be a real branch — and names the busiest of them the canonical one.
- */
-function selectPatterns(candidates: PatternCandidate[], routeId: string) {
-  const byDirection = Map.groupBy(candidates, (candidate) => candidate.directionId);
-  const selectedByShape = new Map<string, PatternCandidate>();
-
-  for (const directionCandidates of byDirection.values()) {
-    const byHeadsign = Map.groupBy(directionCandidates, (candidate) => candidate.headsign);
-    const primaryByHeadsign = [...byHeadsign.values()].map((headsignCandidates) =>
-      headsignCandidates.toSorted((a, b) => b.tripCount - a.tripCount)[0]!
-    );
-    const busiest = Math.max(...primaryByHeadsign.map((candidate) => candidate.tripCount));
-
-    for (const candidate of primaryByHeadsign) {
-      if (candidate.tripCount < busiest * MIN_BRANCH_SHARE) continue;
-      const current = selectedByShape.get(candidate.shapeId);
-      if (!current || candidate.tripCount > current.tripCount) {
-        selectedByShape.set(candidate.shapeId, candidate);
-      }
-    }
-  }
-
-  const patterns = [...selectedByShape.values()];
-  const [first] = patterns;
-  if (!first) throw new Error(`No representative pattern found for ${routeId}`);
-  const canonical = patterns.reduce(
-    (best, pattern) => (pattern.tripCount > best.tripCount ? pattern : best),
-    first
-  );
-  return { patterns, canonicalShapeId: canonical.shapeId };
 }
 
 async function importMetroNetwork(gtfsPath: string) {
