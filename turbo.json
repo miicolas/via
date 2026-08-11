@@ -12,6 +12,10 @@
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
+    "test": {
+      "dependsOn": ["^test"],
+      "env": ["DATABASE_URL"]
+    },
     "dev": {
       "persistent": true,
       "cache": false

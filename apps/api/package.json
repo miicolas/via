@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "bun --env-file=../../.env --hot src/index.ts",
     "start": "bun src/index.ts",
+    "test": "bun --env-file=../../.env test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
