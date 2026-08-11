@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { Polyline } from 'react-native-maps';
 
-import { PLACEHOLDER_ROUTE_COLOR, type NetworkRoute } from '@/lib/network-map';
+import type { NetworkRoute } from '@via/contract';
+
+import { PLACEHOLDER_ROUTE_COLOR } from '@/lib/metro-network';
 
 const ROUNDED = { lineCap: 'round', lineJoin: 'round' } as const;
 const MUTED = { strokeColor: 'rgba(120,120,128,0.11)', strokeWidth: 2.5 };

@@ -2,29 +2,28 @@ import { memo, useMemo } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { MarkerAnimated } from 'react-native-maps';
 
-import { isInterchange, type RouteStation } from '@/lib/network-map';
+import { isInterchange, type LineView } from '@/lib/metro-network';
 
 const CENTER_OFFSET = { x: 0, y: 0 };
 
 type StationMarkersProps = {
-  stations: RouteStation[];
-  color: string;
+  /** The line and its stations, as one value — the colour cannot belong to another line. */
+  line: LineView;
   /** Drives the fade-in as the user zooms in. */
   opacity: Animated.Value;
 };
 
 export const StationMarkers = memo(function StationMarkers({
-  stations,
-  color,
+  line,
   opacity,
 }: StationMarkersProps) {
   // Built once per colour rather than once per station — there are a few hundred of them.
   const dotStyles = useMemo(() => {
-    const dot = [styles.dot, { backgroundColor: color }];
+    const dot = [styles.dot, { backgroundColor: line.route.color }];
     return { dot, interchange: [...dot, styles.interchangeDot] };
-  }, [color]);
+  }, [line.route.color]);
 
-  return stations.map((station) => (
+  return line.stations.map((station) => (
     <MarkerAnimated
       key={station.id}
       coordinate={station.coordinate}

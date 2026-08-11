@@ -2,19 +2,25 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import type { NetworkState } from '@/lib/metro-network';
 
 type MapStatusProps = {
-  error: string | undefined;
+  /**
+   * The state itself, not a variable to re-derive it from. This module used to
+   * ignore the status it was given and work out its own from whether an error
+   * string was set — a third derivation of one two-state machine.
+   */
+  state: Extract<NetworkState, { status: 'loading' | 'error' }>;
   onRetry: () => void;
 };
 
 /** Centred overlay shown while the network loads, or when it failed to. */
-export function MapStatus({ error, onRetry }: MapStatusProps) {
+export function MapStatus({ state, onRetry }: MapStatusProps) {
   return (
     <View style={styles.status} accessibilityLiveRegion="polite">
-      {error ? (
+      {state.status === 'error' ? (
         <>
-          <ThemedText style={styles.centerText}>{error}</ThemedText>
+          <ThemedText style={styles.centerText}>{state.message}</ThemedText>
           <Pressable
             accessibilityRole="button"
             onPress={onRetry}

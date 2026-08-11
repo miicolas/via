@@ -4,35 +4,29 @@ import { StyleSheet, View } from 'react-native';
 import { LineBadge } from '@/components/map/line-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { isInterchange, type NetworkRoute, type RouteStation } from '@/lib/network-map';
+import type { LineView } from '@/lib/metro-network';
 
 const BADGE_SIZE = 32;
 
 type RouteSummaryProps = {
-  route: NetworkRoute | undefined;
-  stations: RouteStation[];
+  /** One value, so the counts can never describe a different line than the badge. */
+  line: LineView;
 };
 
 /** Glass card recapping the selected line: badge, name and station counts. */
-export function RouteSummary({ route, stations }: RouteSummaryProps) {
-  const interchangeCount = stations.filter(isInterchange).length;
-
+export function RouteSummary({ line }: RouteSummaryProps) {
   return (
     <GlassView
       glassEffectStyle="clear"
       style={styles.summary}
       accessible
-      accessibilityLabel={route ? `Ligne ${route.shortName} du métro` : 'Réseau du métro'}
+      accessibilityLabel={`Ligne ${line.route.shortName} du métro`}
     >
-      <LineBadge route={route} size={BADGE_SIZE} />
+      <LineBadge route={line.route} size={BADGE_SIZE} />
       <View style={styles.text}>
-        <ThemedText type="smallBold">
-          {route ? `Ligne ${route.shortName}` : 'Métro parisien'}
-        </ThemedText>
+        <ThemedText type="smallBold">Ligne {line.route.shortName}</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          {route
-            ? `${stations.length} stations · ${interchangeCount} correspondances`
-            : 'Chargement du réseau…'}
+          {line.stations.length} stations · {line.interchangeCount} correspondances
         </ThemedText>
       </View>
     </GlassView>

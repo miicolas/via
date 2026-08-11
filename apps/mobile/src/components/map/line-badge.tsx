@@ -1,10 +1,14 @@
+import type { NetworkRoute } from '@via/contract';
 import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { PLACEHOLDER_ROUTE_COLOR, type NetworkRoute } from '@/lib/network-map';
 
 type LineBadgeProps = {
-  route: NetworkRoute | undefined;
+  /**
+   * Never undefined: `networkState` only reports `ready` once a line resolves, so
+   * the placeholder branch this used to carry is unreachable.
+   */
+  route: NetworkRoute;
   size: number;
 };
 
@@ -18,12 +22,12 @@ export function LineBadge({ route, size }: LineBadgeProps) {
           minWidth: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: route?.color ?? PLACEHOLDER_ROUTE_COLOR,
+          backgroundColor: route.color,
         },
       ]}
     >
-      <ThemedText type="smallBold" style={{ color: route?.textColor ?? '#000000' }}>
-        {route?.shortName ?? '—'}
+      <ThemedText type="smallBold" style={{ color: route.textColor }}>
+        {route.shortName}
       </ThemedText>
     </View>
   );

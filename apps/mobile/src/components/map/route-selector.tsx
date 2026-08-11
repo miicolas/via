@@ -2,7 +2,7 @@ import { GlassView } from 'expo-glass-effect';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { LineBadge } from '@/components/map/line-badge';
-import type { NetworkRoute } from '@/lib/network-map';
+import type { NetworkRoute } from '@via/contract';
 
 const BADGE_SIZE = 31;
 
