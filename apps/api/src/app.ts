@@ -10,11 +10,24 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { requestId } from 'hono/request-id';
 
-const app = new Hono();
+import type { AppEnv } from './http/app-env';
+import { onError } from './http/error-handler';
+import { notFound } from './http/not-found';
 
+const app = new Hono<AppEnv>();
+
+app.use(requestId());
 app.use(logger());
 app.use('/api/*', cors());
+
+/**
+ * Registered off the route chain on purpose: both are app-wide and belong to no
+ * route's schema, so folding them into the chain would only widen `AppType`.
+ */
+app.onError(onError);
+app.notFound(notFound);
 
 /**
  * Routes are declared as a single chain so `AppType` carries the full route

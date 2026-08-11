@@ -1,12 +1,11 @@
 import { app } from './app';
+import { env } from './env';
 
 export type { AppType } from './app';
 
-const port = Number(process.env.PORT ?? 3000);
-
-console.log(`[api] http://localhost:${port}`);
+console.log(`[api] http://localhost:${env.PORT}`);
 
 export default {
-  port,
+  port: env.PORT,
   fetch: app.fetch,
 };
