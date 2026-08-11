@@ -60,8 +60,8 @@ builds a typed client from it:
 ```ts
 import { api } from '@/lib/api';
 
-const res = await api.api.stops.$get({ query: { lat: '48.85', lon: '2.35' } });
-const { stops } = await res.json();   // fully typed
+const res = await api.api.network.map.$get();
+const { routes, stations } = await res.json();   // fully typed
 ```
 
 Point `EXPO_PUBLIC_API_URL` at your machine's LAN IP when running on a physical
