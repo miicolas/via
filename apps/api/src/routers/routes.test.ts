@@ -1,26 +1,28 @@
 import { expect, test } from 'bun:test';
 
-import { app } from '../app';
+import { getOpenApiDocument } from '../orpc/openapi';
+
+type OpenApiDocument = {
+  paths?: Record<string, Record<string, unknown>>;
+};
 
 /**
- * The mobile client addresses routes by path string (`api.api.network.map.$get`),
- * so a moved mount point is a production break that a type error does not always
- * catch — the client would simply request a path nobody serves.
+ * The public surface, asserted from the generated document rather than from the
+ * Hono route table — under oRPC, Hono only sees one catch-all mount, so the real
+ * paths live in the contract.
  *
- * This asserts the whole public surface. Importing `app` pulls in `@via/db`,
- * whose postgres-js client connects lazily, so no query runs and no database is
- * needed.
- *
- * `app.routes` holds one entry per *handler*, so a route fronted by middleware
- * (as `/api/network/map` is, by `cacheControl`) appears more than once. The set
- * collapses that back to the surface a caller actually sees.
+ * It matters because clients address routes by URL: a moved path is a production
+ * break, and generating the document also proves every zod schema in the contract
+ * can be converted to JSON Schema.
  */
-test('the public route table is stable', () => {
-  const paths = new Set(
-    app.routes
-      .filter((route) => route.method !== 'ALL')
-      .map((route) => `${route.method} ${route.path}`)
-  );
+test('the public route table is stable', async () => {
+  const { paths = {} } = (await getOpenApiDocument()) as OpenApiDocument;
 
-  expect([...paths].sort()).toEqual(['GET /api/health', 'GET /api/network/map']);
+  const routes = Object.entries(paths)
+    .flatMap(([path, methods]) =>
+      Object.keys(methods).map((method) => `${method.toUpperCase()} /api${path}`)
+    )
+    .sort();
+
+  expect(routes).toEqual(['GET /api/health', 'GET /api/network/map']);
 });

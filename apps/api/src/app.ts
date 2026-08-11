@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { type Context, Hono, type Next } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { requestId } from 'hono/request-id';
@@ -6,32 +6,41 @@ import { requestId } from 'hono/request-id';
 import type { AppEnv } from './http/app-env';
 import { onError } from './http/error-handler';
 import { notFound } from './http/not-found';
-import { apiRouter } from './routers';
+import { openApiHandler, rpcHandler } from './orpc/handler';
+import { getOpenApiDocument } from './orpc/openapi';
 
 const app = new Hono<AppEnv>();
 
 app.use(requestId());
 app.use(logger());
 app.use('/api/*', cors());
+app.use('/rpc/*', cors());
+
+/** The contract, as a document. Handy for clients that are not this repo's app. */
+app.get('/api/openapi.json', async (c) => c.json(await getOpenApiDocument()));
 
 /**
- * The whole route table has to come out of a single chained expression: `AppType`
- * is what the mobile app's `hc<AppType>` client is built from, and a
- * statement-per-route version would type as a bare `Hono`, silently degrading the
- * client to `any`.
+ * Hono keeps the HTTP edge — logging, CORS, request ids, error envelope — and
+ * oRPC owns the two mounts below, both dispatching to the same implemented
+ * contract.
  *
- * Sub-routers keep that property — `.route()` folds the child's schema into the
- * parent's, so `/network` + `/map` under `/api` still resolves to the path
- * `/api/network/map` and the client call stays `api.api.network.map.$get`.
+ * `matched: false` means no procedure claimed the path, so the request falls
+ * through to Hono's `notFound` rather than being swallowed here.
  */
-const routes = app.route('/api', apiRouter);
+function mount(handler: typeof openApiHandler | typeof rpcHandler, prefix: '/api' | '/rpc') {
+  return async (c: Context<AppEnv>, next: Next) => {
+    const { matched, response } = await handler.handle(c.req.raw, { prefix, context: {} });
 
-/**
- * Registered off the route chain on purpose: both are app-wide and belong to no
- * route's schema, so folding them into the chain would only widen `AppType`.
- */
+    if (matched) return response;
+
+    await next();
+  };
+}
+
+app.use('/api/*', mount(openApiHandler, '/api'));
+app.use('/rpc/*', mount(rpcHandler, '/rpc'));
+
 app.onError(onError);
 app.notFound(notFound);
 
 export { app };
-export type AppType = typeof routes;

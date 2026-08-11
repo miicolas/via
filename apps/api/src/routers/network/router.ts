@@ -1,6 +1,5 @@
-import { Hono } from 'hono';
+import { getNetworkMap } from './handlers/get-network-map';
 
-import type { AppEnv } from '../../http/app-env';
-import { getNetworkMapHandlers } from './handlers/get-network-map';
-
-export const networkRouter = new Hono<AppEnv>().get('/map', ...getNetworkMapHandlers);
+export const networkRouter = {
+  map: getNetworkMap,
+};

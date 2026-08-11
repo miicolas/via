@@ -1,12 +1,8 @@
-import { createFactory } from 'hono/factory';
-
-import type { AppEnv } from '../../../http/app-env';
+import { implementer } from '../../../orpc/implementer';
 import { isDatabaseReachable } from '../queries';
 
-const factory = createFactory<AppEnv>();
-
-export const getHealthHandlers = factory.createHandlers(async (c) => {
+export const getHealth = implementer.health.handler(async () => {
   const db = await isDatabaseReachable();
 
-  return c.json({ status: 'ok' as const, db, at: new Date().toISOString() });
+  return { status: 'ok' as const, db, at: new Date().toISOString() };
 });

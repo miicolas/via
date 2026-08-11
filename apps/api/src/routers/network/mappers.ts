@@ -1,6 +1,7 @@
+import type { NetworkMap, NetworkRoute, NetworkStation } from '@via/contract';
+
 import { toCoordinates } from '../../geo/coordinates';
 import type { MetroPatternRow, MetroStationPositionRow } from './queries';
-import type { NetworkMap, NetworkRoute, NetworkStation } from './types';
 
 export function toNetworkMap(
   patternRows: MetroPatternRow[],

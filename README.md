@@ -4,12 +4,13 @@ Turborepo monorepo: an Expo app, a Hono API, and a PostGIS-backed Postgres.
 
 ```
 apps/
-  mobile/   Expo SDK 57 app (expo-router), was the repo root
-  api/      Hono on Bun
-  worker/   GTFS importer
+  mobile/     Expo SDK 57 app (expo-router), was the repo root
+  api/        Hono on Bun, serving an oRPC contract
+  worker/     GTFS importer
 packages/
-  db/       Drizzle schema + migrations (PostGIS)
-scripts/    one-off checks, typechecked like everything else
+  contract/   the API contract: paths, methods, zod payloads
+  db/         Drizzle schema + migrations (PostGIS)
+scripts/      one-off checks, typechecked like everything else
 ```
 
 ## Getting started
@@ -61,19 +62,21 @@ against the live database), the workflow here is `generate` → `migrate` only.
 `apps/api` exports its route table as `AppType`, and `apps/mobile/src/lib/api.ts`
 builds a typed client from it:
 
+`packages/contract` declares the paths, methods and payloads. The API implements
+it, the app calls it, and neither depends on the other:
+
 ```ts
 import { api } from '@/lib/api';
 
-const res = await api.api.network.map.$get();
-const { routes, stations } = await res.json();   // fully typed
+const { routes, stations } = await api.network.map();   // fully typed
 ```
 
 Point `EXPO_PUBLIC_API_URL` at your machine's LAN IP when running on a physical
 device — `localhost` only resolves on the simulator and web.
 
-Because the app derives its types from the API's *source* — there is no build
-step — `bun run typecheck` at the root is what proves the contract still holds:
-break a route path and the mobile package stops compiling.
+`bun run typecheck` at the root is what proves both sides still agree: adding a
+procedure to the contract without implementing it, or returning the wrong shape
+from a mapper, fails to compile.
 
 ## API structure
 
@@ -82,25 +85,33 @@ One folder per theme under `apps/api/src/routers/`, mirroring the URL tree, so
 
 ```
 routers/network/
-  router.ts               GET /map -> handlers
-  handlers/*.ts           one file per endpoint: HTTP concerns only
+  router.ts               the procedures this theme exposes
+  handlers/*.ts           one file per procedure: orchestration only
   queries.ts              drizzle + PostGIS, returns rows
-  mappers.ts              rows -> DTO. Pure: no db, no Context, unit-testable
-  types.ts                the wire contract
-  contract.ts             type-level tripwire on the client path
+  mappers.ts              rows -> contract payload. Pure: no db, unit-testable
 ```
 
 Imports point downward only — `router` → `handlers` → `queries`/`mappers` →
-`geo`/`http` — and nothing under `routers/` imports `app.ts`.
+`geo`/`orpc` — and nothing under `routers/` imports `app.ts`.
 
-Adding an endpoint means a file in `handlers/` and a line in `router.ts`. Adding
-a theme means a folder and a line in `routers/index.ts`; `app.ts` does not
-change. Every router must stay in one chained expression, or `AppType` loses the
-route table and the typed client silently degrades to `any`.
+Adding an endpoint means a procedure in `packages/contract`, a file in
+`handlers/`, and a line in `router.ts`. `implementer.router()` in
+`routers/index.ts` is the assertion that nothing in the contract is left
+unimplemented.
 
-Handlers are built with `createFactory().createHandlers()` rather than plain
-functions: that is what lets a handler live in its own file without losing the
-`c.json()` return type the app infers from.
+### Two transports, one router
+
+Hono keeps the HTTP edge — logging, CORS, request ids, the error envelope — and
+mounts oRPC twice over the same procedures:
+
+| Mount | Protocol | Who calls it |
+| --- | --- | --- |
+| `/api` | REST at the contract's paths, described by `/api/openapi.json` | third parties, `check:transit-alignment` |
+| `/rpc` | oRPC | the app, through `createORPCClient` |
+
+The app's client is configured to issue `GET`, so the ~890 kB network map stays
+cacheable by the platform HTTP cache; the default `POST` would silently give
+that up.
 
 ## Not wired up yet
 

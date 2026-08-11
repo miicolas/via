@@ -1,13 +1,4 @@
-import type { AppType } from '@via/api';
-import { hc, type InferResponseType } from 'hono/client';
-
-/**
- * Types come from the API's route table rather than a hand-written copy: this
- * used to redeclare the payload and cast to it, so a change to the endpoint
- * broke the check silently instead of failing the typecheck.
- */
-type NetworkMap = InferResponseType<ReturnType<typeof hc<AppType>>['api']['network']['map']['$get'], 200>;
-type Coordinate = NetworkMap['stations'][number]['positions'][string];
+import { type Coordinate, type NetworkMap, networkMapSchema } from '@via/contract';
 
 /**
  * Follows the API's own `PORT` — the root script loads `.env`, so this points at
@@ -15,11 +6,16 @@ type Coordinate = NetworkMap['stations'][number]['positions'][string];
  */
 const apiUrl = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
 
-const api = hc<AppType>(apiUrl);
-const response = await api.api.network.map.$get();
+/**
+ * Calls the REST surface rather than the app's RPC mount, on purpose: this is
+ * also a check that the documented `/api` endpoint keeps working, since nothing
+ * else exercises it. Parsing against the contract means a payload that drifted
+ * fails here loudly instead of being measured as if it were fine.
+ */
+const response = await fetch(`${apiUrl}/api/network/map`);
 if (!response.ok) throw new Error(`Map API returned ${response.status}`);
 
-const network = await response.json();
+const network: NetworkMap = networkMapSchema.parse(await response.json());
 const routesById = new Map(network.routes.map((route) => [route.id, route]));
 
 function distanceToSegment(point: Coordinate, start: Coordinate, end: Coordinate) {

@@ -1,23 +1,20 @@
-import { type InferResponseType } from 'hono/client';
+import type { Coordinate, NetworkMap, NetworkRoute, NetworkStation } from '@via/contract';
 
 import { api } from '@/lib/api';
 
-const getNetworkMap = api.api.network.map.$get;
-
-export type NetworkMap = InferResponseType<typeof getNetworkMap, 200>;
-export type NetworkRoute = NetworkMap['routes'][number];
-export type NetworkStation = NetworkMap['stations'][number];
-export type Coordinate = NetworkRoute['segments'][number]['coordinates'][number];
+export type { Coordinate, NetworkMap, NetworkRoute, NetworkStation };
 /** A station resolved to the position it occupies on one specific route. */
 export type RouteStation = NetworkStation & { coordinate: Coordinate };
 
 /** Stands in for a line colour while no line is selected. */
 export const PLACEHOLDER_ROUTE_COLOR = '#D1D1D6';
 
+/**
+ * The generated client throws on failure rather than handing back a response to
+ * inspect, so there is no status check here — a non-200 rejects the promise.
+ */
 export async function fetchNetworkMap(signal: AbortSignal): Promise<NetworkMap> {
-  const response = await getNetworkMap({}, { init: { signal } });
-  if (!response.ok) throw new Error(`API ${response.status}`);
-  return response.json();
+  return api.network.map(undefined, { signal });
 }
 
 /** 1, 2, 3, 3bis, 4… — numeric part first, suffix as tie-breaker. */

@@ -15,6 +15,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@orpc/contract": "1.15.0",
+    "@orpc/openapi": "1.15.0",
+    "@orpc/server": "1.15.0",
+    "@orpc/zod": "1.15.0",
+    "@via/contract": "workspace:*",
     "@via/db": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.1",
