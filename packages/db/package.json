@@ -1,0 +1,28 @@
+{
+  "name": "@via/db",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./package.json": "./package.json"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "generate": "bun --env-file=../../.env ./node_modules/.bin/drizzle-kit generate",
+    "migrate": "bun --env-file=../../.env ./node_modules/.bin/drizzle-kit migrate",
+    "studio": "bun --env-file=../../.env ./node_modules/.bin/drizzle-kit studio",
+    "seed": "bun --env-file=../../.env src/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "~6.0.3"
+  }
+}

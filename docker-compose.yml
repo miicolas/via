@@ -1,0 +1,31 @@
+services:
+  postgres:
+    # PostGIS 3.6 on PostgreSQL 18. The official `postgis/postgis` images are
+    # amd64-only; `imresamu/postgis` is the same upstream build published
+    # multi-arch, so it runs natively on Apple Silicon.
+    image: imresamu/postgis:18-3.6-alpine
+    container_name: via-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: via
+      POSTGRES_PASSWORD: via
+      POSTGRES_DB: via
+    ports:
+      # Override POSTGRES_PORT in .env if 5432 is already taken on your machine.
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      # PG18 keeps its data in /var/lib/postgresql/18/docker and declares the
+      # volume one level up — mount the parent, not PGDATA itself.
+      - via-pgdata:/var/lib/postgresql
+      # Mounted as a single file so it doesn't shadow the image's own
+      # /docker-entrypoint-initdb.d scripts (which enable PostGIS).
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/20-via-init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U via -d via']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  via-pgdata:

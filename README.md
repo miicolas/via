@@ -1,56 +1,74 @@
-# Welcome to your Expo app 👋
+# via
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Turborepo monorepo: an Expo app, a Hono API, and a PostGIS-backed Postgres.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+apps/
+  mobile/   Expo SDK 57 app (expo-router), was the repo root
+  api/      Hono on Bun
+packages/
+  db/       Drizzle schema + migrations (PostGIS)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Getting started
 
-### Other setup steps
+```bash
+bun install
+cp .env.example .env          # adjust ports if 5432/3000 are taken
+bun run db:up                 # Postgres 18 + PostGIS 3.6 in Docker
+bun run db:migrate
+bun run db:seed               # optional sample stops
+bun run dev                   # api + mobile via turbo
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Run one side only: `bun run dev:api` / `bun run dev:mobile`.
+Native builds: `bun run ios` / `bun run android`.
 
-## Learn more
+## Scripts
 
-To learn more about developing your project with Expo, look at the following resources:
+| Script | What it does |
+| --- | --- |
+| `bun run dev` | every package's `dev` task, in parallel |
+| `bun run build` | `expo export` for mobile |
+| `bun run typecheck` | `tsc --noEmit` across all packages |
+| `bun run db:up` / `db:down` / `db:reset` | Docker Postgres lifecycle (`db:reset` drops the volume) |
+| `bun run db:generate` | diff the schema into a new SQL migration |
+| `bun run db:migrate` | apply pending migrations |
+| `bun run db:seed` | insert sample stops |
+| `bun run db:studio` | Drizzle Studio |
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Database
 
-## Join the community
+`docker-compose.yml` runs `imresamu/postgis:18-3.6-alpine` — the official
+`postgis/postgis` images are amd64-only, this one is the same upstream build
+published multi-arch so it runs natively on Apple Silicon.
 
-Join our community of developers creating universal apps.
+The schema lives in `packages/db/src/schema.ts`. Geo columns use
+`pointWgs84` from `src/columns.ts` rather than drizzle's built-in `geometry()`:
+drizzle-orm 0.45 accepts an `srid` option but silently drops it, emitting
+`geometry(point)` and inserting SRID-0 values. `pointWgs84` pins
+`geometry(Point,4326)` in the DDL and wraps every insert in `ST_SetSRID`.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Because that hand-rolled type would confuse `drizzle-kit push` (which diffs
+against the live database), the workflow here is `generate` → `migrate` only.
+
+## API ↔ app
+
+`apps/api` exports its route table as `AppType`, and `apps/mobile/src/lib/api.ts`
+builds a typed client from it:
+
+```ts
+import { api } from '@/lib/api';
+
+const res = await api.api.stops.$get({ query: { lat: '48.85', lon: '2.35' } });
+const { stops } = await res.json();   // fully typed
+```
+
+Point `EXPO_PUBLIC_API_URL` at your machine's LAN IP when running on a physical
+device — `localhost` only resolves on the simulator and web.
+
+## Not wired up yet
+
+`apps/mobile` still has an `expo lint` script but ESLint isn't installed, so
+there's no `lint` task in `turbo.json`. Run `bunx expo lint` inside
+`apps/mobile` once to let Expo scaffold it, then add the task back.
