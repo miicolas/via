@@ -13,6 +13,8 @@ import {
 
 import { lineStringWgs84, pointWgs84 } from './columns';
 
+export * from './transit-mode';
+
 /**
  * Placeholder domain table — a transit stop with a PostGIS point.
  * SRID 4326 is WGS84, i.e. the lon/lat the device's GPS reports.

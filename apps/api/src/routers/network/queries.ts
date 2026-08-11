@@ -1,4 +1,5 @@
 import {
+  ROUTE_TYPE,
   db,
   transitRoutePatterns,
   transitRoutePatternStops,
@@ -6,8 +7,6 @@ import {
   transitStops,
 } from '@via/db';
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
-
-const METRO_ROUTE_TYPE = 1;
 
 export function selectMetroPatterns() {
   return db
@@ -22,7 +21,7 @@ export function selectMetroPatterns() {
     })
     .from(transitRoutePatterns)
     .innerJoin(transitRoutes, eq(transitRoutePatterns.routeId, transitRoutes.id))
-    .where(eq(transitRoutes.routeType, METRO_ROUTE_TYPE))
+    .where(eq(transitRoutes.routeType, ROUTE_TYPE.metro))
     .orderBy(asc(transitRoutes.shortName), asc(transitRoutePatterns.id));
 }
 
@@ -46,7 +45,7 @@ export function selectMetroStationPositions() {
     .innerJoin(transitStops, eq(transitRoutePatternStops.stopId, transitStops.id))
     .where(
       and(
-        eq(transitRoutes.routeType, METRO_ROUTE_TYPE),
+        eq(transitRoutes.routeType, ROUTE_TYPE.metro),
         isNotNull(transitRoutePatternStops.snappedLocation)
       )
     )

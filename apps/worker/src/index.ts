@@ -3,28 +3,39 @@ import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import {
+  ROUTE_TYPE,
   client,
   db,
+  isMode,
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
   transitStops,
   type LonLat,
+  type TransitMode,
 } from '@via/db';
 import { parse } from 'csv-parse';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
 
 type CsvRow = Record<string, string>;
-type RouteRow = CsvRow & {
-  route_id: string;
-  agency_id: string;
-  route_short_name: string;
-  route_long_name: string;
-  route_type: string;
-  route_color: string;
-  route_text_color: string;
+/**
+ * A route once its required fields have actually been checked.
+ *
+ * The previous shape was `row as RouteRow`, an unchecked cast that told the
+ * compiler validation had happened. `agency_id` is optional in GTFS, so a feed
+ * with a single agency produced a NOT NULL violation a hundred lines later,
+ * inside the transaction, far from the row that caused it.
+ */
+type ImportedRoute = {
+  id: string;
+  agencyId: string;
+  shortName: string;
+  longName: string;
+  routeType: number;
+  color: string;
+  textColor: string;
 };
 type SourceStop = {
   id: string;
@@ -33,7 +44,8 @@ type SourceStop = {
   location: LonLat;
 };
 
-const METRO_ROUTE_TYPE = '1';
+/** The mode this importer owns. Everything it deletes and inserts is scoped to it. */
+const IMPORTED_MODE = 'metro' satisfies TransitMode;
 
 async function* readCsv(path: string): AsyncGenerator<CsvRow> {
   const parser = createReadStream(path).pipe(
@@ -45,9 +57,16 @@ async function* readCsv(path: string): AsyncGenerator<CsvRow> {
   }
 }
 
-function required(row: CsvRow, key: string): string {
+/**
+ * The source file is part of the message on purpose: `stop_times.txt` runs to
+ * hundreds of thousands of rows, and "Missing stop_id in GTFS row" gives you
+ * nothing to grep for.
+ */
+function required(row: CsvRow, key: string, source: string): string {
   const value = row[key];
-  if (!value) throw new Error(`Missing ${key} in GTFS row`);
+  if (!value) {
+    throw new Error(`Missing ${key} in ${source}: ${JSON.stringify(row).slice(0, 160)}`);
+  }
   return value;
 }
 
@@ -56,19 +75,29 @@ async function importMetroNetwork(gtfsPath: string) {
     await access(join(gtfsPath, filename));
   }
 
-  const routes: RouteRow[] = [];
+  const routes: ImportedRoute[] = [];
   for await (const row of readCsv(join(gtfsPath, 'routes.txt'))) {
-    if (row.route_type === METRO_ROUTE_TYPE) routes.push(row as RouteRow);
+    if (!isMode(row.route_type, IMPORTED_MODE)) continue;
+    routes.push({
+      id: required(row, 'route_id', 'routes.txt'),
+      agencyId: required(row, 'agency_id', 'routes.txt'),
+      shortName: required(row, 'route_short_name', 'routes.txt'),
+      longName: required(row, 'route_long_name', 'routes.txt'),
+      routeType: Number(required(row, 'route_type', 'routes.txt')),
+      // Genuinely optional in GTFS — a line without a brand colour is legal.
+      color: row.route_color || '666666',
+      textColor: row.route_text_color || 'FFFFFF',
+    });
   }
-  if (routes.length === 0) throw new Error('No metro route was found in routes.txt');
+  if (routes.length === 0) throw new Error(`No ${IMPORTED_MODE} route was found in routes.txt`);
 
-  const routeIds = new Set(routes.map((route) => route.route_id));
+  const routeIds = new Set(routes.map((route) => route.id));
   const candidateByKey = new Map<string, PatternCandidate>();
   for await (const trip of readCsv(join(gtfsPath, 'trips.txt'))) {
     if (!routeIds.has(trip.route_id)) continue;
-    const directionId = Number(required(trip, 'direction_id'));
-    const shapeId = required(trip, 'shape_id');
-    const headsign = required(trip, 'trip_headsign');
+    const directionId = Number(required(trip, 'direction_id', 'trips.txt'));
+    const shapeId = required(trip, 'shape_id', 'trips.txt');
+    const headsign = required(trip, 'trip_headsign', 'trips.txt');
     const key = `${trip.route_id}\u0000${directionId}\u0000${shapeId}\u0000${headsign}`;
     const current = candidateByKey.get(key);
     if (current) {
@@ -79,7 +108,7 @@ async function importMetroNetwork(gtfsPath: string) {
         directionId,
         headsign,
         shapeId,
-        representativeTripId: required(trip, 'trip_id'),
+        representativeTripId: required(trip, 'trip_id', 'trips.txt'),
         tripCount: 1,
       });
     }
@@ -90,7 +119,7 @@ async function importMetroNetwork(gtfsPath: string) {
     (candidate) => candidate.routeId
   );
   const selections = routes.map((route) =>
-    selectPatterns(candidatesByRoute.get(route.route_id) ?? [], route.route_id)
+    selectPatterns(candidatesByRoute.get(route.id) ?? [], route.id)
   );
   const patterns = selections.flatMap((selection) => selection.patterns);
   // Shape ids are pattern primary keys, so one route can never claim another's.
@@ -103,9 +132,9 @@ async function importMetroNetwork(gtfsPath: string) {
     const coordinates = coordinatesByShape.get(point.shape_id);
     if (!coordinates) continue;
     coordinates.push({
-      lat: Number(required(point, 'shape_pt_lat')),
-      lon: Number(required(point, 'shape_pt_lon')),
-      sequence: Number(required(point, 'shape_pt_sequence')),
+      lat: Number(required(point, 'shape_pt_lat', 'shapes.txt')),
+      lon: Number(required(point, 'shape_pt_lon', 'shapes.txt')),
+      sequence: Number(required(point, 'shape_pt_sequence', 'shapes.txt')),
     });
   }
   for (const [shapeId, coordinates] of coordinatesByShape) {
@@ -118,9 +147,9 @@ async function importMetroNetwork(gtfsPath: string) {
     const lon = Number(stop.stop_lon);
     const lat = Number(stop.stop_lat);
     if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
-    sourceStops.set(required(stop, 'stop_id'), {
+    sourceStops.set(required(stop, 'stop_id', 'stops.txt'), {
       id: stop.stop_id,
-      name: required(stop, 'stop_name'),
+      name: required(stop, 'stop_name', 'stops.txt'),
       parentStation: stop.parent_station || undefined,
       location: { lon, lat },
     });
@@ -144,11 +173,11 @@ async function importMetroNetwork(gtfsPath: string) {
   for await (const stopTime of readCsv(join(gtfsPath, 'stop_times.txt'))) {
     const pattern = patternByTrip.get(stopTime.trip_id);
     if (!pattern) continue;
-    const { id, stop } = canonicalStopOf(required(stopTime, 'stop_id'));
+    const { id, stop } = canonicalStopOf(required(stopTime, 'stop_id', 'stop_times.txt'));
     canonicalStops.set(id, stop);
     stopsByShape.get(pattern.shapeId)!.push({
       stopId: id,
-      sequence: Number(required(stopTime, 'stop_sequence')),
+      sequence: Number(required(stopTime, 'stop_sequence', 'stop_times.txt')),
     });
   }
   // Two platforms of one station in a row collapse into a single call.
@@ -162,29 +191,44 @@ async function importMetroNetwork(gtfsPath: string) {
 
   const importedAt = new Date();
   await db.transaction(async (tx) => {
-    await tx.delete(transitRoutes);
-    await tx.delete(transitStops);
+    /**
+     * Scoped to the mode being imported. An unscoped `DELETE FROM transit_routes`
+     * reads as "start fresh" and is harmless while metro is all there is — but
+     * the day the bus network is imported, running the metro importer would wipe
+     * it. Patterns and pattern-stops follow through the cascade.
+     */
+    await tx.delete(transitRoutes).where(eq(transitRoutes.routeType, ROUTE_TYPE[IMPORTED_MODE]));
 
-    await tx.insert(transitRoutes).values(
-      routes.map((route) => ({
-        id: route.route_id,
-        agencyId: route.agency_id,
-        shortName: route.route_short_name,
-        longName: route.route_long_name,
-        routeType: Number(route.route_type),
-        color: route.route_color || '666666',
-        textColor: route.route_text_color || 'FFFFFF',
-        importedAt,
-      }))
-    );
+    /**
+     * Stops are shared across modes, so they cannot be scoped by mode — only by
+     * use. Whatever no pattern calls at any more is gone; whatever another mode
+     * still serves stays. This also replaces the old delete-everything, which
+     * only worked because metro was the sole mode.
+     */
+    await tx.execute(sql`
+      DELETE FROM ${transitStops}
+      WHERE id NOT IN (SELECT stop_id FROM ${transitRoutePatternStops})
+    `);
 
-    await tx.insert(transitStops).values(
-      [...canonicalStops].map(([id, stop]) => ({
-        id,
-        name: stop.name,
-        location: stop.location,
-      }))
-    );
+    await tx.insert(transitRoutes).values(routes.map((route) => ({ ...route, importedAt })));
+
+    /**
+     * Upsert rather than insert: a station this mode serves may also be served by
+     * another one, in which case the delete above rightly spared it.
+     */
+    await tx
+      .insert(transitStops)
+      .values(
+        [...canonicalStops].map(([id, stop]) => ({
+          id,
+          name: stop.name,
+          location: stop.location,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: transitStops.id,
+        set: { name: sql`excluded.name`, location: sql`excluded.location` },
+      });
 
     for (const pattern of patterns) {
       await tx.insert(transitRoutePatterns).values({
