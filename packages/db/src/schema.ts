@@ -8,7 +8,6 @@ import {
   primaryKey,
   text,
   timestamp,
-  uuid,
 } from 'drizzle-orm/pg-core';
 
 import { lineStringWgs84, pointWgs84 } from './columns';
@@ -22,29 +21,6 @@ import { lineStringWgs84, pointWgs84 } from './columns';
 export type { LonLat } from './columns';
 export * from './transit-mode';
 
-/**
- * Placeholder domain table — a transit stop with a PostGIS point.
- * SRID 4326 is WGS84, i.e. the lon/lat the device's GPS reports.
- */
-export const stops = pgTable(
-  'stops',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    name: text('name').notNull(),
-    location: pointWgs84('location').notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true })
-      .notNull()
-      .default(sql`now()`),
-  },
-  (table) => [
-    // GiST is what makes "stops near me" queries fast.
-    index('stops_location_idx').using('gist', table.location),
-  ]
-);
-
-export type Stop = typeof stops.$inferSelect;
-export type NewStop = typeof stops.$inferInsert;
-
 export const transitRoutes = pgTable(
   'transit_routes',
   {
@@ -55,6 +31,11 @@ export const transitRoutes = pgTable(
     routeType: integer('route_type').notNull(),
     color: text('color').notNull(),
     textColor: text('text_color').notNull(),
+    /**
+     * When this line was last imported. No code reads it — it is the answer to
+     * "is this network stale?", a question only a human asks, and the importer is
+     * the only thing that can answer it.
+     */
     importedAt: timestamp('imported_at', { withTimezone: true })
       .notNull()
       .default(sql`now()`),
@@ -76,6 +57,16 @@ export const transitRoutePatterns = pgTable(
       .references(() => transitRoutes.id, { onDelete: 'cascade' }),
     directionId: integer('direction_id').notNull(),
     headsign: text('headsign').notNull(),
+    /**
+     * How this branch fared, and whether it won.
+     *
+     * Neither column has an application reader, and both are kept on purpose:
+     * they are the *outputs* of the editorial policy in
+     * `apps/worker/src/pattern-selection.ts`, which decides from `tripCount`
+     * which branches of a line are real enough to draw. Without them the
+     * database cannot answer "why is this branch on the map and that one not?",
+     * and re-deriving the answer costs a full GTFS re-import.
+     */
     tripCount: integer('trip_count').notNull(),
     isCanonical: boolean('is_canonical').notNull().default(false),
     geometry: lineStringWgs84('geometry').notNull(),
@@ -120,6 +111,8 @@ export const transitRoutePatternStops = pgTable(
      * the INSERT, and a Postgres generated column may not reference another table.
      * The importer fills both in the same transaction; readers filter on NOT NULL,
      * which also protects them from an interrupted import.
+     *
+     * The rule that writes and reads them lives in `@via/db/projection`.
      */
     snappedLocation: pointWgs84('snapped_location'),
     snapDistanceM: doublePrecision('snap_distance_m'),

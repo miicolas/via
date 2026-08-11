@@ -20,7 +20,6 @@ bun install
 cp .env.example .env          # adjust ports if 5432/3000 are taken
 bun run db:up                 # Postgres 18 + PostGIS 3.6 in Docker
 bun run db:migrate
-bun run db:seed               # optional sample stops
 bun run dev                   # api + mobile via turbo
 ```
 
@@ -39,7 +38,6 @@ Native builds: `bun run ios` / `bun run android`.
 | `bun run db:up` / `db:down` / `db:reset` | Docker Postgres lifecycle (`db:reset` drops the volume) |
 | `bun run db:generate` | diff the schema into a new SQL migration |
 | `bun run db:migrate` | apply pending migrations |
-| `bun run db:seed` | insert sample stops |
 | `bun run db:studio` | Drizzle Studio |
 
 ## Database

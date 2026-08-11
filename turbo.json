@@ -1,20 +1,37 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
-  "globalEnv": ["NODE_ENV"],
-  "globalDependencies": [".env", ".env.example"],
+  "globalEnv": [
+    "NODE_ENV"
+  ],
+  "globalDependencies": [
+    ".env",
+    ".env.example"
+  ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "env": ["EXPO_PUBLIC_API_URL"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "EXPO_PUBLIC_API_URL"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": [
+        "^typecheck"
+      ]
     },
     "test": {
-      "dependsOn": ["^test"],
-      "env": ["DATABASE_URL"]
+      "dependsOn": [
+        "^test"
+      ],
+      "env": [
+        "DATABASE_URL"
+      ]
     },
     "dev": {
       "persistent": true,
@@ -30,20 +47,22 @@
     },
     "generate": {
       "cache": false,
-      "env": ["DATABASE_URL"]
+      "env": [
+        "DATABASE_URL"
+      ]
     },
     "migrate": {
       "cache": false,
-      "env": ["DATABASE_URL"]
-    },
-    "seed": {
-      "cache": false,
-      "env": ["DATABASE_URL"]
+      "env": [
+        "DATABASE_URL"
+      ]
     },
     "studio": {
       "cache": false,
       "persistent": true,
-      "env": ["DATABASE_URL"]
+      "env": [
+        "DATABASE_URL"
+      ]
     }
   }
 }

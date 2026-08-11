@@ -22,7 +22,6 @@
     "db:reset": "docker compose down -v && docker compose up -d --wait",
     "db:generate": "turbo run generate --filter=@via/db",
     "db:migrate": "turbo run migrate --filter=@via/db",
-    "db:seed": "turbo run seed --filter=@via/db",
     "db:studio": "turbo run studio --filter=@via/db",
     "gtfs:import:metro": "bun --env-file=.env apps/worker/src/index.ts",
     "check:transit-alignment": "bun --env-file=.env scripts/check-transit-map-alignment.ts"
