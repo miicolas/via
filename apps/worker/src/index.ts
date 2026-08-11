@@ -2,10 +2,9 @@ import { createReadStream } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { client, db } from '@via/db';
 import {
   ROUTE_TYPE,
-  client,
-  db,
   isMode,
   transitRoutePatterns,
   transitRoutePatternStops,
@@ -13,7 +12,7 @@ import {
   transitStops,
   type LonLat,
   type TransitMode,
-} from '@via/db';
+} from '@via/db/schema';
 import { parse } from 'csv-parse';
 import { eq, sql } from 'drizzle-orm';
 

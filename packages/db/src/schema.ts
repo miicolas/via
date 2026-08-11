@@ -13,6 +13,13 @@ import {
 
 import { lineStringWgs84, pointWgs84 } from './columns';
 
+/**
+ * This module is the side-effect-free half of the package: table definitions and
+ * the facts about them, reachable without opening a connection. `@via/db` itself
+ * builds the pool at import time, so anything that only needs a shape should
+ * come from here.
+ */
+export type { LonLat } from './columns';
 export * from './transit-mode';
 
 /**

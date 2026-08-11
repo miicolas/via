@@ -1,11 +1,11 @@
+import { db } from '@via/db';
 import {
   ROUTE_TYPE,
-  db,
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
   transitStops,
-} from '@via/db';
+} from '@via/db/schema';
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 
 export function selectMetroPatterns() {
