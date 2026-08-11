@@ -6,6 +6,7 @@ import {
   transitRoutes,
   transitStops,
 } from '@via/db/schema';
+import { nearestSnappedPoint } from '@via/db/projection';
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 
 export function selectMetroPatterns() {
@@ -26,7 +27,7 @@ export function selectMetroPatterns() {
 }
 
 export function selectMetroStationPositions() {
-  const closestSnappedPoint = sql`(array_agg(${transitRoutePatternStops.snappedLocation} ORDER BY ST_Distance(${transitRoutePatternStops.snappedLocation}, ${transitStops.location})))[1]`;
+  const closestSnappedPoint = nearestSnappedPoint();
 
   return db
     .select({

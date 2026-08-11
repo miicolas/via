@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./schema": "./src/schema.ts",
+    "./projection": "./src/stop-projection.ts",
     "./package.json": "./package.json"
   },
   "types": "./src/index.ts",
