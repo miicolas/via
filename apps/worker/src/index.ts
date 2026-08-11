@@ -12,6 +12,7 @@ import {
   type LonLat,
 } from '@via/db';
 import { parse } from 'csv-parse';
+import { sql } from 'drizzle-orm';
 
 type CsvRow = Record<string, string>;
 type RouteRow = CsvRow & {
@@ -249,6 +250,25 @@ async function importMetroNetwork(gtfsPath: string) {
         }))
       );
     }
+
+    /**
+     * Project every stop onto the track of the pattern that serves it.
+     *
+     * This is the one thing the map needs that GTFS does not provide: stops are
+     * recorded at their street entrance, so drawn as-is they float beside the
+     * line instead of sitting on it. The API used to compute the projection on
+     * every request; it only ever changes here, so it is computed here.
+     *
+     * A single UPDATE rather than a value on INSERT because it depends on a join,
+     * which neither an INSERT nor a Postgres generated column can express.
+     */
+    await tx.execute(sql`
+      UPDATE ${transitRoutePatternStops} AS prs
+      SET snapped_location = ST_ClosestPoint(p.geometry, s.location),
+          snap_distance_m  = ST_Distance(p.geometry::geography, s.location::geography)
+      FROM ${transitRoutePatterns} AS p, ${transitStops} AS s
+      WHERE prs.pattern_id = p.id AND prs.stop_id = s.id
+    `);
   });
 
   const routesByStop = new Map<string, Set<string>>();

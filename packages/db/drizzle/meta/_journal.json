@@ -15,6 +15,13 @@
       "when": 1786456346561,
       "tag": "0001_spooky_true_believers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786464472821,
+      "tag": "0002_unique_tenebrous",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   pgTable,
@@ -35,18 +36,27 @@ export const stops = pgTable(
 export type Stop = typeof stops.$inferSelect;
 export type NewStop = typeof stops.$inferInsert;
 
-export const transitRoutes = pgTable('transit_routes', {
-  id: text('id').primaryKey(),
-  agencyId: text('agency_id').notNull(),
-  shortName: text('short_name').notNull(),
-  longName: text('long_name').notNull(),
-  routeType: integer('route_type').notNull(),
-  color: text('color').notNull(),
-  textColor: text('text_color').notNull(),
-  importedAt: timestamp('imported_at', { withTimezone: true })
-    .notNull()
-    .default(sql`now()`),
-});
+export const transitRoutes = pgTable(
+  'transit_routes',
+  {
+    id: text('id').primaryKey(),
+    agencyId: text('agency_id').notNull(),
+    shortName: text('short_name').notNull(),
+    longName: text('long_name').notNull(),
+    routeType: integer('route_type').notNull(),
+    color: text('color').notNull(),
+    textColor: text('text_color').notNull(),
+    importedAt: timestamp('imported_at', { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  },
+  (table) => [
+    // Every network query filters on the mode. Irrelevant while only the 16
+    // metro lines are imported; decisive once the full IDFM feed lands, where
+    // metro is a rounding error next to the bus routes.
+    index('transit_routes_route_type_idx').on(table.routeType),
+  ]
+);
 
 export const transitRoutePatterns = pgTable(
   'transit_route_patterns',
@@ -87,6 +97,23 @@ export const transitRoutePatternStops = pgTable(
       .notNull()
       .references(() => transitStops.id, { onDelete: 'restrict' }),
     stopSequence: integer('stop_sequence').notNull(),
+    /**
+     * The stop projected onto this pattern's track, and how far it had to move.
+     *
+     * GTFS records a station at its street entrance, tens of metres off the
+     * alignment, so the map has to snap it onto the line. That projection only
+     * changes when a GTFS import runs, yet it used to be recomputed by PostGIS on
+     * every single request — `ST_ClosestPoint(ST_Collect(...))` over every pattern
+     * of a route, for every station. Storing it turns the read path into a plain
+     * indexed join.
+     *
+     * Nullable because the value depends on a join, so it cannot be computed in
+     * the INSERT, and a Postgres generated column may not reference another table.
+     * The importer fills both in the same transaction; readers filter on NOT NULL,
+     * which also protects them from an interrupted import.
+     */
+    snappedLocation: pointWgs84('snapped_location'),
+    snapDistanceM: doublePrecision('snap_distance_m'),
   },
   (table) => [
     primaryKey({ columns: [table.patternId, table.stopSequence] }),
