@@ -12,6 +12,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { requestId } from 'hono/request-id';
 
+import { toCoordinates } from './geo/coordinates';
 import type { AppEnv } from './http/app-env';
 import { onError } from './http/error-handler';
 import { notFound } from './http/not-found';
@@ -118,9 +119,7 @@ const routes = app
         textColor: `#${route.textColor}`,
         segments: rows.map((row) => ({
           id: row.patternId,
-          coordinates: (
-            JSON.parse(row.geometry) as { coordinates: [number, number][] }
-          ).coordinates.map(([longitude, latitude]) => ({ latitude, longitude })),
+          coordinates: toCoordinates(row.geometry),
         })),
       };
     });
@@ -196,11 +195,6 @@ const routes = app
       .where(eq(transitRoutePatternStops.patternId, pattern.id))
       .orderBy(asc(transitRoutePatternStops.stopSequence));
 
-    const geoJson = JSON.parse(pattern.geometry) as {
-      type: 'LineString';
-      coordinates: [number, number][];
-    };
-
     return c.json({
       route: {
         id: route.id,
@@ -213,10 +207,7 @@ const routes = app
         id: pattern.id,
         directionId: pattern.directionId,
         headsign: pattern.headsign,
-        coordinates: geoJson.coordinates.map(([longitude, latitude]) => ({
-          latitude,
-          longitude,
-        })),
+        coordinates: toCoordinates(pattern.geometry),
       },
       stations: stationRows.map((station) => ({
         id: station.id,
