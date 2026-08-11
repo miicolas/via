@@ -1,5 +1,5 @@
 import type { NetworkRoute } from '@via/contract';
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
+import { useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { Animated, StyleSheet } from 'react-native';
 import MapView, { type EdgePadding, type Region } from 'react-native-maps';
 
@@ -18,7 +18,13 @@ const STATION_FADE_OUT_DELTA = 0.14;
 const STATION_FADE_IN_DELTA = 0.06;
 
 export type MetroMapHandle = {
-  fitSelectedRoute: (animated?: boolean) => void;
+  /**
+   * Frames a line's full extent. The caller decides *when*; this only knows how.
+   * It takes the route rather than the `LineView` because framing needs the
+   * track and nothing else — passing the whole view would invite handing it one
+   * line's stations with another line's geometry.
+   */
+  fitToRoute: (route: NetworkRoute, options?: { animated?: boolean }) => void;
 };
 
 type MetroMapProps = {
@@ -26,37 +32,38 @@ type MetroMapProps = {
   lines: NetworkRoute[];
   /** The line in focus, with its stations. Absent until the network has loaded. */
   line: LineView | undefined;
-  /** Room the caller's overlay needs around the fitted line. */
+  /** Room the caller's overlay needs around a fitted line. */
   edgePadding: EdgePadding;
+  /** Fires once the native map can accept a camera command. */
+  onReady: () => void;
   ref?: Ref<MetroMapHandle>;
 };
 
-export function MetroMap({ lines, line, edgePadding, ref }: MetroMapProps) {
+/**
+ * Draws the network and moves the camera when told to.
+ *
+ * It deliberately does not decide *when* to frame a line. That used to live here
+ * as an effect plus a `lastFittedRouteId` sentinel, whose only job was to work
+ * out whether a render meant "the user picked a new line" — a question the screen
+ * can answer for free, because the screen is what handles the tap. One action now
+ * has one trigger path, and reading the screen tells you that touching a line
+ * moves the camera.
+ */
+export function MetroMap({ lines, line, edgePadding, onReady, ref }: MetroMapProps) {
   const mapRef = useRef<MapView>(null);
-  const lastFittedRouteId = useRef<string | undefined>(undefined);
   const [stationOpacity] = useState(() => new Animated.Value(0));
-  const [mapReady, setMapReady] = useState(false);
 
-  const fitSelectedRoute = useCallback(
-    (animated = true) => {
-      if (!line) return;
-      const bounds = routeBounds(line.route);
-      if (bounds.length === 0) return;
-      mapRef.current?.fitToCoordinates(bounds, { animated, edgePadding });
-    },
-    [edgePadding, line]
+  useImperativeHandle(
+    ref,
+    () => ({
+      fitToRoute(route, { animated = true } = {}) {
+        const bounds = routeBounds(route);
+        if (bounds.length === 0) return;
+        mapRef.current?.fitToCoordinates(bounds, { animated, edgePadding });
+      },
+    }),
+    [edgePadding]
   );
-
-  useImperativeHandle(ref, () => ({ fitSelectedRoute }), [fitSelectedRoute]);
-
-  // Frame the line on first render and whenever the selection changes, never twice for the same one.
-  useEffect(() => {
-    if (!mapReady || !line) return;
-    if (lastFittedRouteId.current === line.route.id) return;
-    const animated = lastFittedRouteId.current !== undefined;
-    lastFittedRouteId.current = line.route.id;
-    requestAnimationFrame(() => fitSelectedRoute(animated));
-  }, [fitSelectedRoute, mapReady, line]);
 
   return (
     <MapView
@@ -75,7 +82,7 @@ export function MetroMap({ lines, line, edgePadding, ref }: MetroMapProps) {
       showsPointsOfInterests={false}
       showsTraffic={false}
       showsUserLocation={false}
-      onMapReady={() => setMapReady(true)}
+      onMapReady={onReady}
       onRegionChange={(region) => stationOpacity.setValue(fadeProgress(region.longitudeDelta))}
     >
       <RouteLines routes={lines} selectedRoute={line?.route} />
