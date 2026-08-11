@@ -6,7 +6,10 @@ import { requestId } from 'hono/request-id';
 import type { AppEnv } from './http/app-env';
 import { onError } from './http/error-handler';
 import { notFound } from './http/not-found';
+import type { FetchHandler } from '@orpc/server/fetch';
+
 import { openApiHandler, rpcHandler } from './orpc/handler';
+import type { ApiContext } from './orpc/implementer';
 import { getOpenApiDocument } from './orpc/openapi';
 
 const app = new Hono<AppEnv>();
@@ -27,7 +30,7 @@ app.get('/api/openapi.json', async (c) => c.json(await getOpenApiDocument()));
  * `matched: false` means no procedure claimed the path, so the request falls
  * through to Hono's `notFound` rather than being swallowed here.
  */
-function mount(handler: typeof openApiHandler | typeof rpcHandler, prefix: '/api' | '/rpc') {
+function mount(handler: FetchHandler<ApiContext>, prefix: '/api' | '/rpc') {
   return async (c: Context<AppEnv>, next: Next) => {
     const { matched, response } = await handler.handle(c.req.raw, { prefix, context: {} });
 

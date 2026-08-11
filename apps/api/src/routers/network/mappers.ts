@@ -13,7 +13,6 @@ export function toNetworkMap(
   };
 }
 
-/** One row per pattern, so a route's rows collapse into its segments. */
 function toRoutes(rows: MetroPatternRow[]): NetworkRoute[] {
   return [...Map.groupBy(rows, (row) => row.routeId).values()].map((routeRows) => {
     const [route] = routeRows;
@@ -22,7 +21,6 @@ function toRoutes(rows: MetroPatternRow[]): NetworkRoute[] {
       id: route.routeId,
       shortName: route.shortName,
       longName: route.longName,
-      // GTFS stores colours bare ("FFCD00"); the client wants them CSS-ready.
       color: `#${route.color}`,
       textColor: `#${route.textColor}`,
       segments: routeRows.map((row) => ({
@@ -33,7 +31,6 @@ function toRoutes(rows: MetroPatternRow[]): NetworkRoute[] {
   });
 }
 
-/** One row per (station, route), so a station's rows are the lines it serves. */
 function toStations(rows: MetroStationPositionRow[]): NetworkStation[] {
   return [...Map.groupBy(rows, (row) => row.id).values()].map((stationRows) => {
     const [station] = stationRows;
@@ -42,8 +39,6 @@ function toStations(rows: MetroStationPositionRow[]): NetworkStation[] {
       id: station.id,
       name: station.name,
       routeIds: stationRows.map((row) => row.routeId),
-      // PostGIS aggregates come back as strings on some driver paths, and the
-      // wire contract promises numbers.
       positions: Object.fromEntries(
         stationRows.map((row) => [
           row.routeId,

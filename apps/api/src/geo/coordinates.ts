@@ -1,5 +1,11 @@
-/** A WGS84 position in the shape the map client consumes. */
-export type Coordinate = {
+/**
+ * A WGS84 position in the shape map clients consume.
+ *
+ * Declared here rather than imported from `@via/contract` on purpose: this module
+ * is a geometry primitive and must not depend on the API's wire contract. That
+ * the two coincide is checked where it matters, in the mapper.
+ */
+type Coordinate = {
   latitude: number;
   longitude: number;
 };

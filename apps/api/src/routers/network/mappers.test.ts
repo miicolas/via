@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import * as z from 'zod';
+import { networkMapSchema } from '@via/contract';
 
 import { toNetworkMap } from './mappers';
 import type { MetroPatternRow, MetroStationPositionRow } from './queries';
@@ -134,34 +134,22 @@ describe('toNetworkMap', () => {
   });
 
   /**
-   * The shape the app compiles against. This runs only in tests, so it costs
-   * nothing per request — but it fails loudly if the DTO ever drifts.
+   * The real contract, not a copy of it. Asserting against a hand-written
+   * duplicate would let the two drift and still pass, which is the failure this
+   * test exists to prevent.
    */
   test('matches the wire contract', () => {
-    const coordinate = z.object({ latitude: z.number(), longitude: z.number() });
-
-    const networkMapSchema = z.object({
-      routes: z.array(
-        z.object({
-          id: z.string(),
-          shortName: z.string(),
-          longName: z.string(),
-          color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-          textColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-          segments: z.array(z.object({ id: z.string(), coordinates: z.array(coordinate) })),
-        })
-      ),
-      stations: z.array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          routeIds: z.array(z.string()),
-          positions: z.record(z.string(), coordinate),
-        })
-      ),
-    });
-
     expect(() => networkMapSchema.parse(toNetworkMap(patternRows, stationRows))).not.toThrow();
+  });
+
+  /** The `#` prefix is the mapper's job — GTFS stores colours bare. */
+  test('emits CSS colours the contract alone would not catch', () => {
+    const { routes } = toNetworkMap(patternRows, stationRows);
+
+    for (const route of routes) {
+      expect(route.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
+      expect(route.textColor).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    }
   });
 
   test('returns empty collections rather than throwing on an empty network', () => {

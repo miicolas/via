@@ -10,7 +10,6 @@ import * as z from 'zod';
  */
 const envSchema = z.object({
   PORT: z.string().default('3000').transform(Number).pipe(z.number().int().min(1).max(65_535)),
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -35,7 +35,6 @@
         "@expo/ui": "~57.0.10",
         "@orpc/client": "1.15.0",
         "@orpc/contract": "1.15.0",
-        "@orpc/openapi": "1.15.0",
         "@via/contract": "workspace:*",
         "expo": "~57.0.12",
         "expo-constants": "~57.0.10",
