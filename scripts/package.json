@@ -1,0 +1,17 @@
+{
+  "name": "@via/scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@via/api": "workspace:*",
+    "hono": "^4.13.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "~6.0.3"
+  }
+}

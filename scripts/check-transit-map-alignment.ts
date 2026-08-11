@@ -1,24 +1,25 @@
-type Coordinate = { latitude: number; longitude: number };
+import type { AppType } from '@via/api';
+import { hc, type InferResponseType } from 'hono/client';
 
-type NetworkMap = {
-  routes: Array<{
-    id: string;
-    shortName: string;
-    segments: Array<{ coordinates: Coordinate[] }>;
-  }>;
-  stations: Array<{
-    id: string;
-    name: string;
-    routeIds: string[];
-    positions: Record<string, Coordinate>;
-  }>;
-};
+/**
+ * Types come from the API's route table rather than a hand-written copy: this
+ * used to redeclare the payload and cast to it, so a change to the endpoint
+ * broke the check silently instead of failing the typecheck.
+ */
+type NetworkMap = InferResponseType<ReturnType<typeof hc<AppType>>['api']['network']['map']['$get'], 200>;
+type Coordinate = NetworkMap['stations'][number]['positions'][string];
 
-const apiUrl = process.env.API_URL ?? 'http://localhost:3010';
-const response = await fetch(`${apiUrl}/api/network/map`);
+/**
+ * Follows the API's own `PORT` — the root script loads `.env`, so this points at
+ * whatever the server is actually listening on instead of a hardcoded guess.
+ */
+const apiUrl = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+
+const api = hc<AppType>(apiUrl);
+const response = await api.api.network.map.$get();
 if (!response.ok) throw new Error(`Map API returned ${response.status}`);
 
-const network = (await response.json()) as NetworkMap;
+const network = await response.json();
 const routesById = new Map(network.routes.map((route) => [route.id, route]));
 
 function distanceToSegment(point: Coordinate, start: Coordinate, end: Coordinate) {
