@@ -10,6 +10,8 @@ import * as z from 'zod';
  */
 const envSchema = z.object({
   PORT: z.string().default('3000').transform(Number).pipe(z.number().int().min(1).max(65_535)),
+  /** The Géoplateforme (BAN) geocoder. Overridable to point tests at a fake. */
+  BAN_SEARCH_URL: z.url().default('https://data.geopf.fr/geocodage/search'),
 });
 
 const parsed = envSchema.safeParse(process.env);

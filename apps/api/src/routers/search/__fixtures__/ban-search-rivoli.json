@@ -1,0 +1,97 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    2.35995,
+                    48.855602
+                ]
+            },
+            "properties": {
+                "label": "12 Rue de Rivoli 75004 Paris",
+                "score": 0.9725847516299502,
+                "housenumber": "12",
+                "id": "75104_8249_00012",
+                "banId": "524ec8d9-cfa2-48ee-a284-5a2a46a4156b",
+                "name": "12 Rue de Rivoli",
+                "postcode": "75004",
+                "citycode": "75104",
+                "x": 653036.75,
+                "y": 6861919.65,
+                "city": "Paris",
+                "district": "Paris 4e Arrondissement",
+                "context": "75, Paris, \u00cele-de-France",
+                "type": "housenumber",
+                "importance": 0.67174,
+                "depcode": "75",
+                "street": "Rue de Rivoli",
+                "distance": 1344,
+                "_type": "address"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    2.315099,
+                    48.664739
+                ]
+            },
+            "properties": {
+                "label": "12 Rue de Rivoli 91360 \u00c9pinay-sur-Orge",
+                "score": 0.945457399914431,
+                "housenumber": "12",
+                "id": "91216_1740_00012",
+                "banId": "96371fce-6242-451d-953e-995a358d7bba",
+                "name": "12 Rue de Rivoli",
+                "postcode": "91360",
+                "citycode": "91216",
+                "x": 649561.85,
+                "y": 6840726.85,
+                "city": "\u00c9pinay-sur-Orge",
+                "context": "91, Essonne, \u00cele-de-France",
+                "type": "housenumber",
+                "importance": 0.53333,
+                "depcode": "91",
+                "street": "Rue de Rivoli",
+                "distance": 22806,
+                "_type": "address"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    1.986609,
+                    48.833127
+                ]
+            },
+            "properties": {
+                "label": "12 Rue de Rivoli 78450 Villepreux",
+                "score": 0.9430609965125586,
+                "housenumber": "12",
+                "id": "78674_0676_00012",
+                "banId": "1687ecc6-3596-45cd-b558-4c6f218fc45d",
+                "name": "12 Rue de Rivoli",
+                "postcode": "78450",
+                "citycode": "78674",
+                "x": 625612.25,
+                "y": 6859707.58,
+                "city": "Villepreux",
+                "context": "78, Yvelines, \u00cele-de-France",
+                "type": "housenumber",
+                "importance": 0.58279,
+                "depcode": "78",
+                "street": "Rue de Rivoli",
+                "distance": 27808,
+                "_type": "address"
+            }
+        }
+    ],
+    "query": "12 rue de rivoli"
+}

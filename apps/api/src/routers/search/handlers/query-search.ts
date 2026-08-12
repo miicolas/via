@@ -1,5 +1,8 @@
 import { implementer } from '../../../orpc/implementer';
+import { searchBan } from '../ban-client';
+import { toAddressResults } from '../ban-mappers';
 import { toStationResults } from '../mappers';
+import { mergeSearchResults } from '../merge';
 import { selectMatchingStations } from '../queries';
 
 /**
@@ -9,21 +12,31 @@ import { selectMatchingStations } from '../queries';
  */
 const SEARCH_CACHE_CONTROL = 'private, max-age=30';
 
-/** Stations fetched per query, before merging with addresses. */
+/** Per-source fetch sizes, before the merge truncates to `input.limit`. */
 const STATION_LIMIT = 5;
+const ADDRESS_LIMIT = 5;
 
-export const querySearch = implementer.search.query.handler(async ({ input, context }) => {
-  const origin =
-    input.latitude !== undefined && input.longitude !== undefined
-      ? { latitude: input.latitude, longitude: input.longitude }
-      : undefined;
+export const querySearch = implementer.search.query.handler(
+  async ({ input, context, signal }) => {
+    const origin =
+      input.latitude !== undefined && input.longitude !== undefined
+        ? { latitude: input.latitude, longitude: input.longitude }
+        : undefined;
 
-  const stationRows = await selectMatchingStations(input.q, STATION_LIMIT, origin);
+    const [stationRows, banFeatures] = await Promise.all([
+      selectMatchingStations(input.q, STATION_LIMIT, origin),
+      searchBan(input.q, { limit: ADDRESS_LIMIT, origin, signal }),
+    ]);
 
-  context.resHeaders?.set('Cache-Control', SEARCH_CACHE_CONTROL);
+    context.resHeaders?.set('Cache-Control', SEARCH_CACHE_CONTROL);
 
-  return {
-    results: toStationResults(stationRows).slice(0, input.limit),
-    sources: { ban: 'unavailable' as const },
-  };
-});
+    return {
+      results: mergeSearchResults(
+        toStationResults(stationRows),
+        toAddressResults(banFeatures ?? []),
+        { q: input.q, limit: input.limit, origin }
+      ),
+      sources: { ban: banFeatures === null ? ('unavailable' as const) : ('ok' as const) },
+    };
+  }
+);
