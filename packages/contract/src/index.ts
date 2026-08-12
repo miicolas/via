@@ -1,18 +1,12 @@
 import { oc } from '@orpc/contract';
 
-import { healthSchema, networkMapSchema } from './schemas';
+import {
+  healthSchema,
+  networkMapSchema,
+  searchInputSchema,
+  searchResponseSchema,
+} from './schemas';
 
-/**
- * The API contract: paths, methods and payload shapes, with no server code
- * behind them and no client code in front.
- *
- * This is the seam that replaced `hc<AppType>`. Under that scheme the app got its
- * types by compiling the API's *source*, which dragged drizzle, PostGIS SQL
- * templates and the whole database layer into the mobile typecheck. Here both
- * sides depend on this package instead, and on nothing of each other's.
- *
- * The paths are the ones the app already called, so the wire is unchanged.
- */
 
 const health = oc
   .route({
@@ -35,10 +29,26 @@ const networkMap = oc
   })
   .output(networkMapSchema);
 
+const searchQuery = oc
+  .route({
+    method: 'GET',
+    path: '/search',
+    summary: 'Recherche unifiée',
+    description:
+      'Stations de métro et adresses françaises (géocodage BAN) en une seule liste classée. ' +
+      'Avec une position, chaque résultat porte sa distance en mètres.',
+    tags: ['search'],
+  })
+  .input(searchInputSchema)
+  .output(searchResponseSchema);
+
 export const contract = {
   health,
   network: {
     map: networkMap,
+  },
+  search: {
+    query: searchQuery,
   },
 };
 

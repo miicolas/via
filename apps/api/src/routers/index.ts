@@ -1,6 +1,7 @@
 import { implementer } from '../orpc/implementer';
 import { healthRouter } from './health/router';
 import { networkRouter } from './network/router';
+import { searchRouter } from './search/router';
 
 /**
  * The implemented contract. `implementer.router` is the assertion that every
@@ -14,4 +15,5 @@ import { networkRouter } from './network/router';
 export const apiRouter = implementer.router({
   health: healthRouter,
   network: networkRouter,
+  search: searchRouter,
 });

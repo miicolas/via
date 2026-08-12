@@ -1,6 +1,7 @@
 import { OpenAPIHandler } from '@orpc/openapi/fetch';
 import { RPCHandler } from '@orpc/server/fetch';
 import { ResponseHeadersPlugin } from '@orpc/server/plugins';
+import { experimental_ZodSmartCoercionPlugin as ZodSmartCoercionPlugin } from '@orpc/zod/zod4';
 
 import { apiRouter } from '../routers';
 
@@ -18,7 +19,14 @@ const plugins = () => [new ResponseHeadersPlugin()];
  * OpenAPI document describes, what `check:transit-alignment` calls, and what any
  * consumer that is not this repo's app would reach for.
  */
-export const openApiHandler = new OpenAPIHandler(apiRouter, { plugins: plugins() });
+/**
+ * REST query strings arrive as strings — `?latitude=48.86` would fail a
+ * `z.number()` without the coercion plugin. `/rpc` doesn't need it: the oRPC
+ * protocol carries JSON types natively.
+ */
+export const openApiHandler = new OpenAPIHandler(apiRouter, {
+  plugins: [...plugins(), new ZodSmartCoercionPlugin()],
+});
 
 /**
  * `/rpc` speaks oRPC's own protocol, which is what `createORPCClient` in the app
