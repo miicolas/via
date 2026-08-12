@@ -24,5 +24,10 @@ test('the public route table is stable', async () => {
     )
     .sort();
 
-  expect(routes).toEqual(['GET /api/health', 'GET /api/network/map', 'GET /api/search']);
+  expect(routes).toEqual([
+    'GET /api/departures',
+    'GET /api/health',
+    'GET /api/network/map',
+    'GET /api/search',
+  ]);
 });

@@ -79,11 +79,62 @@ describe('toNetworkMap', () => {
     expect(lineOne.id).toBe('IDFM:C01371');
     expect(lineOne.shortName).toBe('1');
     expect(lineOne.destinations).toEqual(['La Défense', 'Château de Vincennes']);
-    expect(lineOne.segments.map((segment) => segment.id)).toEqual(['shape-1-a', 'shape-1-b']);
+    expect(lineOne.segments.map((segment) => segment.id)).toEqual(['shape-1-a#0', 'shape-1-b#0']);
     expect(lineOne.segments[0].coordinates).toEqual([
       { latitude: 48.8606, longitude: 2.3364 },
       { latitude: 48.8566, longitude: 2.3522 },
     ]);
+  });
+
+  /**
+   * The query subtracts the track earlier patterns already draw, so a return
+   * pattern usually comes back empty: no stroke to draw twice, but its headsign
+   * is still one of the line's destinations.
+   */
+  test('keeps the destination of a pattern whose track fully deduplicated', () => {
+    const returnPattern: MetroPatternRow = {
+      ...patternRows[0],
+      patternId: 'shape-1-return',
+      headsign: 'Pont de Neuilly',
+      geometry: '{"type":"GeometryCollection","geometries":[]}',
+    };
+
+    const { routes } = toNetworkMap([...patternRows, returnPattern], stationRows);
+    const [lineOne] = routes;
+
+    expect(lineOne.destinations).toContain('Pont de Neuilly');
+    expect(lineOne.segments.map((segment) => segment.id)).toEqual(['shape-1-a#0', 'shape-1-b#0']);
+  });
+
+  /** A loop or branch survives the subtraction as two runs either side of the trunk. */
+  test('splits a cut pattern into one segment per remaining run of track', () => {
+    const cutPattern: MetroPatternRow = {
+      ...patternRows[0],
+      patternId: 'shape-1-loop',
+      geometry:
+        '{"type":"MultiLineString","coordinates":[[[2.3364,48.8606],[2.3522,48.8566]],[[2.3600,48.8600],[2.3700,48.8650]]]}',
+    };
+
+    const { routes } = toNetworkMap([cutPattern], stationRows);
+
+    expect(routes[0].segments.map((segment) => segment.id)).toEqual([
+      'shape-1-loop#0',
+      'shape-1-loop#1',
+    ]);
+  });
+
+  /** ~20 m of leftover track is subtraction confetti, not a branch. */
+  test('discards slivers left over by the subtraction', () => {
+    const withSliver: MetroPatternRow = {
+      ...patternRows[0],
+      patternId: 'shape-1-sliver',
+      geometry:
+        '{"type":"MultiLineString","coordinates":[[[2.3364,48.8606],[2.3522,48.8566]],[[2.3600,48.8600],[2.36027,48.8600]]]}',
+    };
+
+    const { routes } = toNetworkMap([withSliver], stationRows);
+
+    expect(routes[0].segments.map((segment) => segment.id)).toEqual(['shape-1-sliver#0']);
   });
 
   test('makes GTFS colours CSS-ready', () => {

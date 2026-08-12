@@ -1,52 +1,20 @@
-import { memo, useMemo } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
-import { MarkerAnimated } from 'react-native-maps';
+import { memo } from 'react';
 
+import { StationMarker } from '@/components/map/station-marker';
 import { isInterchange, type LineView } from '@/lib/metro-network';
-
-const CENTER_OFFSET = { x: 0, y: 0 };
 
 type StationMarkersProps = {
   /** The line and its stations, as one value — the colour cannot belong to another line. */
   line: LineView;
-  /** Drives the fade-in as the user zooms in. */
-  opacity: Animated.Value;
 };
 
-export const StationMarkers = memo(function StationMarkers({
-  line,
-  opacity,
-}: StationMarkersProps) {
-  // Built once per colour rather than once per station — there are a few hundred of them.
-  const dotStyles = useMemo(() => {
-    const dot = [styles.dot, { backgroundColor: line.route.color }];
-    return { dot, interchange: [...dot, styles.interchangeDot] };
-  }, [line.route.color]);
-
+export const StationMarkers = memo(function StationMarkers({ line }: StationMarkersProps) {
   return line.stations.map((station) => (
-    <MarkerAnimated
+    <StationMarker
       key={station.id}
       coordinate={station.coordinate}
-      centerOffset={CENTER_OFFSET}
-      opacity={opacity}
-    >
-      <View style={isInterchange(station) ? dotStyles.interchange : dotStyles.dot} />
-    </MarkerAnimated>
+      color={line.route.color}
+      interchange={isInterchange(station)}
+    />
   ));
-});
-
-const styles = StyleSheet.create({
-  dot: {
-    width: 7.5,
-    height: 7.5,
-    borderRadius: 3.75,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.9)',
-  },
-  interchangeDot: {
-    width: 9.5,
-    height: 9.5,
-    borderRadius: 4.75,
-    borderWidth: 1.25,
-  },
 });

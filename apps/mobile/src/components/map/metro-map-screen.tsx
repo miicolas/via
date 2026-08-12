@@ -41,6 +41,11 @@ export function MetroMapScreen() {
     void refreshLocation();
   };
 
+  const developmentLocation =
+    userLocation.status === 'ready' && userLocation.source === 'development-default'
+      ? userLocation.coordinate
+      : undefined;
+
   return (
     <View style={styles.container}>
       <MetroMap
@@ -56,8 +61,10 @@ export function MetroMapScreen() {
             ? { coordinate: activeStation.coordinate, name: activeStation.station.name }
             : undefined
         }
+        developmentLocation={developmentLocation}
         line={undefined}
         lines={networkState.status === 'ready' ? networkState.lines : []}
+        stations={networkState.status === 'ready' ? networkState.stations : []}
         onReady={() => setMapReady(true)}
         showsUserLocation={
           userLocation.status === 'ready' && userLocation.source === 'device'

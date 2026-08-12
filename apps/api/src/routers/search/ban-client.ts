@@ -1,6 +1,7 @@
 import type { Coordinate } from '@via/contract';
 
 import { env } from '../../env';
+import { fetchJsonOrNull } from '../../http/fetch-json-or-null';
 
 /**
  * The geocoder rejects queries shorter than this (and ones not starting with a
@@ -9,6 +10,9 @@ import { env } from '../../env';
 const BAN_MIN_QUERY_LENGTH = 3;
 
 const BAN_TIMEOUT_MS = 2_000;
+
+/** The eight departments that make up Île-de-France. */
+const ILE_DE_FRANCE_DEPARTMENT_CODES = ['75', '77', '78', '91', '92', '93', '94', '95'];
 
 /** The subset of a BAN GeoJSON feature the mapper reads. */
 export type BanFeature = {
@@ -44,29 +48,31 @@ export async function searchBan(
 ): Promise<BanFeature[] | null> {
   if (!isGeocodable(query)) return [];
 
+  const url = buildBanSearchUrl(query, { limit, origin });
+
+  const collection = (await fetchJsonOrNull(url, {
+    signal,
+    timeoutMs: BAN_TIMEOUT_MS,
+    logLabel: '[search] BAN',
+  })) as { features?: BanFeature[] } | null;
+
+  return collection === null ? null : (collection.features ?? []);
+}
+
+export function buildBanSearchUrl(
+  query: string,
+  { limit, origin }: Pick<BanSearchOptions, 'limit' | 'origin'>
+): URL {
   const url = new URL(env.BAN_SEARCH_URL);
   url.searchParams.set('q', query);
   url.searchParams.set('autocomplete', '1');
   url.searchParams.set('limit', String(limit));
+  url.searchParams.set('depcode', ILE_DE_FRANCE_DEPARTMENT_CODES.join(','));
   if (origin) {
     url.searchParams.set('lat', String(origin.latitude));
     url.searchParams.set('lon', String(origin.longitude));
   }
-
-  const timeout = AbortSignal.timeout(BAN_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
-    });
-    if (!response.ok) throw new Error(`BAN responded ${response.status}`);
-
-    const collection = (await response.json()) as { features?: BanFeature[] };
-    return collection.features ?? [];
-  } catch (cause) {
-    console.error('[search] BAN indisponible', cause);
-    return null;
-  }
+  return url;
 }
 
 function isGeocodable(query: string): boolean {

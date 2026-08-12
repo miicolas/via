@@ -1,25 +1,29 @@
-import { type Href, usePathname, useRouter } from 'expo-router';
+import { usePathname, useRouter, type Href } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { HomeMapTheme } from '@/features/home-map/styles/theme';
 
-const overviewHref = '/map/overview' as Href;
+/** The map overview form sheet the accessory opens. */
+const MAP_OVERVIEW_HREF = '/map/overview' as Href;
 
 export function MapBottomAccessory() {
   const pathname = usePathname();
   const placement = NativeTabs.BottomAccessory.usePlacement();
   const router = useRouter();
 
-  if (!pathname.startsWith('/map') || pathname.includes('/overview')) return null;
+  // Keep the accessory mounted while the form sheet is presented. NativeTabs
+  // keeps both accessory placements alive, and unmounting it on `/map/overview`
+  // can leave the regular placement without a working press target after dismiss.
+  if (!pathname.startsWith('/map')) return null;
 
-  return (
+  const button = (
     <Pressable
       accessibilityHint="Ouvre le panneau des stations à proximité"
       accessibilityLabel="Rechercher une station"
       accessibilityRole="button"
-      onPress={() => router.push(overviewHref)}
+      onPress={() => router.push(MAP_OVERVIEW_HREF)}
       style={({ pressed }) => [
         styles.button,
         placement === 'inline' && styles.inlineButton,
@@ -46,9 +50,14 @@ export function MapBottomAccessory() {
       ) : null}
     </Pressable>
   );
+
+  // The regular placement needs a flex wrapper so the Pressable fills the
+  // accessory host; the inline placement must stay a compact native control.
+  return placement === 'regular' ? <View style={styles.accessory}>{button}</View> : button;
 }
 
 const styles = StyleSheet.create({
+  accessory: { flex: 1 },
   button: {
     flex: 1,
     minHeight: 44,

@@ -35,16 +35,16 @@ Native builds: `bun run ios` / `bun run android`.
 | `bun run typecheck` | `tsc --noEmit` across all packages |
 | `bun run test` | `bun test` across all packages |
 | `bun run check:transit-alignment` | asserts every station sits on the lines it serves (needs the API running) |
-| `bun run db:up` / `db:down` / `db:reset` | Docker Postgres lifecycle (`db:reset` drops the volume) |
+| `bun run db:up` / `db:down` / `db:reset` | Docker Postgres + Redis lifecycle (`db:reset` drops both volumes) |
 | `bun run db:generate` | diff the schema into a new SQL migration |
 | `bun run db:migrate` | apply pending migrations |
 | `bun run db:studio` | Drizzle Studio |
 
 ## Database
 
-`docker-compose.yml` runs `imresamu/postgis:18-3.6-alpine` — the official
-`postgis/postgis` images are amd64-only, this one is the same upstream build
-published multi-arch so it runs natively on Apple Silicon.
+`docker-compose.yml` runs `imresamu/postgis:18-3.6-alpine` and a local Redis 7
+service. The official `postgis/postgis` images are amd64-only, this one is the
+same upstream build published multi-arch so it runs natively on Apple Silicon.
 
 The schema lives in `packages/db/src/schema.ts`. Geo columns use
 `pointWgs84` from `src/columns.ts` rather than drizzle's built-in `geometry()`:
@@ -110,6 +110,33 @@ mounts oRPC twice over the same procedures:
 The app's client is configured to issue `GET`, so the ~890 kB network map stays
 cacheable by the platform HTTP cache; the default `POST` would silently give
 that up.
+
+## Realtime departures
+
+`/api/departures?stationId=…` answers the next departures per line and
+destination, and says in `source` what the timestamps are worth: `realtime`
+(PRIM), `theoretical` (the imported GTFS schedule), or `unavailable`.
+
+PRIM's quota is the constraint the design is built around: an API token issued
+after March 2024 gets **1 000 requests a day, 5 a second** — a single station
+polled once a minute over a service day would spend it all. So:
+
+- every PRIM call goes through the server, never the app;
+- responses live in local Redis for ~120 s, behind a `SET NX` lock, so N
+  riders looking at one station cost about one upstream call;
+- a per-day counter (`prim:budget:*`, Paris calendar) is incremented *before*
+  each call and refuses once the daily ceiling minus a 5 % reserve is reached;
+- when consumption runs ahead of the hour's prorata, the cache TTL doubles then
+  quadruples (`adaptive-ttl.ts`) instead of the quota simply running out;
+- anything that fails — no key, Redis down, PRIM down, budget spent — falls
+  through to the theoretical schedule, labelled as such in the app.
+
+`REDIS_URL` points the API at the local container by default. Without
+`API_KEY_PRISM_IDFM`, the endpoint still works but never returns `realtime`.
+
+`scripts/spike-prim-mapping.ts` is the one-off that validates our GTFS ids map
+onto the STIF refs PRIM expects (`STIF:StopArea:SP:{n}:`, `STIF:Line::{code}:`)
+and saves a real payload as a parser fixture.
 
 ## Not wired up yet
 

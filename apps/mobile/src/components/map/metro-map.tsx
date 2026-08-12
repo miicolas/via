@@ -1,8 +1,10 @@
-import type { Coordinate, NetworkRoute } from '@via/contract';
+import type { Coordinate, NetworkRoute, NetworkStation } from '@via/contract';
 import { useImperativeHandle, useRef, useState, type Ref } from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import MapView, { Marker, type EdgePadding, type Region } from 'react-native-maps';
 
+import { DevelopmentLocationMarker } from '@/components/map/development-location-marker';
+import { NetworkStationMarkers } from '@/components/map/network-station-markers';
 import { RouteLines } from '@/components/map/route-lines';
 import { StationMarkers } from '@/components/map/station-markers';
 import { PARIS_COORDINATE } from '@/features/home-map/model/location';
@@ -13,9 +15,14 @@ const INITIAL_REGION: Region = {
   latitudeDelta: 0.13,
   longitudeDelta: 0.29,
 };
-/** Stations are hidden above this zoom-out level and fully opaque below the fade-in one. */
-const STATION_FADE_OUT_DELTA = 0.14;
-const STATION_FADE_IN_DELTA = 0.06;
+/**
+ * Stations mount below the show level and unmount above the hide one. The gap
+ * keeps a pinch held right at the boundary from thrashing ~300 marker views.
+ * Mount state, not marker opacity, because animated marker props silently
+ * no-op under Fabric — react-native-maps only applies them on a React commit.
+ */
+const STATION_SHOW_DELTA = 0.1;
+const STATION_HIDE_DELTA = 0.12;
 
 export type MetroMapHandle = {
   /**
@@ -31,11 +38,15 @@ export type MetroMapHandle = {
 type MetroMapProps = {
   /** The whole network, drawn muted underneath. */
   lines: NetworkRoute[];
+  /** Every station, dotted over the network while no line is in focus. */
+  stations: NetworkStation[];
   /** The line in focus, with its stations. Absent until the network has loaded. */
   line: LineView | undefined;
   /** Room the caller's overlay needs around a fitted line. */
   edgePadding: EdgePadding;
   focusedStation?: { coordinate: Coordinate; name: string };
+  /** Development fallback shown because the native user-location dot is unavailable there. */
+  developmentLocation?: Coordinate;
   /** Fires once the native map can accept a camera command. */
   onReady?: () => void;
   showsUserLocation?: boolean;
@@ -54,15 +65,17 @@ type MetroMapProps = {
  */
 export function MetroMap({
   lines,
+  stations,
   line,
   edgePadding,
   focusedStation,
+  developmentLocation,
   onReady,
   ref,
   showsUserLocation = false,
 }: MetroMapProps) {
   const mapRef = useRef<MapView>(null);
-  const [stationOpacity] = useState(() => new Animated.Value(0));
+  const [stationsVisible, setStationsVisible] = useState(false);
 
   useImperativeHandle(
     ref,
@@ -111,10 +124,17 @@ export function MetroMap({
       showsUserLocation={showsUserLocation}
       showsTraffic={false}
       onMapReady={onReady}
-      onRegionChange={(region) => stationOpacity.setValue(fadeProgress(region.longitudeDelta))}
+      onRegionChange={(region) => {
+        const visible = stationZoomVisibility(region.longitudeDelta);
+        if (visible !== undefined) setStationsVisible(visible);
+      }}
     >
       <RouteLines routes={lines} selectedRoute={line?.route} />
-      {line && <StationMarkers line={line} opacity={stationOpacity} />}
+      {!stationsVisible ? null : line ? (
+        <StationMarkers line={line} />
+      ) : (
+        <NetworkStationMarkers routes={lines} stations={stations} />
+      )}
       {focusedStation ? (
         <Marker
           coordinate={focusedStation.coordinate}
@@ -123,15 +143,16 @@ export function MetroMap({
           tracksViewChanges={false}
         />
       ) : null}
+      {developmentLocation ? <DevelopmentLocationMarker coordinate={developmentLocation} /> : null}
     </MapView>
   );
 }
 
-/** 0 when zoomed out past the fade-out level, 1 once past the fade-in one. */
-function fadeProgress(longitudeDelta: number) {
-  const progress =
-    (STATION_FADE_OUT_DELTA - longitudeDelta) / (STATION_FADE_OUT_DELTA - STATION_FADE_IN_DELTA);
-  return Math.max(0, Math.min(1, progress));
+/** true past the show level, false past the hide one, undefined in between. */
+function stationZoomVisibility(longitudeDelta: number) {
+  if (longitudeDelta < STATION_SHOW_DELTA) return true;
+  if (longitudeDelta > STATION_HIDE_DELTA) return false;
+  return undefined;
 }
 
 const styles = StyleSheet.create({

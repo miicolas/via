@@ -12,6 +12,23 @@ const envSchema = z.object({
   PORT: z.string().default('3000').transform(Number).pipe(z.number().int().min(1).max(65_535)),
   /** The Géoplateforme (BAN) geocoder. Overridable to point tests at a fake. */
   BAN_SEARCH_URL: z.url().default('https://data.geopf.fr/geocodage/search'),
+  /** Local or hosted Redis used for the PRIM cache and daily quota counter. */
+  REDIS_URL: z.url().default('redis://localhost:6379'),
+  /**
+   * PRIM (Île-de-France Mobilités) realtime. All four are optional on purpose:
+   * without them the departures route degrades to its fallback instead of the
+   * whole API refusing to boot — dev without keys must keep working.
+   */
+  API_KEY_PRISM_IDFM: z.string().min(1).optional(),
+  PRIM_STOP_MONITORING_URL: z
+    .url()
+    .default('https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring'),
+  /**
+   * Daily request ceiling of the PRIM token (new tokens: 1 000/day). The
+   * governor keeps a safety margin below it; raise this only after PRIM
+   * grants a quota increase.
+  */
+  PRIM_DAILY_BUDGET: z.string().default('1000').transform(Number).pipe(z.number().int().min(0)),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,6 +1,16 @@
-import { GlassView } from 'expo-glass-effect';
-import { SymbolView } from 'expo-symbols';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { Button, Host, HStack, Image, ProgressView, Text } from '@expo/ui/swift-ui';
+import {
+  accessibilityLabel,
+  buttonBorderShape,
+  buttonStyle,
+  disabled,
+  font,
+  foregroundStyle,
+  frame,
+  padding,
+  tint,
+} from '@expo/ui/swift-ui/modifiers';
+import { StyleSheet } from 'react-native';
 
 import { HomeMapTheme } from '@/features/home-map/styles/theme';
 
@@ -9,60 +19,42 @@ type HomeRecenterButtonProps = {
   onPress: () => void;
 };
 
+/**
+ * A native SwiftUI glass button. The previous GlassView + Pressable pair ran
+ * two competing press animations — the native glass one over a snapshot, the
+ * RN scale on the live content — and the button showed doubled while pressed.
+ * SwiftUI's glass button style owns the whole press, so there is one copy.
+ */
 export function HomeRecenterButton({ isLoading = false, onPress }: HomeRecenterButtonProps) {
   return (
-    <GlassView
-      glassEffectStyle="regular"
-      isInteractive
-      style={styles.glass}
-      tintColor="#F2F0E966">
-      <Pressable
-        accessibilityLabel="Recentrer la carte sur ma position"
-        accessibilityRole="button"
-        accessibilityState={{ busy: isLoading }}
-        disabled={isLoading}
-        hitSlop={8}
+    <Host matchContents style={styles.host}>
+      <Button
         onPress={onPress}
-        style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
-        {isLoading ? (
-          <ActivityIndicator color={HomeMapTheme.primary} size="small" />
-        ) : (
-          <SymbolView
-            name={{ ios: 'location.fill', android: 'my_location' }}
-            size={18}
-            tintColor={HomeMapTheme.primary}
-            weight="semibold"
-          />
-        )}
-        <Text style={styles.label}>{isLoading ? 'Localisation…' : 'Ma position'}</Text>
-      </Pressable>
-    </GlassView>
+        modifiers={[
+          accessibilityLabel('Recentrer la carte sur ma position'),
+          buttonStyle('glass'),
+          buttonBorderShape('capsule'),
+          disabled(isLoading),
+        ]}>
+        <HStack spacing={8} modifiers={[frame({ minHeight: 32 }), padding({ horizontal: 6 })]}>
+          {isLoading ? (
+            <ProgressView modifiers={[tint(HomeMapTheme.primary)]} />
+          ) : (
+            <Image color={HomeMapTheme.primary} size={15} systemName="location.fill" />
+          )}
+          <Text
+            modifiers={[font({ size: 14, weight: 'semibold' }), foregroundStyle(HomeMapTheme.ink)]}>
+            {isLoading ? 'Localisation…' : 'Ma position'}
+          </Text>
+        </HStack>
+      </Button>
+    </Host>
   );
 }
 
 const styles = StyleSheet.create({
-  glass: {
+  host: {
     minHeight: 48,
-    borderRadius: 24,
-    borderCurve: 'continuous',
-    backgroundColor: process.env.EXPO_OS === 'ios' ? 'transparent' : HomeMapTheme.surface,
-    boxShadow: '0 2px 12px rgba(22, 26, 24, 0.16)',
+    minWidth: 44,
   },
-  button: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    borderCurve: 'continuous',
-  },
-  label: {
-    color: HomeMapTheme.ink,
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  pressed: { transform: [{ scale: 0.97 }] },
 });

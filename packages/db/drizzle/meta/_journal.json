@@ -36,6 +36,13 @@
       "when": 1786551105966,
       "tag": "0004_search_unaccent",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786556648056,
+      "tag": "0005_perfect_madripoor",
+      "breakpoints": true
     }
   ]
 }

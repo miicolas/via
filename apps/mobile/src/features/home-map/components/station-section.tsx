@@ -2,8 +2,12 @@ import type { NetworkRoute } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { DepartureRow } from '@/features/home-map/components/departure-row';
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useDepartures } from '@/features/home-map/hooks/use-departures';
+import { departureRows } from '@/features/home-map/model/departure-rows';
 import type { StationFocus } from '@/features/home-map/model/types';
+import { waitTimes } from '@/features/home-map/model/wait-times';
+import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useNow } from '@/hooks/use-now';
 
 type HomeStationSectionProps = {
   routes: NetworkRoute[];
@@ -11,9 +15,15 @@ type HomeStationSectionProps = {
 };
 
 export function HomeStationSection({ routes, station }: HomeStationSectionProps) {
+  const departures = useDepartures(station.station.id);
+  const now = useNow();
+
   const walkingMinutes = station.distanceMeters
     ? Math.max(1, Math.round(station.distanceMeters / 80))
     : undefined;
+
+  const source = departures.status === 'ready' ? departures.response.source : 'unavailable';
+  const groups = departures.status === 'ready' ? departures.response.groups : [];
 
   return (
     <View style={styles.container}>
@@ -27,8 +37,14 @@ export function HomeStationSection({ routes, station }: HomeStationSectionProps)
       </View>
 
       <View style={styles.departures}>
-        {routes.map((route) => (
-          <DepartureRow key={route.id} route={route} />
+        {departureRows(routes, groups).map((row) => (
+          <DepartureRow
+            key={row.key}
+            route={row.route}
+            destination={row.destination}
+            wait={row.departures ? waitTimes(row.departures, now) : undefined}
+            source={source}
+          />
         ))}
       </View>
     </View>

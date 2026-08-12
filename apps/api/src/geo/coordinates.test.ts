@@ -1,14 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 
-import { toCoordinates } from './coordinates';
+import { toLineStrings } from './coordinates';
 
-describe('toCoordinates', () => {
+describe('toLineStrings', () => {
   test('flips GeoJSON [longitude, latitude] into named map coordinates', () => {
     const geoJson = '{"type":"LineString","coordinates":[[2.3364,48.8606],[2.3522,48.8566]]}';
 
-    expect(toCoordinates(geoJson)).toEqual([
-      { latitude: 48.8606, longitude: 2.3364 },
-      { latitude: 48.8566, longitude: 2.3522 },
+    expect(toLineStrings(geoJson)).toEqual([
+      [
+        { latitude: 48.8606, longitude: 2.3364 },
+        { latitude: 48.8566, longitude: 2.3522 },
+      ],
     ]);
   });
 
@@ -18,13 +20,44 @@ describe('toCoordinates', () => {
    * the wrong hemisphere.
    */
   test('keeps Paris in Paris', () => {
-    const [paris] = toCoordinates('{"type":"LineString","coordinates":[[2.3522,48.8566]]}');
+    const [[paris]] = toLineStrings('{"type":"LineString","coordinates":[[2.3522,48.8566]]}');
 
     expect(paris.latitude).toBeGreaterThan(48);
     expect(paris.longitude).toBeLessThan(3);
   });
 
-  test('handles an empty line', () => {
-    expect(toCoordinates('{"type":"LineString","coordinates":[]}')).toEqual([]);
+  test('splits a MultiLineString into one polyline per part', () => {
+    const geoJson =
+      '{"type":"MultiLineString","coordinates":[[[2.33,48.86],[2.34,48.86]],[[2.35,48.85],[2.36,48.85]]]}';
+
+    expect(toLineStrings(geoJson)).toEqual([
+      [
+        { latitude: 48.86, longitude: 2.33 },
+        { latitude: 48.86, longitude: 2.34 },
+      ],
+      [
+        { latitude: 48.85, longitude: 2.35 },
+        { latitude: 48.85, longitude: 2.36 },
+      ],
+    ]);
+  });
+
+  test('flattens a GeometryCollection', () => {
+    const geoJson =
+      '{"type":"GeometryCollection","geometries":[{"type":"LineString","coordinates":[[2.33,48.86],[2.34,48.86]]}]}';
+
+    expect(toLineStrings(geoJson)).toEqual([
+      [
+        { latitude: 48.86, longitude: 2.33 },
+        { latitude: 48.86, longitude: 2.34 },
+      ],
+    ]);
+  });
+
+  /** What PostGIS returns for a pattern whose track deduplicated into nothing. */
+  test('returns no lines for the empty geometries', () => {
+    expect(toLineStrings('{"type":"LineString","coordinates":[]}')).toEqual([]);
+    expect(toLineStrings('{"type":"MultiLineString","coordinates":[]}')).toEqual([]);
+    expect(toLineStrings('{"type":"GeometryCollection","geometries":[]}')).toEqual([]);
   });
 });

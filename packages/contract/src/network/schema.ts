@@ -2,7 +2,11 @@ import * as z from 'zod';
 
 import { coordinateSchema } from '../shared/schema';
 
-/** One GTFS shape: a continuous run of track, drawn as a single polyline. */
+/**
+ * One continuous run of track, drawn as a single polyline. Not one GTFS shape:
+ * the API subtracts the track a route's other patterns already draw, so a
+ * pattern can yield several segments (either side of a shared trunk) or none.
+ */
 export const networkSegmentSchema = z.object({
   id: z.string(),
   coordinates: z.array(coordinateSchema),

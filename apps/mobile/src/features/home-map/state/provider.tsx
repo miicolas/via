@@ -4,12 +4,12 @@ import type { NetworkRoute, SearchResult } from '@via/contract';
 
 import { nearestStation } from '@/features/home-map/model/nearest-station';
 import { routesForStation } from '@/features/home-map/model/routes-for-station';
-import { stationCoordinate } from '@/features/home-map/model/station-coordinate';
 import type { SelectedPlace } from '@/features/home-map/model/types';
 import { useSearch } from '@/features/home-map/hooks/use-search';
 import { useUserLocation } from '@/features/home-map/hooks/use-location';
 import { HomeMapContext } from '@/features/home-map/state/context';
 import { useMetroNetwork } from '@/hooks/use-metro-network';
+import { stationCoordinate } from '@/lib/metro-network';
 
 const MAX_NEARBY_DISTANCE_METERS = 3_000;
 const EMPTY_ROUTES: NetworkRoute[] = [];

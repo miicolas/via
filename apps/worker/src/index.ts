@@ -18,6 +18,7 @@ import { parse } from 'csv-parse';
 import { eq, sql } from 'drizzle-orm';
 
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
+import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
 
 type CsvRow = Record<string, string>;
 /**
@@ -93,11 +94,19 @@ async function importMetroNetwork(gtfsPath: string) {
 
   const routeIds = new Set(routes.map((route) => route.id));
   const candidateByKey = new Map<string, PatternCandidate>();
+  /** Every metro trip, for the theoretical schedule — patterns only keep representatives. */
+  const scheduledTrips = new Map<string, ScheduledTrip>();
   for await (const trip of readCsv(join(gtfsPath, 'trips.txt'))) {
     if (!routeIds.has(trip.route_id)) continue;
     const directionId = Number(required(trip, 'direction_id', 'trips.txt'));
     const shapeId = required(trip, 'shape_id', 'trips.txt');
     const headsign = required(trip, 'trip_headsign', 'trips.txt');
+    scheduledTrips.set(required(trip, 'trip_id', 'trips.txt'), {
+      routeId: trip.route_id,
+      directionId,
+      headsign,
+      serviceId: required(trip, 'service_id', 'trips.txt'),
+    });
     const key = `${trip.route_id}\u0000${directionId}\u0000${shapeId}\u0000${headsign}`;
     const current = candidateByKey.get(key);
     if (current) {
@@ -255,6 +264,20 @@ async function importMetroNetwork(gtfsPath: string) {
     }
 
     await tx.execute(projectStopsOntoPatterns());
+
+    /**
+     * Same transaction as the network on purpose: the route delete above just
+     * cascaded the previous theoretical departures away, so schedules must
+     * come back before the commit or a crash would leave the fallback empty.
+     */
+    await importSchedules({
+      gtfsPath,
+      tx,
+      trips: scheduledTrips,
+      canonicalStopIdOf: (stopId) => canonicalStopOf(stopId).id,
+      knownStopIds: new Set(canonicalStops.keys()),
+      readCsv,
+    });
   });
 
   const routesByStop = new Map<string, Set<string>>();

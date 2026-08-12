@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -120,6 +121,57 @@ export const transitRoutePatternStops = pgTable(
   (table) => [
     primaryKey({ columns: [table.patternId, table.stopSequence] }),
     index('transit_route_pattern_stops_stop_idx').on(table.stopId),
+  ]
+);
+
+/**
+ * `calendar` + `calendar_dates` expanded by the importer into one row per day a
+ * service actually runs, over the feed's validity window. "Which services run
+ * on date D?" then needs no weekday logic and no exception handling at read
+ * time — those were resolved once, at import.
+ */
+export const transitServiceDates = pgTable(
+  'transit_service_dates',
+  {
+    serviceId: text('service_id').notNull(),
+    date: date('date').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.serviceId, table.date] })]
+);
+
+/**
+ * Theoretical departures, flattened from `stop_times`: one row per stop call,
+ * no `trips` table to join back to. The target question — next N departures at
+ * stop X after time H for the services of day D — is a single indexed range
+ * scan. Kept raw rather than pre-bucketed by day type: `transit_service_dates`
+ * already absorbed the calendar, and day-type aggregation breaks on the first
+ * `calendar_dates` exception.
+ */
+export const transitStopDepartures = pgTable(
+  'transit_stop_departures',
+  {
+    stopId: text('stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    routeId: text('route_id')
+      .notNull()
+      .references(() => transitRoutes.id, { onDelete: 'cascade' }),
+    directionId: integer('direction_id').notNull(),
+    headsign: text('headsign').notNull(),
+    serviceId: text('service_id').notNull(),
+    /**
+     * Seconds since the service day's midnight, GTFS semantics preserved:
+     * "25:12:00" stays 90 720, because that departure belongs to the previous
+     * day's service even though it happens after midnight.
+     */
+    departureSeconds: integer('departure_seconds').notNull(),
+  },
+  (table) => [
+    index('transit_stop_departures_lookup_idx').on(
+      table.stopId,
+      table.serviceId,
+      table.departureSeconds
+    ),
   ]
 );
 

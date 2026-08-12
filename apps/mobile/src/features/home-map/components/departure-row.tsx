@@ -1,26 +1,47 @@
-import type { NetworkRoute } from '@via/contract';
+import type { DeparturesSource, NetworkRoute } from '@via/contract';
+import { SymbolView, type AnimationSpec } from 'expo-symbols';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { LineBadge } from '@/components/map/line-badge';
+import { departureQualifier } from '@/features/home-map/model/departure-qualifier';
+import type { WaitTimes } from '@/features/home-map/model/wait-times';
 import { HomeMapTheme } from '@/features/home-map/styles/theme';
+
+const LIVE_SYMBOL_ANIMATION: AnimationSpec = {
+  effect: { type: 'bounce' },
+  repeating: true,
+};
 
 type DepartureRowProps = {
   route: NetworkRoute;
+  /** Absent while loading or when no departure is announced for this line. */
+  destination?: string;
+  wait?: WaitTimes;
+  source: DeparturesSource;
 };
 
-export function DepartureRow({ route }: DepartureRowProps) {
+export function DepartureRow({ route, destination, wait, source }: DepartureRowProps) {
   return (
     <View style={styles.row}>
       <LineBadge route={route} size={50} />
       <Text numberOfLines={2} style={styles.destination}>
-        {route.destinations?.[0] ?? route.longName}
+        {destination ?? route.destinations?.[0] ?? route.longName}
       </Text>
       <View style={styles.timing}>
         <View style={styles.primaryTiming}>
-          <Text style={styles.minutes}>—</Text>
+          {source === 'realtime' && wait ? (
+            <SymbolView
+              animationSpec={LIVE_SYMBOL_ANIMATION}
+              name="wave.3.left"
+              size={13}
+              tintColor={HomeMapTheme.primary}
+              weight="semibold"
+            />
+          ) : null}
+          <Text style={styles.minutes}>{wait ? String(wait.primaryMinutes) : '—'}</Text>
           <Text style={styles.unit}>min</Text>
         </View>
-        <Text style={styles.following}>temps réel indisponible</Text>
+        <Text style={styles.following}>{departureQualifier(source, wait)}</Text>
       </View>
     </View>
   );
@@ -64,5 +85,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 11,
     lineHeight: 14,
+    textAlign: 'right',
   },
 });

@@ -27,6 +27,7 @@
     "check:transit-alignment": "bun --env-file=.env scripts/check-transit-map-alignment.ts"
   },
   "devDependencies": {
+    "@types/react": "~19.2.4",
     "turbo": "^2.10.9",
     "typescript": "~6.0.3"
   },
@@ -34,6 +35,8 @@
     "expo-modules-jsi@57.0.4": "patches/expo-modules-jsi@57.0.4.patch"
   },
   "dependencies": {
-    "expo": "^57.0.12"
+    "expo": "^57.0.12",
+    "react": "19.2.3",
+    "react-native": "0.86.0"
   }
 }

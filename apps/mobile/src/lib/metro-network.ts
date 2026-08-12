@@ -28,7 +28,7 @@ export type LineView = {
 export type NetworkState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; lines: NetworkRoute[]; line: LineView };
+  | { status: 'ready'; lines: NetworkRoute[]; stations: NetworkStation[]; line: LineView };
 
 export const LOAD_FAILED_MESSAGE = 'Le réseau de métro ne peut pas être chargé pour le moment.';
 export const EMPTY_NETWORK_MESSAGE = 'Aucune ligne de métro à afficher.';
@@ -62,7 +62,7 @@ export function networkState(
 
   if (!line) return { status: 'error', message: EMPTY_NETWORK_MESSAGE };
 
-  return { status: 'ready', lines, line };
+  return { status: 'ready', lines, stations: network.stations, line };
 }
 
 /**
@@ -126,6 +126,25 @@ export function routeBounds(route: NetworkRoute): Coordinate[] {
 
 export function isInterchange(station: NetworkStation): boolean {
   return Object.keys(station.positions).length > 1;
+}
+
+/**
+ * The line a station is shown as when no particular line is in focus, with
+ * where it sits on that line. Any of its per-line positions would do — they
+ * are metres apart, indistinguishable at the zoom levels where a
+ * whole-network dot is visible — but colour and position must come from the
+ * same line, which is why this is one answer rather than two lookups.
+ */
+export function primaryPosition(
+  station: NetworkStation
+): { routeId: string; coordinate: Coordinate } | undefined {
+  const [entry] = Object.entries(station.positions);
+  return entry ? { routeId: entry[0], coordinate: entry[1] } : undefined;
+}
+
+/** Where to draw a station when no particular line is in focus. */
+export function stationCoordinate(station: NetworkStation): Coordinate | undefined {
+  return primaryPosition(station)?.coordinate;
 }
 
 function routeOrder(shortName: string) {
