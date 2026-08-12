@@ -40,15 +40,15 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "dev": "bun --env-file=../../.env ./node_modules/.bin/expo start",
-    "start": "bun --env-file=../../.env ./node_modules/.bin/expo start",
+    "dev": "node --env-file=../../.env ./node_modules/.bin/expo start",
+    "start": "node --env-file=../../.env ./node_modules/.bin/expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "bun --env-file=../../.env ./node_modules/.bin/expo run:android",
-    "ios": "bun --env-file=../../.env ./node_modules/.bin/expo run:ios",
-    "web": "bun --env-file=../../.env ./node_modules/.bin/expo start --web",
-    "prebuild": "bun --env-file=../../.env ./node_modules/.bin/expo prebuild",
-    "build": "bun --env-file=../../.env ./node_modules/.bin/expo export",
-    "lint": "expo lint",
+    "android": "node --env-file=../../.env ./node_modules/.bin/expo run:android",
+    "ios": "node --env-file=../../.env ./node_modules/.bin/expo run:ios",
+    "web": "node --env-file=../../.env ./node_modules/.bin/expo start --web",
+    "prebuild": "node --env-file=../../.env ./node_modules/.bin/expo prebuild",
+    "build": "node --env-file=../../.env ./node_modules/.bin/expo export",
+    "lint": "node --env-file=../../.env ./node_modules/.bin/expo lint",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

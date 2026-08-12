@@ -1,11 +1,21 @@
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { UserLocationState } from '@/features/home-map/types';
+import { PARIS_COORDINATE } from '@/features/home-map/model/location';
+import type { UserLocationState } from '@/features/home-map/model/types';
+
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+const DEVELOPMENT_DEFAULT_STATE: Extract<UserLocationState, { status: 'ready' }> = {
+  status: 'ready',
+  coordinate: PARIS_COORDINATE,
+  source: 'development-default',
+};
 
 export function useUserLocation() {
   const mounted = useRef(true);
-  const [state, setState] = useState<UserLocationState>({ status: 'loading' });
+  const [state, setState] = useState<UserLocationState>(() =>
+    IS_DEVELOPMENT ? DEVELOPMENT_DEFAULT_STATE : { status: 'loading' }
+  );
 
   const refresh = useCallback(async () => {
     setState({ status: 'loading' });
@@ -40,6 +50,8 @@ export function useUserLocation() {
 }
 
 async function resolveLocation(onCached: (state: UserLocationState) => void) {
+  if (IS_DEVELOPMENT) return DEVELOPMENT_DEFAULT_STATE;
+
   const currentPermission = await Location.getForegroundPermissionsAsync();
   const permission = currentPermission.granted
     ? currentPermission
@@ -63,5 +75,6 @@ function toReadyState(location: Location.LocationObject): UserLocationState {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
     },
+    source: 'device',
   };
 }

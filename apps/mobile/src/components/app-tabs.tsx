@@ -1,6 +1,6 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-import { MapBottomAccessory } from '@/features/home-map/bottom-accessory';
+import { MapBottomAccessory } from '@/features/home-map/components/bottom-accessory';
 
 export default function AppTabs() {
   return (

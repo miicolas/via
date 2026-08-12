@@ -1,6 +1,6 @@
 import { use } from 'react';
 
-import { HomeMapContext } from '@/features/home-map/context';
+import { HomeMapContext } from '@/features/home-map/state/context';
 
 export function useHomeMap() {
   const value = use(HomeMapContext);

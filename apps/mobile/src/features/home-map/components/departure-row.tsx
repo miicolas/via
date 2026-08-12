@@ -2,7 +2,7 @@ import type { NetworkRoute } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { LineBadge } from '@/components/map/line-badge';
-import { HomeMapTheme } from '@/features/home-map/theme';
+import { HomeMapTheme } from '@/features/home-map/styles/theme';
 
 type DepartureRowProps = {
   route: NetworkRoute;

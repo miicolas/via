@@ -5,11 +5,11 @@ import MapView, { Marker, type EdgePadding, type Region } from 'react-native-map
 
 import { RouteLines } from '@/components/map/route-lines';
 import { StationMarkers } from '@/components/map/station-markers';
+import { PARIS_COORDINATE } from '@/features/home-map/model/location';
 import { routeBounds, type LineView } from '@/lib/metro-network';
 
 const INITIAL_REGION: Region = {
-  latitude: 48.8566,
-  longitude: 2.3522,
+  ...PARIS_COORDINATE,
   latitudeDelta: 0.13,
   longitudeDelta: 0.29,
 };

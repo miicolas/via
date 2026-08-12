@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "via",
+      "dependencies": {
+        "expo": "^57.0.12",
+      },
       "devDependencies": {
         "turbo": "^2.10.9",
         "typescript": "~6.0.3",
@@ -118,6 +121,9 @@
         "typescript": "~6.0.3",
       },
     },
+  },
+  "patchedDependencies": {
+    "expo-modules-jsi@57.0.4": "patches/expo-modules-jsi@57.0.4.patch",
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],

@@ -1,16 +1,15 @@
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { HomeMapTheme } from '@/features/home-map/theme';
+import { HomeMapTheme } from '@/features/home-map/styles/theme';
 
 type ShortcutsProps = {
-  lineCount: number;
   onClose: () => void;
   onLocate: () => void;
   walkingMinutes?: number;
 };
 
-export function Shortcuts({ lineCount, onClose, onLocate, walkingMinutes }: ShortcutsProps) {
+export function Shortcuts({ onClose, onLocate, walkingMinutes }: ShortcutsProps) {
   const items: {
     icon: SFSymbol;
     label: string;
@@ -24,20 +23,10 @@ export function Shortcuts({ lineCount, onClose, onLocate, walkingMinutes }: Shor
       value: walkingMinutes ? `${walkingMinutes} min` : 'Actualiser',
     },
     { icon: 'map.fill', label: 'Carte', onPress: onClose, value: 'Ouvrir' },
-    {
-      icon: 'tram.fill',
-      label: 'Réseau',
-      onPress: onClose,
-      value: `${lineCount} ligne${lineCount > 1 ? 's' : ''}`,
-    },
   ];
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      horizontal
-      style={styles.scroll}
-      showsHorizontalScrollIndicator={false}>
+    <View style={styles.content}>
       {items.map((item) => (
         <Pressable
           accessibilityRole="button"
@@ -49,35 +38,36 @@ export function Shortcuts({ lineCount, onClose, onLocate, walkingMinutes }: Shor
           <Text style={styles.value}>{item.value}</Text>
         </Pressable>
       ))}
-      <View style={styles.endSpace} />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 0, height: 44 },
-  content: { alignItems: 'center', gap: 10, paddingHorizontal: 20 },
+  content: { flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
   shortcut: {
-    minHeight: 44,
+    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 14,
-    borderRadius: 22,
+    gap: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#161A1814',
-    backgroundColor: '#FFFFFFD9',
+    borderColor: '#161A1810',
+    backgroundColor: '#FFFFFFB8',
+    boxShadow: '0 1px 4px rgba(22, 26, 24, 0.05)',
   },
   label: {
     color: HomeMapTheme.ink,
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 17,
   },
   value: {
     color: HomeMapTheme.primary,
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 16,
   },
   pressed: { opacity: 0.55 },
-  endSpace: { width: 10 },
 });

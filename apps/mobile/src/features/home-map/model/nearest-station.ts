@@ -1,6 +1,6 @@
 import type { Coordinate, NetworkStation } from '@via/contract';
 
-import type { StationFocus } from '@/features/home-map/types';
+import type { StationFocus } from '@/features/home-map/model/types';
 
 export function nearestStation(
   stations: NetworkStation[],

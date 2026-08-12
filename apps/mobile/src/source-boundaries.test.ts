@@ -13,7 +13,7 @@ test('source modules stay below 300 lines', () => {
 });
 
 test('home-map modules export at most one function', () => {
-  const violations = [...new Bun.Glob('features/home-map/*.{ts,tsx}').scanSync(sourceRoot)]
+  const violations = [...new Bun.Glob('features/home-map/**/*.{ts,tsx}').scanSync(sourceRoot)]
     .filter((path) => !path.endsWith('.test.ts'))
     .map((path) => ({
       path,

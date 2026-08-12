@@ -1,18 +1,18 @@
 import type { PropsWithChildren } from 'react';
 import { useCallback, useDeferredValue, useMemo, useState } from 'react';
-import type { NetworkRoute, NetworkStation } from '@via/contract';
+import type { NetworkRoute, SearchResult } from '@via/contract';
 
-import { HomeMapContext } from '@/features/home-map/context';
-import { nearestStation } from '@/features/home-map/nearest-station';
-import { routesForStation } from '@/features/home-map/routes-for-station';
-import { searchStations } from '@/features/home-map/search-stations';
-import { stationCoordinate } from '@/features/home-map/station-coordinate';
-import { useUserLocation } from '@/features/home-map/use-location';
+import { nearestStation } from '@/features/home-map/model/nearest-station';
+import { routesForStation } from '@/features/home-map/model/routes-for-station';
+import { stationCoordinate } from '@/features/home-map/model/station-coordinate';
+import type { SelectedPlace } from '@/features/home-map/model/types';
+import { useSearch } from '@/features/home-map/hooks/use-search';
+import { useUserLocation } from '@/features/home-map/hooks/use-location';
+import { HomeMapContext } from '@/features/home-map/state/context';
 import { useMetroNetwork } from '@/hooks/use-metro-network';
 
 const MAX_NEARBY_DISTANCE_METERS = 3_000;
 const EMPTY_ROUTES: NetworkRoute[] = [];
-const EMPTY_STATIONS: NetworkStation[] = [];
 
 export function HomeMapProvider({ children }: PropsWithChildren) {
   const metro = useMetroNetwork();
@@ -20,11 +20,12 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
   const [selectedStationId, setSelectedStationId] = useState<string>();
+  const [selectedPlace, setSelectedPlace] = useState<SelectedPlace>();
 
-  const stations = metro.network?.stations ?? EMPTY_STATIONS;
+  const stations = metro.network?.stations;
   const routes = metro.state.status === 'ready' ? metro.state.lines : EMPTY_ROUTES;
   const closestStation = useMemo(() => {
-    if (location.state.status !== 'ready') return undefined;
+    if (location.state.status !== 'ready' || !stations) return undefined;
     const closest = nearestStation(stations, location.state.coordinate);
     return closest && (closest.distanceMeters ?? Infinity) <= MAX_NEARBY_DISTANCE_METERS
       ? closest
@@ -33,16 +34,13 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
 
   const selectedStation = useMemo(() => {
     if (!selectedStationId) return undefined;
-    const station = stations.find(({ id }) => id === selectedStationId);
+    const station = stations?.find(({ id }) => id === selectedStationId);
     const coordinate = station && stationCoordinate(station);
     return station && coordinate ? { station, coordinate } : undefined;
   }, [selectedStationId, stations]);
 
   const activeStation = selectedStation ?? closestStation;
-  const searchResults = useMemo(
-    () => searchStations(stations, deferredQuery),
-    [deferredQuery, stations]
-  );
+  const search = useSearch(deferredQuery, location.state);
   const activeRoutes = useMemo(
     () => routesForStation(routes, activeStation?.station),
     [activeStation?.station, routes]
@@ -51,19 +49,26 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
   const setSearchQuery = useCallback((value: string) => {
     setQuery(value);
     setSelectedStationId(undefined);
+    setSelectedPlace(undefined);
   }, []);
   const selectStation = useCallback((stationId: string) => setSelectedStationId(stationId), []);
+  const selectResult = useCallback((result: SearchResult) => {
+    if (result.kind === 'station') setSelectedStationId(result.id);
+    else setSelectedPlace({ name: result.name, coordinate: result.coordinate });
+  }, []);
 
   const value = useMemo(
     () => ({
       activeRoutes,
       activeStation,
-      isSearchActive: deferredQuery.trim().length > 0 && !selectedStation,
+      isSearchActive: deferredQuery.trim().length > 0 && !selectedStation && !selectedPlace,
       networkState: metro.state,
       refreshLocation: location.refresh,
       retryNetwork: metro.retry,
-      searchResults,
+      search,
+      selectResult,
       selectStation,
+      selectedPlace,
       setSearchQuery,
       userLocation: location.state,
     }),
@@ -75,8 +80,10 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
       location.state,
       metro.retry,
       metro.state,
-      searchResults,
+      search,
+      selectResult,
       selectStation,
+      selectedPlace,
       selectedStation,
       setSearchQuery,
     ]

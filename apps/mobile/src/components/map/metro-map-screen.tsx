@@ -4,8 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MapStatus } from '@/components/map/map-status';
 import { MetroMap, type MetroMapHandle } from '@/components/map/metro-map';
-import { HomeRecenterButton } from '@/features/home-map/recenter-button';
-import { useHomeMap } from '@/features/home-map/use-map';
+import { HomeRecenterButton } from '@/features/home-map/components/recenter-button';
+import { useHomeMap } from '@/features/home-map/hooks/use-map';
 
 export function MetroMapScreen() {
   const mapRef = useRef<MetroMapHandle>(null);
@@ -59,7 +59,9 @@ export function MetroMapScreen() {
         line={undefined}
         lines={networkState.status === 'ready' ? networkState.lines : []}
         onReady={() => setMapReady(true)}
-        showsUserLocation={userLocation.status === 'ready'}
+        showsUserLocation={
+          userLocation.status === 'ready' && userLocation.source === 'device'
+        }
       />
 
       <View style={[styles.mapControls, { top: insets.top + 16 }]}>

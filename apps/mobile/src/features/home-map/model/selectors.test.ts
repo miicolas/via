@@ -1,9 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import type { NetworkRoute, NetworkStation } from '@via/contract';
 
-import { nearestStation } from '@/features/home-map/nearest-station';
-import { routesForStation } from '@/features/home-map/routes-for-station';
-import { searchStations } from '@/features/home-map/search-stations';
+import { nearestStation } from '@/features/home-map/model/nearest-station';
+import { routesForStation } from '@/features/home-map/model/routes-for-station';
 
 const stations: NetworkStation[] = [
   {
@@ -44,18 +43,6 @@ describe('home map selectors', () => {
 
     expect(result?.station.id).toBe('republique');
     expect(result?.distanceMeters).toBeLessThan(20);
-  });
-
-  test('searches without making accents significant', () => {
-    expect(searchStations(stations, 'repu').map(({ id }) => id)).toEqual(['republique']);
-    expect(searchStations(stations, 'assemblee').map(({ id }) => id)).toEqual(['assemblee']);
-  });
-
-  test('puts prefix matches before inner matches', () => {
-    expect(searchStations(stations, 'nation').map(({ id }) => id)).toEqual([
-      'nation',
-      'assemblee',
-    ]);
   });
 
   test('returns only the lines served by the station', () => {

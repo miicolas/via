@@ -1,9 +1,9 @@
 import type { NetworkRoute } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { DepartureRow } from '@/features/home-map/departure-row';
-import { HomeMapTheme } from '@/features/home-map/theme';
-import type { StationFocus } from '@/features/home-map/types';
+import { DepartureRow } from '@/features/home-map/components/departure-row';
+import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import type { StationFocus } from '@/features/home-map/model/types';
 
 type HomeStationSectionProps = {
   routes: NetworkRoute[];

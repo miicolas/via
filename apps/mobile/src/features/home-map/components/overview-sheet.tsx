@@ -1,14 +1,13 @@
 import { useRouter } from 'expo-router';
-import { GlassView } from 'expo-glass-effect';
 import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
 
-import { HomeSearchField } from '@/features/home-map/search-field';
-import { HomeSearchResults } from '@/features/home-map/search-results';
-import { Shortcuts } from '@/features/home-map/shortcuts';
-import { HomeStationSection } from '@/features/home-map/station-section';
-import { HomeMapTheme } from '@/features/home-map/theme';
-import { HomeUnavailableState } from '@/features/home-map/unavailable-state';
-import { useHomeMap } from '@/features/home-map/use-map';
+import { HomeSearchField } from '@/features/home-map/components/search-field';
+import { HomeSearchResults } from '@/features/home-map/components/search-results';
+import { Shortcuts } from '@/features/home-map/components/shortcuts';
+import { HomeStationSection } from '@/features/home-map/components/station-section';
+import { HomeUnavailableState } from '@/features/home-map/components/unavailable-state';
+import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useHomeMap } from '@/features/home-map/hooks/use-map';
 
 export function HomeOverviewSheet() {
   const router = useRouter();
@@ -19,8 +18,8 @@ export function HomeOverviewSheet() {
     networkState,
     refreshLocation,
     retryNetwork,
-    searchResults,
-    selectStation,
+    search,
+    selectResult,
     setSearchQuery,
     userLocation,
   } = useHomeMap();
@@ -35,24 +34,17 @@ export function HomeOverviewSheet() {
 
   return (
     <View style={styles.container}>
-      <GlassView
-        colorScheme="light"
-        glassEffectStyle="regular"
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-        tintColor="#F2F0E9B8"
-      />
+      <View style={styles.header}>
+        <HomeSearchField onChange={setSearchQuery} />
 
-      <HomeSearchField onChange={setSearchQuery} />
-
-      {networkState.status === 'ready' && !isSearchActive ? (
-        <Shortcuts
-          lineCount={activeRoutes.length}
-          onClose={close}
-          onLocate={() => void refreshLocation()}
-          walkingMinutes={walkingMinutes}
-        />
-      ) : null}
+        {networkState.status === 'ready' && !isSearchActive ? (
+          <Shortcuts
+            onClose={close}
+            onLocate={() => void refreshLocation()}
+            walkingMinutes={walkingMinutes}
+          />
+        ) : null}
+      </View>
 
       {networkState.status === 'loading' ? (
         <View style={styles.loader}>
@@ -71,7 +63,7 @@ export function HomeOverviewSheet() {
       ) : null}
 
       {networkState.status === 'ready' && isSearchActive ? (
-        <HomeSearchResults onSelect={selectStation} stations={searchResults} />
+        <HomeSearchResults onSelect={selectResult} routes={networkState.lines} search={search} />
       ) : null}
 
       {networkState.status === 'ready' && !isSearchActive && activeStation ? (
@@ -100,6 +92,10 @@ export function HomeOverviewSheet() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, gap: 10, paddingTop: 16, backgroundColor: 'transparent' },
+  container: {
+    flex: 1,
+    backgroundColor: HomeMapTheme.ground,
+  },
+  header: { gap: 10, paddingTop: 12 },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

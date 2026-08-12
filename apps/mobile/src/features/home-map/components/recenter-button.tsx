@@ -2,7 +2,7 @@ import { GlassView } from 'expo-glass-effect';
 import { SymbolView } from 'expo-symbols';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
-import { HomeMapTheme } from '@/features/home-map/theme';
+import { HomeMapTheme } from '@/features/home-map/styles/theme';
 
 type HomeRecenterButtonProps = {
   isLoading?: boolean;

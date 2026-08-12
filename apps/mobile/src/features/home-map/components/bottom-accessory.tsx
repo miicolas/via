@@ -3,7 +3,7 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { HomeMapTheme } from '@/features/home-map/theme';
+import { HomeMapTheme } from '@/features/home-map/styles/theme';
 
 const overviewHref = '/map/overview' as Href;
 
