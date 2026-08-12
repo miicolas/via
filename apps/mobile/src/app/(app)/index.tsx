@@ -1,14 +1,7 @@
-import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { Redirect, type Href } from 'expo-router';
 
-import { MetroMapScreen } from '@/components/map/metro-map-screen';
+const MAP_HREF = '/map' as Href;
 
-export default function MapBackgroundRoute() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.navigate('/map');
-  }, [router]);
-
-  return <MetroMapScreen />;
+export default function AppIndexRoute() {
+  return <Redirect href={MAP_HREF} />;
 }

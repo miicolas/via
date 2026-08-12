@@ -1,17 +1,21 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-import { MapBottomAccessory } from '@/features/home-map/components/bottom-accessory';
+import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 export default function AppTabs() {
+  const { colors } = useHomeMapTheme();
+
   return (
     <NativeTabs
+      backgroundColor="transparent"
+      blurEffect="none"
       disableTransparentOnScrollEdge
-      labelStyle={{ selected: { color: '#2F6B5B' } }}
-      tintColor="#2F6B5B">
-      <NativeTabs.BottomAccessory>
-        <MapBottomAccessory />
-      </NativeTabs.BottomAccessory>
-
+      labelStyle={{ selected: { color: colors.primary } }}
+      shadowColor="transparent"
+      tintColor={colors.primary}
+      unstable_nativeProps={{
+        nativeContainerStyle: { backgroundColor: 'transparent' },
+      }}>
       <NativeTabs.Trigger name="map">
         <NativeTabs.Trigger.Label>Carte</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} />

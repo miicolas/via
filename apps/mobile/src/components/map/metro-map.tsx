@@ -34,6 +34,7 @@ const STATION_SHOW_DELTA = 0.008;
 const STATION_HIDE_DELTA = 0.012;
 const STATION_FOCUS_LATITUDE_DELTA = 0.006;
 const STATION_FOCUS_LONGITUDE_DELTA = 0.006;
+const STATION_FOCUS_ANIMATION_DURATION_MS = 1_000;
 
 type StationMarkersState = {
   mounted: boolean;
@@ -172,7 +173,7 @@ export function MetroMap({
         const region = stationFocusRegion(coordinate, edgePadding, viewportHeight);
         mapRef.current?.animateToRegion(
           region,
-          animated ? 500 : 0
+          animated ? STATION_FOCUS_ANIMATION_DURATION_MS : 0
         );
       },
     }),

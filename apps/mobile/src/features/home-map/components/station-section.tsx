@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { DepartureRow } from '@/features/home-map/components/departure-row';
 import { ScrollFadeMask } from '@/features/home-map/components/scroll-fade-mask';
+import { StationDeparturesEmptyState } from '@/features/home-map/components/station-departures-empty-state';
 import { useDepartures } from '@/features/home-map/hooks/use-departures';
 import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 import { departureRows } from '@/features/home-map/model/departure-rows';
@@ -11,11 +12,12 @@ import type { StationFocus } from '@/features/home-map/model/types';
 import { useNow } from '@/hooks/use-now';
 
 type HomeStationSectionProps = {
+  expanded: boolean;
   routes: NetworkRoute[];
   station: StationFocus;
 };
 
-export function HomeStationSection({ routes, station }: HomeStationSectionProps) {
+export function HomeStationSection({ expanded, routes, station }: HomeStationSectionProps) {
   const { colors } = useHomeMapTheme();
   const departures = useDepartures(station.station.id);
   const now = useNow();
@@ -35,6 +37,7 @@ export function HomeStationSection({ routes, station }: HomeStationSectionProps)
 
   const source = departures.status === 'ready' ? departures.response.source : 'unavailable';
   const groups = departures.status === 'ready' ? departures.response.groups : [];
+  const rows = departureRows(routes, groups, now);
 
   return (
     <View style={styles.container}>
@@ -47,27 +50,31 @@ export function HomeStationSection({ routes, station }: HomeStationSectionProps)
         </Text>
       </View>
 
-      <ScrollFadeMask active={scrolled}>
-        <ScrollView
-          automaticallyAdjustContentInsets={false}
-          contentContainerStyle={styles.departuresContent}
-          contentInsetAdjustmentBehavior="never"
-          fadingEdgeLength={{ start: 44, end: 0 }}
-          onScroll={({ nativeEvent }) => updateScrollFade(nativeEvent.contentOffset.y)}
-          scrollEventThrottle={16}
-          style={styles.departures}
-        >
-          {departureRows(routes, groups, now).map((row) => (
-            <DepartureRow
-              key={row.key}
-              route={row.route}
-              destination={row.destination}
-              wait={row.wait}
-              source={source}
-            />
-          ))}
-        </ScrollView>
-      </ScrollFadeMask>
+      {departures.status === 'ready' && rows.length === 0 ? (
+        <StationDeparturesEmptyState expanded={expanded} />
+      ) : (
+        <ScrollFadeMask active={scrolled}>
+          <ScrollView
+            automaticallyAdjustContentInsets={false}
+            contentContainerStyle={styles.departuresContent}
+            contentInsetAdjustmentBehavior="never"
+            fadingEdgeLength={{ start: 44, end: 0 }}
+            onScroll={({ nativeEvent }) => updateScrollFade(nativeEvent.contentOffset.y)}
+            scrollEventThrottle={16}
+            style={styles.departures}
+          >
+            {rows.map((row) => (
+              <DepartureRow
+                key={row.key}
+                route={row.route}
+                destination={row.destination}
+                wait={row.wait}
+                source={source}
+              />
+            ))}
+          </ScrollView>
+        </ScrollFadeMask>
+      )}
     </View>
   );
 }

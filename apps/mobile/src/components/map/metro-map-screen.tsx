@@ -1,22 +1,23 @@
 import type { Coordinate } from '@via/contract';
-import { type Href, usePathname, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MapStatus } from '@/components/map/map-status';
 import { MetroMap, type MetroMapHandle } from '@/components/map/metro-map';
+import { HomeOverviewSheet } from '@/features/home-map/components/overview-sheet';
 import { HomeRecenterButton } from '@/features/home-map/components/recenter-button';
+import { TabBehindSheet } from '@/features/home-map/components/tab-behind-sheet';
 import { useHomeMap } from '@/features/home-map/hooks/use-map';
-import { mapOverviewSheetDetent } from '@/features/home-map/model/overview-sheet';
+import {
+  MAP_OVERVIEW_SHEET_DETENTS,
+  MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+  mapOverviewSheetDetent,
+} from '@/features/home-map/model/overview-sheet';
 
-const MAP_OVERVIEW_HREF = '/map/overview' as Href;
-const CLOSED_MAP_OVERLAY_HEIGHT = 112;
 const OPEN_MAP_TOP_GAP = 8;
 
 export function MetroMapScreen() {
-  const pathname = usePathname();
-  const router = useRouter();
   const mapRef = useRef<MetroMapHandle>(null);
   const lastFocusedStationKey = useRef<string | undefined>(undefined);
   const [mapReady, setMapReady] = useState(false);
@@ -30,33 +31,32 @@ export function MetroMapScreen() {
     refreshLocation,
     retryNetwork,
     selectStation,
+    setOverviewDetentIndex,
     userLocation,
   } = useHomeMap();
-  const overviewVisible = pathname === '/map/overview';
   const overviewDetent = mapOverviewSheetDetent(overviewDetentIndex);
 
   useEffect(() => {
     if (!mapReady || !activeStation) return;
 
-    const focusKey = `${activeStation.station.id}:${overviewVisible ? `sheet:${overviewDetentIndex}` : 'map'}`;
+    const focusKey = `${activeStation.station.id}:${overviewDetentIndex}`;
     if (lastFocusedStationKey.current === focusKey) return;
 
     lastFocusedStationKey.current = focusKey;
     mapRef.current?.focusCoordinate(activeStation.coordinate, { animated: true });
     setCenteredOnUser(false);
-  }, [activeStation, mapReady, overviewDetentIndex, overviewVisible]);
+  }, [activeStation, mapReady, overviewDetentIndex]);
 
   const selectMapStation = useCallback(
     (stationId: string, coordinate: Coordinate) => {
       // Focus from the tap itself, including when the already-active station is tapped again.
-      lastFocusedStationKey.current = `${stationId}:${overviewVisible ? 'sheet' : 'map'}`;
+      // selectStation reveals the sheet at its initial detent, so seed the key it produces.
+      lastFocusedStationKey.current = `${stationId}:${MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX}`;
       mapRef.current?.focusCoordinate(coordinate, { animated: true });
       setCenteredOnUser(false);
       selectStation(stationId);
-      // Navigate reuses an already-present overview instead of stacking a second sheet.
-      router.navigate(MAP_OVERVIEW_HREF);
     },
-    [overviewVisible, router, selectStation]
+    [selectStation]
   );
 
   const recenter = () => {
@@ -78,17 +78,15 @@ export function MetroMapScreen() {
       <MetroMap
         ref={mapRef}
         edgePadding={{
-          top: insets.top + (overviewVisible ? OPEN_MAP_TOP_GAP : 72),
+          top: insets.top + OPEN_MAP_TOP_GAP,
           right: 24,
-          bottom: overviewVisible
-            ? Math.round((height - insets.top) * overviewDetent)
-            : insets.bottom + CLOSED_MAP_OVERLAY_HEIGHT,
+          bottom: Math.round((height - insets.top) * overviewDetent),
           left: 24,
         }}
         developmentLocation={developmentLocation}
         line={undefined}
         lines={networkState.status === 'ready' ? networkState.lines : []}
-        markerSnapshotVersion={overviewVisible ? overviewDetentIndex + 1 : 0}
+        markerSnapshotVersion={0}
         stations={networkState.status === 'ready' ? networkState.stations : []}
         onReady={() => setMapReady(true)}
         onSelectStation={selectMapStation}
@@ -110,6 +108,14 @@ export function MetroMapScreen() {
       {networkState.status !== 'ready' ? (
         <MapStatus onRetry={retryNetwork} state={networkState} />
       ) : null}
+
+      <TabBehindSheet
+        detentFractions={MAP_OVERVIEW_SHEET_DETENTS}
+        detentIndex={overviewDetentIndex}
+        onDetentChange={setOverviewDetentIndex}
+        topInset={insets.top}>
+        <HomeOverviewSheet />
+      </TabBehindSheet>
     </View>
   );
 }

@@ -1,6 +1,3 @@
-import type { NativeStackNavigationProp } from 'expo-router';
-import { useNavigation, useRouter } from 'expo-router';
-import { useEffect } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
 import { HomeSearchField } from '@/features/home-map/components/search-field';
@@ -10,21 +7,15 @@ import { Shortcuts } from '@/features/home-map/components/shortcuts';
 import { HomeStationSection } from '@/features/home-map/components/station-section';
 import { HomeUnavailableState } from '@/features/home-map/components/unavailable-state';
 import { useHomeMap } from '@/features/home-map/hooks/use-map';
-import { MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX } from '@/features/home-map/model/overview-sheet';
-
-type MapStackParamList = {
-  index: undefined;
-  overview: undefined;
-};
+import { MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX } from '@/features/home-map/model/overview-sheet';
 
 export function HomeOverviewSheet() {
-  const navigation = useNavigation<NativeStackNavigationProp<MapStackParamList, 'overview'>>();
-  const router = useRouter();
   const {
     activeRoutes,
     activeStation,
     isSearchActive,
     networkState,
+    overviewDetentIndex,
     refreshLocation,
     retryNetwork,
     search,
@@ -33,18 +24,8 @@ export function HomeOverviewSheet() {
     setSearchQuery,
     userLocation,
   } = useHomeMap();
+  const isExpanded = overviewDetentIndex === MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX;
 
-  useEffect(() => {
-    setOverviewDetentIndex(MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX);
-    return navigation.addListener('sheetDetentChange', ({ data }) => {
-      if (data.stable) setOverviewDetentIndex(data.index);
-    });
-  }, [navigation, setOverviewDetentIndex]);
-
-  const close = () => {
-    if (router.canDismiss()) router.dismiss();
-    else router.replace('/map');
-  };
   const walkingMinutes = activeStation?.distanceMeters
     ? Math.max(1, Math.round(activeStation.distanceMeters / 80))
     : undefined;
@@ -54,9 +35,9 @@ export function HomeOverviewSheet() {
       <View style={styles.header}>
         <HomeSearchField onChange={setSearchQuery} />
 
-        {networkState.status === 'ready' && !isSearchActive ? (
+        {networkState.status === 'ready' && !isSearchActive && isExpanded ? (
           <Shortcuts
-            onClose={close}
+            onClose={() => setOverviewDetentIndex(0)}
             onLocate={() => void refreshLocation()}
             walkingMinutes={walkingMinutes}
           />
@@ -80,7 +61,11 @@ export function HomeOverviewSheet() {
       ) : null}
 
       {networkState.status === 'ready' && !isSearchActive && activeStation ? (
-        <HomeStationSection routes={activeRoutes} station={activeStation} />
+        <HomeStationSection
+          expanded={isExpanded}
+          routes={activeRoutes}
+          station={activeStation}
+        />
       ) : null}
 
       {networkState.status === 'ready' && !isSearchActive && !activeStation ? (
@@ -108,5 +93,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: { gap: 10, paddingTop: 12 },
+  header: { gap: 8, paddingTop: 4 },
 });

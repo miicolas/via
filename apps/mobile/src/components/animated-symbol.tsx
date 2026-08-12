@@ -1,35 +1,39 @@
-import { Image } from 'expo-image';
+import { Image, type SFSymbolEffect } from 'expo-image';
 import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-type LiveSymbolProps = {
-  color?: string;
-  intervalMs?: number;
-  name?: string;
-  size?: number;
+type AnimatedSymbolProps = {
+  color: string;
+  effect: SFSymbolEffect;
+  name: string;
+  replayIntervalMs?: number;
+  size: number;
 };
 
-export function LiveSymbol({
-  color = '#2F6B5B',
-  intervalMs = 10_000,
-  name = 'wave.3.left',
-  size = 13,
-}: LiveSymbolProps) {
+export function AnimatedSymbol({
+  color,
+  effect,
+  name,
+  replayIntervalMs,
+  size,
+}: AnimatedSymbolProps) {
   const [animationKey, setAnimationKey] = useState(0);
 
   useEffect(() => {
+    if (!replayIntervalMs) return;
+
     const interval = setInterval(() => {
       setAnimationKey((key) => key + 1);
-    }, intervalMs);
+    }, replayIntervalMs);
 
     return () => clearInterval(interval);
-  }, [intervalMs]);
+  }, [replayIntervalMs]);
 
   return (
     <Image
       key={animationKey}
       source={`sf:${name}`}
-      sfEffect="appear"
+      sfEffect={effect}
       style={[styles.symbol, { color, fontSize: size }]}
     />
   );

@@ -55,10 +55,14 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
     setSelectedStationId(undefined);
     setSelectedPlace(undefined);
   }, []);
-  const selectStation = useCallback((stationId: string) => setSelectedStationId(stationId), []);
+  const selectStation = useCallback((stationId: string) => {
+    setSelectedStationId(stationId);
+    setOverviewDetentIndex(MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX);
+  }, []);
   const selectResult = useCallback((result: SearchResult) => {
     if (result.kind === 'station') setSelectedStationId(result.id);
     else setSelectedPlace({ name: result.name, coordinate: result.coordinate });
+    setOverviewDetentIndex(MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX);
   }, []);
 
   const value = useMemo(
