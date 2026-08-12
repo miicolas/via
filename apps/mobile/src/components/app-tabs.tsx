@@ -1,36 +1,30 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { MapBottomAccessory } from '@/features/home-map/bottom-accessory';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-
   return (
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
+      disableTransparentOnScrollEdge
+      labelStyle={{ selected: { color: '#2F6B5B' } }}
+      tintColor="#2F6B5B">
+      <NativeTabs.BottomAccessory>
+        <MapBottomAccessory />
+      </NativeTabs.BottomAccessory>
 
       <NativeTabs.Trigger name="map">
         <NativeTabs.Trigger.Label>Carte</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="map.fill" md="map" />
+        <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
+        <NativeTabs.Trigger.Label>Lignes</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'tram', selected: 'tram.fill' }} />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="navigo">
+        <NativeTabs.Trigger.Label>Navigo</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'creditcard', selected: 'creditcard.fill' }} />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "ai.impulselab.via",
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Via utilise votre position pour afficher les stations à proximité."
+      }
     },
     "android": {
       "package": "ai.impulselab.via",
@@ -33,6 +36,12 @@
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Via utilise votre position pour afficher les stations à proximité."
         }
       ]
     ],

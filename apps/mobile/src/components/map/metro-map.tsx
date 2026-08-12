@@ -1,15 +1,15 @@
-import type { NetworkRoute } from '@via/contract';
+import type { Coordinate, NetworkRoute } from '@via/contract';
 import { useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { Animated, StyleSheet } from 'react-native';
-import MapView, { type EdgePadding, type Region } from 'react-native-maps';
+import MapView, { Marker, type EdgePadding, type Region } from 'react-native-maps';
 
 import { RouteLines } from '@/components/map/route-lines';
 import { StationMarkers } from '@/components/map/station-markers';
 import { routeBounds, type LineView } from '@/lib/metro-network';
 
 const INITIAL_REGION: Region = {
-  latitude: 48.8683,
-  longitude: 2.338,
+  latitude: 48.8566,
+  longitude: 2.3522,
   latitudeDelta: 0.13,
   longitudeDelta: 0.29,
 };
@@ -25,6 +25,7 @@ export type MetroMapHandle = {
    * line's stations with another line's geometry.
    */
   fitToRoute: (route: NetworkRoute, options?: { animated?: boolean }) => void;
+  focusCoordinate: (coordinate: Coordinate, options?: { animated?: boolean }) => void;
 };
 
 type MetroMapProps = {
@@ -34,8 +35,10 @@ type MetroMapProps = {
   line: LineView | undefined;
   /** Room the caller's overlay needs around a fitted line. */
   edgePadding: EdgePadding;
+  focusedStation?: { coordinate: Coordinate; name: string };
   /** Fires once the native map can accept a camera command. */
-  onReady: () => void;
+  onReady?: () => void;
+  showsUserLocation?: boolean;
   ref?: Ref<MetroMapHandle>;
 };
 
@@ -49,7 +52,15 @@ type MetroMapProps = {
  * has one trigger path, and reading the screen tells you that touching a line
  * moves the camera.
  */
-export function MetroMap({ lines, line, edgePadding, onReady, ref }: MetroMapProps) {
+export function MetroMap({
+  lines,
+  line,
+  edgePadding,
+  focusedStation,
+  onReady,
+  ref,
+  showsUserLocation = false,
+}: MetroMapProps) {
   const mapRef = useRef<MapView>(null);
   const [stationOpacity] = useState(() => new Animated.Value(0));
 
@@ -61,6 +72,23 @@ export function MetroMap({ lines, line, edgePadding, onReady, ref }: MetroMapPro
         if (bounds.length === 0) return;
         mapRef.current?.fitToCoordinates(bounds, { animated, edgePadding });
       },
+      focusCoordinate(coordinate, { animated = true } = {}) {
+        const latitudeDelta = 0.0025;
+        const longitudeDelta = 0.004;
+        mapRef.current?.fitToCoordinates(
+          [
+            {
+              latitude: coordinate.latitude - latitudeDelta,
+              longitude: coordinate.longitude - longitudeDelta,
+            },
+            {
+              latitude: coordinate.latitude + latitudeDelta,
+              longitude: coordinate.longitude + longitudeDelta,
+            },
+          ],
+          { animated, edgePadding }
+        );
+      },
     }),
     [edgePadding]
   );
@@ -70,23 +98,31 @@ export function MetroMap({ lines, line, edgePadding, onReady, ref }: MetroMapPro
       ref={mapRef}
       style={styles.map}
       initialRegion={INITIAL_REGION}
-      mapType="standard"
+      mapType="mutedStandard"
       loadingEnabled
       loadingBackgroundColor="#F5F4EF"
       loadingIndicatorColor="#1D1D1F"
       pitchEnabled={false}
       rotateEnabled={false}
-      showsBuildings
+      showsBuildings={false}
       showsCompass={false}
       showsIndoors={false}
       showsPointsOfInterests={false}
+      showsUserLocation={showsUserLocation}
       showsTraffic={false}
-      showsUserLocation={false}
       onMapReady={onReady}
       onRegionChange={(region) => stationOpacity.setValue(fadeProgress(region.longitudeDelta))}
     >
       <RouteLines routes={lines} selectedRoute={line?.route} />
       {line && <StationMarkers line={line} opacity={stationOpacity} />}
+      {focusedStation ? (
+        <Marker
+          coordinate={focusedStation.coordinate}
+          pinColor="#2F6B5B"
+          title={focusedStation.name}
+          tracksViewChanges={false}
+        />
+      ) : null}
     </MapView>
   );
 }

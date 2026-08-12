@@ -1,0 +1,101 @@
+# Mobbin — parcours iOS détaillé de l’onglet Lignes
+
+Date de vérification : 12 août 2026.
+
+## Objet et méthode
+
+Cette note documente les patterns iOS utiles à un onglet **Lignes** centré sur la carte : filtrage Métro/RER/Tram, recherche, détail de ligne, choix de direction ou de branche, sélection d’une gare, prochains passages, détail d’un départ, perturbations, favoris, erreurs et accessibilité.
+
+Les résultats ont été obtenus exclusivement via le MCP Mobbin. Chaque référence retenue a été contrôlée visuellement ; les conclusions ci-dessous ne sont pas déduites des seuls titres ou métadonnées de recherche.
+
+## Matrice des patterns observés
+
+| Besoin Via | Référence inspectée | Pattern observé | Transposition recommandée | Risque à éviter |
+| --- | --- | --- | --- | --- |
+| Entrée dans Lignes | [Transit — carte et lignes proches](https://mobbin.com/screens/a908a09a-6c11-4f60-a5c1-f1fd8886e905) | Carte en haut, position visible, lignes proches empilées par couleur avec destination et prochain passage | Carte plein écran persistante, feuille au premier cran avec favoris puis lignes proches ; badge de statut et minutes visibles sans ouvrir la ligne | Transformer l’onglet en simple annuaire et perdre le contexte spatial |
+| Catalogue de réseaux | [Grab — Public Transit](https://mobbin.com/screens/0539498b-b837-46b8-84c0-ed1a0d082027) | Recherche, onglets de modes, sections géographiques, cartes de ligne avec sens, nombre d’arrêts et cœur | Feuille développée : Favoris, Métro, RER, Tram ; chaque ligne affiche ses terminus, son état et sa proximité | Utiliser seulement la couleur ou un code de ligne sans libellé |
+| Filtrage détaillé des modes | [Transit — réglages Public transit](https://mobbin.com/screens/739bb95c-b5f1-4869-be0b-4e99d64709a3) | Cases par mode, groupes dépliables et option dédiée aux lignes sur la carte | Feuille multisélection Métro/RER/Tram + « Afficher sur la carte » ; compteur de résultats et réinitialisation | Confondre filtre de catalogue et calque cartographique |
+| Filtrage iOS compact | [Apple Maps — Prefer](https://mobbin.com/screens/bbcd9d83-7e9b-4d32-b294-41c99f500684) | Petite feuille modale, choix multiples cochés, validation explicite | Utiliser une feuille compacte iOS 26 avec coches, Tout sélectionner et bouton Appliquer | Fermer au premier tap alors que plusieurs modes doivent pouvoir être combinés |
+| Recherche de lignes et gares | [Transit — résultats typés](https://mobbin.com/screens/3816b5cd-2a78-4696-8492-b8847ac89640) | Récents puis gares/arrêts ; badges de correspondances et menu contextuel | Résultats groupés « Lignes », « Gares », « Arrêts » avec badge de mode, statut et correspondances | Mélanger ligne, gare et adresse sans indiquer le type du résultat |
+| Recherche par mode | [Grab — recherche MRT](https://mobbin.com/screens/6ef81791-fcdb-481f-9640-f4e8bb492be9) | Onglet de mode conservé, lignes organisées autour de stations proches, sens et horaire | Conserver le filtre actif pendant la recherche ; afficher « vers … » et le prochain passage | Réinitialiser silencieusement les filtres quand le clavier s’ouvre |
+| Carte de ligne | [Transit — ligne cartographiée](https://mobbin.com/screens/08d3d8a6-4a2b-49e7-aba0-8b36087ca048) | Tracé de ligne, position, sens, tuiles horizontales de départs, alerte et arrêt proche | Tracé sélectionné dominant ; autres lignes atténuées ; feuille au cran moyen avec sens, passages et prochain arrêt | Recouvrir la branche ou la gare sélectionnée avec la feuille |
+| Ligne carte + feuille | [Grab — KRL line detail](https://mobbin.com/screens/b9bdc7b6-9e88-4e4a-a05c-5d8a04dcce01) | Carte conservée au-dessus d’une feuille contenant le nom et la liste des arrêts | Deux crans : aperçu carte puis liste complète ; synchroniser surbrillance carte/liste | Ouvrir une nouvelle page blanche qui détruit la mémoire spatiale |
+| Choix de direction/branche | [Transit — choix explicite de branche](https://mobbin.com/screens/6cdde295-bf42-48ef-bf72-270e80d603ec) | Feuille dédiée avec deux directions nommées et option « je ne sais pas » | Nommer chaque choix par terminus et branche ; survoler le segment correspondant sur la carte | Un simple bouton d’inversion ambigu sur une ligne ramifiée |
+| Choix d’une destination | [Transit — Select destination](https://mobbin.com/screens/99e85c98-1588-43d9-9a57-0203c0faf285) | Liste verticale des arrêts avec rail, correspondances et sélection tactile | Dans la branche active, permettre de choisir un arrêt pour recadrer la carte ou préparer un trajet | Mettre toutes les stations dans un menu compact illisible |
+| Liste complète des stations | [Transit — stop list](https://mobbin.com/screens/16a29c82-17c2-48f6-bc29-6d6d0076892a) | Rail coloré, points de station, heures, correspondances très lisibles | Rail de ligne à gauche ; station courante accentuée ; terminus et branche toujours visibles | Lister des stations sans indiquer le sens actuellement affiché |
+| Gare sélectionnée sur la carte | [Google Maps — station place card](https://mobbin.com/screens/82e330b9-eb36-4f72-9670-bdb3ceded86a) | Carte visible, fiche de lieu, affluence, actions, lignes filtrables et passages | Feuille gare : nom, accessibilité/affluence, actions, chips de lignes puis départs | Remplacer la carte par la fiche et perdre l’entrée ou la branche sélectionnée |
+| Liste dense de passages | [Google Maps — departures list](https://mobbin.com/screens/817f224d-319c-4a04-9302-d4e82611dc0b) | Chips de ligne, destination, temps réel ou planifié, minutes puis heure absolue | Chaque ligne de départ : ligne + destination + quai/voie + source temps réel + minutes ; heure absolue au-delà d’un seuil | Afficher « 4 min » sans dire si l’information est temps réel ou théorique |
+| Détail d’un départ | [Apple Maps — upcoming departures and stops](https://mobbin.com/screens/25c43d7c-5508-41b9-9757-083ad450e40f) | Départs horizontaux puis chronologie d’arrêts avec heures | Feuille dédiée à un train : mission, destination, départ, voie, statut, arrêts futurs et heures | Réutiliser exactement la fiche gare sans niveau de détail supplémentaire |
+| Retard et arrêts | [Apple Maps — delayed departure](https://mobbin.com/screens/6019ffc7-071d-4e27-b0cc-c9ceaeea8c45) | Départ en retard mis en évidence ; prochains arrêts et heures prévues | Montrer heure prévue barrée + heure corrigée, retard, dernière mise à jour et arrêts impactés | Colorer en rouge sans libellé ou explication textuelle |
+| Détail de mission | [Transit — mission avec arrêts](https://mobbin.com/screens/cd765b26-7c70-426e-a1f7-83725597c8fb) | Cartes de passages, service modifié, calendrier spécial, rail complet avec heures | Associer le départ choisi à sa mission et au segment ; conserver les alertes dans le contexte | Disséminer horaires et perturbation sur deux écrans sans lien évident |
+| Alerte visible dans la ligne | [Transit — selected line with detour](https://mobbin.com/screens/341b778e-1381-4cf2-824c-b6db5bcf52a6) | Chip d’incident près des départs, sans masquer le tracé | Alerte compacte au cran d’aperçu et segment affecté en motif/halo sur la carte | Bannière générique non reliée à une branche ou un tronçon |
+| Détail des perturbations | [Transit — alerts on this line](https://mobbin.com/screens/52509495-88a6-4ff6-b124-b52037bcdbe2) | Direction visible, état des notifications, cartes d’alertes avec zone, cause, durée et date de publication | Écran/feuille alerte : sévérité, branche, gares affectées, période, cause, alternatives et abonnement | Cacher l’information critique derrière un simple pictogramme |
+| Favoris de lignes | [Transit — Favourite lines](https://mobbin.com/screens/0dd4d5d5-477c-498f-bc6e-7cf319a9e8d7) | Feuille de lignes favorites ; actions distinctes épingler/notifier | Distinguer « enregistrer » de « recevoir des alertes » et afficher la portée (ligne, sens, plage horaire) | Activer des notifications par surprise avec l’action Favori |
+| État live et accessibilité | [Transit — véhicule, affluence et accessibilité](https://mobbin.com/screens/c84804a6-afbb-491a-8345-3811fea13cc1) | Temps avant station, affluence, badge accessible, fraîcheur de donnée et source communautaire | Afficher accessibilité, affluence et fraîcheur avec texte ; traiter ces données comme secondaires/non garanties | Donner une précision trompeuse sans horodatage ni source |
+| Préférences d’accessibilité | [Transit — Accessibility preferences](https://mobbin.com/screens/51a4e075-996c-4748-a50e-9788f879f9fa) | Minimiser la marche, afficher l’accessibilité, prioriser les trajets accessibles, noms écrits en plus des couleurs | Préférences Via : sans marche longue, sans escalier, afficher ascenseurs, noms de lignes toujours textuels | Dépendre de la couleur ou imposer une option « accessible » tout-en-un |
+| Options d’itinéraire accessibles | [Google Maps — Trip options](https://mobbin.com/screens/ff001169-b21f-4ea7-8d31-5f0bb54f7ea2) | Modes préférés et critère « wheelchair accessible » explicite | Exposer le besoin accessible dans les filtres de gare/ligne et dans les alternatives d’incident | Enterrer ce réglage dans les paramètres globaux uniquement |
+| État vide contextuel | [Transit — no service after last stop](https://mobbin.com/screens/8a90b40f-ef00-4ddd-8623-0eec05bf2f7c) | Cause précise et sortie utile vers d’autres options | Dire pourquoi il n’y a aucun passage et proposer lignes voisines, autre branche ou horaire théorique | Message « aucun résultat » sans cause ni action |
+| Aucun train disponible | [Kakao T — no trains](https://mobbin.com/screens/79bcf915-21b2-43cf-9b9d-70b18a4fc388) | État vide dans le contexte filtré et deux alternatives | Conserver filtres/date, proposer « Toutes les lignes » et « Voir les alternatives » | Réinitialiser le contexte quand l’utilisateur essaie une alternative |
+| Permission de localisation | [Transit — contextual location pre-prompt](https://mobbin.com/screens/153f96d8-c6a1-4b54-86c3-03efa9783125) | Explication métier avant la permission, action positive et refus clair | Expliquer « lignes et gares autour de vous » ; permettre Continuer sans localisation via recherche manuelle | Bloquer l’onglet ou demander la permission avant d’expliquer la valeur |
+
+## User flow recommandé — 30 écrans
+
+Les écrans ci-dessous forment un seul système. Les numéros peuvent devenir les noms d’artboards Paper. Les écrans 1 à 22 couvrent le parcours principal et ses branches ; 23 à 30 couvrent les états de confiance indispensables.
+
+| # | Artboard proposé | Déclencheur depuis l’état précédent | Contenu qui doit être visible | Sorties et interactions |
+| ---: | --- | --- | --- | --- |
+| 01 | `Lignes · Carte` | Tap sur l’onglet Lignes | Carte plein écran, position ou zone courante, favoris et lignes proches au premier cran, statut réseau | Tap ligne → 07 ; tirer la feuille → 02 ; Filtrer → 03 ; Rechercher → 05 ; calques → 30 |
+| 02 | `Lignes · Catalogue développé` | Glisser la feuille vers le haut | Favoris, sections Métro/RER/Tram, codes + noms + terminus, état de service, distance | Tap ligne → 07 ; cœur → 19 ; onglet de mode → 04 ; fermer/rabaisser → 01 |
+| 03 | `Lignes · Filtres` | Tap Filtrer | Métro, RER, Tram, éventuellement Bus ; multi-sélection ; compteur ; Réinitialiser et Appliquer | Appliquer → 04 ; fermer → retour sans mutation ; réinitialiser → tous les modes |
+| 04 | `Lignes · Filtre appliqué` | Appliquer les modes | Carte et catalogue cohérents, résumé du filtre en chip, nombre de lignes | Retirer un chip ; rouvrir 03 ; tap ligne → 07 |
+| 05 | `Lignes · Recherche vide` | Tap du champ de recherche | Clavier, récents, favoris, gare la plus proche, filtres actifs conservés | Saisie → 06 ; résultat récent → 07 ou 11 ; Annuler → état antérieur |
+| 06 | `Lignes · Résultats` | Saisie de texte | Sections Lignes/Gares/Arrêts, surlignage du terme, correspondances, état de service | Tap ligne → 07 ; tap gare → 11 ; menu contextuel → 19/21 ; aucun résultat → 26 |
+| 07 | `Ligne · Carte` | Tap d’une ligne | Tracé complet, branches, stations, sens actif, prochains passages, favori, alerte éventuelle | sens → 08 ; Liste → 10 ; station → 11 ; départ → 14 ; alerte → 17 ; cœur → 19 |
+| 08 | `Ligne · Choisir direction` | Tap sur le sens/terminus | Feuille avec deux terminus ou branches nommées, mini-tracé de la branche, « Je ne sais pas » | Choix → 09 ; fermer → 07 ; « Je ne sais pas » garde les deux branches avec explication |
+| 09 | `Ligne · Branche sélectionnée` | Tap d’une branche | Branche sélectionnée dominante, autres segments atténués, terminus et fréquence mis à jour | changer sens → 08 ; liste → 10 ; station → 11 ; tap zone affectée → 17 |
+| 10 | `Ligne · Toutes les stations` | Tap Liste ou feuille au cran haut | Rail de ligne, branche/sens épinglé, terminus, stations, correspondances, heures/intervalle | Tap station → 12 ; bascule Carte → 09 ; inversion du sens → 08 |
+| 11 | `Gare · Aperçu carte` | Tap marqueur ou résultat gare | Marqueur et lignes mis en évidence, feuille courte avec nom, lignes, accessibilité, premier départ | Développer → 12 ; Itinéraire ; enregistrer → 21 ; recadrer carte ; fermer → écran source |
+| 12 | `Gare · Détail` | Tirer la feuille | Nom, accès/affluence, actions, chips des lignes, tous les prochains passages, incidents | chip ligne → 13 ; départ → 14 ; infos gare → 15 ; incident → 17 ; cœur → 21 |
+| 13 | `Gare · Départs filtrés` | Tap d’un chip de ligne | Seule la ligne choisie, sens distincts, voie/quai, temps réel vs planifié, dernière mise à jour | Retirer filtre → 12 ; tap départ → 14 ; changer direction → filtre local |
+| 14 | `Départ · Détail train` | Tap d’un passage | Ligne, mission, destination, départ corrigé/prévu, voie, composition si disponible, statut live | Développer arrêts → 16 ; incident → 17 ; alerte sur ce train ; retour gare → 12 |
+| 15 | `Gare · Accès & accessibilité` | Tap Plus d’infos/Accessibilité | Entrées sur carte, ascenseurs/escalators, accès sans marche, quais, sorties utiles et statut des équipements | Tap entrée → recadrage ; itinéraire accessible ; signaler une erreur ; retour → 12 |
+| 16 | `Départ · Arrêts de la mission` | Développer la chronologie | Rail complet, gare courante, arrêts futurs, heures prévues/corrigées, segment perturbé | Tap gare → 11/12 ; tap segment incident → 17 ; réduire → 14 |
+| 17 | `Perturbation · Aperçu` | Tap chip/segment d’alerte | Sévérité, libellé court, tronçon ou branche affectée simultanément sur la carte, durée | Détails → 18 ; alternatives → 19 ; fermer → contexte d’origine |
+| 18 | `Perturbation · Détail` | Tap Détails | Cause, début/fin, gares affectées, conséquences, source/heure de mise à jour, notifications | Alternatives → 19 ; activer alertes → 20 ; tap gare → 12 ; retour → 17 |
+| 19 | `Perturbation · Alternatives` | Tap Alternatives | Autres lignes, correspondances et marche ; accessibilité ; surcoût/temps ; carte comparative | Tap alternative → aperçu itinéraire ; retour → 18 ; modifier critères → 29 |
+| 20 | `Favori ligne · Notifications` | Tap cloche ou après cœur si l’utilisateur le choisit | Portée ligne/sens/branche, incidents vs rappels, plages jours/heures, fréquence | Enregistrer → confirmation sur 07/22 ; Pas maintenant → favori sans notifications |
+| 21 | `Favori gare · Confirmation` | Tap Enregistrer sur une gare | Gare enregistrée, option épingler en tête, choisir lignes suivies et activer des alertes séparément | Gérer → 22 ; fermer → 12 ; configurer alertes → 20 adapté à la gare |
+| 22 | `Favoris · Gérer` | Tap Favoris/Gérer | Lignes et gares séparées, état de service, réorganisation, suppression, cloche/pin | Tap item → 07/12 ; modifier alertes → 20 ; supprimer avec Undo |
+| 23 | `Localisation · Pré-permission` | Première ouverture sans décision | Bénéfice concret, aperçu carte, « Activer la localisation » et « Continuer sans » | Accepter → prompt système puis 01 ; sans → 24 ; fermer ne bloque pas |
+| 24 | `Localisation · Mode manuel` | Refus ou restriction système | Zone manuelle visible, recherche prioritaire, CTA discret vers Réglages, aucune carte faussement centrée | Rechercher → 05 ; ouvrir Réglages ; choisir une ville → 01 avec zone manuelle |
+| 25 | `Données · Chargement` | Ouverture ligne/gare sur réseau lent | Skeletons stables, carte interactive, libellé « Mise à jour des passages » sans remplacer le contenu connu | Succès → écran cible ; dépasser délai → 27 ; Annuler/retour toujours possible |
+| 26 | `Recherche · Aucun résultat` | Requête sans correspondance | Requête conservée, filtres visibles, correction orthographique, élargissement du type/secteur | Effacer filtre ; rechercher toute l’Île-de-France ; retour 05 |
+| 27 | `Passages · Hors ligne / données anciennes` | Échec de données temps réel | Horaires en cache maintenus, badge Hors ligne, horodatage, distinction « théorique », Réessayer | Réessayer ; consulter fiche gare ; retour ; ne jamais afficher un countdown live trompeur |
+| 28 | `Erreur · Réessayer` | Échec total carte/catalogue | Cause compréhensible, portée de la panne, actions Réessayer et Recherche manuelle, support si persistant | Réessayer vers écran source ; recherche → 05 ; retour onglet précédent |
+| 29 | `Accessibilité · Préférences` | Tap Options d’accessibilité | Réduire marche, sans escalier, ascenseurs opérationnels, afficher infos, noms textuels de lignes, taille de texte | Appliquer à la carte, aux alternatives et aux alertes ; réinitialiser ; retour contexte |
+| 30 | `Carte · Calques & affichage` | Tap Calques | Tous/Métro/RER/Tram, lignes perturbées, stations accessibles, densité/labels ; reset | Modifier en direct sans quitter la carte ; fermer → 01/07/11 selon le contexte |
+
+## Règles de comportement à rendre visibles dans Paper
+
+1. **La carte ne disparaît pas** entre ligne, gare et départ. Elle reste derrière une feuille à trois crans : aperçu, détail, plein écran.
+2. **Le sens est toujours textuel.** Afficher « vers Saint-Germain-en-Laye » et, pour une ligne ramifiée, la branche ; une simple flèche d’inversion ne suffit pas.
+3. **Carte et liste sont synchronisées.** Sélectionner une station dans la liste recentre la carte ; sélectionner un marqueur amène la station correspondante dans la feuille.
+4. **La couleur n’est jamais la seule information.** Code, nom, destination et forme/pattern d’alerte accompagnent les couleurs de ligne.
+5. **Le temps réel est qualifié.** Chaque passage indique live, théorique, retardé ou ancien, avec une heure de mise à jour.
+6. **Favori et notification sont deux actions.** L’enregistrement ne déclenche pas automatiquement une autorisation ou des alertes.
+7. **Les perturbations ont une géométrie.** Une alerte doit révéler la branche, le tronçon et les gares concernés sur la carte, puis offrir des alternatives.
+8. **Les permissions ont un mode dégradé.** Sans localisation, l’utilisateur peut choisir une zone, chercher une ligne et consulter ses horaires.
+9. **Les feuilles respectent les interactions cartographiques.** Au cran bas, la carte reste largement manipulable ; au cran haut, un tap explicite permet de repasser en carte.
+10. **Accessibilité et affluence sont contextualisées.** Source, fraîcheur et niveau de confiance doivent être visibles ; aucune promesse ne doit être implicite.
+
+## Références de flows Mobbin
+
+- [Transit — Transit line detail, 8 écrans](https://mobbin.com/flows/f2ea2463-4908-4586-b0bf-ef0add07c9c2) : de la carte de proximité au détail de ligne, liste d’arrêts et état cartographique.
+- [Transit — Searching Transit, 11 écrans](https://mobbin.com/flows/e857b8a5-049a-4fd0-9c24-6d909e3db12a) : recherche, résultats, itinéraire et état sans service.
+- [Apple Maps — Getting directions (public transport), 6 écrans](https://mobbin.com/flows/87195eba-a897-4f0c-b35c-bd4747e64e80) : itinéraire, détail d’étape, prochains départs et arrêts.
+- [Apple Maps — Filtering public transport, 4 écrans](https://mobbin.com/flows/80ff0527-e9b2-4ed8-8cc8-a9ded183ad00) : feuille de préférences multisélection et résultat filtré.
+
+## Priorité de production Paper
+
+Pour atteindre au moins vingt écrans sans diluer la qualité, produire d’abord **01–22**. Les huit écrans **23–30** ne sont pas décoratifs : ils prouvent la robustesse des interactions et peuvent former une rangée « États de confiance » séparée du happy path.
+

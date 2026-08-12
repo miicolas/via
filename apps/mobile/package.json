@@ -3,6 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/archivo": "^0.4.2",
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo/ui": "~57.0.10",
     "@orpc/client": "1.15.0",
     "@orpc/contract": "1.15.0",
@@ -14,6 +16,7 @@
     "expo-glass-effect": "~57.0.1",
     "expo-image": "~57.0.2",
     "expo-linking": "~57.0.5",
+    "expo-location": "~57.0.9",
     "expo-router": "~57.0.12",
     "expo-splash-screen": "~57.0.6",
     "expo-status-bar": "~57.0.1",

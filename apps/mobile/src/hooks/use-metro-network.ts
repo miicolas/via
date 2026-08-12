@@ -1,5 +1,5 @@
 import type { ContractRouterClient } from '@orpc/contract';
-import type { contract } from '@via/contract';
+import type { contract, NetworkMap } from '@via/contract';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api, apiBaseUrl } from '@/lib/api';
@@ -8,6 +8,7 @@ import { LOAD_FAILED_MESSAGE, networkState, type NetworkState } from '@/lib/metr
 type ApiClient = ContractRouterClient<typeof contract>;
 
 export type MetroNetwork = {
+  network?: NetworkMap;
   state: NetworkState;
   select: (routeId: string) => void;
   retry: () => void;
@@ -55,5 +56,5 @@ export function useMetroNetwork(client: ApiClient = api): MetroNetwork {
     setAttempt((value) => value + 1);
   }, []);
 
-  return { state, select, retry };
+  return { network, state, select, retry };
 }

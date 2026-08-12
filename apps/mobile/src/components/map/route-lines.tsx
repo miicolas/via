@@ -9,6 +9,7 @@ const ROUNDED = { lineCap: 'round', lineJoin: 'round' } as const;
 const MUTED = { strokeColor: 'rgba(120,120,128,0.11)', strokeWidth: 2.5 };
 const CASING = { strokeColor: 'rgba(255,255,255,0.92)', strokeWidth: 5.5 };
 const SELECTED_WIDTH = 3.4;
+const NETWORK_WIDTH = 3;
 
 type RouteLinesProps = {
   routes: NetworkRoute[];
@@ -17,6 +18,20 @@ type RouteLinesProps = {
 
 /** The whole network greyed out, with the selected line drawn on top of a white casing. */
 export const RouteLines = memo(function RouteLines({ routes, selectedRoute }: RouteLinesProps) {
+  if (!selectedRoute) {
+    return routes.flatMap((route) =>
+      route.segments.map((segment) => (
+        <Polyline
+          key={`network-${segment.id}`}
+          coordinates={segment.coordinates}
+          strokeColor={route.color}
+          strokeWidth={NETWORK_WIDTH}
+          {...ROUNDED}
+        />
+      ))
+    );
+  }
+
   const selected = selectedRoute ? [selectedRoute] : [];
   const layers = [
     { key: 'muted', routes: routes.filter((route) => route.id !== selectedRoute?.id), ...MUTED },

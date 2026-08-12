@@ -24,6 +24,7 @@ export const networkRouteSchema = z.object({
   /** CSS-ready. GTFS stores these bare ("FFCD00"). */
   color: z.string(),
   textColor: z.string(),
+  destinations: z.array(z.string()),
   segments: z.array(networkSegmentSchema),
 });
 

@@ -18,6 +18,7 @@ export function selectMetroPatterns() {
       color: transitRoutes.color,
       textColor: transitRoutes.textColor,
       patternId: transitRoutePatterns.id,
+      headsign: transitRoutePatterns.headsign,
       geometry: sql<string>`ST_AsGeoJSON(${transitRoutePatterns.geometry})`,
     })
     .from(transitRoutePatterns)

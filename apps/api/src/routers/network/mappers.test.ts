@@ -16,6 +16,7 @@ const patternRows: MetroPatternRow[] = [
     color: 'FFCD00',
     textColor: '000000',
     patternId: 'shape-1-a',
+    headsign: 'La Défense',
     geometry: LINE_1,
   },
   {
@@ -25,6 +26,7 @@ const patternRows: MetroPatternRow[] = [
     color: 'FFCD00',
     textColor: '000000',
     patternId: 'shape-1-b',
+    headsign: 'Château de Vincennes',
     geometry: LINE_1_BRANCH,
   },
   {
@@ -34,6 +36,7 @@ const patternRows: MetroPatternRow[] = [
     color: 'A0006E',
     textColor: 'FFFFFF',
     patternId: 'shape-4-a',
+    headsign: 'Bagneux – Lucie Aubrac',
     geometry: LINE_4,
   },
 ];
@@ -75,6 +78,7 @@ describe('toNetworkMap', () => {
     const [lineOne] = routes;
     expect(lineOne.id).toBe('IDFM:C01371');
     expect(lineOne.shortName).toBe('1');
+    expect(lineOne.destinations).toEqual(['La Défense', 'Château de Vincennes']);
     expect(lineOne.segments.map((segment) => segment.id)).toEqual(['shape-1-a', 'shape-1-b']);
     expect(lineOne.segments[0].coordinates).toEqual([
       { latitude: 48.8606, longitude: 2.3364 },

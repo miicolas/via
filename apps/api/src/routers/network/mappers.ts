@@ -23,6 +23,7 @@ function toRoutes(rows: MetroPatternRow[]): NetworkRoute[] {
       longName: route.longName,
       color: `#${route.color}`,
       textColor: `#${route.textColor}`,
+      destinations: [...new Set(routeRows.map(({ headsign }) => headsign))],
       segments: routeRows.map((row) => ({
         id: row.patternId,
         coordinates: toCoordinates(row.geometry),

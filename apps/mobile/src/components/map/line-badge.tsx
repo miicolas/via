@@ -1,7 +1,5 @@
 import type { NetworkRoute } from '@via/contract';
-import { StyleSheet, View } from 'react-native';
-
-import { ThemedText } from '@/components/themed-text';
+import { StyleSheet, Text, View } from 'react-native';
 
 type LineBadgeProps = {
   /**
@@ -19,16 +17,20 @@ export function LineBadge({ route, size }: LineBadgeProps) {
       style={[
         styles.badge,
         {
-          minWidth: size,
+          width: Math.max(size, route.shortName.length * 9 + 12),
           height: size,
           borderRadius: size / 2,
           backgroundColor: route.color,
         },
       ]}
     >
-      <ThemedText type="smallBold" style={{ color: route.textColor }}>
+      <Text
+        style={[
+          styles.label,
+          { color: route.textColor, fontSize: size * 0.5, lineHeight: size * 0.58 },
+        ]}>
         {route.shortName}
-      </ThemedText>
+      </Text>
     </View>
   );
 }
@@ -39,4 +41,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  label: { fontFamily: 'Archivo_800ExtraBold', letterSpacing: -0.5 },
 });

@@ -17,6 +17,7 @@ function route(shortName: string, id = `IDFM:${shortName}`): NetworkRoute {
     longName: `Ligne ${shortName}`,
     color: '#FFCD00',
     textColor: '#000000',
+    destinations: [`Terminus ${shortName}`],
     segments: [
       {
         id: `shape-${shortName}`,
