@@ -15,7 +15,7 @@ export type MetroNetwork = {
 };
 
 /**
- * Loads the whole metro network once and owns which line is shown.
+ * Loads the whole visible transit network once and owns which line is shown.
  *
  * The client is a parameter rather than a module-level capture: that is the only
  * seam in the app, and it is what lets the load-and-retry path be exercised with
@@ -38,7 +38,7 @@ export function useMetroNetwork(client: ApiClient = api): MetroNetwork {
       .then(setNetwork)
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
-        console.error(`[map] Failed to load metro network from ${apiBaseUrl}`, cause);
+        console.error(`[map] Failed to load transit network from ${apiBaseUrl}`, cause);
         setError(LOAD_FAILED_MESSAGE);
       });
 

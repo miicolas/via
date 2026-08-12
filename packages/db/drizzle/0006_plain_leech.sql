@@ -1,0 +1,1 @@
+ALTER TABLE "transit_route_patterns" ALTER COLUMN "geometry" DROP NOT NULL;

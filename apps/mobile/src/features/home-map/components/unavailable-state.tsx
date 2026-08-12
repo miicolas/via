@@ -1,7 +1,7 @@
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 type HomeUnavailableStateProps = {
   actionLabel?: string;
@@ -18,18 +18,27 @@ export function HomeUnavailableState({
   onAction,
   title,
 }: HomeUnavailableStateProps) {
+  const { colors } = useHomeMapTheme();
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.iconBadge}>
-          <SymbolView name={icon} size={30} tintColor={HomeMapTheme.primary} weight="semibold" />
+        <View
+          style={[
+            styles.iconBadge,
+            {
+              backgroundColor: colors.accentSoft,
+              boxShadow: `0 1px 3px ${colors.shadow}`,
+            },
+          ]}>
+          <SymbolView name={icon} size={30} tintColor={colors.primary} weight="semibold" />
         </View>
 
         <View style={styles.copy}>
-          <Text selectable style={styles.title}>
+          <Text selectable style={[styles.title, { color: colors.ink }]}>
             {title}
           </Text>
-          <Text selectable style={styles.description}>
+          <Text selectable style={[styles.description, { color: colors.muted }]}>
             {description}
           </Text>
         </View>
@@ -38,8 +47,15 @@ export function HomeUnavailableState({
           <Pressable
             accessibilityRole="button"
             onPress={onAction}
-            style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
-            <Text style={styles.actionLabel}>{actionLabel}</Text>
+            style={({ pressed }) => [
+              styles.action,
+              {
+                backgroundColor: colors.primary,
+                boxShadow: `0 2px 6px ${colors.shadow}`,
+              },
+              pressed && styles.pressed,
+            ]}>
+            <Text style={[styles.actionLabel, { color: colors.surface }]}>{actionLabel}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -67,15 +83,12 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: HomeMapTheme.accentSoft,
-    boxShadow: '0 1px 3px rgba(22, 26, 24, 0.08)',
   },
   copy: {
     alignItems: 'center',
     gap: 6,
   },
   title: {
-    color: HomeMapTheme.ink,
     fontFamily: 'Archivo_800ExtraBold',
     fontSize: 23,
     lineHeight: 28,
@@ -84,7 +97,6 @@ const styles = StyleSheet.create({
   },
   description: {
     maxWidth: 300,
-    color: HomeMapTheme.muted,
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
     lineHeight: 21,
@@ -97,11 +109,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     borderRadius: 24,
     borderCurve: 'continuous',
-    backgroundColor: HomeMapTheme.primary,
-    boxShadow: '0 2px 6px rgba(22, 26, 24, 0.16)',
   },
   actionLabel: {
-    color: HomeMapTheme.surface,
     fontFamily: 'Inter_600SemiBold',
     fontSize: 16,
     lineHeight: 20,

@@ -12,20 +12,16 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet } from 'react-native';
 
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 type HomeRecenterButtonProps = {
   isLoading?: boolean;
   onPress: () => void;
 };
 
-/**
- * A native SwiftUI glass button. The previous GlassView + Pressable pair ran
- * two competing press animations — the native glass one over a snapshot, the
- * RN scale on the live content — and the button showed doubled while pressed.
- * SwiftUI's glass button style owns the whole press, so there is one copy.
- */
 export function HomeRecenterButton({ isLoading = false, onPress }: HomeRecenterButtonProps) {
+  const { colors } = useHomeMapTheme();
+
   return (
     <Host matchContents style={styles.host}>
       <Button
@@ -38,12 +34,12 @@ export function HomeRecenterButton({ isLoading = false, onPress }: HomeRecenterB
         ]}>
         <HStack spacing={8} modifiers={[frame({ minHeight: 32 }), padding({ horizontal: 6 })]}>
           {isLoading ? (
-            <ProgressView modifiers={[tint(HomeMapTheme.primary)]} />
+            <ProgressView modifiers={[tint(colors.primary)]} />
           ) : (
-            <Image color={HomeMapTheme.primary} size={15} systemName="location.fill" />
+            <Image color={colors.primary} size={15} systemName="location.fill" />
           )}
           <Text
-            modifiers={[font({ size: 14, weight: 'semibold' }), foregroundStyle(HomeMapTheme.ink)]}>
+            modifiers={[font({ size: 14, weight: 'semibold' }), foregroundStyle(colors.ink)]}>
             {isLoading ? 'Localisation…' : 'Ma position'}
           </Text>
         </HStack>

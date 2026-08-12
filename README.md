@@ -34,11 +34,12 @@ Native builds: `bun run ios` / `bun run android`.
 | `bun run build` | `expo export` for mobile |
 | `bun run typecheck` | `tsc --noEmit` across all packages |
 | `bun run test` | `bun test` across all packages |
-| `bun run check:transit-alignment` | asserts every station sits on the lines it serves (needs the API running) |
+| `bun run check:transit-alignment` | checks metro/RER stop alignment and that buses have no trace (needs the API running) |
 | `bun run db:up` / `db:down` / `db:reset` | Docker Postgres + Redis lifecycle (`db:reset` drops both volumes) |
 | `bun run db:generate` | diff the schema into a new SQL migration |
 | `bun run db:migrate` | apply pending migrations |
 | `bun run db:studio` | Drizzle Studio |
+| `bun run gtfs:import <path>` | imports metro, RER A–E and all bus lines from an extracted IDFM GTFS feed |
 
 ## Database
 
@@ -107,9 +108,11 @@ mounts oRPC twice over the same procedures:
 | `/api` | REST at the contract's paths, described by `/api/openapi.json` | third parties, `check:transit-alignment` |
 | `/rpc` | oRPC | the app, through `createORPCClient` |
 
-The app's client is configured to issue `GET`, so the ~890 kB network map stays
-cacheable by the platform HTTP cache; the default `POST` would silently give
-that up.
+The app's client is configured to issue `GET`, so the network map stays
+cacheable by the platform HTTP cache and is gzip-compressed to roughly 800 kB;
+the default `POST` would silently give that up. Metro and RER carry normalized
+polylines. Bus routes carry their stops and metadata but no geometry, keeping
+the surface network from covering the map in strokes.
 
 ## Realtime departures
 

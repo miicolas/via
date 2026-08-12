@@ -1,6 +1,8 @@
 import type { NetworkRoute } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { transitBadgeFrame } from '@/components/map/transit-badge-shape';
+
 type LineBadgeProps = {
   /**
    * Never undefined: `networkState` only reports `ready` once a line resolves, so
@@ -10,17 +12,16 @@ type LineBadgeProps = {
   size: number;
 };
 
-/** The coloured pill carrying a line number, as used by the summary and the selector. */
+/** A line badge whose shape identifies metro, RER or bus at a glance. */
 export function LineBadge({ route, size }: LineBadgeProps) {
   return (
     <View
       style={[
         styles.badge,
+        transitBadgeFrame(route.mode, size),
         {
-          width: Math.max(size, route.shortName.length * 9 + 12),
-          height: size,
-          borderRadius: size / 2,
           backgroundColor: route.color,
+          paddingHorizontal: route.mode === 'bus' ? 6 : 0,
         },
       ]}
     >
@@ -37,9 +38,9 @@ export function LineBadge({ route, size }: LineBadgeProps) {
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
+    borderCurve: 'continuous',
   },
   label: { fontFamily: 'Archivo_800ExtraBold', letterSpacing: -0.5 },
 });

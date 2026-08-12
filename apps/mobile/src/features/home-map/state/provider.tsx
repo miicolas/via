@@ -3,6 +3,7 @@ import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import type { NetworkRoute, SearchResult } from '@via/contract';
 
 import { nearestStation } from '@/features/home-map/model/nearest-station';
+import { MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX } from '@/features/home-map/model/overview-sheet';
 import { routesForStation } from '@/features/home-map/model/routes-for-station';
 import type { SelectedPlace } from '@/features/home-map/model/types';
 import { useSearch } from '@/features/home-map/hooks/use-search';
@@ -19,6 +20,9 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
   const location = useUserLocation();
   const [query, setQuery] = useState('');
   const deferredQuery = useDeferredValue(query);
+  const [overviewDetentIndex, setOverviewDetentIndex] = useState(
+    MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX
+  );
   const [selectedStationId, setSelectedStationId] = useState<string>();
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace>();
 
@@ -63,12 +67,14 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
       activeStation,
       isSearchActive: deferredQuery.trim().length > 0 && !selectedStation && !selectedPlace,
       networkState: metro.state,
+      overviewDetentIndex,
       refreshLocation: location.refresh,
       retryNetwork: metro.retry,
       search,
       selectResult,
       selectStation,
       selectedPlace,
+      setOverviewDetentIndex,
       setSearchQuery,
       userLocation: location.state,
     }),
@@ -80,6 +86,7 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
       location.state,
       metro.retry,
       metro.state,
+      overviewDetentIndex,
       search,
       selectResult,
       selectStation,

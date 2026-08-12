@@ -23,6 +23,7 @@
     "db:generate": "turbo run generate --filter=@via/db",
     "db:migrate": "turbo run migrate --filter=@via/db",
     "db:studio": "turbo run studio --filter=@via/db",
+    "gtfs:import": "bun --env-file=.env apps/worker/src/index.ts",
     "gtfs:import:metro": "bun --env-file=.env apps/worker/src/index.ts",
     "check:transit-alignment": "bun --env-file=.env scripts/check-transit-map-alignment.ts"
   },

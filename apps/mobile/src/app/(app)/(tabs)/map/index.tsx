@@ -7,7 +7,7 @@ export default function MapScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    router.push('/map/overview');
+    router.navigate('/map/overview');
   }, [router]);
 
   return <MetroMapScreen />;

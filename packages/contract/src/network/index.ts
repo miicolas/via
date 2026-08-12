@@ -1,8 +1,9 @@
 export { networkMapRelation } from './relation';
 export {
   networkMapSchema,
+  networkModeSchema,
   networkRouteSchema,
   networkSegmentSchema,
   networkStationSchema,
 } from './schema';
-export type { NetworkMap, NetworkRoute, NetworkSegment, NetworkStation } from './type';
+export type { NetworkMap, NetworkMode, NetworkRoute, NetworkSegment, NetworkStation } from './type';

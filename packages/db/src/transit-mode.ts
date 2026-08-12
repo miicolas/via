@@ -22,6 +22,29 @@ export const ROUTE_TYPE = {
 
 export type TransitMode = keyof typeof ROUTE_TYPE;
 
+export const RER_SHORT_NAMES = ['A', 'B', 'C', 'D', 'E'] as const;
+
+/** The modes the public map exposes, in the order it presents them. */
+export const NETWORK_MODES = ['metro', 'rer', 'bus'] as const;
+export type NetworkMode = (typeof NETWORK_MODES)[number];
+
+/**
+ * Turns GTFS route metadata into the smaller, user-facing network Via shows.
+ * GTFS type 2 also contains Transilien and TER routes; A–E are the five RER
+ * lines requested for this map.
+ */
+export function networkMode(routeType: number, shortName: string): NetworkMode | undefined {
+  if (routeType === ROUTE_TYPE.metro) return 'metro';
+  if (routeType === ROUTE_TYPE.bus) return 'bus';
+  if (
+    routeType === ROUTE_TYPE.rail &&
+    RER_SHORT_NAMES.includes(shortName.trim().toUpperCase() as (typeof RER_SHORT_NAMES)[number])
+  ) {
+    return 'rer';
+  }
+  return undefined;
+}
+
 /**
  * GTFS arrives as CSV text; the column is an integer. `Number('')` is 0, which
  * is a valid mode (tram), so an empty field is rejected rather than silently

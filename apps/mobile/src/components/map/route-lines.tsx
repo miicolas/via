@@ -4,6 +4,7 @@ import { Polyline } from 'react-native-maps';
 import type { NetworkRoute } from '@via/contract';
 
 import { PLACEHOLDER_ROUTE_COLOR } from '@/lib/metro-network';
+import { mapTraceRoutes } from '@/lib/map-trace-routes';
 
 const ROUNDED = { lineCap: 'round', lineJoin: 'round' } as const;
 const MUTED = { strokeColor: 'rgba(120,120,128,0.11)', strokeWidth: 2.5 };
@@ -18,8 +19,11 @@ type RouteLinesProps = {
 
 /** The whole network greyed out, with the selected line drawn on top of a white casing. */
 export const RouteLines = memo(function RouteLines({ routes, selectedRoute }: RouteLinesProps) {
-  if (!selectedRoute) {
-    return routes.flatMap((route) =>
+  const tracedRoutes = mapTraceRoutes(routes);
+  const tracedSelection = selectedRoute?.mode === 'bus' ? undefined : selectedRoute;
+
+  if (!tracedSelection) {
+    return tracedRoutes.flatMap((route) =>
       route.segments.map((segment) => (
         <Polyline
           key={`network-${segment.id}`}
@@ -32,14 +36,14 @@ export const RouteLines = memo(function RouteLines({ routes, selectedRoute }: Ro
     );
   }
 
-  const selected = selectedRoute ? [selectedRoute] : [];
+  const selected = [tracedSelection];
   const layers = [
-    { key: 'muted', routes: routes.filter((route) => route.id !== selectedRoute?.id), ...MUTED },
+    { key: 'muted', routes: tracedRoutes.filter((route) => route.id !== tracedSelection.id), ...MUTED },
     { key: 'casing', routes: selected, ...CASING },
     {
       key: 'selected',
       routes: selected,
-      strokeColor: selectedRoute?.color ?? PLACEHOLDER_ROUTE_COLOR,
+      strokeColor: tracedSelection.color ?? PLACEHOLDER_ROUTE_COLOR,
       strokeWidth: SELECTED_WIDTH,
     },
   ];

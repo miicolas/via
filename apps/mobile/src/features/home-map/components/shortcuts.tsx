@@ -1,7 +1,7 @@
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 type ShortcutsProps = {
   onClose: () => void;
@@ -10,6 +10,7 @@ type ShortcutsProps = {
 };
 
 export function Shortcuts({ onClose, onLocate, walkingMinutes }: ShortcutsProps) {
+  const { colors } = useHomeMapTheme();
   const items: {
     icon: SFSymbol;
     label: string;
@@ -32,10 +33,18 @@ export function Shortcuts({ onClose, onLocate, walkingMinutes }: ShortcutsProps)
           accessibilityRole="button"
           key={item.label}
           onPress={item.onPress}
-          style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
-          <SymbolView name={item.icon} size={14} tintColor={HomeMapTheme.primary} />
-          <Text style={styles.label}>{item.label}</Text>
-          <Text style={styles.value}>{item.value}</Text>
+          style={({ pressed }) => [
+            styles.shortcut,
+            {
+              backgroundColor: colors.surfaceTranslucent,
+              borderColor: colors.line,
+              boxShadow: `0 1px 4px ${colors.shadow}`,
+            },
+            pressed && styles.pressed,
+          ]}>
+          <SymbolView name={item.icon} size={14} tintColor={colors.primary} />
+          <Text style={[styles.label, { color: colors.ink }]}>{item.label}</Text>
+          <Text style={[styles.value, { color: colors.primary }]}>{item.value}</Text>
         </Pressable>
       ))}
     </View>
@@ -53,18 +62,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#161A1810',
-    backgroundColor: '#FFFFFFB8',
-    boxShadow: '0 1px 4px rgba(22, 26, 24, 0.05)',
   },
   label: {
-    color: HomeMapTheme.ink,
     fontFamily: 'Inter_600SemiBold',
     fontSize: 13,
     lineHeight: 17,
   },
   value: {
-    color: HomeMapTheme.primary,
     fontFamily: 'Inter_600SemiBold',
     fontSize: 12,
     lineHeight: 16,

@@ -2,13 +2,13 @@ import { describe, expect, test } from 'bun:test';
 import { networkMapSchema } from '@via/contract';
 
 import { toNetworkMap } from './mappers';
-import type { MetroPatternRow, MetroStationPositionRow } from './queries';
+import type { NetworkPatternRow, NetworkStationPositionRow } from './queries';
 
 const LINE_1 = '{"type":"LineString","coordinates":[[2.3364,48.8606],[2.3522,48.8566]]}';
 const LINE_1_BRANCH = '{"type":"LineString","coordinates":[[2.3522,48.8566],[2.3600,48.8600]]}';
 const LINE_4 = '{"type":"LineString","coordinates":[[2.3470,48.8583],[2.3480,48.8500]]}';
 
-const patternRows: MetroPatternRow[] = [
+const patternRows: NetworkPatternRow[] = [
   {
     routeId: 'IDFM:C01371',
     shortName: '1',
@@ -17,6 +17,8 @@ const patternRows: MetroPatternRow[] = [
     textColor: '000000',
     patternId: 'shape-1-a',
     headsign: 'La Défense',
+    routeType: 1,
+    isCanonical: true,
     geometry: LINE_1,
   },
   {
@@ -27,6 +29,8 @@ const patternRows: MetroPatternRow[] = [
     textColor: '000000',
     patternId: 'shape-1-b',
     headsign: 'Château de Vincennes',
+    routeType: 1,
+    isCanonical: false,
     geometry: LINE_1_BRANCH,
   },
   {
@@ -37,6 +41,8 @@ const patternRows: MetroPatternRow[] = [
     textColor: 'FFFFFF',
     patternId: 'shape-4-a',
     headsign: 'Bagneux – Lucie Aubrac',
+    routeType: 1,
+    isCanonical: true,
     geometry: LINE_4,
   },
 ];
@@ -45,7 +51,7 @@ const patternRows: MetroPatternRow[] = [
  * Châtelet is the interchange: it appears once per line it serves, snapped to a
  * different point each time. Louvre is served by line 1 only.
  */
-const stationRows: MetroStationPositionRow[] = [
+const stationRows: NetworkStationPositionRow[] = [
   {
     id: 'IDFM:474151',
     name: 'Châtelet',
@@ -78,6 +84,7 @@ describe('toNetworkMap', () => {
     const [lineOne] = routes;
     expect(lineOne.id).toBe('IDFM:C01371');
     expect(lineOne.shortName).toBe('1');
+    expect(lineOne.mode).toBe('metro');
     expect(lineOne.destinations).toEqual(['La Défense', 'Château de Vincennes']);
     expect(lineOne.segments.map((segment) => segment.id)).toEqual(['shape-1-a#0', 'shape-1-b#0']);
     expect(lineOne.segments[0].coordinates).toEqual([
@@ -86,16 +93,52 @@ describe('toNetworkMap', () => {
     ]);
   });
 
+  test('publishes bus lines and destinations without a map trace', () => {
+    const busPattern: NetworkPatternRow = {
+      ...patternRows[0],
+      routeId: 'IDFM:C00091',
+      shortName: '91',
+      longName: 'Montparnasse - Bastille',
+      patternId: 'bus-91-shape',
+      headsign: 'Bastille',
+      routeType: 3,
+      geometry: '{"type":"LineString","coordinates":[]}',
+    };
+
+    const busStop: NetworkStationPositionRow = {
+      id: 'bus-stop',
+      name: 'Bastille',
+      routeId: busPattern.routeId,
+      latitude: 48.853,
+      longitude: 2.369,
+    };
+    const { routes, stations } = toNetworkMap([busPattern], [busStop]);
+
+    expect(routes).toEqual([
+      expect.objectContaining({
+        id: 'IDFM:C00091',
+        mode: 'bus',
+        destinations: ['Bastille'],
+        segments: [],
+      }),
+    ]);
+    expect(stations[0].positions[busPattern.routeId]).toEqual({
+      latitude: 48.853,
+      longitude: 2.369,
+    });
+  });
+
   /**
-   * The query subtracts the track earlier patterns already draw, so a return
-   * pattern usually comes back empty: no stroke to draw twice, but its headsign
-   * is still one of the line's destinations.
+   * The query returns an empty geometry when an opposite direction adds no
+   * branch: no stroke to draw twice, but its headsign is still one of the line's
+   * destinations.
    */
   test('keeps the destination of a pattern whose track fully deduplicated', () => {
-    const returnPattern: MetroPatternRow = {
+    const returnPattern: NetworkPatternRow = {
       ...patternRows[0],
       patternId: 'shape-1-return',
       headsign: 'Pont de Neuilly',
+      isCanonical: false,
       geometry: '{"type":"GeometryCollection","geometries":[]}',
     };
 
@@ -108,7 +151,7 @@ describe('toNetworkMap', () => {
 
   /** A loop or branch survives the subtraction as two runs either side of the trunk. */
   test('splits a cut pattern into one segment per remaining run of track', () => {
-    const cutPattern: MetroPatternRow = {
+    const cutPattern: NetworkPatternRow = {
       ...patternRows[0],
       patternId: 'shape-1-loop',
       geometry:
@@ -125,7 +168,7 @@ describe('toNetworkMap', () => {
 
   /** ~20 m of leftover track is subtraction confetti, not a branch. */
   test('discards slivers left over by the subtraction', () => {
-    const withSliver: MetroPatternRow = {
+    const withSliver: NetworkPatternRow = {
       ...patternRows[0],
       patternId: 'shape-1-sliver',
       geometry:
@@ -153,8 +196,14 @@ describe('toNetworkMap', () => {
     const [chatelet] = stations;
     expect(chatelet.name).toBe('Châtelet');
     expect(Object.keys(chatelet.positions)).toEqual(['IDFM:C01371', 'IDFM:C01374']);
-    expect(chatelet.positions['IDFM:C01371']).toEqual({ latitude: 48.8583, longitude: 2.347 });
-    expect(chatelet.positions['IDFM:C01374']).toEqual({ latitude: 48.859, longitude: 2.3475 });
+    expect(chatelet.positions['IDFM:C01371']).toEqual({
+      latitude: 48.85796592134573,
+      longitude: 2.3468046106843596,
+    });
+    expect(chatelet.positions['IDFM:C01374']).toEqual({
+      latitude: 48.8583,
+      longitude: 2.347,
+    });
   });
 
   test('keys positions by route id so a single dot can move between lines', () => {
@@ -178,14 +227,13 @@ describe('toNetworkMap', () => {
         longitude: '2.3470',
         latitude: '48.8583',
       },
-    ] as unknown as MetroStationPositionRow[];
+    ] as unknown as NetworkStationPositionRow[];
 
     const { stations } = toNetworkMap(patternRows, stringy);
 
-    expect(stations[0].positions['IDFM:C01371']).toEqual({
-      latitude: 48.8583,
-      longitude: 2.347,
-    });
+    const position = stations[0].positions['IDFM:C01371'];
+    expect(typeof position.latitude).toBe('number');
+    expect(typeof position.longitude).toBe('number');
   });
 
   /**

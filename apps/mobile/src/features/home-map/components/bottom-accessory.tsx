@@ -3,12 +3,13 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 /** The map overview form sheet the accessory opens. */
 const MAP_OVERVIEW_HREF = '/map/overview' as Href;
 
 export function MapBottomAccessory() {
+  const { colors } = useHomeMapTheme();
   const pathname = usePathname();
   const placement = NativeTabs.BottomAccessory.usePlacement();
   const router = useRouter();
@@ -32,18 +33,18 @@ export function MapBottomAccessory() {
       <SymbolView
         name={{ ios: 'magnifyingglass', android: 'search' }}
         size={19}
-        tintColor={HomeMapTheme.primary}
+        tintColor={colors.primary}
         weight="semibold"
       />
       {placement === 'regular' ? (
         <>
-          <Text numberOfLines={1} style={styles.title}>
+          <Text numberOfLines={1} style={[styles.title, { color: colors.ink }]}>
             Où allez-vous ?
           </Text>
           <SymbolView
             name={{ ios: 'chevron.up', android: 'keyboard_arrow_up' }}
             size={14}
-            tintColor={HomeMapTheme.muted}
+            tintColor={colors.muted}
             weight="semibold"
           />
         </>
@@ -73,7 +74,6 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    color: HomeMapTheme.ink,
     fontFamily: 'Inter_600SemiBold',
     fontSize: 16,
     lineHeight: 20,

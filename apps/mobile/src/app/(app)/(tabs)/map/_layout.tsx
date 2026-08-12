@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
 
-import { HomeMapProvider } from '@/features/home-map/state/provider';
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import {
+  MAP_OVERVIEW_SHEET_DETENTS,
+  MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+} from '@/features/home-map/model/overview-sheet';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -9,22 +11,20 @@ export const unstable_settings = {
 
 export default function MapLayout() {
   return (
-    <HomeMapProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen
-          name="overview"
-          options={{
-            contentStyle: { backgroundColor: HomeMapTheme.ground },
-            presentation: 'formSheet',
-            sheetAllowedDetents: [0.72, 0.94],
-            sheetCornerRadius: 28,
-            sheetGrabberVisible: true,
-            sheetInitialDetentIndex: 0,
-            sheetLargestUndimmedDetentIndex: 'last',
-          }}
-        />
-      </Stack>
-    </HomeMapProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen
+        name="overview"
+        options={{
+          contentStyle: { backgroundColor: 'transparent' },
+          presentation: 'formSheet',
+          sheetAllowedDetents: [...MAP_OVERVIEW_SHEET_DETENTS],
+          sheetCornerRadius: 28,
+          sheetGrabberVisible: true,
+          sheetInitialDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+          sheetLargestUndimmedDetentIndex: 'last',
+        }}
+      />
+    </Stack>
   );
 }

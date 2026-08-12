@@ -21,7 +21,7 @@ export function getOpenApiDocument(): Promise<object> {
     info: {
       title: 'Via API',
       version: '1.0.0',
-      description: 'Paris metro network for the Via app.',
+      description: 'Paris metro, RER and bus network for the Via app.',
     },
     servers: [{ url: '/api' }],
   });

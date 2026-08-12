@@ -8,15 +8,21 @@ import {
   resolveLine,
   routeBounds,
   sortRoutes,
+  stationPositions,
 } from './metro-network';
 
-function route(shortName: string, id = `IDFM:${shortName}`): NetworkRoute {
+function route(
+  shortName: string,
+  id = `IDFM:${shortName}`,
+  mode: NetworkRoute['mode'] = 'metro'
+): NetworkRoute {
   return {
     id,
     shortName,
     longName: `Ligne ${shortName}`,
     color: '#FFCD00',
     textColor: '#000000',
+    mode,
     destinations: [`Terminus ${shortName}`],
     segments: [
       {
@@ -59,6 +65,16 @@ describe('sortRoutes', () => {
     const names = sortRoutes([route('B'), route('7')]).map((line) => line.shortName);
 
     expect(names).toEqual(['7', 'B']);
+  });
+
+  test('keeps metro first, then RER, then bus even when their names collide', () => {
+    const ordered = sortRoutes([
+      route('1', 'bus-1', 'bus'),
+      route('B', 'rer-b', 'rer'),
+      route('1', 'metro-1'),
+    ]).map((line) => `${line.mode}:${line.shortName}`);
+
+    expect(ordered).toEqual(['metro:1', 'rer:B', 'bus:1']);
   });
 });
 
@@ -112,6 +128,21 @@ describe('isInterchange', () => {
   test('is true only when a station serves more than one line', () => {
     expect(isInterchange(CHATELET)).toBe(true);
     expect(isInterchange(LOUVRE)).toBe(false);
+  });
+});
+
+describe('stationPositions', () => {
+  test('keeps one coordinate for every line serving an interchange', () => {
+    expect(stationPositions(CHATELET)).toEqual([
+      { routeId: 'IDFM:1', coordinate: { latitude: 48.8583, longitude: 2.347 } },
+      { routeId: 'IDFM:4', coordinate: { latitude: 48.859, longitude: 2.3475 } },
+    ]);
+  });
+
+  test('returns the single position for a station served by one line', () => {
+    expect(stationPositions(LOUVRE)).toEqual([
+      { routeId: 'IDFM:1', coordinate: { latitude: 48.8607, longitude: 2.341 } },
+    ]);
   });
 });
 

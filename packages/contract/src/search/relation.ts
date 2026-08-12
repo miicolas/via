@@ -8,7 +8,7 @@ export const searchQueryRelation = oc
     path: '/search',
     summary: 'Recherche unifiée',
     description:
-      'Stations de métro et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. ' +
+      'Arrêts de métro, RER et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. ' +
       'Avec une position, chaque résultat porte sa distance en mètres.',
     tags: ['search'],
   })

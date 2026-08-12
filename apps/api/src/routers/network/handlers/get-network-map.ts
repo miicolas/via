@@ -1,16 +1,21 @@
 import { implementer } from '../../../orpc/implementer';
 import { toNetworkMap } from '../mappers';
-import { selectMetroPatterns, selectMetroStationPositions } from '../queries';
+import {
+  selectBusPatterns,
+  selectDrawnPatterns,
+  selectNetworkStationPositions,
+} from '../queries';
 
 const NETWORK_MAP_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=3600';
 
 export const getNetworkMap = implementer.network.map.handler(async ({ context }) => {
-  const [patternRows, stationRows] = await Promise.all([
-    selectMetroPatterns(),
-    selectMetroStationPositions(),
+  const [drawnPatternRows, busPatternRows, stationRows] = await Promise.all([
+    selectDrawnPatterns(),
+    selectBusPatterns(),
+    selectNetworkStationPositions(),
   ]);
 
   context.resHeaders?.set('Cache-Control', NETWORK_MAP_CACHE_CONTROL);
 
-  return toNetworkMap(patternRows, stationRows);
+  return toNetworkMap([...drawnPatternRows, ...busPatternRows], stationRows);
 });

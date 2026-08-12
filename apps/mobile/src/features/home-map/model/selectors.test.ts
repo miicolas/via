@@ -32,6 +32,7 @@ const routes = ['line-1', 'line-2', 'line-5'].map(
     longName: String(index + 1),
     color: '#000000',
     textColor: '#FFFFFF',
+    mode: 'metro',
     destinations: [],
     segments: [],
   })

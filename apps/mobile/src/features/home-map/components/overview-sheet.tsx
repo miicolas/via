@@ -1,15 +1,24 @@
-import { useRouter } from 'expo-router';
-import { ActivityIndicator, Linking, StyleSheet, View } from 'react-native';
+import type { NativeStackNavigationProp } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { HomeSearchField } from '@/features/home-map/components/search-field';
 import { HomeSearchResults } from '@/features/home-map/components/search-results';
+import { SheetLoadingSkeleton } from '@/features/home-map/components/sheet-loading-skeleton';
 import { Shortcuts } from '@/features/home-map/components/shortcuts';
 import { HomeStationSection } from '@/features/home-map/components/station-section';
 import { HomeUnavailableState } from '@/features/home-map/components/unavailable-state';
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
 import { useHomeMap } from '@/features/home-map/hooks/use-map';
+import { MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX } from '@/features/home-map/model/overview-sheet';
+
+type MapStackParamList = {
+  index: undefined;
+  overview: undefined;
+};
 
 export function HomeOverviewSheet() {
+  const navigation = useNavigation<NativeStackNavigationProp<MapStackParamList, 'overview'>>();
   const router = useRouter();
   const {
     activeRoutes,
@@ -20,9 +29,17 @@ export function HomeOverviewSheet() {
     retryNetwork,
     search,
     selectResult,
+    setOverviewDetentIndex,
     setSearchQuery,
     userLocation,
   } = useHomeMap();
+
+  useEffect(() => {
+    setOverviewDetentIndex(MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX);
+    return navigation.addListener('sheetDetentChange', ({ data }) => {
+      if (data.stable) setOverviewDetentIndex(data.index);
+    });
+  }, [navigation, setOverviewDetentIndex]);
 
   const close = () => {
     if (router.canDismiss()) router.dismiss();
@@ -46,11 +63,7 @@ export function HomeOverviewSheet() {
         ) : null}
       </View>
 
-      {networkState.status === 'loading' ? (
-        <View style={styles.loader}>
-          <ActivityIndicator color={HomeMapTheme.primary} size="large" />
-        </View>
-      ) : null}
+      {networkState.status === 'loading' ? <SheetLoadingSkeleton /> : null}
 
       {networkState.status === 'error' ? (
         <HomeUnavailableState
@@ -94,8 +107,6 @@ export function HomeOverviewSheet() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: HomeMapTheme.ground,
   },
   header: { gap: 10, paddingTop: 12 },
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

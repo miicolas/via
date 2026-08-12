@@ -14,27 +14,28 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet } from 'react-native';
 
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 type HomeSearchFieldProps = {
   onChange: (query: string) => void;
 };
 
 export function HomeSearchField({ onChange }: HomeSearchFieldProps) {
+  const { colorScheme, colors } = useHomeMapTheme();
   const query = useNativeState('');
 
   return (
-    <Host colorScheme="light" style={styles.host}>
+    <Host colorScheme={colorScheme} style={styles.host}>
       <HStack
         alignment="center"
         spacing={10}
         modifiers={[
           padding({ horizontal: 18 }),
           frame({ height: 52 }),
-          background(HomeMapTheme.surface, shapes.capsule()),
-          shadow({ color: '#161A1814', radius: 8, y: 1 }),
+          background(colors.surface, shapes.capsule()),
+          shadow({ color: colors.shadow, radius: 8, y: 1 }),
         ]}>
-        <Image color={HomeMapTheme.primary} size={17} systemName="magnifyingglass" />
+        <Image color={colors.primary} size={17} systemName="magnifyingglass" />
         <TextField
           onTextChange={onChange}
           placeholder="Rechercher une station"
@@ -42,10 +43,10 @@ export function HomeSearchField({ onChange }: HomeSearchFieldProps) {
           modifiers={[
             autocorrectionDisabled(),
             font({ size: 17 }),
-            foregroundStyle(HomeMapTheme.ink),
+            foregroundStyle(colors.ink),
             submitLabel('search'),
             textInputAutocapitalization('words'),
-            tint(HomeMapTheme.primary),
+            tint(colors.primary),
           ]}
         />
       </HStack>

@@ -1,33 +1,40 @@
 import type { DepartureGroup, NetworkRoute } from '@via/contract';
 
+import { waitTimes, type WaitTimes } from '@/features/home-map/model/wait-times';
+
 /** One row of the station's departure board, ready to render. */
 export type DepartureRowDescriptor = {
   key: string;
   route: NetworkRoute;
-  /** Absent on a placeholder row — loading, realtime down, or nothing announced. */
-  destination?: string;
-  /** ISO timestamps, soonest first. Absent on a placeholder row. */
-  departures?: string[];
+  destination: string;
+  wait: WaitTimes;
 };
 
 /**
- * Pairs each of the station's lines with its departure groups. A line with no
- * group still gets one placeholder row — the board keeps the same layout it
- * had before departures existed, whatever the feed is doing.
+ * Pairs each of the station's lines with departure groups that still have an
+ * announced passage to display. Missing, empty, and expired groups do not
+ * create placeholder rows.
  */
 export function departureRows(
   routes: NetworkRoute[],
-  groups: DepartureGroup[]
+  groups: DepartureGroup[],
+  now: Date
 ): DepartureRowDescriptor[] {
   return routes.flatMap((route) => {
     const routeGroups = groups.filter((group) => group.routeId === route.id);
-    if (routeGroups.length === 0) return [{ key: route.id, route }];
 
-    return routeGroups.map((group) => ({
-      key: `${route.id} ${group.destination}`,
-      route,
-      destination: group.destination,
-      departures: group.departures,
-    }));
+    return routeGroups.flatMap((group) => {
+      const wait = waitTimes(group.departures, now);
+      if (!wait) return [];
+
+      return [
+        {
+          key: `${route.id} ${group.destination}`,
+          route,
+          destination: group.destination,
+          wait,
+        },
+      ];
+    });
   });
 }

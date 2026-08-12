@@ -1,14 +1,20 @@
 import type { Coordinate, NetworkRoute, NetworkStation } from '@via/contract';
-import { useImperativeHandle, useRef, useState, type Ref } from 'react';
-import { StyleSheet } from 'react-native';
-import MapView, { Marker, type EdgePadding, type Region } from 'react-native-maps';
+import { useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
+import { StyleSheet, useWindowDimensions } from 'react-native';
+import MapView, { type EdgePadding, type Region } from 'react-native-maps';
+import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { DevelopmentLocationMarker } from '@/components/map/development-location-marker';
-import { NetworkStationMarkers } from '@/components/map/network-station-markers';
 import { RouteLines } from '@/components/map/route-lines';
-import { StationMarkers } from '@/components/map/station-markers';
+import { StationMarkersLayer } from '@/components/map/station-markers-layer';
 import { PARIS_COORDINATE } from '@/features/home-map/model/location';
 import { routeBounds, type LineView } from '@/lib/metro-network';
+import { stationsInViewport } from '@/lib/stations-in-viewport';
+import {
+  alignLineWithRouteLayout,
+  positionTransitRoutes,
+  prepareTransitRouteLayout,
+} from '@/lib/transit-map-layout';
 
 const INITIAL_REGION: Region = {
   ...PARIS_COORDINATE,
@@ -16,13 +22,23 @@ const INITIAL_REGION: Region = {
   longitudeDelta: 0.29,
 };
 /**
- * Stations mount below the show level and unmount above the hide one. The gap
- * keeps a pinch held right at the boundary from thrashing ~300 marker views.
- * Mount state, not marker opacity, because animated marker props silently
- * no-op under Fabric — react-native-maps only applies them on a React commit.
+ * Station opacity follows the fractional zoom between the show and hide levels.
+ * Native marker views mount as the fade begins and only unmount once zooming ends,
+ * avoiding both a late pop and mount thrashing around the boundary.
+ * Around Paris, stations appear inside roughly a 300 m radius and disappear
+ * beyond roughly 440 m from the map centre,
+ * so stations remain a neighbourhood-scale detail instead of covering the city.
+ * The marker layer keeps native snapshots updating until this fade settles.
  */
-const STATION_SHOW_DELTA = 0.1;
-const STATION_HIDE_DELTA = 0.12;
+const STATION_SHOW_DELTA = 0.008;
+const STATION_HIDE_DELTA = 0.012;
+const STATION_FOCUS_LATITUDE_DELTA = 0.006;
+const STATION_FOCUS_LONGITUDE_DELTA = 0.006;
+
+type StationMarkersState = {
+  mounted: boolean;
+  tracking: boolean;
+};
 
 export type MetroMapHandle = {
   /**
@@ -40,16 +56,23 @@ type MetroMapProps = {
   lines: NetworkRoute[];
   /** Every station, dotted over the network while no line is in focus. */
   stations: NetworkStation[];
+  /** Changes when native marker snapshots need refreshing around an overlay transition. */
+  markerSnapshotVersion: number;
   /** The line in focus, with its stations. Absent until the network has loaded. */
   line: LineView | undefined;
   /** Room the caller's overlay needs around a fitted line. */
   edgePadding: EdgePadding;
-  focusedStation?: { coordinate: Coordinate; name: string };
   /** Development fallback shown because the native user-location dot is unavailable there. */
   developmentLocation?: Coordinate;
   /** Fires once the native map can accept a camera command. */
   onReady?: () => void;
+  /** Fires when a station marker is selected. */
+  onSelectStation: (stationId: string, coordinate: Coordinate) => void;
+  /** Fires when the camera moves from a user gesture, not a programmatic command. */
+  onUserMove?: () => void;
   showsUserLocation?: boolean;
+  /** Height of the map viewport, used to center a station in the unobscured area. */
+  viewportHeight: number;
   ref?: Ref<MetroMapHandle>;
 };
 
@@ -66,16 +89,76 @@ type MetroMapProps = {
 export function MetroMap({
   lines,
   stations,
+  markerSnapshotVersion,
   line,
   edgePadding,
-  focusedStation,
   developmentLocation,
   onReady,
+  onSelectStation,
+  onUserMove,
   ref,
   showsUserLocation = false,
+  viewportHeight,
 }: MetroMapProps) {
   const mapRef = useRef<MapView>(null);
-  const [stationsVisible, setStationsVisible] = useState(false);
+  const { width: viewportWidth } = useWindowDimensions();
+  const reduceMotion = useReducedMotion();
+  const stationOpacity = useSharedValue(0);
+  const reducedMotionVisibility = useRef(false);
+  const lastStationOpacity = useRef(0);
+  const [stationMarkersState, setStationMarkersState] = useState<StationMarkersState>({
+    mounted: false,
+    tracking: false,
+  });
+  const [layoutRegion, setLayoutRegion] = useState(INITIAL_REGION);
+  const routeLayout = useMemo(() => prepareTransitRouteLayout(lines), [lines]);
+  const positionedLines = useMemo(
+    () =>
+      positionTransitRoutes(routeLayout, {
+        height: viewportHeight,
+        latitudeDelta: layoutRegion.latitudeDelta,
+        longitudeDelta: layoutRegion.longitudeDelta,
+        width: viewportWidth,
+      }),
+    [
+      layoutRegion.latitudeDelta,
+      layoutRegion.longitudeDelta,
+      routeLayout,
+      viewportHeight,
+      viewportWidth,
+    ]
+  );
+  const positionedLine = useMemo(
+    () => alignLineWithRouteLayout(line, positionedLines),
+    [line, positionedLines]
+  );
+  const viewportStations = useMemo(
+    () => stationsInViewport(stations, layoutRegion),
+    [layoutRegion, stations]
+  );
+  const updateStationOpacity = (longitudeDelta: number, movementComplete = false) => {
+    const nextOpacity = reduceMotion
+      ? reducedMotionStationOpacity(longitudeDelta, reducedMotionVisibility)
+      : stationZoomOpacity(longitudeDelta);
+    const opacityChanged = nextOpacity !== lastStationOpacity.current;
+
+    if (opacityChanged) {
+      lastStationOpacity.current = nextOpacity;
+      stationOpacity.value = nextOpacity;
+    }
+
+    if (!opacityChanged && !movementComplete) return;
+
+    setStationMarkersState((current) => {
+      const next = {
+        mounted: movementComplete ? nextOpacity > 0 : current.mounted || nextOpacity > 0,
+        tracking: movementComplete ? false : current.tracking || opacityChanged,
+      };
+      return next.mounted === current.mounted && next.tracking === current.tracking
+        ? current
+        : next;
+    });
+  };
 
   useImperativeHandle(
     ref,
@@ -86,24 +169,14 @@ export function MetroMap({
         mapRef.current?.fitToCoordinates(bounds, { animated, edgePadding });
       },
       focusCoordinate(coordinate, { animated = true } = {}) {
-        const latitudeDelta = 0.0025;
-        const longitudeDelta = 0.004;
-        mapRef.current?.fitToCoordinates(
-          [
-            {
-              latitude: coordinate.latitude - latitudeDelta,
-              longitude: coordinate.longitude - longitudeDelta,
-            },
-            {
-              latitude: coordinate.latitude + latitudeDelta,
-              longitude: coordinate.longitude + longitudeDelta,
-            },
-          ],
-          { animated, edgePadding }
+        const region = stationFocusRegion(coordinate, edgePadding, viewportHeight);
+        mapRef.current?.animateToRegion(
+          region,
+          animated ? 500 : 0
         );
       },
     }),
-    [edgePadding]
+    [edgePadding, viewportHeight]
   );
 
   return (
@@ -124,35 +197,78 @@ export function MetroMap({
       showsUserLocation={showsUserLocation}
       showsTraffic={false}
       onMapReady={onReady}
-      onRegionChange={(region) => {
-        const visible = stationZoomVisibility(region.longitudeDelta);
-        if (visible !== undefined) setStationsVisible(visible);
+      onRegionChange={(region, details) => {
+        updateStationOpacity(region.longitudeDelta);
+        if (details?.isGesture) onUserMove?.();
+      }}
+      onRegionChangeComplete={(region) => {
+        setLayoutRegion((current) =>
+          sameMapViewport(current, region) ? current : region
+        );
+        updateStationOpacity(region.longitudeDelta, true);
       }}
     >
-      <RouteLines routes={lines} selectedRoute={line?.route} />
-      {!stationsVisible ? null : line ? (
-        <StationMarkers line={line} />
-      ) : (
-        <NetworkStationMarkers routes={lines} stations={stations} />
-      )}
-      {focusedStation ? (
-        <Marker
-          coordinate={focusedStation.coordinate}
-          pinColor="#2F6B5B"
-          title={focusedStation.name}
-          tracksViewChanges={false}
-        />
-      ) : null}
+      <RouteLines routes={positionedLines} selectedRoute={positionedLine?.route} />
+      <StationMarkersLayer
+        line={positionedLine}
+        routes={positionedLines}
+        stations={viewportStations}
+        opacity={stationOpacity}
+        tracksViewChanges={stationMarkersState.tracking}
+        visible={stationMarkersState.mounted}
+        markerSnapshotVersion={markerSnapshotVersion}
+        onSelectStation={onSelectStation}
+      />
       {developmentLocation ? <DevelopmentLocationMarker coordinate={developmentLocation} /> : null}
     </MapView>
   );
 }
 
-/** true past the show level, false past the hide one, undefined in between. */
-function stationZoomVisibility(longitudeDelta: number) {
-  if (longitudeDelta < STATION_SHOW_DELTA) return true;
-  if (longitudeDelta > STATION_HIDE_DELTA) return false;
-  return undefined;
+function stationZoomOpacity(longitudeDelta: number) {
+  const fadeProgress =
+    (STATION_HIDE_DELTA - longitudeDelta) /
+    (STATION_HIDE_DELTA - STATION_SHOW_DELTA);
+  return Math.min(1, Math.max(0, fadeProgress));
+}
+
+function reducedMotionStationOpacity(
+  longitudeDelta: number,
+  visibility: { current: boolean }
+) {
+  if (longitudeDelta < STATION_SHOW_DELTA) visibility.current = true;
+  if (longitudeDelta > STATION_HIDE_DELTA) visibility.current = false;
+  return visibility.current ? 1 : 0;
+}
+
+function sameMapViewport(first: Region, second: Region) {
+  const latitudeTolerance = Math.max(first.latitudeDelta * 0.02, 1e-6);
+  const longitudeTolerance = Math.max(first.longitudeDelta * 0.02, 1e-6);
+  return (
+    Math.abs(first.latitude - second.latitude) < latitudeTolerance &&
+    Math.abs(first.longitude - second.longitude) < longitudeTolerance &&
+    Math.abs(first.latitudeDelta - second.latitudeDelta) < 1e-8 &&
+    Math.abs(first.longitudeDelta - second.longitudeDelta) < 1e-8
+  );
+}
+
+function stationFocusRegion(
+  coordinate: Coordinate,
+  edgePadding: EdgePadding,
+  viewportHeight: number
+): Region {
+  const height = Math.max(1, viewportHeight);
+  const visibleTop = Math.min(height, Math.max(0, edgePadding.top));
+  const visibleBottom = Math.max(visibleTop, height - Math.max(0, edgePadding.bottom));
+  const visibleCenterY = (visibleTop + visibleBottom) / 2;
+  const latitudeOffset =
+    ((height / 2 - visibleCenterY) / height) * STATION_FOCUS_LATITUDE_DELTA;
+
+  return {
+    latitude: coordinate.latitude - latitudeOffset,
+    longitude: coordinate.longitude,
+    latitudeDelta: STATION_FOCUS_LATITUDE_DELTA,
+    longitudeDelta: STATION_FOCUS_LONGITUDE_DELTA,
+  };
 }
 
 const styles = StyleSheet.create({

@@ -43,6 +43,13 @@
       "when": 1786556648056,
       "tag": "0005_perfect_madripoor",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786571237422,
+      "tag": "0006_plain_leech",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,8 @@ export const networkSegmentSchema = z.object({
   coordinates: z.array(coordinateSchema),
 });
 
+export const networkModeSchema = z.enum(['metro', 'rer', 'bus']);
+
 export const networkRouteSchema = z.object({
   id: z.string(),
   shortName: z.string(),
@@ -19,6 +21,7 @@ export const networkRouteSchema = z.object({
   /** CSS-ready. GTFS stores these bare ("FFCD00"). */
   color: z.string(),
   textColor: z.string(),
+  mode: networkModeSchema,
   destinations: z.array(z.string()),
   segments: z.array(networkSegmentSchema),
 });
@@ -28,8 +31,8 @@ export const networkStationSchema = z.object({
   name: z.string(),
   /**
    * Keyed by route id: an interchange sits at a different snapped point on each
-   * line it serves, which is what lets the client move a single station dot as
-   * the selected line changes.
+   * line it serves, which lets the client place a station dot on every serving
+   * line and use the exact position when one line is selected.
    *
    * The keys are also the answer to "which lines serve this station". A separate
    * `routeIds` array used to carry that same fact: built in the same loop, from

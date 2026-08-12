@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatDistance } from '@/features/home-map/model/format-distance';
-import { HomeMapTheme } from '@/features/home-map/styles/theme';
+import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 type AddressResultRowProps = {
   onPress: () => void;
@@ -11,22 +11,30 @@ type AddressResultRowProps = {
 };
 
 export function AddressResultRow({ onPress, result }: AddressResultRowProps) {
+  const { colors } = useHomeMapTheme();
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      <SymbolView name="mappin.circle.fill" size={30} tintColor={HomeMapTheme.muted} />
+      style={({ pressed }) => [
+        styles.row,
+        { borderBottomColor: colors.line },
+        pressed && styles.pressed,
+      ]}>
+      <SymbolView name="mappin.circle.fill" size={30} tintColor={colors.muted} />
       <View style={styles.copy}>
-        <Text numberOfLines={1} style={styles.name}>
+        <Text numberOfLines={1} style={[styles.name, { color: colors.ink }]}>
           {result.name}
         </Text>
-        <Text numberOfLines={1} style={styles.context}>
+        <Text numberOfLines={1} style={[styles.context, { color: colors.muted }]}>
           {result.context}
         </Text>
       </View>
       {result.distanceMeters !== undefined ? (
-        <Text style={styles.distance}>{formatDistance(result.distanceMeters)}</Text>
+        <Text style={[styles.distance, { color: colors.muted }]}>
+          {formatDistance(result.distanceMeters)}
+        </Text>
       ) : null}
     </Pressable>
   );
@@ -39,22 +47,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#161A181F',
   },
   copy: { flex: 1, gap: 2 },
   name: {
-    color: HomeMapTheme.ink,
     fontFamily: 'Inter_600SemiBold',
     fontSize: 17,
     lineHeight: 21,
   },
   context: {
-    color: HomeMapTheme.muted,
     fontFamily: 'Inter_400Regular',
     fontSize: 13,
   },
   distance: {
-    color: HomeMapTheme.muted,
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
   },

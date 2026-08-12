@@ -24,7 +24,7 @@ export type ScheduledTrip = {
 type ImportSchedulesOptions = {
   gtfsPath: string;
   tx: Transaction;
-  /** Every trip of the imported mode, keyed by trip id — not just the representative ones. */
+  /** Every trip of the imported network, keyed by trip id — not just representatives. */
   trips: Map<string, ScheduledTrip>;
   canonicalStopIdOf: (stopId: string) => string;
   /** Stations the network import actually inserted; calls elsewhere are skipped. */

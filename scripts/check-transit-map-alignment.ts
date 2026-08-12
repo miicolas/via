@@ -50,6 +50,13 @@ function distanceToRoute(point: Coordinate, route: NetworkMap['routes'][number])
 }
 
 const failures: Array<{ station: string; line: string; distance: number }> = [];
+const busRoutesWithTrace = network.routes.filter(
+  (route) => route.mode === 'bus' && route.segments.length > 0
+);
+if (busRoutesWithTrace.length > 0) {
+  throw new Error(`${busRoutesWithTrace.length} bus routes unexpectedly carry a map trace`);
+}
+
 for (const station of network.stations) {
   for (const [routeId, position] of Object.entries(station.positions)) {
     const route = routesById.get(routeId);
@@ -59,6 +66,9 @@ for (const station of network.stations) {
       failures.push({ station: station.name, line: routeId, distance: Infinity });
       continue;
     }
+    // Bus stops deliberately use their GTFS point: the map carries no bus trace
+    // to align them against.
+    if (route.mode === 'bus') continue;
     const distance = distanceToRoute(position, route);
     if (distance > 1) failures.push({ station: station.name, line: route.shortName, distance });
   }
@@ -78,4 +88,7 @@ if (failures.length > 0) {
   throw new Error(`${failures.length} station/line positions are not aligned`);
 }
 
-console.log(`${network.stations.length} shared stations are aligned on every serving line.`);
+console.log(
+  `${network.stations.length} transit stops loaded; every metro/RER position is aligned and ` +
+    `${network.routes.filter((route) => route.mode === 'bus').length} bus routes are trace-free.`
+);

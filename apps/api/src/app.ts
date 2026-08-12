@@ -1,5 +1,6 @@
 import { type Context, Hono, type Next } from 'hono';
 import { cors } from 'hono/cors';
+import { compress } from 'hono/compress';
 import { logger } from 'hono/logger';
 import { requestId } from 'hono/request-id';
 
@@ -16,6 +17,8 @@ const app = new Hono<AppEnv>();
 
 app.use(requestId());
 app.use(logger());
+app.use('/api/*', compress());
+app.use('/rpc/*', compress());
 app.use('/api/*', cors());
 app.use('/rpc/*', cors());
 

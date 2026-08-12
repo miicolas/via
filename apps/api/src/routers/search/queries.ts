@@ -1,13 +1,14 @@
 import type { Coordinate } from '@via/contract';
 import { db } from '@via/db';
 import {
-  ROUTE_TYPE,
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
   transitStops,
 } from '@via/db/schema';
 import { and, asc, eq, sql } from 'drizzle-orm';
+
+import { networkRouteCondition } from '../network-scope';
 
 import { escapeLikePattern } from './like-pattern';
 
@@ -48,7 +49,7 @@ export function selectMatchingStations(query: string, limit: number, origin?: Co
     .innerJoin(transitRoutes, eq(transitRoutePatterns.routeId, transitRoutes.id))
     .where(
       and(
-        eq(transitRoutes.routeType, ROUTE_TYPE.metro),
+        networkRouteCondition(),
         sql`${normalizedName} LIKE '%' || ${likeNeedle} || '%'`
       )
     )

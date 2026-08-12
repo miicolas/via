@@ -42,9 +42,8 @@ export const transitRoutes = pgTable(
       .default(sql`now()`),
   },
   (table) => [
-    // Every network query filters on the mode. Irrelevant while only the 16
-    // metro lines are imported; decisive once the full IDFM feed lands, where
-    // metro is a rounding error next to the bus routes.
+    // Every network query filters on the mode. Decisive with the full IDFM feed,
+    // where metro is a rounding error next to the bus routes.
     index('transit_routes_route_type_idx').on(table.routeType),
   ]
 );
@@ -70,7 +69,8 @@ export const transitRoutePatterns = pgTable(
      */
     tripCount: integer('trip_count').notNull(),
     isCanonical: boolean('is_canonical').notNull().default(false),
-    geometry: lineStringWgs84('geometry').notNull(),
+    /** Bus patterns keep their calls and destinations, but deliberately no map trace. */
+    geometry: lineStringWgs84('geometry'),
   },
   (table) => [
     index('transit_route_patterns_geometry_idx').using('gist', table.geometry),

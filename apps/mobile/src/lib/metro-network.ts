@@ -30,8 +30,8 @@ export type NetworkState =
   | { status: 'error'; message: string }
   | { status: 'ready'; lines: NetworkRoute[]; stations: NetworkStation[]; line: LineView };
 
-export const LOAD_FAILED_MESSAGE = 'Le réseau de métro ne peut pas être chargé pour le moment.';
-export const EMPTY_NETWORK_MESSAGE = 'Aucune ligne de métro à afficher.';
+export const LOAD_FAILED_MESSAGE = 'Le réseau de transport ne peut pas être chargé pour le moment.';
+export const EMPTY_NETWORK_MESSAGE = 'Aucune ligne de transport à afficher.';
 
 /** Stands in for a line colour while no line is selected. */
 export const PLACEHOLDER_ROUTE_COLOR = '#D1D1D6';
@@ -92,10 +92,16 @@ export function resolveLine(
 /** 1, 2, 3, 3bis, 4… — numeric part first, suffix as tie-breaker. */
 export function sortRoutes(routes: NetworkRoute[]): NetworkRoute[] {
   return [...routes].sort((a, b) => {
+    const modeDifference = modeOrder(a.mode) - modeOrder(b.mode);
+    if (modeDifference !== 0) return modeDifference;
     const [numberA, suffixA] = routeOrder(a.shortName);
     const [numberB, suffixB] = routeOrder(b.shortName);
     return numberA - numberB || suffixA.localeCompare(suffixB);
   });
+}
+
+function modeOrder(mode: NetworkRoute['mode']) {
+  return { metro: 0, rer: 1, bus: 2 }[mode];
 }
 
 /**
@@ -128,12 +134,20 @@ export function isInterchange(station: NetworkStation): boolean {
   return Object.keys(station.positions).length > 1;
 }
 
+/** Every place where a station sits on one of the lines it serves. */
+export function stationPositions(
+  station: NetworkStation
+): Array<{ routeId: string; coordinate: Coordinate }> {
+  return Object.entries(station.positions).map(([routeId, coordinate]) => ({
+    routeId,
+    coordinate,
+  }));
+}
+
 /**
- * The line a station is shown as when no particular line is in focus, with
- * where it sits on that line. Any of its per-line positions would do — they
- * are metres apart, indistinguishable at the zoom levels where a
- * whole-network dot is visible — but colour and position must come from the
- * same line, which is why this is one answer rather than two lookups.
+ * The position used to focus the map on a station when no line is selected.
+ * The network view uses it as one shared anchor for the station label, while
+ * `stationPositions` supplies the colours of the serving lines.
  */
 export function primaryPosition(
   station: NetworkStation

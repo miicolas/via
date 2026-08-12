@@ -33,11 +33,13 @@ export type HomeMapValue = {
   activeStation?: StationFocus;
   isSearchActive: boolean;
   networkState: NetworkState;
+  overviewDetentIndex: number;
   refreshLocation: () => Promise<void>;
   retryNetwork: () => void;
   search: SearchState;
   selectResult: (result: SearchResult) => void;
   selectStation: (stationId: string) => void;
+  setOverviewDetentIndex: (index: number) => void;
   selectedPlace?: SelectedPlace;
   setSearchQuery: (query: string) => void;
   userLocation: UserLocationState;
