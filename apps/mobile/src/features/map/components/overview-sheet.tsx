@@ -11,6 +11,7 @@ import { UnavailableState } from '@/components/unavailable-state';
 import { JourneySheetScreen } from '@/features/journey/components/sheet-screen';
 import { useMap } from '@/features/map/hooks/use-map';
 import { useSheetDetentProgress } from '@/features/map/hooks/use-sheet-detent-progress';
+import { isJourneyScreen } from '@/features/map/model/journey-screen';
 import {
   MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX,
   MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
@@ -24,8 +25,7 @@ export function OverviewSheet() {
   const {
     activeRoutes,
     activeStation,
-    flow,
-    isSearchActive,
+    changeOverviewDetent,
     isNearbyStation,
     journeyDestination,
     networkState,
@@ -34,8 +34,8 @@ export function OverviewSheet() {
     retryNetwork,
     search,
     searchQuery,
+    screen,
     selectResult,
-    setOverviewDetentIndex,
     setSearchQuery,
     userLocation,
   } = useMap();
@@ -44,30 +44,35 @@ export function OverviewSheet() {
     MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX
   );
   const isExpanded = overviewDetentIndex === MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX;
+  const isSearchActive = screen === 'search';
   const showsOverview =
     networkState.status === 'ready' && !isSearchActive && !journeyDestination;
   const showsStation = showsOverview && isNearbyStation;
   const handleSelectResult = (result: SearchResult) => void selectResult(result);
 
-  if (flow.screen === 'planning' || flow.screen === 'results' || flow.screen === 'detail') {
+  if (isJourneyScreen(screen)) {
     return <JourneySheetScreen />;
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <SearchField onChange={setSearchQuery} value={searchQuery} />
+      {/* Without the network the search has nothing to query; hiding it frees the
+          vertical space the error state needs at the medium detent. */}
+      {networkState.status !== 'error' ? (
+        <View style={styles.header}>
+          <SearchField onChange={setSearchQuery} value={searchQuery} />
 
-        {showsStation ? (
-          <CollapsibleReveal progress={shortcutsProgress} spacing={SHORTCUTS_SPACING}>
-            <Shortcuts
-              onClose={() => setOverviewDetentIndex(MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX)}
-              onLocate={() => void refreshLocation()}
-              walkingMinutes={walkingMinutes(activeStation?.distanceMeters)}
-            />
-          </CollapsibleReveal>
-        ) : null}
-      </View>
+          {showsStation ? (
+            <CollapsibleReveal progress={shortcutsProgress} spacing={SHORTCUTS_SPACING}>
+              <Shortcuts
+                onClose={() => changeOverviewDetent(MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX)}
+                onLocate={() => void refreshLocation()}
+                walkingMinutes={walkingMinutes(activeStation?.distanceMeters)}
+              />
+            </CollapsibleReveal>
+          ) : null}
+        </View>
+      ) : null}
 
       {networkState.status === 'loading' ? <SheetLoadingSkeleton /> : null}
 

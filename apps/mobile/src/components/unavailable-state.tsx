@@ -1,5 +1,5 @@
 import type { AnimationSpec, AnimationType, SFSymbol } from 'expo-symbols';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SymbolIcon } from '@/components/symbol-icon';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -28,7 +28,11 @@ export function UnavailableState({
   const { colors } = useAppTheme();
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      bounces={false}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      style={styles.scroll}>
       <View style={styles.content}>
         <View
           style={[
@@ -43,7 +47,7 @@ export function UnavailableState({
             color={colors.primary}
             name={icon}
             replayIntervalMs={replayIntervalMs}
-            size={30}
+            size={26}
           />
         </View>
 
@@ -72,61 +76,64 @@ export function UnavailableState({
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scroll: {
     flex: 1,
+  },
+  container: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingVertical: 16,
   },
   content: {
     alignItems: 'center',
     alignSelf: 'center',
-    gap: 18,
+    gap: 14,
     maxWidth: 330,
     width: '100%',
   },
   iconBadge: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   copy: {
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   title: {
     fontFamily: 'Archivo_800ExtraBold',
-    fontSize: 23,
-    lineHeight: 28,
-    letterSpacing: -0.5,
+    fontSize: 20,
+    lineHeight: 25,
+    letterSpacing: -0.4,
     textAlign: 'center',
   },
   description: {
     maxWidth: 300,
     fontFamily: 'Inter_400Regular',
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 19,
     textAlign: 'center',
   },
   action: {
-    minHeight: 48,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 22,
-    borderRadius: 24,
+    paddingHorizontal: 20,
+    borderRadius: 22,
     borderCurve: 'continuous',
   },
   actionLabel: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 19,
   },
   pressed: {
     opacity: 0.82,

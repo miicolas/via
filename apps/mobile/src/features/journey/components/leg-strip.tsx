@@ -15,8 +15,8 @@ type JourneyLegStripProps = {
 /**
  * The journey as a row of pills: every line rides its own colours, walks stay quiet.
  * The more lines a trip has, the less the row spells out — walks and wording go first,
- * durations next — so a three-line trip stays one readable row instead of a crowd of
- * identical walking pills drowning the lines.
+ * durations next. When even that readable form is wider than the available space,
+ * whole pills wrap instead of squeezing their contents.
  */
 export function JourneyLegStrip({ dimmed = false, journey }: JourneyLegStripProps) {
   const segments = journeySegments(journey).filter((segment) => segment.kind !== 'wait');
@@ -54,6 +54,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flex: 1,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: 5,
   },

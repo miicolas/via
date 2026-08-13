@@ -1,18 +1,41 @@
 import type { JourneyInput } from '@via/contract';
 
-import { env } from '../../../env';
 import { fetchJsonOrNull } from '../../../http/fetch-json-or-null';
+import type { IdfmJourneyPlanner } from '../service';
 import { parseIdfmJourneys } from './parse';
 
-const JOURNEY_TIMEOUT_MS = 2_500;
+const DEFAULT_TIMEOUT_MS = 2_500;
 
-export async function fetchIdfmJourneys(
-  input: JourneyInput,
-  now: Date,
-  signal?: AbortSignal
-) {
-  if (!env.API_KEY_PRISM_IDFM) return null;
-  const url = new URL(env.PRIM_JOURNEY_PLANNER_URL);
+type IdfmJourneyPlannerConfig = {
+  apiKey: string;
+  url: string;
+  timeoutMs?: number;
+};
+
+/** Production adapter for the Navitia journey planner exposed by IDFM. */
+export function createIdfmJourneyPlanner({
+  apiKey,
+  url,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+}: IdfmJourneyPlannerConfig): IdfmJourneyPlanner {
+  return {
+    plan: async (input, now, signal) => {
+      const requestUrl = journeyUrl(url, input, now);
+      const body = await fetchJsonOrNull(requestUrl, {
+        headers: { apikey: apiKey },
+        signal,
+        timeoutMs,
+        logLabel: '[journeys] IDFM',
+      });
+      if (body === null) return null;
+      const journeys = parseIdfmJourneys(body, input, now);
+      return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys };
+    },
+  };
+}
+
+function journeyUrl(baseUrl: string, input: JourneyInput, now: Date) {
+  const url = new URL(baseUrl);
   url.searchParams.set('from', `${input.origin.longitude};${input.origin.latitude}`);
   url.searchParams.set(
     'to',
@@ -21,16 +44,7 @@ export async function fetchIdfmJourneys(
   url.searchParams.set('count', String(input.limit));
   url.searchParams.set('data_freshness', 'realtime');
   url.searchParams.set('datetime', toNavitiaDate(now));
-
-  const body = await fetchJsonOrNull(url, {
-    headers: { apikey: env.API_KEY_PRISM_IDFM },
-    signal,
-    timeoutMs: JOURNEY_TIMEOUT_MS,
-    logLabel: '[journeys] IDFM',
-  });
-  if (body === null) return null;
-  const journeys = parseIdfmJourneys(body, input, now);
-  return { status: journeys.length > 0 ? ('ready' as const) : ('no-route' as const), journeys };
+  return url;
 }
 
 function toNavitiaDate(now: Date) {

@@ -6,7 +6,7 @@ import { AddressResultRow } from '@/features/search/components/address-row';
 import { StationResultRow } from '@/features/search/components/station-row';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { SHEET_GUTTER } from '@/styles/metrics';
-import type { SearchState } from '@/features/search/model/state';
+import type { SearchState } from '@/features/search/hooks/use-search';
 
 const EMPTY_MESSAGE = 'Aucun résultat ne correspond à cette recherche.';
 const FAILED_MESSAGE = 'La recherche est momentanément indisponible.';

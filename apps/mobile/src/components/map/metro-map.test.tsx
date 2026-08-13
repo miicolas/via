@@ -14,10 +14,12 @@ let layoutRegion = {
 };
 let overviewDetentIndex = 0;
 let safeAreaTop = 0;
+let screen = 'overview';
+let networkState: Record<string, unknown> = { status: 'ready', lines: [], stations: [] };
 const pendingRefValues: unknown[] = [];
 const focusCoordinate = mock(() => undefined);
 const selectStation = mock(() => undefined);
-const setOverviewDetentIndex = mock(() => undefined);
+const changeOverviewDetent = mock(() => undefined);
 
 const jsx = (type: unknown, props: Record<string, unknown>): ElementNode => ({ type, props });
 
@@ -124,13 +126,14 @@ beforeAll(() => {
   mock.module('@/features/map/hooks/use-map', () => ({
     useMap: () => ({
       activeStation: undefined,
-      flow: { screen: 'overview', selectedJourneyIndex: 0 },
-      networkState: { status: 'ready', lines: [], stations: [] },
+      changeOverviewDetent,
+      focusIntent: undefined,
+      networkState,
       overviewDetentIndex,
       refreshLocation: async () => undefined,
       retryNetwork: () => undefined,
+      screen,
       selectStation,
-      setOverviewDetentIndex,
       userLocation: { status: 'loading' },
     }),
   }));
@@ -143,6 +146,9 @@ beforeAll(() => {
 afterAll(() => mock.restore());
 beforeEach(() => {
   stationMarkersState = { mounted: false, tracking: false };
+  networkState = { status: 'ready', lines: [], stations: [] };
+  overviewDetentIndex = 0;
+  screen = 'overview';
 });
 
 describe('MetroMap station visibility', () => {
@@ -240,8 +246,7 @@ test('pressing a station marker selects its station and coordinate', async () =>
   expect(onSelectStation).toHaveBeenCalledWith('saint-germain-des-pres', coordinate);
 });
 
-test('selecting a map station focuses it inside the resident overview sheet', async () => {
-  focusCoordinate.mockClear();
+test('selecting a map station sends its coordinate through the map-flow seam', async () => {
   selectStation.mockClear();
 
   const { MetroMapScreen } = await import('@/components/map/metro-map-screen');
@@ -257,8 +262,7 @@ test('selecting a map station focuses it inside the resident overview sheet', as
   ) => void;
   onSelectStation('saint-germain-des-pres', coordinate);
 
-  expect(focusCoordinate).toHaveBeenCalledWith(coordinate, { animated: true });
-  expect(selectStation).toHaveBeenCalledWith('saint-germain-des-pres');
+  expect(selectStation).toHaveBeenCalledWith('saint-germain-des-pres', coordinate);
 });
 
 test('the overview sheet content lives inside the persistent tab-behind sheet', async () => {
@@ -270,7 +274,24 @@ test('the overview sheet content lives inside the persistent tab-behind sheet', 
   );
 
   expect(overview).toBeDefined();
-  expect(sheet?.props.onDetentChange).toBe(setOverviewDetentIndex);
+  expect(sheet?.props.onDetentChange).toBe(changeOverviewDetent);
+});
+
+test('network status floats only above a collapsed overview or a journey sheet', async () => {
+  const { MetroMapScreen } = await import('@/components/map/metro-map-screen');
+  networkState = { status: 'error', message: 'Réseau indisponible' };
+
+  overviewDetentIndex = 1;
+  const openOverview = MetroMapScreen() as unknown as ElementNode;
+  overviewDetentIndex = 0;
+  const collapsedOverview = MetroMapScreen() as unknown as ElementNode;
+  overviewDetentIndex = 1;
+  screen = 'planning';
+  const journey = MetroMapScreen() as unknown as ElementNode;
+
+  expect(elementWithProp(openOverview.props.children, 'pointerEvents')).toBeUndefined();
+  expect(elementWithProp(collapsedOverview.props.children, 'pointerEvents')).toBeDefined();
+  expect(elementWithProp(journey.props.children, 'pointerEvents')).toBeDefined();
 });
 
 test('the station focus padding follows all persistent sheet detents', async () => {
@@ -286,15 +307,21 @@ test('the station focus padding follows all persistent sheet detents', async () 
   const openMap = elementWithProp(openTree.props.children, 'onSelectStation');
 
   overviewDetentIndex = 2;
+  const highTree = MetroMapScreen() as unknown as ElementNode;
+  const highMap = elementWithProp(highTree.props.children, 'onSelectStation');
+
+  overviewDetentIndex = 3;
   const expandedTree = MetroMapScreen() as unknown as ElementNode;
   const expandedMap = elementWithProp(expandedTree.props.children, 'onSelectStation');
 
   const collapsedPadding = collapsedMap?.props.edgePadding as { bottom: number; top: number };
   const openPadding = openMap?.props.edgePadding as { bottom: number; top: number };
+  const highPadding = highMap?.props.edgePadding as { bottom: number; top: number };
   const expandedPadding = expandedMap?.props.edgePadding as { bottom: number; top: number };
 
   expect(collapsedPadding).toMatchObject({ bottom: 132, top: 68 });
   expect(openPadding).toMatchObject({ bottom: 395, top: 68 });
+  expect(highPadding).toMatchObject({ bottom: 658, top: 68 });
   expect(expandedPadding).toMatchObject({ bottom: 846, top: 68 });
   safeAreaTop = 0;
 });

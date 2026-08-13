@@ -1,16 +1,29 @@
-import type { ContractRouterClient } from '@orpc/contract';
-import type { contract } from '@via/contract';
+import type { DeparturesResponse } from '@via/contract';
 import { useEffect, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 
-import {
-  departuresState,
-  type DeparturesState,
-  type SettledDepartures,
-} from '@/features/departures/model/state';
 import { api } from '@/lib/api';
 
-type ApiClient = ContractRouterClient<typeof contract>;
+/** The one remote operation the departures request cycle needs. */
+export type DeparturesPort = {
+  load: (stationId: string, signal: AbortSignal) => Promise<DeparturesResponse>;
+};
+
+/** Internal platform seams, replaceable by controlled adapters in hook tests. */
+export type DeparturesEnvironment = {
+  scheduleEvery: (callback: () => void, intervalMs: number) => () => void;
+  subscribeAppState: (listener: (state: AppStateStatus) => void) => () => void;
+};
+
+export type DeparturesState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ready'; response: DeparturesResponse };
+
+type SettledDepartures = {
+  forStationId: string;
+  response?: DeparturesResponse;
+};
 
 /**
  * Half the server cache TTL: polling faster would only re-download the same
@@ -24,18 +37,21 @@ const POLL_MS = 60_000;
  * Polls every minute, pauses in the background and refetches on return — a
  * backgrounded app must not keep spending server (and PRIM budget) cycles.
  * Mounted by `StationSection` only, so closing the sheet or switching to
- * search unmounts it and stops the polling by construction. The client is a
- * parameter for the same reason as `useSearch`: it is the test seam.
+ * search unmounts it and stops the polling by construction.
  */
-export function useDepartures(stationId: string, client: ApiClient = api): DeparturesState {
+export function useDepartures(
+  stationId: string,
+  port: DeparturesPort = apiDeparturesPort,
+  environment: DeparturesEnvironment = nativeDeparturesEnvironment
+): DeparturesState {
   const [settled, setSettled] = useState<SettledDepartures>();
 
   useEffect(() => {
     const controller = new AbortController();
 
     const load = () => {
-      client.departures
-        .forStation({ stationId }, { signal: controller.signal })
+      port
+        .load(stationId, controller.signal)
         .then((response) => setSettled({ forStationId: stationId, response }))
         .catch((cause: unknown) => {
           if (controller.signal.aborted) return;
@@ -51,26 +67,50 @@ export function useDepartures(stationId: string, client: ApiClient = api): Depar
     };
 
     load();
-    let timer: ReturnType<typeof setInterval> | undefined = setInterval(load, POLL_MS);
+    let stopPolling: (() => void) | undefined = environment.scheduleEvery(load, POLL_MS);
 
-    const subscription = AppState.addEventListener('change', (state) => {
+    const unsubscribe = environment.subscribeAppState((state) => {
       if (state === 'active') {
-        if (!timer) {
+        if (!stopPolling) {
           load();
-          timer = setInterval(load, POLL_MS);
+          stopPolling = environment.scheduleEvery(load, POLL_MS);
         }
-      } else if (timer) {
-        clearInterval(timer);
-        timer = undefined;
+      } else if (stopPolling) {
+        stopPolling();
+        stopPolling = undefined;
       }
     });
 
     return () => {
       controller.abort();
-      if (timer) clearInterval(timer);
-      subscription.remove();
+      stopPolling?.();
+      unsubscribe();
     };
-  }, [stationId, client]);
+  }, [stationId, port, environment]);
 
-  return departuresState(stationId, settled);
+  return deriveDeparturesState(stationId, settled);
+}
+
+const apiDeparturesPort: DeparturesPort = {
+  load: (stationId, signal) => api.departures.forStation({ stationId }, { signal }),
+};
+
+const nativeDeparturesEnvironment: DeparturesEnvironment = {
+  scheduleEvery: (callback, intervalMs) => {
+    const timer = setInterval(callback, intervalMs);
+    return () => clearInterval(timer);
+  },
+  subscribeAppState: (listener) => {
+    const subscription = AppState.addEventListener('change', listener);
+    return () => subscription.remove();
+  },
+};
+
+function deriveDeparturesState(
+  stationId: string,
+  settled?: SettledDepartures
+): DeparturesState {
+  if (!settled || settled.forStationId !== stationId) return { status: 'loading' };
+  if (!settled.response) return { status: 'error' };
+  return { status: 'ready', response: settled.response };
 }

@@ -6,14 +6,12 @@ export const LEG_PILL_HEIGHT = 38;
 type JourneyLegPillProps = {
   background: string;
   children: ReactNode;
-  /** Lets a pill give up width when the row runs out; walks keep theirs. */
-  shrinks?: boolean;
 };
 
 /** The rounded plate every leg of the strip shares; what it carries is the caller's. */
-export function JourneyLegPill({ background, children, shrinks = false }: JourneyLegPillProps) {
+export function JourneyLegPill({ background, children }: JourneyLegPillProps) {
   return (
-    <View style={[styles.pill, { backgroundColor: background }, shrinks && styles.shrinks]}>
+    <View style={[styles.pill, { backgroundColor: background }]}>
       {children}
     </View>
   );
@@ -30,5 +28,4 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderCurve: 'continuous',
   },
-  shrinks: { flexShrink: 1 },
 });

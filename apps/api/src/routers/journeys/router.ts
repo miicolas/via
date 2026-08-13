@@ -1,5 +1,8 @@
-import { planJourneys } from './handlers/plan-journeys';
+import { createPlanJourneysHandler } from './handlers/plan-journeys';
+import type { JourneyPlanner } from './service';
 
-export const journeysRouter = {
-  plan: planJourneys,
-};
+export function createJourneysRouter(planner: JourneyPlanner) {
+  return {
+    plan: createPlanJourneysHandler(planner),
+  };
+}

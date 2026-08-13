@@ -1,50 +1,230 @@
+import type { Coordinate, Journey, JourneyDestination } from '@via/contract';
+
+import { isJourneyScreen } from './journey-screen';
+import {
+  MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+  MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+} from './overview-sheet';
+
 export type FlowScreen = 'overview' | 'search' | 'planning' | 'results' | 'detail';
 
-export type FlowState = {
+export type SelectedPlace = {
+  name: string;
+  coordinate: Coordinate;
+};
+
+export type MapFocusTarget =
+  | {
+      kind: 'station';
+      stationId: string;
+      coordinate: Coordinate;
+    }
+  | {
+      kind: 'journey';
+      journey: Journey;
+    };
+
+/** A fresh intent object is a fresh instruction; consumers key on its identity. */
+export type MapFocusIntent = MapFocusTarget & { detentIndex: number };
+
+export type MapFlowState = {
   screen: FlowScreen;
+  searchQuery: string;
   selectedJourneyIndex: number;
+  overviewDetentIndex: number;
+  selectedStationId?: string;
+  selectedPlace?: SelectedPlace;
+  journeyDestination?: JourneyDestination;
+  journeyDistanceMeters?: number;
+  journeyRetry: number;
+  focusIntent?: MapFocusIntent;
 };
 
-export type FlowEvent =
-  | { type: 'query-changed'; hasQuery: boolean }
-  | { type: 'nearby-selected' }
-  | { type: 'destination-selected' }
+export type MapFlowEvent =
+  | {
+      type: 'query-changed';
+      query: string;
+    }
+  | {
+      type: 'station-selected';
+      stationId: string;
+      journeyDestination?: JourneyDestination;
+      journeyDistanceMeters?: number;
+      focusCoordinate?: Coordinate;
+    }
+  | {
+      type: 'address-selected';
+      place: SelectedPlace;
+      journeyDestination: JourneyDestination;
+      journeyDistanceMeters?: number;
+    }
   | { type: 'planning-settled' }
-  | { type: 'retry-planning' }
-  | { type: 'open-detail'; index: number }
-  | { type: 'close-detail' }
-  | { type: 'cancel-journey'; hasQuery: boolean };
+  | { type: 'journey-detail-opened'; index: number }
+  | { type: 'journey-detail-closed' }
+  | { type: 'journey-retried' }
+  | { type: 'journey-cancelled' }
+  | {
+      type: 'station-focus-available';
+      stationId: string;
+      coordinate: Coordinate;
+    }
+  | { type: 'journey-focus-available'; journey: Journey }
+  | { type: 'detent-changed'; index: number };
 
-export const INITIAL_HOME_FLOW: FlowState = {
+export const INITIAL_MAP_FLOW: MapFlowState = {
   screen: 'overview',
+  searchQuery: '',
   selectedJourneyIndex: 0,
+  overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+  journeyRetry: 0,
 };
 
-/** Pure state machine for the resident map sheet. Network data stays outside it. */
-export function flowReducer(state: FlowState, event: FlowEvent): FlowState {
+/** Owns every synchronous transition of the resident map and sheet flow. */
+export function transitionMapFlow(
+  state: MapFlowState,
+  event: MapFlowEvent
+): MapFlowState {
   switch (event.type) {
     case 'query-changed':
       return {
-        screen: event.hasQuery ? 'search' : 'overview',
+        ...state,
+        screen: event.query.trim().length > 0 ? 'search' : 'overview',
+        searchQuery: event.query,
         selectedJourneyIndex: 0,
+        selectedStationId: undefined,
+        selectedPlace: undefined,
+        journeyDestination: undefined,
+        journeyDistanceMeters: undefined,
       };
-    case 'nearby-selected':
-      return INITIAL_HOME_FLOW;
-    case 'destination-selected':
-    case 'retry-planning':
-      return { screen: 'planning', selectedJourneyIndex: 0 };
-    case 'planning-settled':
-      return state.screen === 'planning'
-        ? { ...state, screen: 'results' }
-        : state;
-    case 'open-detail':
-      return { screen: 'detail', selectedJourneyIndex: event.index };
-    case 'close-detail':
-      return { ...state, screen: 'results' };
-    case 'cancel-journey':
+    case 'station-selected': {
+      const plansJourney = event.journeyDestination !== undefined;
+      const next: MapFlowState = {
+        ...state,
+        screen: plansJourney ? 'planning' : 'overview',
+        selectedJourneyIndex: 0,
+        selectedStationId: event.stationId,
+        selectedPlace: undefined,
+        journeyDestination: event.journeyDestination,
+        journeyDistanceMeters: event.journeyDistanceMeters,
+        focusIntent: undefined,
+        overviewDetentIndex: plansJourney
+          ? MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX
+          : MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+      };
+      return event.focusCoordinate
+        ? withFocus(
+            next,
+            { kind: 'station', stationId: event.stationId, coordinate: event.focusCoordinate },
+            true
+          )
+        : next;
+    }
+    case 'address-selected':
       return {
-        screen: event.hasQuery ? 'search' : 'overview',
+        ...state,
+        screen: 'planning',
         selectedJourneyIndex: 0,
+        selectedStationId: undefined,
+        selectedPlace: event.place,
+        journeyDestination: event.journeyDestination,
+        journeyDistanceMeters: event.journeyDistanceMeters,
+        focusIntent: undefined,
+        overviewDetentIndex: MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
       };
+    case 'planning-settled':
+      return state.screen === 'planning' ? { ...state, screen: 'results' } : state;
+    case 'journey-detail-opened':
+      return {
+        ...state,
+        screen: 'detail',
+        selectedJourneyIndex: event.index,
+        overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+        focusIntent: undefined,
+      };
+    case 'journey-detail-closed':
+      return {
+        ...state,
+        screen: 'results',
+        overviewDetentIndex: MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+        focusIntent: undefined,
+      };
+    case 'journey-retried':
+      return {
+        ...state,
+        screen: 'planning',
+        selectedJourneyIndex: 0,
+        overviewDetentIndex: MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+        journeyRetry: state.journeyRetry + 1,
+        focusIntent: undefined,
+      };
+    case 'journey-cancelled': {
+      const hasQuery = state.searchQuery.trim().length > 0;
+      return {
+        ...state,
+        screen: hasQuery ? 'search' : 'overview',
+        selectedJourneyIndex: 0,
+        selectedStationId: undefined,
+        selectedPlace: undefined,
+        journeyDestination: undefined,
+        journeyDistanceMeters: undefined,
+        focusIntent: undefined,
+        overviewDetentIndex: hasQuery
+          ? MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX
+          : MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+      };
+    }
+    case 'station-focus-available':
+      return isJourneyScreen(state.screen)
+        ? state
+        : withFocus(state, {
+            kind: 'station',
+            stationId: event.stationId,
+            coordinate: event.coordinate,
+          });
+    case 'journey-focus-available':
+      return state.screen === 'detail'
+        ? withFocus(state, { kind: 'journey', journey: event.journey })
+        : state;
+    case 'detent-changed': {
+      const moved = { ...state, overviewDetentIndex: event.index };
+      const intent = state.focusIntent;
+      if (!intent) return moved;
+      const replays =
+        intent.kind === 'station' ? !isJourneyScreen(state.screen) : state.screen === 'detail';
+      return replays ? withFocus(moved, intent, true) : moved;
+    }
   }
+}
+
+/**
+ * Repeats of the current target at the current detent keep the same state (and
+ * intent object), so the map is not re-animated; `force` mints a fresh intent
+ * to replay the focus after detent moves and repeated taps.
+ */
+function withFocus(state: MapFlowState, target: MapFocusTarget, force = false): MapFlowState {
+  const current = state.focusIntent;
+  if (
+    !force &&
+    current &&
+    sameFocusTarget(current, target) &&
+    current.detentIndex === state.overviewDetentIndex
+  ) {
+    return state;
+  }
+
+  return {
+    ...state,
+    focusIntent: { ...target, detentIndex: state.overviewDetentIndex },
+  };
+}
+
+function sameFocusTarget(a: MapFocusTarget, b: MapFocusTarget): boolean {
+  if (a.kind === 'station' && b.kind === 'station') {
+    return (
+      a.stationId === b.stationId &&
+      a.coordinate.latitude === b.coordinate.latitude &&
+      a.coordinate.longitude === b.coordinate.longitude
+    );
+  }
+  return a.kind === 'journey' && b.kind === 'journey' && a.journey.id === b.journey.id;
 }

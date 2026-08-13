@@ -14,7 +14,8 @@ import {
 import { and, asc, eq, gte, inArray, sql } from 'drizzle-orm';
 
 import { previousDate, parisServiceDay } from '../../departures/theoretical/service-day';
-import { plannerTripKey } from './planner';
+import type { GtfsJourneyPlanner } from '../service';
+import { plannerTripKey, planWithGtfs } from './planner';
 import type {
   GtfsPlannerLoader,
   PlannerBoarding,
@@ -282,6 +283,24 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
           minTransferSeconds: row.minTransferSeconds,
         };
       });
+    },
+  };
+}
+
+/** Production adapter joining the Postgres loader to the pure GTFS planner. */
+export function createGtfsJourneyPlanner(): GtfsJourneyPlanner {
+  return {
+    plan: async (input, now, signal) => {
+      signal?.throwIfAborted();
+      const response = await planWithGtfs(
+        input.origin,
+        input.destination,
+        now,
+        input.limit,
+        createGtfsLoader(now)
+      );
+      signal?.throwIfAborted();
+      return response;
     },
   };
 }

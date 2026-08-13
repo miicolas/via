@@ -18,6 +18,7 @@ scripts/      one-off checks, typechecked like everything else
 ```bash
 bun install
 cp .env.example .env          # adjust ports if 5432/3000 are taken
+ln -s ../../.env apps/mobile/.env   # Expo only reads .env from its own project root
 bun run db:up                 # Postgres 18 + PostGIS 3.6 in Docker
 bun run db:migrate
 bun run dev                   # api + mobile via turbo
@@ -25,6 +26,10 @@ bun run dev                   # api + mobile via turbo
 
 Run one side only: `bun run dev:api` / `bun run dev:mobile`.
 Native builds: `bun run ios` / `bun run android`.
+
+The symlink matters because `EXPO_PUBLIC_API_URL` is inlined at bundle time: without
+it, a bare `expo start` (instead of the `bun run` scripts, which pass `--env-file`)
+silently falls back to `http://localhost:3000` and the map fails to load.
 
 ## Scripts
 

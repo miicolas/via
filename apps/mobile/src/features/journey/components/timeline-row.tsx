@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { GlassCard } from '@/components/glass-card';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 type JourneyTimelineRowProps = {
@@ -28,7 +29,9 @@ export function JourneyTimelineRow({ children, color, last, marker }: JourneyTim
         />
         {!last ? <View style={[styles.spine, { backgroundColor: colors.line }]} /> : null}
       </View>
-      <View style={[styles.body, last && styles.lastBody]}>{children}</View>
+      <GlassCard style={[styles.body, last && styles.lastBody]}>
+        {children}
+      </GlassCard>
     </View>
   );
 }
@@ -36,8 +39,17 @@ export function JourneyTimelineRow({ children, color, last, marker }: JourneyTim
 const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   rail: { width: 28, alignItems: 'center' },
-  marker: { width: 12, height: 12, marginTop: 5, borderRadius: 6, borderCurve: 'continuous' },
+  marker: { width: 12, height: 12, marginTop: 17, borderRadius: 6, borderCurve: 'continuous' },
   spine: { flex: 1, width: 2, marginVertical: 4, borderRadius: 1 },
-  body: { minWidth: 0, flex: 1, gap: 4, paddingBottom: 22, paddingLeft: 8 },
-  lastBody: { paddingBottom: 0 },
+  body: {
+    minWidth: 0,
+    flex: 1,
+    gap: 4,
+    marginBottom: 10,
+    marginLeft: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+  },
+  lastBody: { marginBottom: 0 },
 });

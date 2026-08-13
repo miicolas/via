@@ -1,4 +1,4 @@
-import type { Coordinate, NetworkMap, NetworkRoute, NetworkStation } from '@via/contract';
+import type { Coordinate, NetworkRoute, NetworkStation } from '@via/contract';
 
 /**
  * Everything the map screen knows about the network, as data.
@@ -25,45 +25,8 @@ export type LineView = {
   interchangeCount: number;
 };
 
-export type NetworkState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'ready'; lines: NetworkRoute[]; stations: NetworkStation[]; line: LineView };
-
-export const LOAD_FAILED_MESSAGE = 'Le réseau de transport ne peut pas être chargé pour le moment.';
-export const EMPTY_NETWORK_MESSAGE = 'Aucune ligne de transport à afficher.';
-
 /** Stands in for a line colour while no line is selected. */
 export const PLACEHOLDER_ROUTE_COLOR = '#D1D1D6';
-
-/**
- * The single derivation of what the screen should show.
- *
- * It used to be computed in the hook, reduced to a boolean by the screen, and
- * then derived a third time by the status overlay from a different variable —
- * so `status: 'error'` with no message rendered a spinner for ever. One function,
- * one answer, and the impossible combinations stop being constructible.
- *
- * A network that resolves to no line at all is an error, not an empty success:
- * that is what lets `ready` guarantee a line and spares every component below a
- * `| undefined` branch.
- */
-export function networkState(
-  network: NetworkMap | undefined,
-  error: string | undefined,
-  selectedRouteId: string | undefined
-): NetworkState {
-  if (!network) {
-    return error ? { status: 'error', message: error } : { status: 'loading' };
-  }
-
-  const lines = sortRoutes(network.routes);
-  const line = resolveLine(lines, network.stations, selectedRouteId);
-
-  if (!line) return { status: 'error', message: EMPTY_NETWORK_MESSAGE };
-
-  return { status: 'ready', lines, stations: network.stations, line };
-}
 
 /**
  * Resolves the selected line, falling back to the first one — which is line 1,

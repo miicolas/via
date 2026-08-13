@@ -1,12 +1,27 @@
-import type { ContractRouterClient } from '@orpc/contract';
-import type { contract } from '@via/contract';
+import type { SearchInput, SearchResponse, SearchResult } from '@via/contract';
 import { useEffect, useState } from 'react';
 
-import { searchState, type SearchState, type SettledSearch } from '@/features/search/model/state';
 import type { UserLocationState } from '@/features/map/model/types';
 import { api } from '@/lib/api';
 
-type ApiClient = ContractRouterClient<typeof contract>;
+/** The client leaves `limit` to the server's default. */
+type SearchQuery = Omit<SearchInput, 'limit'>;
+
+/** The one remote operation the search request cycle needs. */
+export type SearchPort = {
+  search: (input: SearchQuery, signal: AbortSignal) => Promise<SearchResponse>;
+};
+
+export type SearchState = {
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  results: SearchResult[];
+  banUnavailable: boolean;
+};
+
+type SettledSearch = {
+  forQuery: string;
+  response?: SearchResponse;
+};
 
 const DEBOUNCE_MS = 300;
 
@@ -17,20 +32,20 @@ const DEBOUNCE_MS = 300;
 const POSITION_PRECISION = 1e4;
 
 /**
- * Server-backed search, debounced. The client is a parameter for the same
- * reason as `useMetroNetwork`: it is the seam that lets this be exercised with
- * a fake. All the deriving lives in `searchState`; this file holds effects and
- * nothing else.
+ * Server-backed search, including debounce, cancellation, staleness protection
+ * and the state shown by callers. The narrow port is the only remote seam.
  */
 export function useSearch(
   query: string,
   location: UserLocationState,
-  client: ApiClient = api
+  port: SearchPort = apiSearchPort
 ): SearchState {
   const [settled, setSettled] = useState<SettledSearch>();
 
-  const latitude = location.status === 'ready' ? roundCoordinate(location.coordinate.latitude) : undefined;
-  const longitude = location.status === 'ready' ? roundCoordinate(location.coordinate.longitude) : undefined;
+  const latitude =
+    location.status === 'ready' ? roundCoordinate(location.coordinate.latitude) : undefined;
+  const longitude =
+    location.status === 'ready' ? roundCoordinate(location.coordinate.longitude) : undefined;
 
   useEffect(() => {
     const currentQuery = query.trim();
@@ -41,8 +56,8 @@ export function useSearch(
       const position =
         latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined;
 
-      client.search
-        .query({ q: currentQuery, ...position }, { signal: controller.signal })
+      port
+        .search({ q: currentQuery, ...position }, controller.signal)
         .then((response) => setSettled({ forQuery: currentQuery, response }))
         .catch((cause: unknown) => {
           if (controller.signal.aborted) return;
@@ -55,11 +70,36 @@ export function useSearch(
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query, latitude, longitude, client]);
+  }, [query, latitude, longitude, port]);
 
-  return searchState(query, settled);
+  return deriveSearchState(query, settled);
 }
 
 function roundCoordinate(value: number): number {
   return Math.round(value * POSITION_PRECISION) / POSITION_PRECISION;
+}
+
+const apiSearchPort: SearchPort = {
+  search: (input, signal) => api.search.query(input, { signal }),
+};
+
+function deriveSearchState(query: string, settled?: SettledSearch): SearchState {
+  const currentQuery = query.trim();
+  if (!currentQuery) return { status: 'idle', results: [], banUnavailable: false };
+
+  if (!settled || settled.forQuery !== currentQuery) {
+    return {
+      status: 'loading',
+      results: settled?.response?.results ?? [],
+      banUnavailable: false,
+    };
+  }
+
+  if (!settled.response) return { status: 'error', results: [], banUnavailable: false };
+
+  return {
+    status: 'ready',
+    results: settled.response.results,
+    banUnavailable: settled.response.sources.ban === 'unavailable',
+  };
 }

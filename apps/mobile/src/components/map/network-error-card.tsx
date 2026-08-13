@@ -3,6 +3,7 @@ import {
   accessibilityLabel,
   buttonBorderShape,
   buttonStyle,
+  fixedSize,
   font,
   foregroundStyle,
   frame,
@@ -37,7 +38,9 @@ export function NetworkErrorCard({ message, onRetry }: NetworkErrorCardProps) {
             font({ size: 14 }),
             foregroundStyle(colors.ink),
             multilineTextAlignment('center'),
-            frame({ maxWidth: 250 }),
+            // A fixed width (not maxWidth) so matchContents measures the wrapped height.
+            frame({ width: 240 }),
+            fixedSize({ horizontal: false, vertical: true }),
           ]}>
           {message}
         </Text>

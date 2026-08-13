@@ -7,10 +7,10 @@ import type {
   SearchResult,
 } from '@via/contract';
 
-import type { SearchState } from '@/features/search/model/state';
-import type { FlowState } from '@/features/map/model/flow';
-import type { JourneyState } from '@/features/journey/model/state';
-import type { NetworkState } from '@/lib/metro-network';
+import type { SearchState } from '@/features/search/hooks/use-search';
+import type { FlowScreen, MapFocusIntent } from '@/features/map/model/flow';
+import type { JourneyState } from '@/features/journey/hooks/use-plan';
+import type { NetworkState } from '@/hooks/use-metro-network';
 
 export type UserLocationState =
   | { status: 'loading' }
@@ -28,24 +28,13 @@ export type StationFocus = {
   distanceMeters?: number;
 };
 
-/**
- * A picked address: name plus coordinate, which is exactly what a future
- * journey needs as its destination.
- */
-export type SelectedPlace = {
-  name: string;
-  coordinate: Coordinate;
-};
-
-export type SelectedDestination = JourneyDestination;
-
 export type MapValue = {
   activeRoutes: NetworkRoute[];
   activeStation?: StationFocus;
   cancelJourney: () => void;
-  flow: FlowState;
+  changeOverviewDetent: (index: number) => void;
+  focusIntent?: MapFocusIntent;
   isNearbyStation: boolean;
-  isSearchActive: boolean;
   networkState: NetworkState;
   overviewDetentIndex: number;
   refreshLocation: () => Promise<void>;
@@ -53,17 +42,16 @@ export type MapValue = {
   searchQuery: string;
   search: SearchState;
   journey: JourneyState;
-  journeyDestination?: SelectedDestination;
+  journeyDestination?: JourneyDestination;
   journeyDistanceMeters?: number;
+  screen: FlowScreen;
   selectedJourney?: Journey;
   selectedJourneyIndex: number;
   openJourneyDetail: (index: number) => void;
   closeJourneyDetail: () => void;
   retryJourney: () => void;
   selectResult: (result: SearchResult) => boolean;
-  selectStation: (stationId: string) => void;
-  setOverviewDetentIndex: (index: number) => void;
-  selectedPlace?: SelectedPlace;
+  selectStation: (stationId: string, focusCoordinate?: Coordinate) => void;
   setSearchQuery: (query: string) => void;
   userLocation: UserLocationState;
 };

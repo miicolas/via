@@ -2,7 +2,7 @@ import { View } from 'react-native';
 
 import { NetworkErrorCard } from '@/components/map/network-error-card';
 import { NetworkLoadingPill } from '@/components/map/network-loading-pill';
-import type { NetworkState } from '@/lib/metro-network';
+import type { NetworkState } from '@/hooks/use-metro-network';
 
 type MapStatusProps = {
   /**

@@ -28,10 +28,10 @@ export function JourneyStopsList({ stops }: JourneyStopsListProps) {
 
 const styles = StyleSheet.create({
   list: {
-    gap: 7,
+    gap: 5,
     marginTop: 2,
-    paddingLeft: 12,
-    borderLeftWidth: 2,
+    paddingLeft: 11,
+    borderLeftWidth: StyleSheet.hairlineWidth,
   },
-  stop: { fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 16 },
+  stop: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 16 },
 });

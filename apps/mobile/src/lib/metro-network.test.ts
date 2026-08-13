@@ -2,9 +2,7 @@ import type { NetworkMap, NetworkRoute, NetworkStation } from '@via/contract';
 import { describe, expect, test } from 'bun:test';
 
 import {
-  EMPTY_NETWORK_MESSAGE,
   isInterchange,
-  networkState,
   resolveLine,
   routeBounds,
   sortRoutes,
@@ -143,40 +141,5 @@ describe('stationPositions', () => {
     expect(stationPositions(LOUVRE)).toEqual([
       { routeId: 'IDFM:1', coordinate: { latitude: 48.8607, longitude: 2.341 } },
     ]);
-  });
-});
-
-describe('networkState', () => {
-  test('is loading while nothing has arrived and nothing failed', () => {
-    expect(networkState(undefined, undefined, undefined)).toEqual({ status: 'loading' });
-  });
-
-  test('is an error when the load failed', () => {
-    expect(networkState(undefined, 'boom', undefined)).toEqual({ status: 'error', message: 'boom' });
-  });
-
-  test('is ready with a line already resolved', () => {
-    const state = networkState(NETWORK, undefined, 'IDFM:4');
-
-    expect(state.status).toBe('ready');
-    if (state.status !== 'ready') return;
-    expect(state.line.route.shortName).toBe('4');
-    expect(state.lines.map((line) => line.shortName)).toEqual(['1', '4']);
-  });
-
-  /**
-   * The state the old shape could not express: an empty network reported itself
-   * ready with no selected line, and every component below carried a `| undefined`
-   * branch to cope.
-   */
-  test('treats a network with no line as an error, not an empty success', () => {
-    expect(networkState({ routes: [], stations: [] }, undefined, undefined)).toEqual({
-      status: 'error',
-      message: EMPTY_NETWORK_MESSAGE,
-    });
-  });
-
-  test('prefers data over a stale error once the retry succeeds', () => {
-    expect(networkState(NETWORK, 'boom', undefined).status).toBe('ready');
   });
 });

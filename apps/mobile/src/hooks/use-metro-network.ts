@@ -1,11 +1,22 @@
-import type { ContractRouterClient } from '@orpc/contract';
-import type { contract, NetworkMap } from '@via/contract';
+import type { NetworkMap, NetworkRoute, NetworkStation } from '@via/contract';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api, apiBaseUrl } from '@/lib/api';
-import { LOAD_FAILED_MESSAGE, networkState, type NetworkState } from '@/lib/metro-network';
+import { resolveLine, sortRoutes, type LineView } from '@/lib/metro-network';
 
-type ApiClient = ContractRouterClient<typeof contract>;
+/** The one remote operation the network request cycle needs. */
+export type NetworkPort = {
+  load: (signal: AbortSignal) => Promise<NetworkMap>;
+};
+
+export type NetworkState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; lines: NetworkRoute[]; stations: NetworkStation[]; line: LineView };
+
+export const LOAD_FAILED_MESSAGE =
+  'Le réseau de transport ne peut pas être chargé pour le moment.';
+export const EMPTY_NETWORK_MESSAGE = 'Aucune ligne de transport à afficher.';
 
 export type MetroNetwork = {
   network?: NetworkMap;
@@ -17,15 +28,11 @@ export type MetroNetwork = {
 /**
  * Loads the whole visible transit network once and owns which line is shown.
  *
- * The client is a parameter rather than a module-level capture: that is the only
- * seam in the app, and it is what lets the load-and-retry path be exercised with
- * a fake instead of a running server.
- *
- * All the deriving lives in `networkState`, so this file holds effects and
- * nothing else.
+ * Loading, retry, selection and visible state stay behind this interface. The
+ * narrow port lets tests replace only the one remote operation involved.
  */
-export function useMetroNetwork(client: ApiClient = api): MetroNetwork {
-  const [network, setNetwork] = useState<Awaited<ReturnType<ApiClient['network']['map']>>>();
+export function useMetroNetwork(port: NetworkPort = apiNetworkPort): MetroNetwork {
+  const [network, setNetwork] = useState<NetworkMap>();
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   const [selectedRouteId, setSelectedRouteId] = useState<string>();
@@ -33,8 +40,8 @@ export function useMetroNetwork(client: ApiClient = api): MetroNetwork {
   useEffect(() => {
     const controller = new AbortController();
 
-    client.network
-      .map(undefined, { signal: controller.signal })
+    port
+      .load(controller.signal)
       .then(setNetwork)
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
@@ -43,10 +50,10 @@ export function useMetroNetwork(client: ApiClient = api): MetroNetwork {
       });
 
     return () => controller.abort();
-  }, [attempt, client]);
+  }, [attempt, port]);
 
   const state = useMemo(
-    () => networkState(network, error, selectedRouteId),
+    () => deriveNetworkState(network, error, selectedRouteId),
     [network, error, selectedRouteId]
   );
 
@@ -57,4 +64,25 @@ export function useMetroNetwork(client: ApiClient = api): MetroNetwork {
   }, []);
 
   return { network, state, select, retry };
+}
+
+const apiNetworkPort: NetworkPort = {
+  load: (signal) => api.network.map(undefined, { signal }),
+};
+
+function deriveNetworkState(
+  network: NetworkMap | undefined,
+  error: string | undefined,
+  selectedRouteId: string | undefined
+): NetworkState {
+  if (!network) {
+    return error ? { status: 'error', message: error } : { status: 'loading' };
+  }
+
+  const lines = sortRoutes(network.routes);
+  const line = resolveLine(lines, network.stations, selectedRouteId);
+
+  if (!line) return { status: 'error', message: EMPTY_NETWORK_MESSAGE };
+
+  return { status: 'ready', lines, stations: network.stations, line };
 }

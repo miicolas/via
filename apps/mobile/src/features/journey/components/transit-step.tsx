@@ -85,6 +85,13 @@ export function JourneyTransitStep({
         })}
       </Text>
       {expanded ? <JourneyStopsList stops={stops} /> : null}
+      <Text
+        numberOfLines={2}
+        selectable
+        style={[styles.arrival, { borderTopColor: colors.hairline, color: colors.muted }]}>
+        Descends à{' '}
+        <Text style={[styles.arrivalStop, { color: colors.ink }]}>{section.to.name}</Text>
+      </Text>
       {warning ? <JourneyDisruptionNote text={warning} tone="critical" /> : null}
     </JourneyTimelineRow>
   );
@@ -100,4 +107,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontVariant: ['tabular-nums'],
   },
+  arrival: {
+    marginTop: 4,
+    paddingTop: 9,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  arrivalStop: { fontFamily: 'Inter_600SemiBold' },
 });

@@ -9,12 +9,12 @@ export function JourneySheetScreen() {
   const {
     cancelJourney,
     closeJourneyDetail,
-    flow,
     journey,
     journeyDestination,
     journeyDistanceMeters,
     openJourneyDetail,
     retryJourney,
+    screen,
     selectedJourneyIndex,
   } = useMap();
 
@@ -24,12 +24,11 @@ export function JourneySheetScreen() {
     <View style={styles.container}>
       <JourneySearchHeader destination={journeyDestination.name} onCancel={cancelJourney} />
 
-      {flow.screen === 'detail' && journey.status === 'ready' ? (
+      {screen === 'detail' && journey.status === 'ready' ? (
         <JourneyDetail
           destination={journeyDestination}
           journeys={journey.response.journeys}
           onBack={closeJourneyDetail}
-          onSelectVariant={openJourneyDetail}
           selectedIndex={selectedJourneyIndex}
         />
       ) : (

@@ -1,6 +1,6 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 
@@ -8,14 +8,16 @@ const GLASS_AVAILABLE = isLiquidGlassAvailable();
 
 type GlassCardProps = {
   children: ReactNode;
+  style?: StyleProp<ViewStyle>;
 };
 
 /** The raised surface of the sheet: Liquid Glass where iOS offers it, tinted where it does not. */
-export function GlassCard({ children }: GlassCardProps) {
+export function GlassCard({ children, style }: GlassCardProps) {
   const { colorScheme, colors } = useAppTheme();
   const frame = [
     styles.card,
     { borderColor: colors.hairline, boxShadow: `0 2px 10px ${colors.shadow}` },
+    style,
   ];
 
   if (!GLASS_AVAILABLE) {

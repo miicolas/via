@@ -33,7 +33,7 @@ const MATERIAL_REVEAL_DISTANCE = 48;
 const VELOCITY_PROJECTION_SECONDS = 0.16;
 const COLLAPSED_DETENT_INDEX = 0;
 const REVEALED_DETENT_INDEX = 1;
-const CORNER_RADIUS_BY_DETENT = [54, 40, 34];
+const CORNER_RADIUS_ANCHORS = [54, 40, 34]; // collapsed, first revealed, expanded
 const CONTENT_FADE_START_OFFSET = 30;
 const CONTENT_RISE_DISTANCE = 18;
 const GLASS_ACTIVATION_OFFSET = 1;
@@ -42,7 +42,7 @@ const AnimatedGlassView = Animated.createAnimatedComponent(GlassView);
 const GLASS_AVAILABLE = isGlassEffectAPIAvailable();
 
 type TabBehindSheetProps = PropsWithChildren<{
-  detentFractions: readonly [number, number, number];
+  detentFractions: readonly [number, number, ...number[]]; // collapsed, first revealed, …
   detentIndex: number;
   onDetentChange: (index: number) => void;
   topInset: number;
@@ -67,11 +67,13 @@ export function TabBehindSheet({
         index === 0
           ? collapsedHeight
           : Math.max(collapsedHeight, Math.min(availableHeight, availableHeight * fraction))
-      ) as [number, number, number];
+      );
     },
     [availableHeight, detentFractions]
   );
-  const [collapsedHeight, mediumHeight, expandedHeight] = snapHeights;
+  const collapsedHeight = snapHeights[0];
+  const mediumHeight = snapHeights[1];
+  const expandedHeight = snapHeights[snapHeights.length - 1];
   const collapsedHorizontalInset = Math.max(
     SHEET_HORIZONTAL_INSET,
     (viewportWidth - COLLAPSED_SHEET_WIDTH) / 2
@@ -79,7 +81,6 @@ export function TabBehindSheet({
   const targetHeight = snapHeights[detentIndex] ?? mediumHeight;
   const visibleHeight = useSharedValue(targetHeight);
   const dragStartHeight = useSharedValue(targetHeight);
-
   useEffect(() => {
     // Skip the spring when the gesture's own settle animation already landed on the target.
     if (reduceMotion || Math.abs(visibleHeight.value - targetHeight) < 0.5) {
@@ -88,7 +89,6 @@ export function TabBehindSheet({
     }
     visibleHeight.value = withSpring(targetHeight, SPRING);
   }, [reduceMotion, targetHeight, visibleHeight]);
-
   const pan = useMemo(
     () =>
       Gesture.Pan()
@@ -159,7 +159,7 @@ export function TabBehindSheet({
       borderRadius: interpolate(
         visibleHeight.value,
         [collapsedHeight, mediumHeight, expandedHeight],
-        CORNER_RADIUS_BY_DETENT,
+        CORNER_RADIUS_ANCHORS,
         Extrapolation.CLAMP
       ),
       height: visibleHeight.value,

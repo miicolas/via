@@ -17,7 +17,7 @@ type JourneyTransitPillProps = {
  */
 export function JourneyTransitPill({ label, route }: JourneyTransitPillProps) {
   return (
-    <JourneyLegPill background={route.color} shrinks>
+    <JourneyLegPill background={route.color}>
       <GlassLineBadge route={route} size={24} />
       {label ? (
         <Text numberOfLines={1} style={[styles.label, { color: route.textColor }]}>
@@ -30,7 +30,6 @@ export function JourneyTransitPill({ label, route }: JourneyTransitPillProps) {
 
 const styles = StyleSheet.create({
   label: {
-    flexShrink: 1,
     fontFamily: 'Inter_600SemiBold',
     fontSize: 14,
     fontVariant: ['tabular-nums'],

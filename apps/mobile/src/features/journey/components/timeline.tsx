@@ -22,7 +22,12 @@ export function JourneyTimeline({ journey }: JourneyTimelineProps) {
 
         if (row.kind === 'walk') {
           return (
-            <JourneyWalkStep key={key} last={last} minutes={row.minutes} targetName={row.targetName} />
+            <JourneyWalkStep
+              key={key}
+              last={last}
+              minutes={row.minutes}
+              targetName={row.targetName}
+            />
           );
         }
         if (row.kind === 'transfer') {

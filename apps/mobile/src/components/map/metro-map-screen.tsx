@@ -9,38 +9,36 @@ import { OverviewSheet } from '@/features/map/components/overview-sheet';
 import { RecenterButton } from '@/features/map/components/recenter-button';
 import { TabBehindSheet } from '@/features/map/components/tab-behind-sheet';
 import { useMap } from '@/features/map/hooks/use-map';
+import { isJourneyScreen } from '@/features/map/model/journey-screen';
 import {
   MAP_JOURNEY_SHEET_DETENTS,
+  MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX,
   MAP_OVERVIEW_SHEET_DETENTS,
   MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
   mapOverviewSheetDetent,
 } from '@/features/map/model/overview-sheet';
-import { stationFocusKey } from '@/features/map/model/station-focus-key';
 
 const OPEN_MAP_TOP_GAP = 8;
 
 export function MetroMapScreen() {
   const mapRef = useRef<MetroMapHandle>(null);
-  const lastFocusedStationKey = useRef<string | undefined>(undefined);
-  const lastFocusedJourneyKey = useRef<string | undefined>(undefined);
   const [mapReady, setMapReady] = useState(false);
   const [centeredOnUser, setCenteredOnUser] = useState(false);
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const {
-    activeStation,
-    flow,
+    changeOverviewDetent,
+    focusIntent,
     networkState,
     overviewDetentIndex,
     refreshLocation,
     retryNetwork,
+    screen,
     selectStation,
     selectedJourney,
-    setOverviewDetentIndex,
     userLocation,
   } = useMap();
-  const journeySheetActive =
-    flow.screen === 'planning' || flow.screen === 'results' || flow.screen === 'detail';
+  const journeySheetActive = isJourneyScreen(screen);
   const sheetDetents = journeySheetActive
     ? MAP_JOURNEY_SHEET_DETENTS
     : MAP_OVERVIEW_SHEET_DETENTS;
@@ -49,36 +47,19 @@ export function MetroMapScreen() {
     : mapOverviewSheetDetent(overviewDetentIndex);
 
   useEffect(() => {
-    if (!mapReady || !activeStation || journeySheetActive) return;
-
-    const focusKey = stationFocusKey(activeStation.station.id, overviewDetentIndex);
-    if (lastFocusedStationKey.current === focusKey) return;
-
-    lastFocusedStationKey.current = focusKey;
-    mapRef.current?.focusCoordinate(activeStation.coordinate, { animated: true });
+    if (!mapReady || !focusIntent) return;
+    if (focusIntent.kind === 'station') {
+      mapRef.current?.focusCoordinate(focusIntent.coordinate, { animated: true });
+    } else {
+      mapRef.current?.fitToJourney(focusIntent.journey, { animated: true });
+    }
     setCenteredOnUser(false);
-  }, [activeStation, journeySheetActive, mapReady, overviewDetentIndex]);
-
-  useEffect(() => {
-    if (!mapReady || flow.screen !== 'detail' || !selectedJourney) return;
-    const focusKey = `${selectedJourney.id}:${overviewDetentIndex}`;
-    if (lastFocusedJourneyKey.current === focusKey) return;
-    lastFocusedJourneyKey.current = focusKey;
-    mapRef.current?.fitToJourney(selectedJourney, { animated: true });
-    setCenteredOnUser(false);
-  }, [flow.screen, mapReady, overviewDetentIndex, selectedJourney]);
+  }, [focusIntent, mapReady]);
 
   const selectMapStation = useCallback(
     (stationId: string, coordinate: Coordinate) => {
-      // Focus from the tap itself, including when the already-active station is tapped again.
-      // selectStation reveals the sheet at its initial detent, so seed the key it produces.
-      lastFocusedStationKey.current = stationFocusKey(
-        stationId,
-        MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX
-      );
-      mapRef.current?.focusCoordinate(coordinate, { animated: true });
       setCenteredOnUser(false);
-      selectStation(stationId);
+      selectStation(stationId, coordinate);
     },
     [selectStation]
   );
@@ -110,7 +91,7 @@ export function MetroMapScreen() {
         developmentLocation={developmentLocation}
         line={undefined}
         lines={networkState.status === 'ready' ? networkState.lines : []}
-        journey={flow.screen === 'detail' ? selectedJourney : undefined}
+        journey={screen === 'detail' ? selectedJourney : undefined}
         stations={networkState.status === 'ready' ? networkState.stations : []}
         onReady={() => setMapReady(true)}
         onSelectStation={selectMapStation}
@@ -129,7 +110,10 @@ export function MetroMapScreen() {
           />
         </View>
       )}
-      {networkState.status !== 'ready' ? (
+      {/* The overview sheet shows the same status itself; only float it over the map
+          when the sheet is collapsed or replaced by the journey flow. */}
+      {networkState.status !== 'ready' &&
+      (overviewDetentIndex === MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX || journeySheetActive) ? (
         <View pointerEvents="box-none" style={[styles.mapStatus, { top: insets.top + 76 }]}>
           <MapStatus onRetry={retryNetwork} state={networkState} />
         </View>
@@ -138,7 +122,7 @@ export function MetroMapScreen() {
       <TabBehindSheet
         detentFractions={sheetDetents}
         detentIndex={overviewDetentIndex}
-        onDetentChange={setOverviewDetentIndex}
+        onDetentChange={changeOverviewDetent}
         topInset={insets.top}>
         <OverviewSheet />
       </TabBehindSheet>
