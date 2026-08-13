@@ -130,7 +130,9 @@ export function MetroMapScreen() {
         </View>
       )}
       {networkState.status !== 'ready' ? (
-        <MapStatus onRetry={retryNetwork} state={networkState} />
+        <View pointerEvents="box-none" style={[styles.mapStatus, { top: insets.top + 76 }]}>
+          <MapStatus onRetry={retryNetwork} state={networkState} />
+        </View>
       ) : null}
 
       <TabBehindSheet
@@ -150,5 +152,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     alignItems: 'flex-end',
+  },
+  mapStatus: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
   },
 });

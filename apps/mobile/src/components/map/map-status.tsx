@@ -1,7 +1,7 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { NetworkErrorCard } from '@/components/map/network-error-card';
+import { NetworkLoadingPill } from '@/components/map/network-loading-pill';
 import type { NetworkState } from '@/lib/metro-network';
 
 type MapStatusProps = {
@@ -14,51 +14,15 @@ type MapStatusProps = {
   onRetry: () => void;
 };
 
-/** Centred overlay shown while the network loads, or when it failed to. */
+/** Floating Liquid Glass status shown while the network loads, or when it failed to. */
 export function MapStatus({ state, onRetry }: MapStatusProps) {
   return (
-    <View style={styles.status} accessibilityLiveRegion="polite">
+    <View accessibilityLiveRegion="polite">
       {state.status === 'error' ? (
-        <>
-          <ThemedText style={styles.centerText}>{state.message}</ThemedText>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onRetry}
-            style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
-          >
-            <ThemedText type="smallBold">Réessayer</ThemedText>
-          </Pressable>
-        </>
+        <NetworkErrorCard message={state.message} onRetry={onRetry} />
       ) : (
-        <>
-          <ActivityIndicator color="#1D1D1F" />
-          <ThemedText type="small">Chargement du réseau…</ThemedText>
-        </>
+        <NetworkLoadingPill />
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  status: {
-    position: 'absolute',
-    top: '45%',
-    alignSelf: 'center',
-    minWidth: 220,
-    alignItems: 'center',
-    gap: Spacing.two,
-    padding: Spacing.three,
-    borderRadius: 16,
-    borderCurve: 'continuous',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-  },
-  retry: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
-    borderRadius: 22,
-    backgroundColor: '#FFBE00',
-  },
-  pressed: { opacity: 0.6 },
-  centerText: { textAlign: 'center' },
-});
