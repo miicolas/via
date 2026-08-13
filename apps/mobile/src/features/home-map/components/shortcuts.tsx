@@ -1,29 +1,38 @@
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import { type SFSymbol } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Symbol } from '@/components/symbol';
 
 import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 type ShortcutsProps = {
   onClose: () => void;
   onLocate: () => void;
+  onHouse: () => void;
   walkingMinutes?: number;
 };
 
-export function Shortcuts({ onClose, onLocate, walkingMinutes }: ShortcutsProps) {
+export function Shortcuts({ onClose, onLocate, onHouse, walkingMinutes }: ShortcutsProps) {
   const { colors } = useHomeMapTheme();
   const items: {
     icon: SFSymbol;
     label: string;
     onPress: () => void;
-    value: string;
+    value: string | null ;
   }[] = [
+
+
     {
-      icon: 'location.fill',
-      label: 'Ma position',
-      onPress: onLocate,
-      value: walkingMinutes ? `${walkingMinutes} min` : 'Actualiser',
+      icon: 'house.fill',
+      label: 'Rentrer chez moi',
+      onPress: onHouse,
+      value: walkingMinutes ? `${walkingMinutes} min` : null,
     },
-    { icon: 'map.fill', label: 'Carte', onPress: onClose, value: 'Ouvrir' },
+    {
+      icon: 'work.fill',
+      label: 'Rentrer chez moi',
+      onPress: onHouse,
+      value: walkingMinutes ? `${walkingMinutes} min` : null,
+    },
   ];
 
   return (
@@ -42,7 +51,7 @@ export function Shortcuts({ onClose, onLocate, walkingMinutes }: ShortcutsProps)
             },
             pressed && styles.pressed,
           ]}>
-          <SymbolView name={item.icon} size={14} tintColor={colors.primary} />
+          <Symbol color={colors.primary} name={item.icon} size={13} />
           <Text style={[styles.label, { color: colors.ink }]}>{item.label}</Text>
           <Text style={[styles.value, { color: colors.primary }]}>{item.value}</Text>
         </Pressable>

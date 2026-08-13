@@ -1,7 +1,7 @@
 import type { DeparturesSource, NetworkRoute } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { AnimatedSymbol } from '@/components/animated-symbol';
+import { Symbol } from '@/components/symbol';
 import { LineBadge } from '@/components/map/line-badge';
 import { AnimatedMinutes } from '@/features/home-map/components/animated-minutes';
 import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
@@ -27,9 +27,9 @@ export function DepartureRow({ route, destination, wait, source }: DepartureRowP
       <View style={styles.timing}>
         <View style={styles.primaryTiming}>
           {source === 'realtime' ? (
-            <AnimatedSymbol
+            <Symbol
+              animation="pulse"
               color={colors.primary}
-              effect="appear"
               name="wave.3.left"
               replayIntervalMs={10_000}
               size={13}
