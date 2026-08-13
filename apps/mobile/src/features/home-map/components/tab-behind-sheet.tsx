@@ -25,10 +25,19 @@ const SHEET_HORIZONTAL_INSET = 10;
 const SHEET_BOTTOM_INSET = 10;
 const COLLAPSED_SHEET_WIDTH = 276;
 const HANDLE_HEIGHT = 30;
+const HANDLE_VERTICAL_HIT_SLOP = 7;
 const TAB_ENVELOPE_DEPTH = 96;
 const TAB_CONTENT_CLEARANCE = 90;
 const MATERIAL_REVEAL_DISTANCE = 48;
 const VELOCITY_PROJECTION_SECONDS = 0.16;
+const COLLAPSED_DETENT_INDEX = 0;
+const REVEALED_DETENT_INDEX = 1;
+/** Corner radius at each detent, collapsed → expanded. */
+const CORNER_RADIUS_BY_DETENT = [54, 40, 34];
+const CONTENT_FADE_START_OFFSET = 30;
+const CONTENT_RISE_DISTANCE = 18;
+/** Height above collapsed at which the glass material switches on. */
+const GLASS_ACTIVATION_OFFSET = 1;
 const SPRING = {
   damping: 36,
   mass: 1,
@@ -157,7 +166,7 @@ export function TabBehindSheet({
       borderRadius: interpolate(
         visibleHeight.value,
         [collapsedHeight, mediumHeight, expandedHeight],
-        [54, 40, 34],
+        CORNER_RADIUS_BY_DETENT,
         Extrapolation.CLAMP
       ),
       height: visibleHeight.value,
@@ -166,7 +175,7 @@ export function TabBehindSheet({
     };
   });
   const contentStyle = useAnimatedStyle(() => {
-    const fadeStart = collapsedHeight + 30;
+    const fadeStart = collapsedHeight + CONTENT_FADE_START_OFFSET;
 
     return {
       opacity: interpolate(
@@ -180,7 +189,7 @@ export function TabBehindSheet({
           translateY: interpolate(
             visibleHeight.value,
             [fadeStart, mediumHeight],
-            [18, 0],
+            [CONTENT_RISE_DISTANCE, 0],
             Extrapolation.CLAMP
           ),
         },
@@ -197,9 +206,13 @@ export function TabBehindSheet({
   }));
   const glassProps = useAnimatedProps<GlassViewProps>(() => ({
     glassEffectStyle:
-      visibleHeight.value > collapsedHeight + 1 ? ('regular' as const) : ('none' as const),
+      visibleHeight.value > collapsedHeight + GLASS_ACTIVATION_OFFSET
+        ? ('regular' as const)
+        : ('none' as const),
   }));
-  const toggleDetent = () => onDetentChange(detentIndex === 0 ? 1 : 0);
+  const isCollapsed = detentIndex === COLLAPSED_DETENT_INDEX;
+  const toggleDetent = () =>
+    onDetentChange(isCollapsed ? REVEALED_DETENT_INDEX : COLLAPSED_DETENT_INDEX);
 
   return (
     <Animated.View style={[styles.sheet, shellStyle]}>
@@ -221,10 +234,15 @@ export function TabBehindSheet({
 
       <GestureDetector gesture={pan}>
         <Pressable
-          accessibilityHint={detentIndex === 0 ? 'Déplie le panneau' : 'Replie le panneau'}
+          accessibilityHint={isCollapsed ? 'Déplie le panneau' : 'Replie le panneau'}
           accessibilityLabel="Panneau de la carte"
           accessibilityRole="adjustable"
-          hitSlop={{ top: 7, bottom: 7, left: 0, right: 0 }}
+          hitSlop={{
+            top: HANDLE_VERTICAL_HIT_SLOP,
+            bottom: HANDLE_VERTICAL_HIT_SLOP,
+            left: 0,
+            right: 0,
+          }}
           onPress={toggleDetent}
           style={styles.handleTarget}>
           <View style={[styles.handle, { backgroundColor: colors.sheetHandle }]} />
@@ -232,7 +250,7 @@ export function TabBehindSheet({
       </GestureDetector>
 
       <Animated.View
-        pointerEvents={detentIndex === 0 ? 'none' : 'auto'}
+        pointerEvents={isCollapsed ? 'none' : 'auto'}
         style={[styles.content, contentStyle]}>
         {children}
       </Animated.View>

@@ -16,7 +16,6 @@ let overviewDetentIndex = 0;
 let safeAreaTop = 0;
 const pendingRefValues: unknown[] = [];
 const focusCoordinate = mock(() => undefined);
-const selectResult = mock(() => undefined);
 const selectStation = mock(() => undefined);
 const setOverviewDetentIndex = mock(() => undefined);
 
@@ -129,7 +128,6 @@ beforeAll(() => {
       overviewDetentIndex,
       refreshLocation: async () => undefined,
       retryNetwork: () => undefined,
-      selectResult,
       selectStation,
       setOverviewDetentIndex,
       userLocation: { status: 'loading' },
@@ -153,7 +151,6 @@ describe('MetroMap station visibility', () => {
       edgePadding: { top: 0, right: 0, bottom: 0, left: 0 },
       line: undefined,
       lines: [],
-      markerSnapshotVersion: 0,
       onSelectStation: () => undefined,
       stations: [],
       viewportHeight: 1_000,
@@ -181,7 +178,6 @@ describe('MetroMap station visibility', () => {
       edgePadding: { top: 0, right: 0, bottom: 0, left: 0 },
       line: undefined,
       lines: [],
-      markerSnapshotVersion: 0,
       onSelectStation: () => undefined,
       stations: [],
       viewportHeight: 1_000,
@@ -204,7 +200,6 @@ describe('MetroMap station visibility', () => {
       edgePadding: { top: 0, right: 0, bottom: 0, left: 0 },
       line: undefined,
       lines: [],
-      markerSnapshotVersion: 0,
       onSelectStation: () => undefined,
       stations: [],
       viewportHeight: 1_000,
@@ -317,7 +312,6 @@ test('focusCoordinate centers a marker in the unobscured map without hiding stat
     edgePadding,
     line: undefined,
     lines: [],
-    markerSnapshotVersion: 0,
     onSelectStation: () => undefined,
     ref,
     stations: [],

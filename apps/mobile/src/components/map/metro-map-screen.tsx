@@ -14,6 +14,7 @@ import {
   MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
   mapOverviewSheetDetent,
 } from '@/features/home-map/model/overview-sheet';
+import { stationFocusKey } from '@/features/home-map/model/station-focus-key';
 
 const OPEN_MAP_TOP_GAP = 8;
 
@@ -39,7 +40,7 @@ export function MetroMapScreen() {
   useEffect(() => {
     if (!mapReady || !activeStation) return;
 
-    const focusKey = `${activeStation.station.id}:${overviewDetentIndex}`;
+    const focusKey = stationFocusKey(activeStation.station.id, overviewDetentIndex);
     if (lastFocusedStationKey.current === focusKey) return;
 
     lastFocusedStationKey.current = focusKey;
@@ -51,7 +52,10 @@ export function MetroMapScreen() {
     (stationId: string, coordinate: Coordinate) => {
       // Focus from the tap itself, including when the already-active station is tapped again.
       // selectStation reveals the sheet at its initial detent, so seed the key it produces.
-      lastFocusedStationKey.current = `${stationId}:${MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX}`;
+      lastFocusedStationKey.current = stationFocusKey(
+        stationId,
+        MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX
+      );
       mapRef.current?.focusCoordinate(coordinate, { animated: true });
       setCenteredOnUser(false);
       selectStation(stationId);
@@ -86,7 +90,6 @@ export function MetroMapScreen() {
         developmentLocation={developmentLocation}
         line={undefined}
         lines={networkState.status === 'ready' ? networkState.lines : []}
-        markerSnapshotVersion={0}
         stations={networkState.status === 'ready' ? networkState.stations : []}
         onReady={() => setMapReady(true)}
         onSelectStation={selectMapStation}

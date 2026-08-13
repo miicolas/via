@@ -55,15 +55,20 @@ export function HomeMapProvider({ children }: PropsWithChildren) {
     setSelectedStationId(undefined);
     setSelectedPlace(undefined);
   }, []);
+  // Selecting a station or search result always reveals the sheet at its initial detent.
+  const revealSheet = useCallback(
+    () => setOverviewDetentIndex(MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX),
+    []
+  );
   const selectStation = useCallback((stationId: string) => {
     setSelectedStationId(stationId);
-    setOverviewDetentIndex(MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX);
-  }, []);
+    revealSheet();
+  }, [revealSheet]);
   const selectResult = useCallback((result: SearchResult) => {
     if (result.kind === 'station') setSelectedStationId(result.id);
     else setSelectedPlace({ name: result.name, coordinate: result.coordinate });
-    setOverviewDetentIndex(MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX);
-  }, []);
+    revealSheet();
+  }, [revealSheet]);
 
   const value = useMemo(
     () => ({

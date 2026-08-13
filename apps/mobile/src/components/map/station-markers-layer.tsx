@@ -16,7 +16,6 @@ type StationMarkersLayerProps = {
   stations: NetworkStation[];
   tracksViewChanges: boolean;
   visible: boolean;
-  markerSnapshotVersion: number;
   onSelectStation: (stationId: string, coordinate: Coordinate) => void;
 };
 
@@ -28,10 +27,9 @@ export function StationMarkersLayer({
   stations,
   tracksViewChanges,
   visible,
-  markerSnapshotVersion,
   onSelectStation,
 }: StationMarkersLayerProps) {
-  const [refreshingSnapshot, setRefreshingSnapshot] = useState(false);
+  const [refreshingSnapshot, setRefreshingSnapshot] = useState(true);
   const [settlingOpacity, setSettlingOpacity] = useState(false);
 
   useEffect(() => {
@@ -47,14 +45,14 @@ export function StationMarkersLayer({
     return () => clearTimeout(timeout);
   }, [tracksViewChanges]);
 
+  // Track view changes for a beat after mount so snapshots capture late-loading marker content.
   useEffect(() => {
-    setRefreshingSnapshot(true);
     const timeout = setTimeout(
       () => setRefreshingSnapshot(false),
       SNAPSHOT_REFRESH_DURATION_MS
     );
     return () => clearTimeout(timeout);
-  }, [markerSnapshotVersion]);
+  }, []);
 
   if (!visible) return null;
 

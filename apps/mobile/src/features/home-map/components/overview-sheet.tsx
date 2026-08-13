@@ -7,7 +7,10 @@ import { Shortcuts } from '@/features/home-map/components/shortcuts';
 import { HomeStationSection } from '@/features/home-map/components/station-section';
 import { HomeUnavailableState } from '@/features/home-map/components/unavailable-state';
 import { useHomeMap } from '@/features/home-map/hooks/use-map';
-import { MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX } from '@/features/home-map/model/overview-sheet';
+import {
+  MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX,
+  MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+} from '@/features/home-map/model/overview-sheet';
 
 export function HomeOverviewSheet() {
   const {
@@ -37,7 +40,7 @@ export function HomeOverviewSheet() {
 
         {networkState.status === 'ready' && !isSearchActive && isExpanded ? (
           <Shortcuts
-            onClose={() => setOverviewDetentIndex(0)}
+            onClose={() => setOverviewDetentIndex(MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX)}
             onLocate={() => void refreshLocation()}
             walkingMinutes={walkingMinutes}
           />

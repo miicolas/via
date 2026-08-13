@@ -57,8 +57,6 @@ type MetroMapProps = {
   lines: NetworkRoute[];
   /** Every station, dotted over the network while no line is in focus. */
   stations: NetworkStation[];
-  /** Changes when native marker snapshots need refreshing around an overlay transition. */
-  markerSnapshotVersion: number;
   /** The line in focus, with its stations. Absent until the network has loaded. */
   line: LineView | undefined;
   /** Room the caller's overlay needs around a fitted line. */
@@ -90,7 +88,6 @@ type MetroMapProps = {
 export function MetroMap({
   lines,
   stations,
-  markerSnapshotVersion,
   line,
   edgePadding,
   developmentLocation,
@@ -217,7 +214,6 @@ export function MetroMap({
         opacity={stationOpacity}
         tracksViewChanges={stationMarkersState.tracking}
         visible={stationMarkersState.mounted}
-        markerSnapshotVersion={markerSnapshotVersion}
         onSelectStation={onSelectStation}
       />
       {developmentLocation ? <DevelopmentLocationMarker coordinate={developmentLocation} /> : null}
