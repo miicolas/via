@@ -3,6 +3,7 @@ import type { ColorSchemeName } from 'react-native';
 export const HomeMapThemes = {
   light: {
     accentSoft: '#E5EFEB',
+    control: '#D1D2D0',
     critical: '#8E2F2A',
     ground: '#F6F5F0',
     ink: '#161A18',
@@ -16,6 +17,7 @@ export const HomeMapThemes = {
   },
   dark: {
     accentSoft: '#18352D',
+    control: '#575D58',
     critical: '#FFB4AB',
     ground: '#101512',
     ink: '#F1F5F2',

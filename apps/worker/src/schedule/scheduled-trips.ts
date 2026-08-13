@@ -3,8 +3,6 @@ import type { ScheduledTrip } from './import-schedules';
 type CsvRow = Record<string, string>;
 
 export type ImportedScheduledTrip = ScheduledTrip & {
-  id: string;
-  shapeId: string;
 };
 
 /**
@@ -21,6 +19,7 @@ export function addScheduledTrip(
   if (!routeId || !importedRouteIds.has(routeId)) return undefined;
 
   const trip = {
+    numericId: trips.size + 1,
     id: required(row, 'trip_id'),
     routeId,
     directionId: Number(required(row, 'direction_id')),
@@ -29,8 +28,7 @@ export function addScheduledTrip(
     serviceId: required(row, 'service_id'),
   } satisfies ImportedScheduledTrip;
 
-  const { id, shapeId: _, ...scheduled } = trip;
-  trips.set(id, scheduled);
+  trips.set(trip.id, trip);
   return trip;
 }
 

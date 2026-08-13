@@ -7,7 +7,10 @@ import { contract } from '@via/contract';
  * `ResponseHeadersPlugin` and is how a procedure sets `Cache-Control` without
  * knowing it is being served over HTTP by Hono.
  */
-export type ApiContext = ResponseHeadersPluginContext;
+export type ApiContext = ResponseHeadersPluginContext & {
+  /** Anonymous stable app id, or the reverse-proxy address fallback. */
+  viaIdentity?: string;
+};
 
 /**
  * Contract-first: `implement` binds handlers to `@via/contract` and refuses to

@@ -50,6 +50,27 @@
       "when": 1786571237422,
       "tag": "0006_plain_leech",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786609872114,
+      "tag": "0007_certain_ares",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786614302285,
+      "tag": "0008_faithful_lethal_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786641216697,
+      "tag": "0009_nebulous_killmonger",
+      "breakpoints": true
     }
   ]
 }

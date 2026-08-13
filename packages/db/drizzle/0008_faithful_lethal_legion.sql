@@ -1,0 +1,1 @@
+DROP TABLE "transit_stop_departures" CASCADE;

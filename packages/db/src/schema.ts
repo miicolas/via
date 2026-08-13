@@ -7,6 +7,7 @@ import {
   integer,
   pgTable,
   primaryKey,
+  serial,
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
@@ -82,6 +83,8 @@ export const transitStops = pgTable(
   'transit_stops',
   {
     id: text('id').primaryKey(),
+    /** Compact key used by the 14.8 M-row timetable instead of repeating GTFS text ids. */
+    numericId: serial('numeric_id').notNull().unique(),
     name: text('name').notNull(),
     location: pointWgs84('location').notNull(),
   },
@@ -140,15 +143,54 @@ export const transitServiceDates = pgTable(
 );
 
 /**
- * Theoretical departures, flattened from `stop_times`: one row per stop call,
- * no `trips` table to join back to. The target question — next N departures at
- * stop X after time H for the services of day D — is a single indexed range
- * scan. Kept raw rather than pre-bucketed by day type: `transit_service_dates`
- * already absorbed the calendar, and day-type aggregation breaks on the first
- * `calendar_dates` exception.
+ * Normalized timetable data for journey planning. The departure board keeps a
+ * trip identity and stop order to reconstruct complete paths, so one normalized
+ * representation serves both the departure board and the planner.
  */
-export const transitStopDepartures = pgTable(
-  'transit_stop_departures',
+export const transitTrips = pgTable(
+  'transit_trips',
+  {
+    /** Import-local dense key: 669k integers are materially cheaper than GTFS text ids. */
+    numericId: integer('numeric_id').primaryKey(),
+    id: text('id').notNull().unique(),
+    routeId: text('route_id')
+      .notNull()
+      .references(() => transitRoutes.id, { onDelete: 'cascade' }),
+    serviceId: text('service_id').notNull(),
+    directionId: integer('direction_id').notNull(),
+    headsign: text('headsign').notNull(),
+    shapeId: text('shape_id'),
+  },
+  (table) => [
+    index('transit_trips_service_route_idx').on(table.serviceId, table.routeId),
+    index('transit_trips_shape_idx').on(table.shapeId),
+  ]
+);
+
+export const transitTripStopTimes = pgTable(
+  'transit_trip_stop_times',
+  {
+    tripKey: integer('trip_key')
+      .notNull()
+      .references(() => transitTrips.numericId, { onDelete: 'cascade' }),
+    stopKey: integer('stop_key')
+      .notNull()
+      .references(() => transitStops.numericId, { onDelete: 'cascade' }),
+    stopSequence: integer('stop_sequence').notNull(),
+    arrivalSeconds: integer('arrival_seconds').notNull(),
+    departureSeconds: integer('departure_seconds').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.tripKey, table.stopSequence] }),
+    index('transit_trip_stop_times_stop_departure_idx').on(
+      table.stopKey,
+      table.departureSeconds
+    ),
+  ]
+);
+
+export const transitStopRoutes = pgTable(
+  'transit_stop_routes',
   {
     stopId: text('stop_id')
       .notNull()
@@ -156,25 +198,34 @@ export const transitStopDepartures = pgTable(
     routeId: text('route_id')
       .notNull()
       .references(() => transitRoutes.id, { onDelete: 'cascade' }),
-    directionId: integer('direction_id').notNull(),
-    headsign: text('headsign').notNull(),
-    serviceId: text('service_id').notNull(),
-    /**
-     * Seconds since the service day's midnight, GTFS semantics preserved:
-     * "25:12:00" stays 90 720, because that departure belongs to the previous
-     * day's service even though it happens after midnight.
-     */
-    departureSeconds: integer('departure_seconds').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.stopId, table.routeId] })]
+);
+
+export const transitShapes = pgTable('transit_shapes', {
+  id: text('id').primaryKey(),
+  geometry: lineStringWgs84('geometry'),
+});
+
+export const transitTransfers = pgTable(
+  'transit_transfers',
+  {
+    fromStopId: text('from_stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    toStopId: text('to_stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    minTransferSeconds: integer('min_transfer_seconds').notNull(),
   },
   (table) => [
-    index('transit_stop_departures_lookup_idx').on(
-      table.stopId,
-      table.serviceId,
-      table.departureSeconds
-    ),
+    primaryKey({ columns: [table.fromStopId, table.toStopId] }),
+    index('transit_transfers_from_idx').on(table.fromStopId),
   ]
 );
 
 export type TransitRoute = typeof transitRoutes.$inferSelect;
 export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
+export type TransitTrip = typeof transitTrips.$inferSelect;
+export type TransitTripStopTime = typeof transitTripStopTimes.$inferSelect;

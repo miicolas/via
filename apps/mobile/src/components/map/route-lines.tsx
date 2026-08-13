@@ -13,12 +13,17 @@ const SELECTED_WIDTH = 3.4;
 const NETWORK_WIDTH = 3;
 
 type RouteLinesProps = {
+  muted?: boolean;
   routes: NetworkRoute[];
   selectedRoute: NetworkRoute | undefined;
 };
 
 /** The whole network greyed out, with the selected line drawn on top of a white casing. */
-export const RouteLines = memo(function RouteLines({ routes, selectedRoute }: RouteLinesProps) {
+export const RouteLines = memo(function RouteLines({
+  muted = false,
+  routes,
+  selectedRoute,
+}: RouteLinesProps) {
   const tracedRoutes = mapTraceRoutes(routes);
   const tracedSelection = selectedRoute?.mode === 'bus' ? undefined : selectedRoute;
 
@@ -28,8 +33,8 @@ export const RouteLines = memo(function RouteLines({ routes, selectedRoute }: Ro
         <Polyline
           key={`network-${segment.id}`}
           coordinates={segment.coordinates}
-          strokeColor={route.color}
-          strokeWidth={NETWORK_WIDTH}
+          strokeColor={muted ? MUTED.strokeColor : route.color}
+          strokeWidth={muted ? MUTED.strokeWidth : NETWORK_WIDTH}
           {...ROUNDED}
         />
       ))
@@ -38,7 +43,11 @@ export const RouteLines = memo(function RouteLines({ routes, selectedRoute }: Ro
 
   const selected = [tracedSelection];
   const layers = [
-    { key: 'muted', routes: tracedRoutes.filter((route) => route.id !== tracedSelection.id), ...MUTED },
+    {
+      key: 'muted',
+      routes: tracedRoutes.filter((route) => route.id !== tracedSelection.id),
+      ...MUTED,
+    },
     { key: 'casing', routes: selected, ...CASING },
     {
       key: 'selected',

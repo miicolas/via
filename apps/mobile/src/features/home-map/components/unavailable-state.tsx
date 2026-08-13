@@ -1,21 +1,28 @@
-import { SymbolView, type SFSymbol } from 'expo-symbols';
+import type { AnimationSpec, AnimationType, SFSymbol } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { SymbolIcon } from '@/components/symbol-icon';
 import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 type HomeUnavailableStateProps = {
   actionLabel?: string;
+  /** Omit for a static symbol. Either an effect type (`'bounce'`) or a full `AnimationSpec`. */
+  animation?: AnimationType | AnimationSpec;
   description: string;
   icon: SFSymbol;
   onAction?: () => void;
+  /** Replays a one-shot `animation` on this interval so the badge keeps breathing. */
+  replayIntervalMs?: number;
   title: string;
 };
 
 export function HomeUnavailableState({
   actionLabel,
+  animation,
   description,
   icon,
   onAction,
+  replayIntervalMs,
   title,
 }: HomeUnavailableStateProps) {
   const { colors } = useHomeMapTheme();
@@ -31,7 +38,13 @@ export function HomeUnavailableState({
               boxShadow: `0 1px 3px ${colors.shadow}`,
             },
           ]}>
-          <SymbolView name={icon} size={30} tintColor={colors.primary} weight="semibold" />
+          <SymbolIcon
+            animation={animation}
+            color={colors.primary}
+            name={icon}
+            replayIntervalMs={replayIntervalMs}
+            size={30}
+          />
         </View>
 
         <View style={styles.copy}>

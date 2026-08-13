@@ -43,7 +43,8 @@
         {
           "locationWhenInUsePermission": "Via utilise votre position pour afficher les stations à proximité."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

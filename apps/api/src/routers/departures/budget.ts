@@ -13,6 +13,8 @@ const COUNTER_TTL_SECONDS = 48 * 3600;
 /** One counter for the whole PRIM stop-monitoring quota. */
 const COUNTER_KEY_PREFIX = 'prim:budget:stop-monitoring';
 
+export type PrimBudgetScope = 'stop-monitoring' | 'journeys';
+
 export type BudgetDecision = {
   allowed: boolean;
   /**
@@ -33,12 +35,13 @@ export type BudgetDecision = {
 export async function tryConsumeBudget(
   redis: RedisClient,
   dailyBudget: number,
-  now: Date
+  now: Date,
+  scope: PrimBudgetScope = 'stop-monitoring'
 ): Promise<BudgetDecision> {
   // The same Paris clock as the schedule, so the budget day and the service
   // day can never disagree at a DST edge.
   const { date, seconds } = parisServiceDay(now);
-  const key = `${COUNTER_KEY_PREFIX}:${date}`;
+  const key = `${scope === 'journeys' ? 'prim:budget:journeys' : COUNTER_KEY_PREFIX}:${date}`;
 
   try {
     const count = await redis.incr(key);

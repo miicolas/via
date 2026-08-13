@@ -1,6 +1,15 @@
-import type { Coordinate, NetworkRoute, NetworkStation, SearchResult } from '@via/contract';
+import type {
+  Coordinate,
+  Journey,
+  JourneyDestination,
+  NetworkRoute,
+  NetworkStation,
+  SearchResult,
+} from '@via/contract';
 
 import type { SearchState } from '@/features/home-map/model/search-state';
+import type { HomeFlowState } from '@/features/home-map/model/home-flow';
+import type { JourneyState } from '@/features/home-map/model/journey-state';
 import type { NetworkState } from '@/lib/metro-network';
 
 export type UserLocationState =
@@ -28,16 +37,30 @@ export type SelectedPlace = {
   coordinate: Coordinate;
 };
 
+export type SelectedDestination = JourneyDestination;
+
 export type HomeMapValue = {
   activeRoutes: NetworkRoute[];
   activeStation?: StationFocus;
+  cancelJourney: () => void;
+  flow: HomeFlowState;
+  isNearbyStation: boolean;
   isSearchActive: boolean;
   networkState: NetworkState;
   overviewDetentIndex: number;
   refreshLocation: () => Promise<void>;
   retryNetwork: () => void;
+  searchQuery: string;
   search: SearchState;
-  selectResult: (result: SearchResult) => void;
+  journey: JourneyState;
+  journeyDestination?: SelectedDestination;
+  journeyDistanceMeters?: number;
+  selectedJourney?: Journey;
+  selectedJourneyIndex: number;
+  openJourneyDetail: (index: number) => void;
+  closeJourneyDetail: () => void;
+  retryJourney: () => void;
+  selectResult: (result: SearchResult) => boolean;
   selectStation: (stationId: string) => void;
   setOverviewDetentIndex: (index: number) => void;
   selectedPlace?: SelectedPlace;

@@ -10,7 +10,12 @@ import {
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
+  transitShapes,
+  transitServiceDates,
+  transitStopRoutes,
   transitStops,
+  transitTrips,
+  transitTransfers,
   type LonLat,
   type NetworkMode,
 } from '@via/db/schema';
@@ -21,6 +26,7 @@ import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
 import { addScheduledTrip } from './schedule/scheduled-trips';
+import { importShapes } from './shapes/import-shapes';
 
 type CsvRow = Record<string, string>;
 /**
@@ -100,7 +106,6 @@ async function importTransitNetwork(gtfsPath: string) {
   if (routes.length === 0) throw new Error('No metro, RER or bus route was found in routes.txt');
 
   const routeIds = new Set(routes.map((route) => route.id));
-  const modeByRouteId = new Map(routes.map((route) => [route.id, route.mode]));
   const candidateByKey = new Map<string, PatternCandidate>();
   /** Every imported trip, for the GTFS fallback — patterns only keep representatives. */
   const scheduledTrips = new Map<string, ScheduledTrip>();
@@ -136,24 +141,7 @@ async function importTransitNetwork(gtfsPath: string) {
   // Shape ids are pattern primary keys, so one route can never claim another's.
   const canonicalShapeIds = new Set(selections.map((selection) => selection.canonicalShapeId));
 
-  const coordinatesByShape = new Map<string, Array<LonLat & { sequence: number }>>(
-    patterns
-      .filter((pattern) => modeByRouteId.get(pattern.routeId) !== 'bus')
-      .map((pattern) => [pattern.shapeId, []])
-  );
-  for await (const point of readCsv(join(gtfsPath, 'shapes.txt'))) {
-    const coordinates = coordinatesByShape.get(point.shape_id);
-    if (!coordinates) continue;
-    coordinates.push({
-      lat: Number(required(point, 'shape_pt_lat', 'shapes.txt')),
-      lon: Number(required(point, 'shape_pt_lon', 'shapes.txt')),
-      sequence: Number(required(point, 'shape_pt_sequence', 'shapes.txt')),
-    });
-  }
-  for (const [shapeId, coordinates] of coordinatesByShape) {
-    coordinates.sort((a, b) => a.sequence - b.sequence);
-    if (coordinates.length < 2) throw new Error(`Shape ${shapeId} is empty`);
-  }
+  const journeyShapeIds = new Set([...scheduledTrips.values()].map((trip) => trip.shapeId));
 
   const sourceStops = new Map<string, SourceStop>();
   for await (const stop of readCsv(join(gtfsPath, 'stops.txt'))) {
@@ -176,30 +164,32 @@ async function importTransitNetwork(gtfsPath: string) {
     return { id, stop: sourceStops.get(id) ?? stop };
   }
 
-  const patternByTrip = new Map(
-    patterns.map((pattern) => [pattern.representativeTripId, pattern])
-  );
-  const canonicalStops = new Map<string, SourceStop>();
-  const stopsByShape = new Map<string, Array<{ stopId: string; sequence: number }>>(
-    patterns.map((pattern) => [pattern.shapeId, []])
-  );
-  for await (const stopTime of readCsv(join(gtfsPath, 'stop_times.txt'))) {
-    const pattern = patternByTrip.get(stopTime.trip_id);
-    if (!pattern) continue;
-    const { id, stop } = canonicalStopOf(required(stopTime, 'stop_id', 'stop_times.txt'));
-    canonicalStops.set(id, stop);
-    stopsByShape.get(pattern.shapeId)!.push({
-      stopId: id,
-      sequence: Number(required(stopTime, 'stop_sequence', 'stop_times.txt')),
-    });
+  const journeyStops = new Map<string, SourceStop>();
+  for (const stop of sourceStops.values()) {
+    const { id, stop: canonical } = canonicalStopOf(stop.id);
+    journeyStops.set(id, canonical);
   }
-  // Two platforms of one station in a row collapse into a single call.
-  for (const [shapeId, sequence] of stopsByShape) {
-    sequence.sort((a, b) => a.sequence - b.sequence);
-    stopsByShape.set(
-      shapeId,
-      sequence.filter((stop, index) => stop.stopId !== sequence[index - 1]?.stopId)
-    );
+
+  const transfersByKey = new Map<string, {
+    fromStopId: string;
+    toStopId: string;
+    minTransferSeconds: number;
+  }>();
+  try {
+    await access(join(gtfsPath, 'transfers.txt'));
+    for await (const transfer of readCsv(join(gtfsPath, 'transfers.txt'))) {
+      const fromStopId = canonicalStopOf(required(transfer, 'from_stop_id', 'transfers.txt')).id;
+      const toStopId = canonicalStopOf(required(transfer, 'to_stop_id', 'transfers.txt')).id;
+      if (fromStopId === toStopId) continue;
+      const rawSeconds = Number(transfer.min_transfer_time);
+      transfersByKey.set(`${fromStopId}\u0000${toStopId}`, {
+        fromStopId,
+        toStopId,
+        minTransferSeconds: Number.isFinite(rawSeconds) && rawSeconds > 0 ? rawSeconds : 120,
+      });
+    }
+  } catch {
+    // transfers.txt is optional in GTFS; the planner still has station access walks.
   }
 
   const importedAt = new Date();
@@ -208,6 +198,13 @@ async function importTransitNetwork(gtfsPath: string) {
      * Replace exactly what this importer owns. Other rail (Transilien and TER)
      * remains untouched if another importer adds it later.
      */
+    await tx.delete(transitServiceDates);
+    await tx.delete(transitShapes);
+    await tx.delete(transitTransfers);
+    await tx.delete(transitRoutePatternStops);
+    await tx.delete(transitRoutePatterns);
+    await tx.delete(transitTrips);
+    await tx.delete(transitStopRoutes);
     await tx
       .delete(transitRoutes)
       .where(
@@ -240,19 +237,22 @@ async function importTransitNetwork(gtfsPath: string) {
      * Upsert rather than insert: a station this mode serves may also be served by
      * another one, in which case the delete above rightly spared it.
      */
-    const stopValues = [...canonicalStops].map(([id, stop]) => ({
+    const stopValues = [...journeyStops].map(([id, stop]) => ({
       id,
       name: stop.name,
       location: stop.location,
     }));
+    const stopKeyById = new Map<string, number>();
     for (let start = 0; start < stopValues.length; start += INSERT_BATCH) {
-      await tx
+      const inserted = await tx
         .insert(transitStops)
         .values(stopValues.slice(start, start + INSERT_BATCH))
         .onConflictDoUpdate({
           target: transitStops.id,
           set: { name: sql`excluded.name`, location: sql`excluded.location` },
-        });
+        })
+        .returning({ id: transitStops.id, numericId: transitStops.numericId });
+      for (const stop of inserted) stopKeyById.set(stop.id, stop.numericId);
     }
 
     const patternValues = patterns.map((pattern) => ({
@@ -262,10 +262,7 @@ async function importTransitNetwork(gtfsPath: string) {
         headsign: pattern.headsign,
         tripCount: pattern.tripCount,
         isCanonical: canonicalShapeIds.has(pattern.shapeId),
-        geometry:
-          coordinatesByShape
-            .get(pattern.shapeId)
-            ?.map(({ lon, lat }) => ({ lon, lat })) ?? null,
+        geometry: null,
       }));
     for (let start = 0; start < patternValues.length; start += PATTERN_INSERT_BATCH) {
       await tx
@@ -273,22 +270,26 @@ async function importTransitNetwork(gtfsPath: string) {
         .values(patternValues.slice(start, start + PATTERN_INSERT_BATCH));
     }
 
-    const patternStopValues = patterns.flatMap((pattern) => {
-      const patternStops = stopsByShape.get(pattern.shapeId)!;
-      if (patternStops.length === 0) throw new Error(`Pattern ${pattern.shapeId} has no stops`);
-      return patternStops.map(({ stopId, sequence }) => ({
-          patternId: pattern.shapeId,
-          stopId,
-          stopSequence: sequence,
-        }));
-    });
-    for (let start = 0; start < patternStopValues.length; start += INSERT_BATCH) {
-      await tx
-        .insert(transitRoutePatternStops)
-        .values(patternStopValues.slice(start, start + INSERT_BATCH));
-    }
+    await importShapes({ gtfsPath, tx, shapeIds: journeyShapeIds, readCsv });
+    await tx.execute(sql`
+      UPDATE ${transitRoutePatterns} AS patterns
+      SET geometry = shapes.geometry
+      FROM ${transitShapes} AS shapes, ${transitRoutes} AS routes
+      WHERE patterns.id = shapes.id
+        AND routes.id = patterns.route_id
+        AND routes.route_type <> ${ROUTE_TYPE.bus}
+    `);
 
-    await tx.execute(projectStopsOntoPatterns());
+    const transfers = [...transfersByKey.values()];
+    for (let start = 0; start < transfers.length; start += INSERT_BATCH) {
+      await tx
+        .insert(transitTransfers)
+        .values(transfers.slice(start, start + INSERT_BATCH))
+        .onConflictDoUpdate({
+          target: [transitTransfers.fromStopId, transitTransfers.toStopId],
+          set: { minTransferSeconds: sql`excluded.min_transfer_seconds` },
+        });
+    }
 
     /**
      * Same transaction as the network on purpose: the route delete above just
@@ -300,27 +301,27 @@ async function importTransitNetwork(gtfsPath: string) {
       tx,
       trips: scheduledTrips,
       canonicalStopIdOf: (stopId) => canonicalStopOf(stopId).id,
-      knownStopIds: new Set(canonicalStops.keys()),
+      stopKeyById,
+      representativeTrips: new Map(
+        patterns.map((pattern) => [
+          pattern.shapeId,
+          scheduledTrips.get(pattern.representativeTripId)!.numericId,
+        ])
+      ),
       readCsv,
     });
-  });
 
-  const routesByStop = new Map<string, Set<string>>();
-  for (const pattern of patterns) {
-    for (const { stopId } of stopsByShape.get(pattern.shapeId)!) {
-      const servedRoutes = routesByStop.get(stopId) ?? new Set<string>();
-      servedRoutes.add(pattern.routeId);
-      routesByStop.set(stopId, servedRoutes);
-    }
-  }
-  const interchangeCount = [...routesByStop.values()].filter((routeSet) => routeSet.size > 1).length;
+    await tx.execute(projectStopsOntoPatterns());
+    await tx.execute(sql`ANALYZE ${transitStops}`);
+    await tx.execute(sql`ANALYZE ${transitStopRoutes}`);
+    await tx.execute(sql`ANALYZE ${transitTransfers}`);
+  });
 
   const counts = Map.groupBy(routes, (route) => route.mode);
   console.log(
     `Imported ${counts.get('metro')?.length ?? 0} metro, ` +
       `${counts.get('rer')?.length ?? 0} RER and ${counts.get('bus')?.length ?? 0} bus lines, ` +
-      `${patterns.length} representative patterns, ${canonicalStops.size} shared stops and ` +
-      `${interchangeCount} interchanges.`
+      `${patterns.length} representative patterns, ${journeyStops.size} shared stops.`
   );
 }
 

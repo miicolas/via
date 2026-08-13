@@ -1,0 +1,41 @@
+import { expect, test } from 'bun:test';
+import type { JourneyInput } from '@via/contract';
+
+import { parseIdfmJourneys } from './parse';
+
+const input: JourneyInput = {
+  origin: { latitude: 48.8566, longitude: 2.3522 },
+  destination: {
+    kind: 'address',
+    id: 'destination',
+    name: '7 Allée Verte',
+    coordinate: { latitude: 48.859559, longitude: 2.370737 },
+  },
+  limit: 2,
+};
+
+test('normalizes Navitia and enforces the requested result limit', () => {
+  const row = (minute: number) => ({
+    departure_date_time: `20260813T20${String(minute).padStart(2, '0')}00`,
+    arrival_date_time: `20260813T20${String(minute + 5).padStart(2, '0')}00`,
+    duration: 300,
+    sections: [
+      {
+        type: 'street_network',
+        duration: 300,
+        from: { name: 'Ma position' },
+        to: { name: '7 Allée Verte' },
+      },
+    ],
+  });
+
+  const journeys = parseIdfmJourneys(
+    { journeys: [row(0), row(10), row(20)] },
+    input,
+    new Date('2026-08-13T20:00:00+02:00')
+  );
+
+  expect(journeys).toHaveLength(2);
+  expect(journeys[0]?.sections[0]?.type).toBe('walk');
+  expect(journeys.map((journey) => journey.qualifier)).toEqual(['recommended', 'walking']);
+});

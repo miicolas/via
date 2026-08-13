@@ -23,12 +23,33 @@ const envSchema = z.object({
   PRIM_STOP_MONITORING_URL: z
     .url()
     .default('https://prim.iledefrance-mobilites.fr/marketplace/stop-monitoring'),
+  /** Navitia journey planner endpoint. Keep the token server-side. */
+  PRIM_JOURNEY_PLANNER_URL: z
+    .url()
+    .default('https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/journeys'),
   /**
    * Daily request ceiling of the PRIM token (new tokens: 1 000/day). The
    * governor keeps a safety margin below it; raise this only after PRIM
    * grants a quota increase.
   */
   PRIM_DAILY_BUDGET: z.string().default('1000').transform(Number).pipe(z.number().int().min(0)),
+  /** Separate budget for journey calculations; stop monitoring has its own counter. */
+  PRIM_JOURNEYS_DAILY_BUDGET: z
+    .string()
+    .default('1000')
+    .transform(Number)
+    .pipe(z.number().int().min(0)),
+  /** Per-person burst protection before a journey may spend the global quota. */
+  PRIM_JOURNEYS_PERSONAL_LIMIT: z
+    .string()
+    .default('20')
+    .transform(Number)
+    .pipe(z.number().int().min(1)),
+  PRIM_JOURNEYS_PERSONAL_WINDOW_SECONDS: z
+    .string()
+    .default('900')
+    .transform(Number)
+    .pipe(z.number().int().min(60)),
 });
 
 const parsed = envSchema.safeParse(process.env);

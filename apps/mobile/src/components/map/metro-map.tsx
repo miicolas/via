@@ -1,10 +1,11 @@
-import type { Coordinate, NetworkRoute, NetworkStation } from '@via/contract';
+import type { Coordinate, Journey, NetworkRoute, NetworkStation } from '@via/contract';
 import { useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
 import { StyleSheet, useWindowDimensions } from 'react-native';
 import MapView, { type EdgePadding, type Region } from 'react-native-maps';
 import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { DevelopmentLocationMarker } from '@/components/map/development-location-marker';
+import { JourneyRouteLayer } from '@/components/map/journey-route-layer';
 import { RouteLines } from '@/components/map/route-lines';
 import { StationMarkersLayer } from '@/components/map/station-markers-layer';
 import { PARIS_COORDINATE } from '@/features/home-map/model/location';
@@ -50,6 +51,7 @@ export type MetroMapHandle = {
    */
   fitToRoute: (route: NetworkRoute, options?: { animated?: boolean }) => void;
   focusCoordinate: (coordinate: Coordinate, options?: { animated?: boolean }) => void;
+  fitToJourney: (journey: Journey, options?: { animated?: boolean }) => void;
 };
 
 type MetroMapProps = {
@@ -70,6 +72,8 @@ type MetroMapProps = {
   /** Fires when the camera moves from a user gesture, not a programmatic command. */
   onUserMove?: () => void;
   showsUserLocation?: boolean;
+  /** The selected journey route, drawn above the muted transit network. */
+  journey?: Journey;
   /** Height of the map viewport, used to center a station in the unobscured area. */
   viewportHeight: number;
   ref?: Ref<MetroMapHandle>;
@@ -94,6 +98,7 @@ export function MetroMap({
   onReady,
   onSelectStation,
   onUserMove,
+  journey,
   ref,
   showsUserLocation = false,
   viewportHeight,
@@ -173,6 +178,11 @@ export function MetroMap({
           animated ? STATION_FOCUS_ANIMATION_DURATION_MS : 0
         );
       },
+      fitToJourney(selectedJourney, { animated = true } = {}) {
+        const coordinates = selectedJourney.sections.flatMap((section) => section.geometry);
+        if (coordinates.length < 2) return;
+        mapRef.current?.fitToCoordinates(coordinates, { animated, edgePadding });
+      },
     }),
     [edgePadding, viewportHeight]
   );
@@ -206,7 +216,8 @@ export function MetroMap({
         updateStationOpacity(region.longitudeDelta, true);
       }}
     >
-      <RouteLines routes={positionedLines} selectedRoute={positionedLine?.route} />
+      <RouteLines muted={Boolean(journey)} routes={positionedLines} selectedRoute={positionedLine?.route} />
+      <JourneyRouteLayer journey={journey} />
       <StationMarkersLayer
         line={positionedLine}
         routes={positionedLines}

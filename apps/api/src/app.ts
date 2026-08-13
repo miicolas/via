@@ -35,7 +35,12 @@ app.get('/api/openapi.json', async (c) => c.json(await getOpenApiDocument()));
  */
 function mount(handler: FetchHandler<ApiContext>, prefix: '/api' | '/rpc') {
   return async (c: Context<AppEnv>, next: Next) => {
-    const { matched, response } = await handler.handle(c.req.raw, { prefix, context: {} });
+    const forwardedFor = c.req.header('x-forwarded-for')?.split(',')[0]?.trim();
+    const identity = c.req.header('x-via-client-id')?.trim() || forwardedFor || 'anonymous';
+    const { matched, response } = await handler.handle(c.req.raw, {
+      prefix,
+      context: { viaIdentity: identity.slice(0, 200) },
+    });
 
     if (matched) return response;
 

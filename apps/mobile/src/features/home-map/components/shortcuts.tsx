@@ -7,8 +7,8 @@ import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 type ShortcutsProps = {
   onClose: () => void;
   onLocate: () => void;
-  onHouse: () => void;
-  onWork: () => void;
+  onHouse?: () => void;
+  onWork?: () => void;
   walkingMinutes?: number;
 };
 
@@ -20,18 +20,18 @@ export function Shortcuts({ onClose, onLocate, onHouse, onWork, walkingMinutes }
     onPress: () => void;
     value: string | null ;
   }[] = [
-    {
-      icon: 'house.fill',
+    ...(onHouse ? [{
+      icon: 'house.fill' as SFSymbol,
       label: 'Rentrer chez moi',
       onPress: onHouse,
       value: walkingMinutes ? `${walkingMinutes} min` : null,
-    },
-    {
-      icon: 'briefcase.fill',
+    }] : []),
+    ...(onWork ? [{
+      icon: 'briefcase.fill' as SFSymbol,
       label: 'Boulot',
       onPress: onWork,
       value: null,
-    },
+    }] : []),
   ];
 
   return (

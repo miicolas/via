@@ -124,6 +124,7 @@ beforeAll(() => {
   mock.module('@/features/home-map/hooks/use-map', () => ({
     useHomeMap: () => ({
       activeStation: undefined,
+      flow: { screen: 'overview', selectedJourneyIndex: 0 },
       networkState: { status: 'ready', lines: [], stations: [] },
       overviewDetentIndex,
       refreshLocation: async () => undefined,

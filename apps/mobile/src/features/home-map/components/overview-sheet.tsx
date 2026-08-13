@@ -1,4 +1,5 @@
 import { Linking, StyleSheet, View } from 'react-native';
+import type { SearchResult } from '@via/contract';
 
 import { CollapsibleReveal } from '@/components/collapsible-reveal';
 import { HomeSearchField } from '@/features/home-map/components/search-field';
@@ -7,6 +8,7 @@ import { SheetLoadingSkeleton } from '@/features/home-map/components/sheet-loadi
 import { Shortcuts } from '@/features/home-map/components/shortcuts';
 import { HomeStationSection } from '@/features/home-map/components/station-section';
 import { HomeUnavailableState } from '@/features/home-map/components/unavailable-state';
+import { JourneySheetScreen } from '@/features/home-map/components/journey-sheet-screen';
 import { useHomeMap } from '@/features/home-map/hooks/use-map';
 import { useSheetDetentProgress } from '@/features/home-map/hooks/use-sheet-detent-progress';
 import {
@@ -22,12 +24,16 @@ export function HomeOverviewSheet() {
   const {
     activeRoutes,
     activeStation,
+    flow,
     isSearchActive,
+    isNearbyStation,
+    journeyDestination,
     networkState,
     overviewDetentIndex,
     refreshLocation,
     retryNetwork,
     search,
+    searchQuery,
     selectResult,
     setOverviewDetentIndex,
     setSearchQuery,
@@ -38,12 +44,19 @@ export function HomeOverviewSheet() {
     MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX
   );
   const isExpanded = overviewDetentIndex === MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX;
-  const showsStation = networkState.status === 'ready' && !isSearchActive;
+  const showsOverview =
+    networkState.status === 'ready' && !isSearchActive && !journeyDestination;
+  const showsStation = showsOverview && isNearbyStation;
+  const handleSelectResult = (result: SearchResult) => void selectResult(result);
+
+  if (flow.screen === 'planning' || flow.screen === 'results' || flow.screen === 'detail') {
+    return <JourneySheetScreen />;
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <HomeSearchField onChange={setSearchQuery} />
+        <HomeSearchField onChange={setSearchQuery} value={searchQuery} />
 
         {showsStation ? (
           <CollapsibleReveal progress={shortcutsProgress} spacing={SHORTCUTS_SPACING}>
@@ -61,6 +74,7 @@ export function HomeOverviewSheet() {
       {networkState.status === 'error' ? (
         <HomeUnavailableState
           actionLabel="Réessayer"
+          animation={{ effect: { type: 'pulse' }, repeating: true }}
           description={networkState.message}
           icon="wifi.exclamationmark"
           onAction={retryNetwork}
@@ -69,18 +83,24 @@ export function HomeOverviewSheet() {
       ) : null}
 
       {networkState.status === 'ready' && isSearchActive ? (
-        <HomeSearchResults onSelect={selectResult} routes={networkState.lines} search={search} />
+        <HomeSearchResults onSelect={handleSelectResult} routes={networkState.lines} search={search} />
       ) : null}
 
       {showsStation && activeStation ? (
         <HomeStationSection expanded={isExpanded} routes={activeRoutes} station={activeStation} />
       ) : null}
 
-      {showsStation && !activeStation ? (
+      {showsOverview && !activeStation ? (
         <HomeUnavailableState
           actionLabel={userLocation.status === 'denied' ? 'Ouvrir Réglages' : 'Me localiser'}
+          animation={
+            userLocation.status === 'denied'
+              ? 'bounce'
+              : { effect: { type: 'pulse', wholeSymbol: true }, repeating: true }
+          }
           description="La recherche reste disponible pour trouver une station manuellement."
           icon={userLocation.status === 'denied' ? 'location.slash' : 'location.circle'}
+          replayIntervalMs={userLocation.status === 'denied' ? 3000 : undefined}
           onAction={
             userLocation.status === 'denied'
               ? () => void Linking.openSettings()

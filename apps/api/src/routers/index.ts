@@ -1,6 +1,7 @@
 import { implementer } from '../orpc/implementer';
 import { departuresRouter } from './departures/router';
 import { healthRouter } from './health/router';
+import { journeysRouter } from './journeys/router';
 import { networkRouter } from './network/router';
 import { searchRouter } from './search/router';
 
@@ -16,6 +17,7 @@ import { searchRouter } from './search/router';
 export const apiRouter = implementer.router({
   departures: departuresRouter,
   health: healthRouter,
+  journeys: journeysRouter,
   network: networkRouter,
   search: searchRouter,
 });

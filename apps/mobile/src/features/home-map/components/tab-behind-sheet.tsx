@@ -1,10 +1,10 @@
+/* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable worklet state. */
 import {
   GlassView,
   type GlassViewProps,
   isGlassEffectAPIAvailable,
 } from 'expo-glass-effect';
-import type { PropsWithChildren } from 'react';
-import { useEffect, useMemo } from 'react';
+import { type PropsWithChildren, useEffect, useMemo } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -33,19 +33,11 @@ const MATERIAL_REVEAL_DISTANCE = 48;
 const VELOCITY_PROJECTION_SECONDS = 0.16;
 const COLLAPSED_DETENT_INDEX = 0;
 const REVEALED_DETENT_INDEX = 1;
-/** Corner radius at each detent, collapsed → expanded. */
 const CORNER_RADIUS_BY_DETENT = [54, 40, 34];
 const CONTENT_FADE_START_OFFSET = 30;
 const CONTENT_RISE_DISTANCE = 18;
-/** Height above collapsed at which the glass material switches on. */
 const GLASS_ACTIVATION_OFFSET = 1;
-const SPRING = {
-  damping: 36,
-  mass: 1,
-  overshootClamping: true,
-  stiffness: 360,
-} as const;
-
+const SPRING = { damping: 36, mass: 1, overshootClamping: true, stiffness: 360 } as const;
 const AnimatedGlassView = Animated.createAnimatedComponent(GlassView);
 const GLASS_AVAILABLE = isGlassEffectAPIAvailable();
 
@@ -86,7 +78,7 @@ export function TabBehindSheet({
   );
   const targetHeight = snapHeights[detentIndex] ?? mediumHeight;
   const visibleHeight = useSharedValue(targetHeight);
-  const dragStartHeight = useSharedValue(visibleHeight.value);
+  const dragStartHeight = useSharedValue(targetHeight);
 
   useEffect(() => {
     // Skip the spring when the gesture's own settle animation already landed on the target.
@@ -156,7 +148,7 @@ export function TabBehindSheet({
   );
 
   const shellStyle = useAnimatedStyle(() => {
-    const horizontalInset = interpolate(
+    const sheetHorizontalInset = interpolate(
       visibleHeight.value,
       [collapsedHeight, mediumHeight],
       [collapsedHorizontalInset, SHEET_HORIZONTAL_INSET],
@@ -171,8 +163,8 @@ export function TabBehindSheet({
         Extrapolation.CLAMP
       ),
       height: visibleHeight.value,
-      left: horizontalInset,
-      right: horizontalInset,
+      left: sheetHorizontalInset,
+      right: sheetHorizontalInset,
     };
   });
   const contentStyle = useAnimatedStyle(() => {

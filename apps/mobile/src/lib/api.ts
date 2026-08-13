@@ -3,6 +3,8 @@ import { RPCLink } from '@orpc/client/fetch';
 import type { ContractRouterClient } from '@orpc/contract';
 import type { contract } from '@via/contract';
 
+import { getClientIdentity } from '@/lib/client-identity';
+
 /**
  * Trailing slashes are stripped: `EXPO_PUBLIC_API_URL` is hand-written per machine,
  * and a stray one would build `//rpc`, which the server's `/rpc/*` route misses —
@@ -25,6 +27,7 @@ const link = new RPCLink({
   url: `${apiBaseUrl}/rpc`,
   method: () => 'GET',
   fallbackMethod: 'POST',
+  headers: async () => ({ 'x-via-client-id': await getClientIdentity() }),
 });
 
 /**

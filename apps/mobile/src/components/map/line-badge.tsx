@@ -3,12 +3,14 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { transitBadgeFrame } from '@/components/map/transit-badge-shape';
 
+export type LineBadgeRoute = Pick<NetworkRoute, 'mode' | 'color' | 'textColor' | 'shortName'>;
+
 type LineBadgeProps = {
   /**
    * Never undefined: `networkState` only reports `ready` once a line resolves, so
    * the placeholder branch this used to carry is unreachable.
    */
-  route: NetworkRoute;
+  route: LineBadgeRoute;
   size: number;
 };
 
