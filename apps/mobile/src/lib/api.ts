@@ -3,7 +3,15 @@ import { RPCLink } from '@orpc/client/fetch';
 import type { ContractRouterClient } from '@orpc/contract';
 import type { contract } from '@via/contract';
 
-export const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+/**
+ * Trailing slashes are stripped: `EXPO_PUBLIC_API_URL` is hand-written per machine,
+ * and a stray one would build `//rpc`, which the server's `/rpc/*` route misses —
+ * a 404 that looks like the API is down rather than like a typo.
+ */
+export const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(
+  /\/+$/,
+  ''
+);
 
 /**
  * `GET` rather than the default `POST`.

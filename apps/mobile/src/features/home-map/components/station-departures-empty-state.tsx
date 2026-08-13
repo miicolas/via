@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Symbol } from '@/components/symbol';
+import { SymbolIcon } from '@/components/symbol-icon';
 import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
 type StationDeparturesEmptyStateProps = {
@@ -24,7 +24,7 @@ export function StationDeparturesEmptyState({
               boxShadow: `0 1px 3px ${colors.shadow}`,
             },
           ]}>
-          <Symbol
+          <SymbolIcon
             animation={{ effect: { type: 'pulse' }, repeating: true }}
             color={colors.primary}
             name="airplaneseat"

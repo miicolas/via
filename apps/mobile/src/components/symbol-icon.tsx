@@ -8,7 +8,7 @@ import {
 import { useEffect, useState } from 'react';
 import type { ColorValue, StyleProp, ViewStyle } from 'react-native';
 
-type SymbolProps = {
+type SymbolIconProps = {
   /** Omit for a static symbol. Either an effect type (`'bounce'`) or a full `AnimationSpec`. */
   animation?: AnimationType | AnimationSpec;
   color: ColorValue;
@@ -20,7 +20,13 @@ type SymbolProps = {
   weight?: SymbolWeight;
 };
 
-export function Symbol({
+/**
+ * Named `SymbolIcon`, not `Symbol`: importing a binding called `Symbol` shadows the
+ * global in that module, and React Compiler's prelude calls
+ * `Symbol.for('react.memo_cache_sentinel')` — which would resolve to this component
+ * and throw `undefined is not a function` before the consumer renders anything.
+ */
+export function SymbolIcon({
   animation,
   color,
   name,
@@ -28,7 +34,7 @@ export function Symbol({
   size,
   style,
   weight = 'semibold',
-}: SymbolProps) {
+}: SymbolIconProps) {
   const [replayKey, setReplayKey] = useState(0);
   const replaying = Boolean(animation && replayIntervalMs);
 

@@ -3,13 +3,17 @@ import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { DepartureRow } from '@/features/home-map/components/departure-row';
+import { SCROLL_FADE_HEIGHT } from '@/features/home-map/components/scroll-fade-edge';
 import { ScrollFadeMask } from '@/features/home-map/components/scroll-fade-mask';
 import { StationDeparturesEmptyState } from '@/features/home-map/components/station-departures-empty-state';
 import { useDepartures } from '@/features/home-map/hooks/use-departures';
 import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 import { departureRows } from '@/features/home-map/model/departure-rows';
 import type { StationFocus } from '@/features/home-map/model/types';
+import { walkingMinutes } from '@/features/home-map/model/walking-time';
 import { useNow } from '@/hooks/use-now';
+
+const SCROLL_FADE_EPSILON = 2;
 
 type HomeStationSectionProps = {
   expanded: boolean;
@@ -21,19 +25,21 @@ export function HomeStationSection({ expanded, routes, station }: HomeStationSec
   const { colors } = useHomeMapTheme();
   const departures = useDepartures(station.station.id);
   const now = useNow();
-  const [scrolled, setScrolled] = useState(false);
-  const scrolledRef = useRef(false);
+  const [fade, setFade] = useState({ bottom: false, top: false });
+  const metricsRef = useRef({ contentHeight: 0, offsetY: 0, viewportHeight: 0 });
 
-  const updateScrollFade = (offsetY: number) => {
-    const nextScrolled = offsetY > 2;
-    if (nextScrolled === scrolledRef.current) return;
-    scrolledRef.current = nextScrolled;
-    setScrolled(nextScrolled);
+  const syncScrollFade = () => {
+    const { contentHeight, offsetY, viewportHeight } = metricsRef.current;
+    const bottom = offsetY + viewportHeight < contentHeight - SCROLL_FADE_EPSILON;
+    const top = offsetY > SCROLL_FADE_EPSILON;
+
+    // Same object when nothing moved: React bails out instead of re-rendering the list.
+    setFade((current) =>
+      current.bottom === bottom && current.top === top ? current : { bottom, top }
+    );
   };
 
-  const walkingMinutes = station.distanceMeters
-    ? Math.max(1, Math.round(station.distanceMeters / 80))
-    : undefined;
+  const minutes = walkingMinutes(station.distanceMeters);
 
   const source = departures.status === 'ready' ? departures.response.source : 'unavailable';
   const groups = departures.status === 'ready' ? departures.response.groups : [];
@@ -46,20 +52,35 @@ export function HomeStationSection({ expanded, routes, station }: HomeStationSec
           {station.station.name}
         </Text>
         <Text style={[styles.walkingTime, { color: colors.muted }]}>
-          {walkingMinutes ? `${walkingMinutes} min à pied` : 'station sélectionnée'}
+          {minutes ? `${minutes} min à pied` : 'station sélectionnée'}
         </Text>
       </View>
 
       {departures.status === 'ready' && rows.length === 0 ? (
         <StationDeparturesEmptyState expanded={expanded} />
       ) : (
-        <ScrollFadeMask active={scrolled}>
+        <ScrollFadeMask bottom={fade.bottom} top={fade.top}>
           <ScrollView
             automaticallyAdjustContentInsets={false}
             contentContainerStyle={styles.departuresContent}
             contentInsetAdjustmentBehavior="never"
-            fadingEdgeLength={{ start: 44, end: 0 }}
-            onScroll={({ nativeEvent }) => updateScrollFade(nativeEvent.contentOffset.y)}
+            fadingEdgeLength={{ start: SCROLL_FADE_HEIGHT, end: SCROLL_FADE_HEIGHT }}
+            onContentSizeChange={(_width, height) => {
+              metricsRef.current.contentHeight = height;
+              syncScrollFade();
+            }}
+            onLayout={({ nativeEvent }) => {
+              metricsRef.current.viewportHeight = nativeEvent.layout.height;
+              syncScrollFade();
+            }}
+            onScroll={({ nativeEvent }) => {
+              metricsRef.current = {
+                contentHeight: nativeEvent.contentSize.height,
+                offsetY: nativeEvent.contentOffset.y,
+                viewportHeight: nativeEvent.layoutMeasurement.height,
+              };
+              syncScrollFade();
+            }}
             scrollEventThrottle={16}
             style={styles.departures}
           >

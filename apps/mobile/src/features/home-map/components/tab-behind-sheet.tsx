@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
+import { SheetExpansionContext } from '@/features/home-map/state/sheet-expansion';
 
 const SHEET_HORIZONTAL_INSET = 10;
 const SHEET_BOTTOM_INSET = 10;
@@ -204,6 +205,10 @@ export function TabBehindSheet({
       Extrapolation.CLAMP
     ),
   }));
+  const expansion = useMemo(
+    () => ({ height: visibleHeight, snapHeights }),
+    [snapHeights, visibleHeight]
+  );
   const glassProps = useAnimatedProps<GlassViewProps>(() => ({
     glassEffectStyle:
       visibleHeight.value > collapsedHeight + GLASS_ACTIVATION_OFFSET
@@ -252,7 +257,7 @@ export function TabBehindSheet({
       <Animated.View
         pointerEvents={isCollapsed ? 'none' : 'auto'}
         style={[styles.content, contentStyle]}>
-        {children}
+        <SheetExpansionContext value={expansion}>{children}</SheetExpansionContext>
       </Animated.View>
     </Animated.View>
   );

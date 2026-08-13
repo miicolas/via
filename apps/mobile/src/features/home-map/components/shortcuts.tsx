@@ -1,6 +1,6 @@
 import { type SFSymbol } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Symbol } from '@/components/symbol';
+import { SymbolIcon } from '@/components/symbol-icon';
 
 import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
 
@@ -8,10 +8,11 @@ type ShortcutsProps = {
   onClose: () => void;
   onLocate: () => void;
   onHouse: () => void;
+  onWork: () => void;
   walkingMinutes?: number;
 };
 
-export function Shortcuts({ onClose, onLocate, onHouse, walkingMinutes }: ShortcutsProps) {
+export function Shortcuts({ onClose, onLocate, onHouse, onWork, walkingMinutes }: ShortcutsProps) {
   const { colors } = useHomeMapTheme();
   const items: {
     icon: SFSymbol;
@@ -19,8 +20,6 @@ export function Shortcuts({ onClose, onLocate, onHouse, walkingMinutes }: Shortc
     onPress: () => void;
     value: string | null ;
   }[] = [
-
-
     {
       icon: 'house.fill',
       label: 'Rentrer chez moi',
@@ -28,10 +27,10 @@ export function Shortcuts({ onClose, onLocate, onHouse, walkingMinutes }: Shortc
       value: walkingMinutes ? `${walkingMinutes} min` : null,
     },
     {
-      icon: 'work.fill',
-      label: 'Rentrer chez moi',
-      onPress: onHouse,
-      value: walkingMinutes ? `${walkingMinutes} min` : null,
+      icon: 'briefcase.fill',
+      label: 'Boulot',
+      onPress: onWork,
+      value: null,
     },
   ];
 
@@ -51,7 +50,7 @@ export function Shortcuts({ onClose, onLocate, onHouse, walkingMinutes }: Shortc
             },
             pressed && styles.pressed,
           ]}>
-          <Symbol color={colors.primary} name={item.icon} size={13} />
+          <SymbolIcon color={colors.primary} name={item.icon} size={13} />
           <Text style={[styles.label, { color: colors.ink }]}>{item.label}</Text>
           <Text style={[styles.value, { color: colors.primary }]}>{item.value}</Text>
         </Pressable>
