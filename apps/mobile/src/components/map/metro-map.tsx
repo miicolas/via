@@ -8,7 +8,7 @@ import { DevelopmentLocationMarker } from '@/components/map/development-location
 import { JourneyRouteLayer } from '@/components/map/journey-route-layer';
 import { RouteLines } from '@/components/map/route-lines';
 import { StationMarkersLayer } from '@/components/map/station-markers-layer';
-import { PARIS_COORDINATE } from '@/features/home-map/model/location';
+import { PARIS_COORDINATE } from '@/features/map/model/location';
 import { routeBounds, type LineView } from '@/lib/metro-network';
 import { stationsInViewport } from '@/lib/stations-in-viewport';
 import {

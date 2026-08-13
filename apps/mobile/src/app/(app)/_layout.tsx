@@ -1,14 +1,14 @@
 import { Stack } from 'expo-router/stack';
 
-import { HomeMapProvider } from '@/features/home-map/state/provider';
+import { MapProvider } from '@/features/map/state/provider';
 
 export default function AppLayout() {
   return (
-    <HomeMapProvider>
+    <MapProvider>
       <Stack screenOptions={{ animation: 'none', headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
       </Stack>
-    </HomeMapProvider>
+    </MapProvider>
   );
 }

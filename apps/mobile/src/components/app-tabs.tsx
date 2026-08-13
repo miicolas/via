@@ -1,9 +1,9 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-import { useHomeMapTheme } from '@/features/home-map/hooks/use-home-map-theme';
+import { useAppTheme } from '@/hooks/use-app-theme';
 
 export default function AppTabs() {
-  const { colors } = useHomeMapTheme();
+  const { colors } = useAppTheme();
 
   return (
     <NativeTabs

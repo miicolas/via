@@ -109,20 +109,20 @@ beforeAll(() => {
   mock.module('@/components/map/station-markers', () => ({
     StationMarkers: 'StationMarkers',
   }));
-  mock.module('@/features/home-map/model/location', () => ({
+  mock.module('@/features/map/model/location', () => ({
     PARIS_COORDINATE: { latitude: 48.86, longitude: 2.35 },
   }));
-  mock.module('@/features/home-map/components/recenter-button', () => ({
-    HomeRecenterButton: 'HomeRecenterButton',
+  mock.module('@/features/map/components/recenter-button', () => ({
+    RecenterButton: 'RecenterButton',
   }));
-  mock.module('@/features/home-map/components/overview-sheet', () => ({
-    HomeOverviewSheet: 'HomeOverviewSheet',
+  mock.module('@/features/map/components/overview-sheet', () => ({
+    OverviewSheet: 'OverviewSheet',
   }));
-  mock.module('@/features/home-map/components/tab-behind-sheet', () => ({
+  mock.module('@/features/map/components/tab-behind-sheet', () => ({
     TabBehindSheet: 'TabBehindSheet',
   }));
-  mock.module('@/features/home-map/hooks/use-map', () => ({
-    useHomeMap: () => ({
+  mock.module('@/features/map/hooks/use-map', () => ({
+    useMap: () => ({
       activeStation: undefined,
       flow: { screen: 'overview', selectedJourneyIndex: 0 },
       networkState: { status: 'ready', lines: [], stations: [] },
@@ -266,7 +266,7 @@ test('the overview sheet content lives inside the persistent tab-behind sheet', 
   const tree = MetroMapScreen() as unknown as ElementNode;
   const sheet = elementWithProp(tree.props.children, 'detentFractions');
   const overview = childElements(sheet?.props.children).find(
-    (child) => child.type === 'HomeOverviewSheet'
+    (child) => child.type === 'OverviewSheet'
   );
 
   expect(overview).toBeDefined();

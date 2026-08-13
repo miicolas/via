@@ -5,17 +5,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MapStatus } from '@/components/map/map-status';
 import { MetroMap, type MetroMapHandle } from '@/components/map/metro-map';
-import { HomeOverviewSheet } from '@/features/home-map/components/overview-sheet';
-import { HomeRecenterButton } from '@/features/home-map/components/recenter-button';
-import { TabBehindSheet } from '@/features/home-map/components/tab-behind-sheet';
-import { useHomeMap } from '@/features/home-map/hooks/use-map';
+import { OverviewSheet } from '@/features/map/components/overview-sheet';
+import { RecenterButton } from '@/features/map/components/recenter-button';
+import { TabBehindSheet } from '@/features/map/components/tab-behind-sheet';
+import { useMap } from '@/features/map/hooks/use-map';
 import {
   MAP_JOURNEY_SHEET_DETENTS,
   MAP_OVERVIEW_SHEET_DETENTS,
   MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
   mapOverviewSheetDetent,
-} from '@/features/home-map/model/overview-sheet';
-import { stationFocusKey } from '@/features/home-map/model/station-focus-key';
+} from '@/features/map/model/overview-sheet';
+import { stationFocusKey } from '@/features/map/model/station-focus-key';
 
 const OPEN_MAP_TOP_GAP = 8;
 
@@ -38,7 +38,7 @@ export function MetroMapScreen() {
     selectedJourney,
     setOverviewDetentIndex,
     userLocation,
-  } = useHomeMap();
+  } = useMap();
   const journeySheetActive =
     flow.screen === 'planning' || flow.screen === 'results' || flow.screen === 'detail';
   const sheetDetents = journeySheetActive
@@ -49,7 +49,7 @@ export function MetroMapScreen() {
     : mapOverviewSheetDetent(overviewDetentIndex);
 
   useEffect(() => {
-    if (!mapReady || !activeStation) return;
+    if (!mapReady || !activeStation || journeySheetActive) return;
 
     const focusKey = stationFocusKey(activeStation.station.id, overviewDetentIndex);
     if (lastFocusedStationKey.current === focusKey) return;
@@ -57,15 +57,16 @@ export function MetroMapScreen() {
     lastFocusedStationKey.current = focusKey;
     mapRef.current?.focusCoordinate(activeStation.coordinate, { animated: true });
     setCenteredOnUser(false);
-  }, [activeStation, mapReady, overviewDetentIndex]);
+  }, [activeStation, journeySheetActive, mapReady, overviewDetentIndex]);
 
   useEffect(() => {
     if (!mapReady || flow.screen !== 'detail' || !selectedJourney) return;
-    if (lastFocusedJourneyKey.current === selectedJourney.id) return;
-    lastFocusedJourneyKey.current = selectedJourney.id;
+    const focusKey = `${selectedJourney.id}:${overviewDetentIndex}`;
+    if (lastFocusedJourneyKey.current === focusKey) return;
+    lastFocusedJourneyKey.current = focusKey;
     mapRef.current?.fitToJourney(selectedJourney, { animated: true });
     setCenteredOnUser(false);
-  }, [flow.screen, mapReady, selectedJourney]);
+  }, [flow.screen, mapReady, overviewDetentIndex, selectedJourney]);
 
   const selectMapStation = useCallback(
     (stationId: string, coordinate: Coordinate) => {
@@ -122,7 +123,7 @@ export function MetroMapScreen() {
 
       {centeredOnUser ? null : (
         <View style={[styles.mapControls, { top: insets.top + 16 }]}>
-          <HomeRecenterButton
+          <RecenterButton
             isLoading={userLocation.status === 'loading'}
             onPress={recenter}
           />
@@ -137,7 +138,7 @@ export function MetroMapScreen() {
         detentIndex={overviewDetentIndex}
         onDetentChange={setOverviewDetentIndex}
         topInset={insets.top}>
-        <HomeOverviewSheet />
+        <OverviewSheet />
       </TabBehindSheet>
     </View>
   );

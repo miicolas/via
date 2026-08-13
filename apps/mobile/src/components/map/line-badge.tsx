@@ -2,6 +2,7 @@ import type { NetworkRoute } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { transitBadgeFrame } from '@/components/map/transit-badge-shape';
+import { isNearWhite } from '@/lib/is-near-white';
 
 export type LineBadgeRoute = Pick<NetworkRoute, 'mode' | 'color' | 'textColor' | 'shortName'>;
 
@@ -25,6 +26,7 @@ export function LineBadge({ route, size }: LineBadgeProps) {
           backgroundColor: route.color,
           paddingHorizontal: route.mode === 'bus' ? 6 : 0,
         },
+        isNearWhite(route.color) && { borderWidth: 1.5, borderColor: route.textColor },
       ]}
     >
       <Text

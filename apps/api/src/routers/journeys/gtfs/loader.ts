@@ -11,7 +11,7 @@ import {
   transitTripStopTimes,
   transitTrips,
 } from '@via/db/schema';
-import { and, asc, eq, gte, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, sql } from 'drizzle-orm';
 
 import { previousDate, parisServiceDay } from '../../departures/theoretical/service-day';
 import { plannerTripKey } from './planner';
@@ -25,12 +25,39 @@ import type {
 } from './planner';
 
 const MAX_BOARDINGS_PER_STOP = 32;
+const MAX_BOARDING_CANDIDATES = 1_500;
+
+type BoardingCandidate = {
+  tripId: string;
+  stopKey: number;
+  departureSeconds: number;
+  serviceDate: string;
+};
 
 export function createGtfsLoader(now: Date): GtfsPlannerLoader {
   const { date } = parisServiceDay(now);
   const yesterday = previousDate(date);
   const stopCache = new Map<string, PlannerStop>();
   const stopKeyById = new Map<string, number>();
+  const stopIdByKey = new Map<number, string>();
+  let activeServiceIdsByDate: Promise<Map<string, string[]>> | undefined;
+
+  const activeServices = (serviceDates: string[]) => {
+    activeServiceIdsByDate ??= db
+      .select({ serviceId: transitServiceDates.serviceId, date: transitServiceDates.date })
+      .from(transitServiceDates)
+      .where(inArray(transitServiceDates.date, serviceDates))
+      .then((rows) => {
+        const grouped = Map.groupBy(rows, (row) => row.date);
+        return new Map(
+          [...grouped].map(([serviceDate, entries]) => [
+            serviceDate,
+            entries.map((entry) => entry.serviceId),
+          ])
+        );
+      });
+    return activeServiceIdsByDate;
+  };
 
   return {
     accessStops: async (coordinate, limit) => {
@@ -66,6 +93,7 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
         const stop = { id: row.id, name: row.name, coordinate: row.coordinate };
         stopCache.set(stop.id, stop);
         stopKeyById.set(stop.id, row.numericId);
+        stopIdByKey.set(row.numericId, stop.id);
         return stop;
       });
     },
@@ -78,51 +106,39 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
       });
       if (stopKeys.length === 0) return [];
       const minimum = Math.min(...earliestByStop.values());
-      const absoluteDeparture = sql<number>`${transitTripStopTimes.departureSeconds} + CASE
-        WHEN ${transitServiceDates.date} = ${yesterday} THEN -86400
-        ELSE 0
-      END`;
-      const rows = await db
-        .select({
-          tripId: transitTrips.id,
-          stopId: transitStops.id,
-          departureSeconds: absoluteDeparture,
-          serviceDate: transitServiceDates.date,
-        })
-        .from(transitTripStopTimes)
-        .innerJoin(transitTrips, eq(transitTrips.numericId, transitTripStopTimes.tripKey))
-        .innerJoin(transitStops, eq(transitStops.numericId, transitTripStopTimes.stopKey))
-        .innerJoin(
-          transitServiceDates,
-          eq(transitServiceDates.serviceId, transitTrips.serviceId)
-        )
-        .where(
-          and(
-            inArray(transitTripStopTimes.stopKey, stopKeys),
-            or(
-              and(
-                eq(transitServiceDates.date, date),
-                gte(transitTripStopTimes.departureSeconds, minimum)
-              ),
-              and(
-                eq(transitServiceDates.date, yesterday),
-                gte(transitTripStopTimes.departureSeconds, minimum + 86_400)
-              )
-            )
-          )
-        )
-        .orderBy(asc(absoluteDeparture))
-        .limit(1_500);
+      const services = await activeServices(serviceDates);
+      const rows = (
+        await Promise.all([
+          loadBoardingCandidates(
+            stopKeys,
+            services.get(date) ?? [],
+            minimum,
+            date,
+            0
+          ),
+          loadBoardingCandidates(
+            stopKeys,
+            services.get(yesterday) ?? [],
+            minimum + 86_400,
+            yesterday,
+            -86_400
+          ),
+        ])
+      )
+        .flat()
+        .sort((a, b) => a.departureSeconds - b.departureSeconds)
+        .slice(0, MAX_BOARDING_CANDIDATES);
 
       const counts = new Map<string, number>();
       return rows.flatMap((row): PlannerBoarding[] => {
-        if (row.departureSeconds < (earliestByStop.get(row.stopId) ?? Infinity)) return [];
-        const count = counts.get(row.stopId) ?? 0;
+        const stopId = stopIdByKey.get(row.stopKey);
+        if (!stopId || row.departureSeconds < (earliestByStop.get(stopId) ?? Infinity)) return [];
+        const count = counts.get(stopId) ?? 0;
         if (count >= MAX_BOARDINGS_PER_STOP) return [];
-        counts.set(row.stopId, count + 1);
+        counts.set(stopId, count + 1);
         return [{
           tripId: row.tripId,
-          stopId: row.stopId,
+          stopId,
           departureSeconds: row.departureSeconds,
           serviceDate: row.serviceDate,
         }];
@@ -195,6 +211,7 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
           };
           stopCache.set(stop.id, stop);
           stopKeyById.set(stop.id, call.stopNumericId);
+          stopIdByKey.set(call.stopNumericId, stop.id);
           return {
             stop,
             stopSequence: call.stopSequence,
@@ -244,6 +261,7 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
           fromStopId: transitTransfers.fromStopId,
           toStopId: transitTransfers.toStopId,
           minTransferSeconds: transitTransfers.minTransferSeconds,
+          numericId: transitStops.numericId,
           name: transitStops.name,
           coordinate: sql<Coordinate>`json_build_object(
             'latitude', ST_Y(${transitStops.location}),
@@ -253,13 +271,51 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
         .from(transitTransfers)
         .innerJoin(transitStops, eq(transitStops.id, transitTransfers.toStopId))
         .where(inArray(transitTransfers.fromStopId, stopIds));
-      return rows.map((row): PlannerTransfer => ({
-        fromStopId: row.fromStopId,
-        toStop: { id: row.toStopId, name: row.name, coordinate: row.coordinate },
-        minTransferSeconds: row.minTransferSeconds,
-      }));
+      return rows.map((row): PlannerTransfer => {
+        const toStop = { id: row.toStopId, name: row.name, coordinate: row.coordinate };
+        stopCache.set(toStop.id, toStop);
+        stopKeyById.set(toStop.id, row.numericId);
+        stopIdByKey.set(row.numericId, toStop.id);
+        return {
+          fromStopId: row.fromStopId,
+          toStop,
+          minTransferSeconds: row.minTransferSeconds,
+        };
+      });
     },
   };
+}
+
+async function loadBoardingCandidates(
+  stopKeys: number[],
+  activeServiceIds: string[],
+  minimumDepartureSeconds: number,
+  serviceDate: string,
+  departureOffset: number
+): Promise<BoardingCandidate[]> {
+  if (activeServiceIds.length === 0) return [];
+  const rows = await db
+    .select({
+      tripId: transitTrips.id,
+      stopKey: transitTripStopTimes.stopKey,
+      departureSeconds: transitTripStopTimes.departureSeconds,
+    })
+    .from(transitTripStopTimes)
+    .innerJoin(transitTrips, eq(transitTrips.numericId, transitTripStopTimes.tripKey))
+    .where(
+      and(
+        inArray(transitTripStopTimes.stopKey, stopKeys),
+        inArray(transitTrips.serviceId, activeServiceIds),
+        gte(transitTripStopTimes.departureSeconds, minimumDepartureSeconds)
+      )
+    )
+    .orderBy(asc(transitTripStopTimes.departureSeconds))
+    .limit(MAX_BOARDING_CANDIDATES);
+  return rows.map((row) => ({
+    ...row,
+    departureSeconds: row.departureSeconds + departureOffset,
+    serviceDate,
+  }));
 }
 
 function normalizeColor(value: string) {

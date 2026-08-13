@@ -12,8 +12,8 @@ test('source modules stay below 300 lines', () => {
   expect(oversized).toEqual([]);
 });
 
-test('home-map modules export at most one function', () => {
-  const violations = [...new Bun.Glob('features/home-map/**/*.{ts,tsx}').scanSync(sourceRoot)]
+test('feature modules export at most one function', () => {
+  const violations = [...new Bun.Glob('features/**/*.{ts,tsx}').scanSync(sourceRoot)]
     .filter((path) => !/\.test\.tsx?$/.test(path))
     .map((path) => ({
       path,
