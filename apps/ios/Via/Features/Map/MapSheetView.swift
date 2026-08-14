@@ -16,12 +16,15 @@ struct MapSheetView: View {
                     onFocusChanged: { model.setSearchFocused($0) }
                 )
 
-                if let station = model.selectedStation {
+                if [.planning, .results, .detail].contains(model.flow.screen) {
+                    JourneyScreen(model: model)
+                } else if let station = model.selectedStation {
                     StationDetailsView(
                         station: station,
                         routes: stationRoutes(for: station, model: model),
                         departuresState: model.departuresState,
-                        onClose: model.closeSelectedStation
+                        onClose: model.closeSelectedStation,
+                        onPlanJourney: model.planSelectedStation
                     )
                 } else if !model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     SearchResultsView(

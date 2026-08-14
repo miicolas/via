@@ -30,6 +30,7 @@ protocol TransitAPI: Sendable {
     func loadStations(in bounds: TileBounds) async throws -> StationsInArea
     func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse
     func loadDepartures(stationID: String) async throws -> DeparturesResponse
+    func planJourneys(_ request: JourneyRequest) async throws -> JourneysResponse
 }
 
 struct DemoTransitAPI: TransitAPI {
@@ -169,4 +170,140 @@ struct DemoTransitAPI: TransitAPI {
             ]
         )
     }
+
+    func planJourneys(_ request: JourneyRequest) async throws -> JourneysResponse {
+        try await Task.sleep(for: .milliseconds(220))
+
+        let generatedAt = Date()
+        let chatelet = railMap.stations.first(where: { $0.id == "demo:chatelet" })!
+        let route = railMap.routes.first(where: { $0.id == "demo:1" })!
+        let journeyRoute = JourneyRoute(
+            id: route.id,
+            shortName: route.shortName,
+            longName: "La Défense — Château de Vincennes",
+            mode: route.mode,
+            color: route.color,
+            textColor: route.textColor
+        )
+        let destination = JourneyPlace(name: request.destination.name, coordinate: request.destination.coordinate)
+        let origin = JourneyPlace(name: "Votre position", coordinate: request.origin)
+        let walkToChateletSeconds = max(60, Int(request.origin.distance(to: chatelet.coordinate) / 1.25))
+        let transitSeconds = request.destination.id == chatelet.id
+            ? 0
+            : max(8 * 60, Int(chatelet.coordinate.distance(to: request.destination.coordinate) / 8.0))
+        let departure = generatedAt.addingTimeInterval(4 * 60)
+
+        let primary: Journey
+        if request.destination.id == chatelet.id {
+            primary = walkingJourney(
+                id: "demo:walk:\(request.destination.id)",
+                qualifier: .walking,
+                origin: origin,
+                destination: destination,
+                start: departure,
+                seconds: walkToChateletSeconds
+            )
+        } else {
+            let walkArrival = departure.addingTimeInterval(Double(walkToChateletSeconds))
+            let arrival = walkArrival.addingTimeInterval(Double(transitSeconds))
+            primary = Journey(
+                id: "demo:metro:\(request.destination.id)",
+                qualifier: .recommended,
+                durationSeconds: walkToChateletSeconds + transitSeconds,
+                walkingDurationSeconds: walkToChateletSeconds,
+                transferCount: 0,
+                departureAt: viaTimestamp(departure),
+                arrivalAt: viaTimestamp(arrival),
+                status: .normal,
+                warnings: [],
+                sections: [
+                    JourneySection(
+                        type: .walk,
+                        durationSeconds: walkToChateletSeconds,
+                        from: origin,
+                        to: JourneyPlace(name: chatelet.name, coordinate: chatelet.coordinate),
+                        departureAt: viaTimestamp(departure),
+                        arrivalAt: viaTimestamp(walkArrival),
+                        geometry: [origin.coordinate, chatelet.coordinate],
+                        route: nil,
+                        direction: nil,
+                        platform: nil,
+                        stops: []
+                    ),
+                    JourneySection(
+                        type: .transit,
+                        durationSeconds: transitSeconds,
+                        from: JourneyPlace(name: chatelet.name, coordinate: chatelet.coordinate),
+                        to: destination,
+                        departureAt: viaTimestamp(walkArrival),
+                        arrivalAt: viaTimestamp(arrival),
+                        geometry: route.segments.first?.coordinates ?? [],
+                        route: journeyRoute,
+                        direction: "Château de Vincennes",
+                        platform: nil,
+                        stops: []
+                    ),
+                ]
+            )
+        }
+
+        let alternative = walkingJourney(
+            id: "demo:walk-alternative:\(request.destination.id)",
+            qualifier: .walking,
+            origin: origin,
+            destination: destination,
+            start: departure,
+            seconds: max(primary.durationSeconds + 6 * 60, Int(request.origin.distance(to: request.destination.coordinate) / 1.25))
+        )
+
+        return JourneysResponse(
+            status: .ready,
+            source: .idfmRealtime,
+            generatedAt: viaTimestamp(generatedAt),
+            journeys: [primary, alternative]
+        )
+    }
+
+    private func walkingJourney(
+        id: String,
+        qualifier: JourneyQualifier,
+        origin: JourneyPlace,
+        destination: JourneyPlace,
+        start: Date,
+        seconds: Int
+    ) -> Journey {
+        let arrival = start.addingTimeInterval(Double(seconds))
+        return Journey(
+            id: id,
+            qualifier: qualifier,
+            durationSeconds: seconds,
+            walkingDurationSeconds: seconds,
+            transferCount: 0,
+            departureAt: viaTimestamp(start),
+            arrivalAt: viaTimestamp(arrival),
+            status: .normal,
+            warnings: [],
+            sections: [
+                JourneySection(
+                    type: .walk,
+                    durationSeconds: seconds,
+                    from: origin,
+                    to: destination,
+                    departureAt: viaTimestamp(start),
+                    arrivalAt: viaTimestamp(arrival),
+                    geometry: [origin.coordinate, destination.coordinate],
+                    route: nil,
+                    direction: nil,
+                    platform: nil,
+                    stops: []
+                ),
+            ]
+        )
+    }
+}
+
+private func viaTimestamp(_ date: Date) -> String {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.string(from: date)
 }

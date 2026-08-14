@@ -41,4 +41,27 @@ struct MapFlowTests {
 
         #expect(next == MapFlowState())
     }
+
+    @Test
+    func journeyFlowKeepsStationFocusAcrossResultsAndDetail() {
+        var state = transitionMapFlow(
+            MapFlowState(),
+            event: .stationSelected(id: "station-1", query: "Châtelet")
+        )
+
+        state = transitionMapFlow(state, event: .journeyPlanningStarted)
+        #expect(state.screen == .planning)
+        #expect(state.selectedStationID == "station-1")
+
+        state = transitionMapFlow(state, event: .journeyResultsReady)
+        #expect(state.screen == .results)
+
+        state = transitionMapFlow(state, event: .journeyDetailOpened(index: 1))
+        #expect(state.screen == .detail)
+        #expect(state.selectedJourneyIndex == 1)
+
+        state = transitionMapFlow(state, event: .journeyDetailClosed)
+        #expect(state.screen == .results)
+        #expect(state.selectedStationID == "station-1")
+    }
 }

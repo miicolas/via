@@ -37,6 +37,14 @@
 		A1000000000000000000001C /* DepartureRowsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001C /* DepartureRowsTests.swift */; };
 		A1000000000000000000001D /* ViewportTilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001D /* ViewportTilesTests.swift */; };
 		A1000000000000000000001E /* ViaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001E /* ViaUITests.swift */; };
+		A1000000000000000000001F /* JourneyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001F /* JourneyModels.swift */; };
+		A10000000000000000000020 /* JourneyPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000020 /* JourneyPresentation.swift */; };
+		A10000000000000000000021 /* JourneyScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000021 /* JourneyScreen.swift */; };
+		A10000000000000000000022 /* JourneyResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000022 /* JourneyResultsView.swift */; };
+		A10000000000000000000023 /* JourneyOptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000023 /* JourneyOptionRow.swift */; };
+		A10000000000000000000024 /* JourneyDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000024 /* JourneyDetailView.swift */; };
+		A10000000000000000000025 /* JourneySectionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000025 /* JourneySectionRow.swift */; };
+		A10000000000000000000026 /* JourneyPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000026 /* JourneyPresentationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,6 +98,14 @@
 		B1000000000000000000001C /* DepartureRowsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepartureRowsTests.swift; sourceTree = "<group>"; };
 		B1000000000000000000001D /* ViewportTilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewportTilesTests.swift; sourceTree = "<group>"; };
 		B1000000000000000000001E /* ViaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViaUITests.swift; sourceTree = "<group>"; };
+		B1000000000000000000001F /* JourneyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyModels.swift; sourceTree = "<group>"; };
+		B10000000000000000000020 /* JourneyPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyPresentation.swift; sourceTree = "<group>"; };
+		B10000000000000000000021 /* JourneyScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyScreen.swift; sourceTree = "<group>"; };
+		B10000000000000000000022 /* JourneyResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyResultsView.swift; sourceTree = "<group>"; };
+		B10000000000000000000023 /* JourneyOptionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyOptionRow.swift; sourceTree = "<group>"; };
+		B10000000000000000000024 /* JourneyDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyDetailView.swift; sourceTree = "<group>"; };
+		B10000000000000000000025 /* JourneySectionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneySectionRow.swift; sourceTree = "<group>"; };
+		B10000000000000000000026 /* JourneyPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyPresentationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -145,6 +161,8 @@
 				B10000000000000000000009 /* ViewportTiles.swift */,
 				B1000000000000000000000A /* MapFlow.swift */,
 				B1000000000000000000000B /* DepartureRows.swift */,
+				B1000000000000000000001F /* JourneyModels.swift */,
+				B10000000000000000000020 /* JourneyPresentation.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -191,12 +209,25 @@
 			path = Departures;
 			sourceTree = "<group>";
 		};
+		D1000000000000000000000F /* Journey */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000021 /* JourneyScreen.swift */,
+				B10000000000000000000022 /* JourneyResultsView.swift */,
+				B10000000000000000000023 /* JourneyOptionRow.swift */,
+				B10000000000000000000024 /* JourneyDetailView.swift */,
+				B10000000000000000000025 /* JourneySectionRow.swift */,
+			);
+			path = Journey;
+			sourceTree = "<group>";
+		};
 		D10000000000000000000008 /* Features */ = {
 			isa = PBXGroup;
 			children = (
 				D10000000000000000000005 /* Map */,
 				D10000000000000000000006 /* Search */,
 				D10000000000000000000007 /* Departures */,
+				D1000000000000000000000F /* Journey */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -220,6 +251,7 @@
 				B1000000000000000000001B /* MapFlowTests.swift */,
 				B1000000000000000000001C /* DepartureRowsTests.swift */,
 				B1000000000000000000001D /* ViewportTilesTests.swift */,
+				B10000000000000000000026 /* JourneyPresentationTests.swift */,
 			);
 			path = ViaTests;
 			sourceTree = "<group>";
@@ -403,6 +435,8 @@
 				A10000000000000000000009 /* ViewportTiles.swift in Sources */,
 				A1000000000000000000000A /* MapFlow.swift in Sources */,
 				A1000000000000000000000B /* DepartureRows.swift in Sources */,
+				A1000000000000000000001F /* JourneyModels.swift in Sources */,
+				A10000000000000000000020 /* JourneyPresentation.swift in Sources */,
 				A1000000000000000000000C /* TransitAPI.swift in Sources */,
 				A1000000000000000000000D /* URLSessionTransitAPI.swift in Sources */,
 				A1000000000000000000000E /* ClientIdentityStore.swift in Sources */,
@@ -417,6 +451,11 @@
 				A10000000000000000000017 /* TransitMapView.swift in Sources */,
 				A10000000000000000000018 /* MapSheetView.swift in Sources */,
 				A10000000000000000000019 /* MapScreen.swift in Sources */,
+				A10000000000000000000021 /* JourneyScreen.swift in Sources */,
+				A10000000000000000000022 /* JourneyResultsView.swift in Sources */,
+				A10000000000000000000023 /* JourneyOptionRow.swift in Sources */,
+				A10000000000000000000024 /* JourneyDetailView.swift in Sources */,
+				A10000000000000000000025 /* JourneySectionRow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -427,6 +466,7 @@
 				A1000000000000000000001B /* MapFlowTests.swift in Sources */,
 				A1000000000000000000001C /* DepartureRowsTests.swift in Sources */,
 				A1000000000000000000001D /* ViewportTilesTests.swift in Sources */,
+				A10000000000000000000026 /* JourneyPresentationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -462,6 +502,7 @@
 				PRODUCT_NAME = Via;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;

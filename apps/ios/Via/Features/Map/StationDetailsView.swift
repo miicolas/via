@@ -5,6 +5,7 @@ struct StationDetailsView: View {
     let routes: [RouteBadge]
     let departuresState: DeparturesState
     let onClose: () -> Void
+    let onPlanJourney: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -37,6 +38,13 @@ struct StationDetailsView: View {
                 .foregroundStyle(ViaTheme.ink)
 
             DepartureBoardView(state: departuresState)
+
+            ViaButton(
+                "Voir les itinéraires",
+                systemImage: "arrow.triangle.turn.up.right.diamond",
+                action: onPlanJourney
+            )
+            .accessibilityIdentifier("via.planJourney")
         }
     }
 }

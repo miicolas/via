@@ -21,5 +21,14 @@ final class ViaUITests: XCTestCase {
             app.staticTexts["via.stationDetail.demo:chatelet"].waitForExistence(timeout: 10)
         )
         XCTAssertTrue(app.staticTexts["Prochains passages"].waitForExistence(timeout: 10))
+
+        let planButton = app.buttons["via.planJourney"]
+        XCTAssertTrue(planButton.waitForExistence(timeout: 10))
+        planButton.tap()
+
+        let walkingJourney = app.buttons["via.journey.demo:walk:demo:chatelet"]
+        XCTAssertTrue(walkingJourney.waitForExistence(timeout: 10))
+        walkingJourney.tap()
+        XCTAssertTrue(app.staticTexts["Détail du trajet"].waitForExistence(timeout: 10))
     }
 }

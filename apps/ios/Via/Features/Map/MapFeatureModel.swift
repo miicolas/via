@@ -48,6 +48,7 @@ final class MapFeatureModel {
     var networkState: NetworkState = .loading
     var searchState: SearchState = .idle
     var departuresState: DeparturesState = .idle
+    var journeyState: JourneyState = .idle
     var locationState: LocationState = .loading
     var cameraTarget: GeoCoordinate?
     var searchQuery = ""
@@ -60,6 +61,7 @@ final class MapFeatureModel {
     private var searchTask: Task<Void, Never>?
     private var viewportTask: Task<Void, Never>?
     private var departureTask: Task<Void, Never>?
+    private var journeyTask: Task<Void, Never>?
 
     init(transitAPI: any TransitAPI, locationProvider: any LocationProviding) {
         self.transitAPI = transitAPI
@@ -70,6 +72,14 @@ final class MapFeatureModel {
         if let selectedStationOverride { return selectedStationOverride }
         guard let id = flow.selectedStationID else { return nil }
         return mapStations.first(where: { $0.id == id })
+    }
+
+    var selectedJourney: Journey? {
+        guard let response = journeyState.response,
+              let index = flow.selectedJourneyIndex,
+              response.journeys.indices.contains(index)
+        else { return nil }
+        return response.journeys[index]
     }
 
     var mapStations: [NetworkStation] {
@@ -200,6 +210,9 @@ final class MapFeatureModel {
     }
 
     func selectStation(_ station: NetworkStation) {
+        journeyTask?.cancel()
+        journeyTask = nil
+        journeyState = .idle
         selectedStationOverride = station
         flow = transitionMapFlow(
             flow,
@@ -213,9 +226,59 @@ final class MapFeatureModel {
     func closeSelectedStation() {
         departureTask?.cancel()
         departureTask = nil
+        journeyTask?.cancel()
+        journeyTask = nil
         departuresState = .idle
+        journeyState = .idle
         selectedStationOverride = nil
         flow = transitionMapFlow(flow, event: .stationDeselected)
+    }
+
+    func planSelectedStation() {
+        guard let station = selectedStation else { return }
+
+        let request = JourneyRequest(
+            origin: currentCoordinate,
+            destination: JourneyDestination(station: station)
+        )
+        journeyTask?.cancel()
+        journeyState = .planning(request: request)
+        flow = transitionMapFlow(flow, event: .journeyPlanningStarted)
+        journeyTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let response = try await transitAPI.planJourneys(request)
+                guard !Task.isCancelled, journeyState.request?.key == request.key else { return }
+                journeyState = .ready(request: request, response: response)
+                flow = transitionMapFlow(flow, event: .journeyResultsReady)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled, journeyState.request?.key == request.key else { return }
+                journeyState = .failed(request: request)
+                flow = transitionMapFlow(flow, event: .journeyResultsReady)
+            }
+        }
+    }
+
+    func selectJourney(at index: Int) {
+        guard let response = journeyState.response, response.journeys.indices.contains(index) else { return }
+        flow = transitionMapFlow(flow, event: .journeyDetailOpened(index: index))
+    }
+
+    func closeJourneyDetail() {
+        flow = transitionMapFlow(flow, event: .journeyDetailClosed)
+    }
+
+    func cancelJourney() {
+        journeyTask?.cancel()
+        journeyTask = nil
+        journeyState = .idle
+        flow = transitionMapFlow(flow, event: .journeyCancelled)
+    }
+
+    func retryJourney() {
+        planSelectedStation()
     }
 
     func reportViewport(_ region: ViewportRegion) {

@@ -43,6 +43,23 @@ final class URLSessionTransitAPI: TransitAPI, @unchecked Sendable {
         )
     }
 
+    func planJourneys(_ request: JourneyRequest) async throws -> JourneysResponse {
+        let destination = request.destination
+        return try await self.request(
+            path: "/api/journeys",
+            query: [
+                URLQueryItem(name: "origin[latitude]", value: String(request.origin.latitude)),
+                URLQueryItem(name: "origin[longitude]", value: String(request.origin.longitude)),
+                URLQueryItem(name: "destination[kind]", value: destination.kind.rawValue),
+                URLQueryItem(name: "destination[id]", value: destination.id),
+                URLQueryItem(name: "destination[name]", value: destination.name),
+                URLQueryItem(name: "destination[coordinate][latitude]", value: String(destination.coordinate.latitude)),
+                URLQueryItem(name: "destination[coordinate][longitude]", value: String(destination.coordinate.longitude)),
+                URLQueryItem(name: "limit", value: String(request.limit)),
+            ]
+        )
+    }
+
     private func request<Response: Decodable>(path: String, query: [URLQueryItem]) async throws -> Response {
         guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw TransitAPIError.invalidURL
