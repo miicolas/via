@@ -2,12 +2,21 @@ import SwiftUI
 
 struct LinesView: View {
     let transitAPI: any TransitAPI
+    let requestedRouteID: String?
 
     @State private var routes: [NetworkRoute] = []
     @State private var stations: [NetworkStation] = []
     @State private var selectedRoute: NetworkRoute?
     @State private var isLoading = true
     @State private var errorMessage: String?
+
+    init(
+        transitAPI: any TransitAPI,
+        requestedRouteID: String? = nil
+    ) {
+        self.transitAPI = transitAPI
+        self.requestedRouteID = requestedRouteID
+    }
 
     var body: some View {
         NavigationStack {
@@ -53,6 +62,9 @@ struct LinesView: View {
             .navigationTitle("Lignes")
             .navigationBarTitleDisplayMode(.inline)
             .task { await load() }
+            .onChange(of: requestedRouteID) { _, _ in
+                openRequestedRouteIfAvailable()
+            }
             .sheet(item: $selectedRoute) { route in
                 NavigationStack {
                     LineDetailView(
@@ -77,10 +89,19 @@ struct LinesView: View {
             let map = try await transitAPI.loadRailMap()
             routes = map.routes.sortedForDisplay
             stations = map.stations
+            openRequestedRouteIfAvailable()
         } catch {
             errorMessage = "Le réseau est indisponible."
         }
         isLoading = false
+    }
+
+    private func openRequestedRouteIfAvailable() {
+        guard let requestedRouteID,
+              let route = routes.first(where: { $0.id == requestedRouteID })
+        else { return }
+
+        selectedRoute = route
     }
 
 }

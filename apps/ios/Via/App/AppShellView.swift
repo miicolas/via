@@ -5,9 +5,11 @@ struct AppShellView: View {
     let chatModel: ChatFeatureModel
     let transitAPI: any TransitAPI
     let featureFlags: NativeFeatureFlags
+    let router: AppRouter
 
     @SceneStorage("via.shell.selected-tab") private var selectedTab = 0
     @State private var presentedSheet: PresentedSheet?
+    @State private var requestedLineID: String?
 
     private enum PresentedSheet: Identifiable {
         case chat
@@ -31,7 +33,10 @@ struct AppShellView: View {
             .tabItem { Label("Carte", systemImage: "map") }
             .tag(0)
 
-            LinesView(transitAPI: transitAPI)
+            LinesView(
+                transitAPI: transitAPI,
+                requestedRouteID: requestedLineID
+            )
                 .tabItem { Label("Lignes", systemImage: "tram") }
                 .tag(1)
 
@@ -40,6 +45,10 @@ struct AppShellView: View {
                 .tag(2)
         }
         .tint(ViaTheme.primary)
+        .onAppear(perform: handlePendingRoute)
+        .onChange(of: router.path) { _, _ in
+            handlePendingRoute()
+        }
         .sheet(item: $presentedSheet) { sheet in
             switch sheet {
             case .chat:
@@ -76,5 +85,23 @@ struct AppShellView: View {
                 }
             }
         }
+    }
+
+    private func handlePendingRoute() {
+        guard let route = router.path.last else { return }
+
+        switch route {
+        case .station(let id):
+            selectedTab = 0
+            mapModel.openStation(id: id)
+        case .line(let id):
+            selectedTab = 1
+            requestedLineID = id
+        case .chat:
+            selectedTab = 0
+            presentedSheet = .chat
+        }
+
+        router.consume(route)
     }
 }

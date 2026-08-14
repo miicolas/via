@@ -62,6 +62,7 @@ final class MapFeatureModel {
     private var viewportTask: Task<Void, Never>?
     private var departureTask: Task<Void, Never>?
     private var journeyTask: Task<Void, Never>?
+    private var pendingStationID: String?
 
     init(transitAPI: any TransitAPI, locationProvider: any LocationProviding) {
         self.transitAPI = transitAPI
@@ -151,6 +152,7 @@ final class MapFeatureModel {
                 guard !Task.isCancelled else { return }
                 railMap = network
                 networkState = network.routes.isEmpty ? .failed : .ready
+                resolvePendingStation()
             } catch is CancellationError {
                 return
             } catch {
@@ -230,6 +232,17 @@ final class MapFeatureModel {
         cameraTarget = station.coordinate
         ensureArea(around: station.coordinate)
         startDeparturePolling()
+    }
+
+    func openStation(id: String) {
+        guard !id.isEmpty else { return }
+
+        if let station = mapStations.first(where: { $0.id == id }) {
+            selectStation(station)
+        } else {
+            pendingStationID = id
+            start()
+        }
     }
 
     func closeSelectedStation() {
@@ -347,6 +360,15 @@ final class MapFeatureModel {
                 continue
             }
         }
+    }
+
+    private func resolvePendingStation() {
+        guard let pendingStationID,
+              let station = mapStations.first(where: { $0.id == pendingStationID })
+        else { return }
+
+        self.pendingStationID = nil
+        selectStation(station)
     }
 
     private func startDeparturePolling() {

@@ -5,6 +5,7 @@ struct RootView: View {
 
     @AppStorage("via.onboarding.completed.v1") private var onboardingCompleted = false
     @AppStorage("via.authenticated.v1") private var authenticated = false
+    @State private var router = AppRouter()
     @State private var mapModel: MapFeatureModel
     @State private var chatModel: ChatFeatureModel
 
@@ -25,28 +26,31 @@ struct RootView: View {
     }
 
     var body: some View {
-        if dependencies.featureFlags.usesDemoData {
-            AppShellView(
-                mapModel: mapModel,
-                chatModel: chatModel,
-                transitAPI: dependencies.transitAPI,
-                featureFlags: dependencies.featureFlags
-            )
-        } else if !onboardingCompleted {
-            WelcomeView {
-                onboardingCompleted = true
+        Group {
+            if dependencies.featureFlags.usesDemoData {
+                shell
+            } else if !onboardingCompleted {
+                WelcomeView {
+                    onboardingCompleted = true
+                }
+            } else if !authenticated {
+                AuthView {
+                    authenticated = true
+                }
+            } else {
+                shell
             }
-        } else if !authenticated {
-            AuthView {
-                authenticated = true
-            }
-        } else {
-            AppShellView(
-                mapModel: mapModel,
-                chatModel: chatModel,
-                transitAPI: dependencies.transitAPI,
-                featureFlags: dependencies.featureFlags
-            )
         }
+        .onOpenURL { router.handle($0) }
+    }
+
+    private var shell: some View {
+        AppShellView(
+            mapModel: mapModel,
+            chatModel: chatModel,
+            transitAPI: dependencies.transitAPI,
+            featureFlags: dependencies.featureFlags,
+            router: router
+        )
     }
 }

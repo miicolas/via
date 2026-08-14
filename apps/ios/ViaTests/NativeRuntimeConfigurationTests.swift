@@ -97,4 +97,16 @@ struct AppDeepLinkTests {
             #expect(AppDeepLink.route(for: link) == nil)
         }
     }
+
+    @Test
+    @MainActor
+    func routerStoresAndConsumesTypedRoutes() {
+        let router = AppRouter()
+
+        router.handle(URL(string: "via://chat")!)
+        #expect(router.path == [.chat])
+
+        router.consume(.chat)
+        #expect(router.path.isEmpty)
+    }
 }
