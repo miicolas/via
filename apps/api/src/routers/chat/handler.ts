@@ -25,14 +25,14 @@ type ChatRouteConfig = {
   personalWindowSeconds: number;
 };
 
-type ChatRouteDependencies = {
+export type ChatRouteDependencies = {
   redis: RedisClient;
   places: PlaceResolver;
   journeys: JourneyPlanner;
   config: ChatRouteConfig;
 };
 
-type ChatDestination = {
+export type ChatDestination = {
   kind: 'station' | 'address';
   id: string;
   name: string;
@@ -41,7 +41,7 @@ type ChatDestination = {
   context?: string;
 };
 
-type ChatItineraryData = {
+export type ChatItineraryData = {
   destination: ChatDestination;
   requestedAt?: string;
   datetimeRepresents?: 'departure' | 'arrival';
@@ -53,6 +53,19 @@ const chatBodySchema = z.object({
   location: z
     .object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) })
     .optional(),
+});
+
+const nativeChatBodySchema = z.object({
+  messages: z
+    .array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string().trim().min(1).max(20_000),
+      })
+    )
+    .min(1)
+    .max(40),
+  location: chatBodySchema.shape.location,
 });
 
 /**
@@ -113,6 +126,92 @@ export function createChatHandler({ redis, places, journeys, config }: ChatRoute
       stream,
       // `none` keeps proxies and the dev server from buffering the stream.
       headers: { 'Content-Type': 'application/octet-stream', 'Content-Encoding': 'none' },
+    });
+  };
+}
+
+/**
+ * Native clients use a deliberately smaller wire format than the web chat:
+ * newline-delimited JSON with only text deltas and verified itinerary data.
+ * Keeping this adapter beside the web handler lets both clients share the same
+ * tool-first model policy and journey planner without sharing UI transport
+ * details.
+ */
+export function createNativeChatHandler({
+  redis,
+  places,
+  journeys,
+  config,
+}: ChatRouteDependencies) {
+  const openai = config.apiKey ? createOpenAI({ apiKey: config.apiKey }) : null;
+
+  return async (request: Request, identity: string): Promise<Response> => {
+    if (!openai) {
+      return Response.json({ error: 'chat_unavailable' }, { status: 503 });
+    }
+
+    const parsed = nativeChatBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return Response.json({ error: 'invalid_body' }, { status: 400 });
+    }
+
+    const budget = await consumeNaturalJourneyBudget(
+      redis,
+      identity,
+      config.personalLimit,
+      config.personalWindowSeconds,
+      new Date()
+    ).catch(() => null);
+    if (!budget) return Response.json({ error: 'chat_unavailable' }, { status: 503 });
+    if (!budget.allowed) return Response.json({ error: 'rate_limited' }, { status: 429 });
+
+    const location = parsed.data.location;
+    const messages = parsed.data.messages.map(({ role, content }) => ({ role, content }));
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        void (async () => {
+          let itinerary: ChatItineraryData | undefined;
+          const result = streamText({
+            model: openai.responses(config.model),
+            system: systemPrompt(location, new Date()),
+            messages,
+            tools: chatTools(places, journeys, identity, location, (next) => {
+              itinerary = next;
+            }),
+            stopWhen: stepCountIs(6),
+            abortSignal: request.signal,
+            providerOptions: { openai: { store: false, reasoningEffort: 'low' } },
+          });
+
+          for await (const text of result.textStream) {
+            controller.enqueue(encoder.encode(JSON.stringify({ type: 'text_delta', text }) + '\n'));
+          }
+
+          if (itinerary) {
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  type: 'itinerary',
+                  destination: itinerary.destination,
+                  journeys: itinerary.response,
+                }) + '\n'
+              )
+            );
+          }
+          controller.enqueue(encoder.encode('{"type":"finished"}\n'));
+          controller.close();
+        })().catch((error) => controller.error(error));
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Cache-Control': 'no-cache, no-transform',
+        'Content-Encoding': 'none',
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'X-Accel-Buffering': 'no',
+      },
     });
   };
 }

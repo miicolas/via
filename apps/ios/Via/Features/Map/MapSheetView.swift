@@ -2,6 +2,12 @@ import SwiftUI
 
 struct MapSheetView: View {
     let model: MapFeatureModel
+    let onOpenChat: () -> Void
+
+    init(model: MapFeatureModel, onOpenChat: @escaping () -> Void = {}) {
+        self.model = model
+        self.onOpenChat = onOpenChat
+    }
 
     var body: some View {
         @Bindable var model = model
@@ -75,6 +81,8 @@ struct MapSheetView: View {
                     ViaButton("Réessayer", systemImage: "arrow.clockwise", action: model.loadNetwork)
                 }
             case .ready:
+                ViaButton("Parler à Via", systemImage: "sparkles", action: onOpenChat)
+                    .accessibilityIdentifier("via.openChat")
                 linePicker(model: model)
                 nearbyStations(model: model)
             }

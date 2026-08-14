@@ -14,12 +14,23 @@ iOS Simulator, `http://localhost:3000` works).
 For a deterministic visual smoke test without a running API, add the launch
 argument `--via-demo`. The demo adapter is never selected by Release builds.
 
-The first vertical slice is intentionally small and production-shaped:
+The native shell now includes onboarding, an authentication gate, the Carte /
+Lignes / Navigo tabs, and the Via chat entry point. In Debug, `--via-demo`
+also exercises a deterministic streamed answer and a structured itinerary
+detail screen without credentials.
 
-`MapKit map → search → station selection → departures`
+The first production-shaped vertical slices are:
+
+`MapKit map → search → station selection → departures → classic journey detail`
+
+`Carte → Via chat → streamed answer → structured journey detail`
 
 The REST adapter consumes the existing `/api` OpenAPI surface while the Expo
 client continues to use `/rpc` during coexistence.
+
+The native chat adapter consumes `POST /ai/chat/v1` as newline-delimited JSON;
+the existing `POST /ai/chat` UI-message stream remains dedicated to the web
+client.
 
 The canonical contract snapshot lives in
 `Packages/ViaAPIContract/Sources/ViaAPIContract/openapi.json`. Verify that it

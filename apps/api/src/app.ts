@@ -12,7 +12,7 @@ import type { FetchHandler } from '@orpc/server/fetch';
 import { openApiHandler, rpcHandler } from './orpc/handler';
 import type { ApiContext } from './orpc/implementer';
 import { getOpenApiDocument } from './orpc/openapi';
-import { chatHandler } from './routers';
+import { chatHandler, nativeChatHandler } from './routers';
 
 const app = new Hono<AppEnv>();
 
@@ -60,6 +60,9 @@ app.use('/rpc/*', mount(rpcHandler, '/rpc'));
 
 /** The streaming chat lives outside oRPC: it answers with a UI-message stream. */
 app.post('/ai/chat', (c) => chatHandler(c.req.raw, requestIdentity(c)));
+
+/** The native client uses a small NDJSON protocol instead of the web UI stream. */
+app.post('/ai/chat/v1', (c) => nativeChatHandler(c.req.raw, requestIdentity(c)));
 
 app.onError(onError);
 app.notFound(notFound);

@@ -4,6 +4,8 @@ import Foundation
 struct AppDependencies {
     let transitAPI: any TransitAPI
     let locationProvider: any LocationProviding
+    let chatClient: any ChatClient
+    let isDemo: Bool
 
     static func live() -> AppDependencies {
         let identity = ClientIdentityStore().identifier
@@ -22,11 +24,17 @@ struct AppDependencies {
             api = URLSessionTransitAPI(baseURL: baseURL, clientIdentifier: identity)
         }
 
+        let chatClient: any ChatClient = isDemo
+            ? DemoChatClient(transitAPI: api)
+            : URLSessionChatClient(baseURL: baseURL, clientIdentifier: identity)
+
         return AppDependencies(
             transitAPI: api,
             locationProvider: isDemo
                 ? DemoLocationProvider()
-                : LocationClient()
+                : LocationClient(),
+            chatClient: chatClient,
+            isDemo: isDemo
         )
     }
 }

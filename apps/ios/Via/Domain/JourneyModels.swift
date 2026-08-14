@@ -1,7 +1,7 @@
 import Foundation
 
-struct JourneyDestination: Hashable, Identifiable, Sendable {
-    enum Kind: String, Hashable, Sendable {
+struct JourneyDestination: Codable, Hashable, Identifiable, Sendable {
+    enum Kind: String, Codable, Hashable, Sendable {
         case station
         case address
     }
@@ -11,6 +11,20 @@ struct JourneyDestination: Hashable, Identifiable, Sendable {
     let name: String
     let context: String?
     let coordinate: GeoCoordinate
+
+    init(
+        kind: Kind,
+        id: String,
+        name: String,
+        context: String? = nil,
+        coordinate: GeoCoordinate
+    ) {
+        self.kind = kind
+        self.id = id
+        self.name = name
+        self.context = context
+        self.coordinate = coordinate
+    }
 
     init?(searchResult: SearchResult) {
         switch searchResult {

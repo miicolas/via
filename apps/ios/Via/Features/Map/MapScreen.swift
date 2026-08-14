@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MapScreen: View {
     let model: MapFeatureModel
+    let onOpenChat: () -> Void
     @Environment(\.scenePhase) private var scenePhase
     @State private var position = MapCameraPosition.region(
         MKCoordinateRegion(
@@ -11,6 +12,11 @@ struct MapScreen: View {
         )
     )
     @State private var sheetPresented = true
+
+    init(model: MapFeatureModel, onOpenChat: @escaping () -> Void = {}) {
+        self.model = model
+        self.onOpenChat = onOpenChat
+    }
 
     var body: some View {
         TransitMapView(model: model, position: $position)
@@ -28,7 +34,7 @@ struct MapScreen: View {
                 )
             }
             .sheet(isPresented: $sheetPresented) {
-                MapSheetView(model: model)
+                MapSheetView(model: model, onOpenChat: onOpenChat)
                     .presentationDetents([
                         .fraction(0.14),
                         .fraction(0.42),

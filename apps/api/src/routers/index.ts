@@ -1,7 +1,7 @@
 import { env } from '../env';
 import { implementer } from '../orpc/implementer';
 import { redis } from '../redis';
-import { createChatHandler } from './chat/handler';
+import { createChatHandler, createNativeChatHandler } from './chat/handler';
 import { departuresRouter } from './departures/router';
 import { healthRouter } from './health/router';
 import { createGtfsJourneyPlanner } from './journeys/gtfs/loader';
@@ -66,6 +66,19 @@ const naturalJourneyService = createNaturalJourneyService({
  */
 /** Streaming chat endpoint — plain Hono, outside the oRPC contract. */
 export const chatHandler = createChatHandler({
+  redis,
+  places: placeResolver,
+  journeys: journeyPlanner,
+  config: {
+    apiKey: env.OPENAI_API_KEY,
+    model: env.OPENAI_MODEL,
+    personalLimit: env.NATURAL_JOURNEYS_PERSONAL_LIMIT,
+    personalWindowSeconds: env.NATURAL_JOURNEYS_PERSONAL_WINDOW_SECONDS,
+  },
+});
+
+/** Streaming chat endpoint for the native app — plain Hono, outside oRPC. */
+export const nativeChatHandler = createNativeChatHandler({
   redis,
   places: placeResolver,
   journeys: journeyPlanner,
