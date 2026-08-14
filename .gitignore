@@ -52,3 +52,6 @@ apps/*/android
 
 # Native iOS derived data
 apps/ios/.derived/
+
+# Swift Package Manager build products
+.build/
