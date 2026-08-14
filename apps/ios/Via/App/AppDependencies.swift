@@ -8,9 +8,10 @@ struct AppDependencies {
     static func live() -> AppDependencies {
         let identity = ClientIdentityStore().identifier
         let baseURL = URL(string: ProcessInfo.processInfo.environment["VIA_API_URL"] ?? "http://localhost:3000")!
+        let isDemo = ProcessInfo.processInfo.arguments.contains("--via-demo")
 
         let api: any TransitAPI
-        if ProcessInfo.processInfo.arguments.contains("--via-demo") {
+        if isDemo {
             api = DemoTransitAPI()
         } else {
             api = URLSessionTransitAPI(baseURL: baseURL, clientIdentifier: identity)
@@ -18,7 +19,9 @@ struct AppDependencies {
 
         return AppDependencies(
             transitAPI: api,
-            locationProvider: LocationClient()
+            locationProvider: isDemo
+                ? DemoLocationProvider()
+                : LocationClient()
         )
     }
 }

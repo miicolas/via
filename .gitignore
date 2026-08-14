@@ -49,3 +49,6 @@ apps/*/android
 
 # App Store Connect build artifacts
 .asc/artifacts/
+
+# Native iOS derived data
+apps/ios/.derived/

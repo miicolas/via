@@ -5,7 +5,17 @@ import Foundation
 protocol LocationProviding: AnyObject {
     var coordinate: GeoCoordinate? { get }
     var authorizationStatus: CLAuthorizationStatus { get }
+    var shouldDisplayUserLocation: Bool { get }
     func requestWhenInUseAuthorization()
+}
+
+@MainActor
+final class DemoLocationProvider: LocationProviding {
+    let coordinate: GeoCoordinate? = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+    let authorizationStatus: CLAuthorizationStatus = .authorizedWhenInUse
+    let shouldDisplayUserLocation = false
+
+    func requestWhenInUseAuthorization() {}
 }
 
 @MainActor
@@ -13,6 +23,8 @@ final class LocationClient: NSObject, LocationProviding, CLLocationManagerDelega
     private let manager = CLLocationManager()
 
     private(set) var coordinate: GeoCoordinate?
+
+    let shouldDisplayUserLocation = true
 
     var authorizationStatus: CLAuthorizationStatus {
         manager.authorizationStatus
