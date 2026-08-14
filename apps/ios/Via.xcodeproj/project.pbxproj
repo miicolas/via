@@ -61,6 +61,9 @@
 		A10000000000000000000033 /* LineRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000033 /* LineRowView.swift */; };
 		A10000000000000000000034 /* NavigoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000034 /* NavigoView.swift */; };
 		A10000000000000000000035 /* ChatStreamParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000035 /* ChatStreamParserTests.swift */; };
+		A10000000000000000000037 /* NativeRuntimeConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000036 /* NativeRuntimeConfiguration.swift */; };
+		A10000000000000000000038 /* ViaLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000037 /* ViaLogger.swift */; };
+		A10000000000000000000039 /* NativeRuntimeConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000038 /* NativeRuntimeConfigurationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -137,6 +140,9 @@
 		B10000000000000000000033 /* LineRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineRowView.swift; sourceTree = "<group>"; };
 		B10000000000000000000034 /* NavigoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigoView.swift; sourceTree = "<group>"; };
 		B10000000000000000000035 /* ChatStreamParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamParserTests.swift; sourceTree = "<group>"; };
+		B10000000000000000000036 /* NativeRuntimeConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRuntimeConfiguration.swift; sourceTree = "<group>"; };
+		B10000000000000000000037 /* ViaLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViaLogger.swift; sourceTree = "<group>"; };
+		B10000000000000000000038 /* NativeRuntimeConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRuntimeConfigurationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -172,6 +178,7 @@
 				B10000000000000000000002 /* AppRouter.swift */,
 				B10000000000000000000003 /* AppDependencies.swift */,
 				B10000000000000000000004 /* RootView.swift */,
+				B10000000000000000000036 /* NativeRuntimeConfiguration.swift */,
 				B10000000000000000000027 /* AppShellView.swift */,
 				B10000000000000000000028 /* WelcomeView.swift */,
 				B10000000000000000000029 /* AuthView.swift */,
@@ -211,6 +218,7 @@
 				B1000000000000000000000E /* ClientIdentityStore.swift */,
 				B1000000000000000000000F /* LocationClient.swift */,
 				B1000000000000000000002B /* ChatClient.swift */,
+				B10000000000000000000037 /* ViaLogger.swift */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -315,6 +323,7 @@
 				B1000000000000000000001D /* ViewportTilesTests.swift */,
 				B10000000000000000000026 /* JourneyPresentationTests.swift */,
 				B10000000000000000000035 /* ChatStreamParserTests.swift */,
+				B10000000000000000000038 /* NativeRuntimeConfigurationTests.swift */,
 			);
 			path = ViaTests;
 			sourceTree = "<group>";
@@ -554,6 +563,8 @@
 				A10000000000000000000032 /* LinesView.swift in Sources */,
 				A10000000000000000000033 /* LineRowView.swift in Sources */,
 				A10000000000000000000034 /* NavigoView.swift in Sources */,
+				A10000000000000000000037 /* NativeRuntimeConfiguration.swift in Sources */,
+				A10000000000000000000038 /* ViaLogger.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -566,6 +577,7 @@
 				A1000000000000000000001D /* ViewportTilesTests.swift in Sources */,
 				A10000000000000000000026 /* JourneyPresentationTests.swift in Sources */,
 				A10000000000000000000035 /* ChatStreamParserTests.swift in Sources */,
+				A10000000000000000000039 /* NativeRuntimeConfigurationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

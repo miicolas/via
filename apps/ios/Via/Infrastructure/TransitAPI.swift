@@ -25,6 +25,45 @@ enum TransitAPIError: Error, Equatable, LocalizedError, Sendable {
     }
 }
 
+extension TransitAPIError {
+    static func from(_ error: Error) -> TransitAPIError {
+        if let error = error as? TransitAPIError { return error }
+        if error is CancellationError { return .cancelled }
+        if let error = error as? URLError {
+            switch error.code {
+            case .cancelled: return .cancelled
+            case .timedOut: return .timeout
+            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost:
+                return .offline
+            default: return .server(statusCode: 0)
+            }
+        }
+        return .server(statusCode: 0)
+    }
+
+    static func from(statusCode: Int) -> TransitAPIError {
+        switch statusCode {
+        case 401, 403: .unauthorized
+        case 429: .rateLimited
+        default: .server(statusCode: statusCode)
+        }
+    }
+
+    var logLabel: String {
+        switch self {
+        case .invalidURL: "invalid_url"
+        case .offline: "offline"
+        case .timeout: "timeout"
+        case .unauthorized: "unauthorized"
+        case .rateLimited: "rate_limited"
+        case .server(let statusCode): "server_\(statusCode)"
+        case .decoding: "decoding"
+        case .contractViolation: "contract_violation"
+        case .cancelled: "cancelled"
+        }
+    }
+}
+
 protocol TransitAPI: Sendable {
     func loadRailMap() async throws -> RailMap
     func loadStations(in bounds: TileBounds) async throws -> StationsInArea

@@ -4,6 +4,7 @@ struct StationDetailsView: View {
     let station: NetworkStation
     let routes: [RouteBadge]
     let departuresState: DeparturesState
+    let canPlanJourney: Bool
     let onClose: () -> Void
     let onPlanJourney: () -> Void
 
@@ -39,12 +40,14 @@ struct StationDetailsView: View {
 
             DepartureBoardView(state: departuresState)
 
-            ViaButton(
-                "Voir les itinéraires",
-                systemImage: "arrow.triangle.turn.up.right.diamond",
-                action: onPlanJourney
-            )
-            .accessibilityIdentifier("via.planJourney")
+            if canPlanJourney {
+                ViaButton(
+                    "Voir les itinéraires",
+                    systemImage: "arrow.triangle.turn.up.right.diamond",
+                    action: onPlanJourney
+                )
+                .accessibilityIdentifier("via.planJourney")
+            }
         }
     }
 }

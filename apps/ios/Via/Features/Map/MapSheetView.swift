@@ -2,10 +2,16 @@ import SwiftUI
 
 struct MapSheetView: View {
     let model: MapFeatureModel
+    let featureFlags: NativeFeatureFlags
     let onOpenChat: () -> Void
 
-    init(model: MapFeatureModel, onOpenChat: @escaping () -> Void = {}) {
+    init(
+        model: MapFeatureModel,
+        featureFlags: NativeFeatureFlags = NativeFeatureFlags(),
+        onOpenChat: @escaping () -> Void = {}
+    ) {
         self.model = model
+        self.featureFlags = featureFlags
         self.onOpenChat = onOpenChat
     }
 
@@ -29,6 +35,7 @@ struct MapSheetView: View {
                         station: station,
                         routes: stationRoutes(for: station, model: model),
                         departuresState: model.departuresState,
+                        canPlanJourney: featureFlags.classicJourneysEnabled,
                         onClose: model.closeSelectedStation,
                         onPlanJourney: model.planSelectedStation
                     )
@@ -81,8 +88,10 @@ struct MapSheetView: View {
                     ViaButton("Réessayer", systemImage: "arrow.clockwise", action: model.loadNetwork)
                 }
             case .ready:
-                ViaButton("Parler à Via", systemImage: "sparkles", action: onOpenChat)
-                    .accessibilityIdentifier("via.openChat")
+                if featureFlags.chatEnabled {
+                    ViaButton("Parler à Via", systemImage: "sparkles", action: onOpenChat)
+                        .accessibilityIdentifier("via.openChat")
+                }
                 linePicker(model: model)
                 nearbyStations(model: model)
             }

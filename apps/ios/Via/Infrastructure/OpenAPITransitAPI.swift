@@ -7,22 +7,40 @@ import ViaAPIContract
 /// churn local to one adapter and leaves reducers, models, and views domain-only.
 final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
     private let client: ViaAPIClient
+    private let logger: ViaLogger
 
-    init(baseURL: URL, clientIdentifier: String, session: URLSession = .shared) {
+    init(
+        baseURL: URL,
+        clientIdentifier: String,
+        clientMetadata: NativeClientMetadata = .current,
+        session: URLSession = .shared,
+        logger: ViaLogger = ViaLogger(category: "network")
+    ) {
         client = ViaAPIClient(
             baseURL: baseURL,
             clientIdentifier: clientIdentifier,
+            clientPlatform: clientMetadata.platform,
+            clientVersion: clientMetadata.version,
+            clientBuild: clientMetadata.build,
             session: session
         )
+        self.logger = logger
     }
 
     func loadRailMap() async throws -> RailMap {
-        try await request({ try await client.loadRailMap() }, decode: mapRailMap)
+        try await request(
+            operationName: "network.railMap",
+            path: "/api/network/rail-map",
+            execute: { try await client.loadRailMap() },
+            decode: mapRailMap
+        )
     }
 
     func loadStations(in bounds: TileBounds) async throws -> StationsInArea {
         try await request(
-            {
+            operationName: "network.stationsInArea",
+            path: "/api/network/stations-in-area",
+            execute: {
                 try await client.loadStations(
                     minLatitude: bounds.minLatitude,
                     maxLatitude: bounds.maxLatitude,
@@ -36,7 +54,9 @@ final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
 
     func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
         try await request(
-            {
+            operationName: "search.query",
+            path: "/api/search",
+            execute: {
                 try await client.search(
                     query: query,
                     limit: 10,
@@ -50,14 +70,18 @@ final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
 
     func loadDepartures(stationID: String) async throws -> DeparturesResponse {
         try await request(
-            { try await client.loadDepartures(stationID: stationID) },
+            operationName: "departures.forStation",
+            path: "/api/departures",
+            execute: { try await client.loadDepartures(stationID: stationID) },
             decode: mapDeparturesResponse
         )
     }
 
     func planJourneys(_ request: JourneyRequest) async throws -> JourneysResponse {
         try await self.request(
-            {
+            operationName: "journeys.plan",
+            path: "/api/journeys",
+            execute: {
                 try await client.planJourneys(
                     originLatitude: request.origin.latitude,
                     originLongitude: request.origin.longitude,
@@ -75,13 +99,25 @@ final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
     }
 
     private func request<Response, Value>(
-        _ operation: () async throws -> Response,
+        operationName: String,
+        path: String,
+        execute work: () async throws -> Response,
         decode: (Response) throws -> Value
     ) async throws -> Value {
+        let startedAt = Date()
+        logger.requestStarted(operation: operationName, path: path)
         do {
-            return try decode(await operation())
+            let value = try decode(await work())
+            logger.requestSucceeded(
+                operation: operationName,
+                path: path,
+                durationMilliseconds: max(0, Int(Date().timeIntervalSince(startedAt) * 1_000))
+            )
+            return value
         } catch {
-            throw mapError(error)
+            let mappedError = TransitAPIError.from(error)
+            logger.requestFailed(operation: operationName, path: path, error: mappedError)
+            throw mappedError
         }
     }
 
@@ -328,20 +364,6 @@ final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
         return formatter.string(from: date)
     }
 
-    private func mapError(_ error: Error) -> TransitAPIError {
-        if let error = error as? TransitAPIError { return error }
-        if error is CancellationError { return .cancelled }
-        if let error = error as? URLError {
-            switch error.code {
-            case .cancelled: return .cancelled
-            case .timedOut: return .timeout
-            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost:
-                return .offline
-            default: return .server(statusCode: 0)
-            }
-        }
-        return .server(statusCode: 0)
-    }
 }
 
 private extension Double {

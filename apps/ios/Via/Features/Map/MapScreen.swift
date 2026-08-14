@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MapScreen: View {
     let model: MapFeatureModel
+    let featureFlags: NativeFeatureFlags
     let onOpenChat: () -> Void
     @Environment(\.scenePhase) private var scenePhase
     @State private var position = MapCameraPosition.region(
@@ -13,8 +14,13 @@ struct MapScreen: View {
     )
     @State private var sheetPresented = true
 
-    init(model: MapFeatureModel, onOpenChat: @escaping () -> Void = {}) {
+    init(
+        model: MapFeatureModel,
+        featureFlags: NativeFeatureFlags = NativeFeatureFlags(),
+        onOpenChat: @escaping () -> Void = {}
+    ) {
         self.model = model
+        self.featureFlags = featureFlags
         self.onOpenChat = onOpenChat
     }
 
@@ -34,7 +40,11 @@ struct MapScreen: View {
                 )
             }
             .sheet(isPresented: $sheetPresented) {
-                MapSheetView(model: model, onOpenChat: onOpenChat)
+                MapSheetView(
+                    model: model,
+                    featureFlags: featureFlags,
+                    onOpenChat: onOpenChat
+                )
                     .presentationDetents([
                         .fraction(0.14),
                         .fraction(0.42),

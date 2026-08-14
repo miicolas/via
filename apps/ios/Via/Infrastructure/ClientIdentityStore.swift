@@ -1,6 +1,26 @@
 import Foundation
 import Security
 
+struct NativeClientMetadata: Sendable {
+    let platform: String
+    let version: String
+    let build: String
+
+    init(platform: String = "ios-native", version: String, build: String) {
+        self.platform = platform
+        self.version = version
+        self.build = build
+    }
+
+    static var current: NativeClientMetadata {
+        let info = Bundle.main.infoDictionary ?? [:]
+        return NativeClientMetadata(
+            version: info["CFBundleShortVersionString"] as? String ?? "0",
+            build: info["CFBundleVersion"] as? String ?? "0"
+        )
+    }
+}
+
 struct ClientIdentityStore: Sendable {
     private let service = "dev.via.app"
     private let account = "via.anonymous-client-id"

@@ -54,12 +54,22 @@ struct ChatStreamParser: Sendable {
 final class URLSessionChatClient: ChatClient, @unchecked Sendable {
     private let baseURL: URL
     private let clientIdentifier: String
+    private let clientMetadata: NativeClientMetadata
     private let session: URLSession
+    private let logger: ViaLogger
 
-    init(baseURL: URL, clientIdentifier: String, session: URLSession = .shared) {
+    init(
+        baseURL: URL,
+        clientIdentifier: String,
+        clientMetadata: NativeClientMetadata = .current,
+        session: URLSession = .shared,
+        logger: ViaLogger = ViaLogger(category: "chat")
+    ) {
         self.baseURL = baseURL
         self.clientIdentifier = clientIdentifier
+        self.clientMetadata = clientMetadata
         self.session = session
+        self.logger = logger
     }
 
     func stream(
@@ -68,23 +78,30 @@ final class URLSessionChatClient: ChatClient, @unchecked Sendable {
         onEvent: @escaping @Sendable (ChatStreamEvent) async -> Void
     ) async throws {
         let url = baseURL.appending(path: "ai/chat/v1")
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/x-ndjson", forHTTPHeaderField: "Accept")
-        request.setValue(clientIdentifier, forHTTPHeaderField: "x-via-client-id")
-        request.httpBody = try JSONEncoder().encode(
-            ChatRequest(messages: messages, location: location)
-        )
+        let operation = "chat.stream"
+        let path = "/ai/chat/v1"
+        let startedAt = Date()
+        logger.requestStarted(operation: operation, path: path)
 
         do {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/x-ndjson", forHTTPHeaderField: "Accept")
+            request.setValue(clientIdentifier, forHTTPHeaderField: "x-via-client-id")
+            request.setValue(clientMetadata.platform, forHTTPHeaderField: "x-via-client-platform")
+            request.setValue(clientMetadata.version, forHTTPHeaderField: "x-via-client-version")
+            request.setValue(clientMetadata.build, forHTTPHeaderField: "x-via-client-build")
+            request.httpBody = try JSONEncoder().encode(
+                ChatRequest(messages: messages, location: location)
+            )
+
             let (bytes, response) = try await session.bytes(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw TransitAPIError.server(statusCode: 0)
             }
             guard (200..<300).contains(httpResponse.statusCode) else {
-                throw error(for: httpResponse.statusCode)
+                throw TransitAPIError.from(statusCode: httpResponse.statusCode)
             }
 
             var parser = ChatStreamParser()
@@ -96,28 +113,26 @@ final class URLSessionChatClient: ChatClient, @unchecked Sendable {
             for event in try parser.finish() {
                 await onEvent(event)
             }
+            logger.requestSucceeded(
+                operation: operation,
+                path: path,
+                durationMilliseconds: max(0, Int(Date().timeIntervalSince(startedAt) * 1_000))
+            )
         } catch let error as TransitAPIError {
+            logger.requestFailed(operation: operation, path: path, error: error)
             throw error
         } catch let error as URLError {
-            switch error.code {
-            case .cancelled: throw TransitAPIError.cancelled
-            case .timedOut: throw TransitAPIError.timeout
-            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost:
-                throw TransitAPIError.offline
-            default: throw TransitAPIError.server(statusCode: 0)
-            }
+            let mappedError = TransitAPIError.from(error)
+            logger.requestFailed(operation: operation, path: path, error: mappedError)
+            throw mappedError
         } catch is CancellationError {
-            throw TransitAPIError.cancelled
+            let mappedError = TransitAPIError.cancelled
+            logger.requestFailed(operation: operation, path: path, error: mappedError)
+            throw mappedError
         } catch {
-            throw TransitAPIError.server(statusCode: 0)
-        }
-    }
-
-    private func error(for statusCode: Int) -> TransitAPIError {
-        switch statusCode {
-        case 401, 403: .unauthorized
-        case 429: .rateLimited
-        default: .server(statusCode: statusCode)
+            let mappedError = TransitAPIError.from(error)
+            logger.requestFailed(operation: operation, path: path, error: mappedError)
+            throw mappedError
         }
     }
 }

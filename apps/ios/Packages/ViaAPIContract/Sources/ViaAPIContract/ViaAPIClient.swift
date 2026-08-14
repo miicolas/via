@@ -14,6 +14,9 @@ public struct ViaAPIClient: Sendable {
     public init(
         baseURL: URL,
         clientIdentifier: String,
+        clientPlatform: String = "ios-native",
+        clientVersion: String = "0",
+        clientBuild: String = "0",
         session: URLSession = .shared
     ) {
         let transport = URLSessionTransport(
@@ -22,7 +25,14 @@ public struct ViaAPIClient: Sendable {
         client = Client(
             serverURL: Self.apiURL(for: baseURL),
             transport: transport,
-            middlewares: [ClientIdentityMiddleware(value: clientIdentifier)]
+            middlewares: [
+                ClientIdentityMiddleware(
+                    value: clientIdentifier,
+                    platform: clientPlatform,
+                    version: clientVersion,
+                    build: clientBuild
+                )
+            ]
         )
     }
 
@@ -131,6 +141,9 @@ public struct ViaAPIClient: Sendable {
 
 private struct ClientIdentityMiddleware: ClientMiddleware {
     let value: String
+    let platform: String
+    let version: String
+    let build: String
 
     func intercept(
         _ request: HTTPRequest,
@@ -141,6 +154,9 @@ private struct ClientIdentityMiddleware: ClientMiddleware {
     ) async throws -> (HTTPResponse, HTTPBody?) {
         var request = request
         request.headerFields[HTTPField.Name("x-via-client-id")!] = value
+        request.headerFields[HTTPField.Name("x-via-client-platform")!] = platform
+        request.headerFields[HTTPField.Name("x-via-client-version")!] = version
+        request.headerFields[HTTPField.Name("x-via-client-build")!] = build
         return try await next(request, body, baseURL)
     }
 }

@@ -4,6 +4,7 @@ struct AppShellView: View {
     let mapModel: MapFeatureModel
     let chatModel: ChatFeatureModel
     let transitAPI: any TransitAPI
+    let featureFlags: NativeFeatureFlags
 
     @SceneStorage("via.shell.selected-tab") private var selectedTab = 0
     @State private var presentedSheet: PresentedSheet?
@@ -24,6 +25,7 @@ struct AppShellView: View {
         TabView(selection: $selectedTab) {
             MapScreen(
                 model: mapModel,
+                featureFlags: featureFlags,
                 onOpenChat: { presentedSheet = .chat }
             )
             .tabItem { Label("Carte", systemImage: "map") }

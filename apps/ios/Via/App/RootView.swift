@@ -25,11 +25,12 @@ struct RootView: View {
     }
 
     var body: some View {
-        if dependencies.isDemo {
+        if dependencies.featureFlags.usesDemoData {
             AppShellView(
                 mapModel: mapModel,
                 chatModel: chatModel,
-                transitAPI: dependencies.transitAPI
+                transitAPI: dependencies.transitAPI,
+                featureFlags: dependencies.featureFlags
             )
         } else if !onboardingCompleted {
             WelcomeView {
@@ -43,7 +44,8 @@ struct RootView: View {
             AppShellView(
                 mapModel: mapModel,
                 chatModel: chatModel,
-                transitAPI: dependencies.transitAPI
+                transitAPI: dependencies.transitAPI,
+                featureFlags: dependencies.featureFlags
             )
         }
     }
