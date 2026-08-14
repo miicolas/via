@@ -14,14 +14,39 @@ export type PlaceResolver = {
 
 export const placeResolver: PlaceResolver = {
   resolve: async (query, origin, signal) => {
-    const { results: candidates, banAvailable } = await searchPlaces(query, {
+    const search = await searchPlaces(query, {
       limit: 10,
       origin,
       signal,
     });
+    const { results: candidates, banAvailable } = search;
+    const municipalities = search.municipalities ?? [];
     const stationCandidates = candidates.filter((candidate) => candidate.kind === 'station');
     const addressCandidates = candidates.filter((candidate) => candidate.kind === 'address');
-    const relevantCandidates = looksLikeAddress(query) ? addressCandidates : stationCandidates;
+    const addressQuery = looksLikeAddress(query);
+
+    if (!addressQuery) {
+      const exactMunicipalities = municipalities.filter(
+        (candidate) => normalizePlaceName(candidate.name) === normalizePlaceName(query)
+      );
+      if (exactMunicipalities.length === 1) {
+        return { status: 'resolved', result: exactMunicipalities[0]! };
+      }
+
+      const exactStations = stationCandidates.filter(
+        (candidate) => normalizePlaceName(candidate.name) === normalizePlaceName(query)
+      );
+      if (exactStations.length === 1) return { status: 'resolved', result: exactStations[0]! };
+
+      // BAN already applies fuzzy spelling ranking. A single commune match is
+      // therefore a complete destination, not a request for a street inside it.
+      if (municipalities.length === 1) return { status: 'resolved', result: municipalities[0]! };
+      if (municipalities.length > 1) {
+        return { status: 'ambiguous', candidates: municipalities };
+      }
+    }
+
+    const relevantCandidates = addressQuery ? addressCandidates : stationCandidates;
     const rankedCandidates = relevantCandidates.length > 0 ? relevantCandidates : candidates;
     const exact = rankedCandidates.filter(
       (candidate) => normalizePlaceName(candidate.name) === normalizePlaceName(query)

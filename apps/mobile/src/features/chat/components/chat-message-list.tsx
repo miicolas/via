@@ -2,6 +2,7 @@ import type { UIMessage } from 'ai';
 import { useRef } from 'react';
 import { ScrollView, StyleSheet, Text } from 'react-native';
 
+import { FadingScrollView } from '@/components/fading-scroll-view';
 import { ChatMessage } from '@/features/chat/components/chat-message';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { SHEET_GUTTER } from '@/styles/metrics';
@@ -17,7 +18,7 @@ export function ChatMessageList({ messages, thinking }: ChatMessageListProps) {
   const scrollRef = useRef<ScrollView>(null);
 
   return (
-    <ScrollView
+    <FadingScrollView
       contentContainerStyle={styles.content}
       keyboardDismissMode="interactive"
       onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
@@ -29,7 +30,7 @@ export function ChatMessageList({ messages, thinking }: ChatMessageListProps) {
       {thinking ? (
         <Text style={[styles.thinking, { color: colors.muted }]}>Via réfléchit…</Text>
       ) : null}
-    </ScrollView>
+    </FadingScrollView>
   );
 }
 

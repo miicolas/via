@@ -17,6 +17,7 @@ import {
   positionTransitRoutes,
   prepareTransitRouteLayout,
 } from '@/lib/transit-map-layout';
+import { stationFocusRegion } from '@/lib/station-focus-region';
 
 const INITIAL_REGION: Region = {
   ...PARIS_COORDINATE,
@@ -34,8 +35,6 @@ const INITIAL_REGION: Region = {
  */
 const STATION_SHOW_DELTA = 0.008;
 const STATION_HIDE_DELTA = 0.012;
-const STATION_FOCUS_LATITUDE_DELTA = 0.006;
-const STATION_FOCUS_LONGITUDE_DELTA = 0.006;
 const STATION_FOCUS_ANIMATION_DURATION_MS = 1_000;
 
 type StationMarkersState = {
@@ -120,6 +119,8 @@ export function MetroMap({
   const stationOpacity = useSharedValue(0);
   const reducedMotionVisibility = useRef(false);
   const lastStationOpacity = useRef(0);
+  // Apple Maps does not provide details.isGesture, so track camera commands issued here.
+  const programmaticCameraMove = useRef(false);
   const [stationMarkersState, setStationMarkersState] = useState<StationMarkersState>({
     mounted: false,
     tracking: false,
@@ -180,19 +181,25 @@ export function MetroMap({
       fitToRoute(route, { animated = true } = {}) {
         const bounds = routeBounds(route);
         if (bounds.length === 0) return;
-        mapRef.current?.fitToCoordinates(bounds, { animated, edgePadding });
+        const nativeMap = mapRef.current;
+        if (!nativeMap) return;
+        programmaticCameraMove.current = true;
+        nativeMap.fitToCoordinates(bounds, { animated, edgePadding });
       },
       focusCoordinate(coordinate, { animated = true } = {}) {
         const region = stationFocusRegion(coordinate, edgePadding, viewportHeight);
-        mapRef.current?.animateToRegion(
-          region,
-          animated ? STATION_FOCUS_ANIMATION_DURATION_MS : 0
-        );
+        const nativeMap = mapRef.current;
+        if (!nativeMap) return;
+        programmaticCameraMove.current = true;
+        nativeMap.animateToRegion(region, animated ? STATION_FOCUS_ANIMATION_DURATION_MS : 0);
       },
       fitToJourney(selectedJourney, { animated = true } = {}) {
         const coordinates = selectedJourney.sections.flatMap(journeySectionCoordinates);
         if (coordinates.length < 2) return;
-        mapRef.current?.fitToCoordinates(coordinates, { animated, edgePadding });
+        const nativeMap = mapRef.current;
+        if (!nativeMap) return;
+        programmaticCameraMove.current = true;
+        nativeMap.fitToCoordinates(coordinates, { animated, edgePadding });
       },
     }),
     [edgePadding, viewportHeight]
@@ -219,7 +226,8 @@ export function MetroMap({
       onRegionChange={(region, details) => {
         updateStationOpacity(region.longitudeDelta);
         onViewportChange?.(region);
-        if (details?.isGesture) onUserMove?.();
+        if (programmaticCameraMove.current || details?.isGesture === false) return;
+        onUserMove?.();
       }}
       onRegionChangeComplete={(region) => {
         setLayoutRegion((current) =>
@@ -227,6 +235,7 @@ export function MetroMap({
         );
         updateStationOpacity(region.longitudeDelta, true);
         onViewportChange?.(region);
+        programmaticCameraMove.current = false;
       }}
     >
       <RouteLines muted={Boolean(journey)} routes={positionedLines} selectedRoute={positionedLine?.route} />
@@ -270,26 +279,6 @@ function sameMapViewport(first: Region, second: Region) {
     Math.abs(first.latitudeDelta - second.latitudeDelta) < 1e-8 &&
     Math.abs(first.longitudeDelta - second.longitudeDelta) < 1e-8
   );
-}
-
-function stationFocusRegion(
-  coordinate: Coordinate,
-  edgePadding: EdgePadding,
-  viewportHeight: number
-): Region {
-  const height = Math.max(1, viewportHeight);
-  const visibleTop = Math.min(height, Math.max(0, edgePadding.top));
-  const visibleBottom = Math.max(visibleTop, height - Math.max(0, edgePadding.bottom));
-  const visibleCenterY = (visibleTop + visibleBottom) / 2;
-  const latitudeOffset =
-    ((height / 2 - visibleCenterY) / height) * STATION_FOCUS_LATITUDE_DELTA;
-
-  return {
-    latitude: coordinate.latitude - latitudeOffset,
-    longitude: coordinate.longitude,
-    latitudeDelta: STATION_FOCUS_LATITUDE_DELTA,
-    longitudeDelta: STATION_FOCUS_LONGITUDE_DELTA,
-  };
 }
 
 const styles = StyleSheet.create({

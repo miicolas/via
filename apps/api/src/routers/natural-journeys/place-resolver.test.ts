@@ -9,6 +9,22 @@ const chatouCroissy: StationSearchResult = {
   routes: [],
 };
 
+const chatou: AddressSearchResult = {
+  kind: 'address',
+  id: '78146',
+  name: 'Chatou',
+  context: '78400 Chatou',
+  coordinate: { latitude: 48.8966, longitude: 2.151 },
+};
+
+const carrieresSousPoissy: AddressSearchResult = {
+  kind: 'address',
+  id: '78123',
+  name: 'Carrières-sous-Poissy',
+  context: '78955 Carrières-sous-Poissy',
+  coordinate: { latitude: 48.947611, longitude: 2.031689 },
+};
+
 const roads: AddressSearchResult[] = [
   {
     kind: 'address',
@@ -27,10 +43,23 @@ const roads: AddressSearchResult[] = [
 ];
 
 mock.module('../search/search-places', () => ({
-  searchPlaces: async () => ({
-    results: [chatouCroissy, ...roads],
-    banAvailable: true,
-  }),
+  searchPlaces: async (query: string) => {
+    if (/carri[eè]re/i.test(query)) {
+      return {
+        results: [carrieresSousPoissy, ...roads],
+        municipalities: [carrieresSousPoissy],
+        banAvailable: true,
+      };
+    }
+    if (/route/i.test(query)) {
+      return { results: [chatouCroissy, ...roads], municipalities: [], banAvailable: true };
+    }
+    return {
+      results: [chatouCroissy, chatou, ...roads],
+      municipalities: [chatou],
+      banAvailable: true,
+    };
+  },
 }));
 
 const { placeResolver } = await import('./place-resolver');
@@ -42,13 +71,18 @@ test('resolves a station-like query in one shot instead of asking about address 
   });
 });
 
-test('treats a bare city name as its station rather than an address', async () => {
-  for (const query of ['Chatou', 'Croissy']) {
-    await expect(placeResolver.resolve(query)).resolves.toEqual({
-      status: 'resolved',
-      result: chatouCroissy,
-    });
-  }
+test('treats a bare city name as the municipality centre', async () => {
+  await expect(placeResolver.resolve('Chatou')).resolves.toEqual({
+    status: 'resolved',
+    result: chatou,
+  });
+});
+
+test('accepts a fuzzy municipality match without asking for a street', async () => {
+  await expect(placeResolver.resolve('Carrière sous Poissy')).resolves.toEqual({
+    status: 'resolved',
+    result: carrieresSousPoissy,
+  });
 });
 
 test('keeps explicit street names in the address branch', async () => {

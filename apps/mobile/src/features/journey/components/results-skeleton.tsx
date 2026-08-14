@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { GlassCard } from '@/components/glass-card';
+import { GlassSurface } from '@/components/glass-surface';
 import { PulseBlock } from '@/components/pulse-block';
 import { PulseGroup } from '@/components/pulse-group';
 import { DURATION_COLUMN_WIDTH } from '@/features/journey/components/duration-row';
@@ -24,7 +24,7 @@ export function JourneyResultsSkeleton() {
         accessibilityRole="progressbar"
         style={styles.skeleton}>
         <View style={styles.cardSlot}>
-          <GlassCard>
+          <GlassSurface variant="card">
             <View style={styles.summary}>
               <View style={styles.strip}>
                 <PulseBlock height={LEG_PILL_HEIGHT} style={styles.walk} />
@@ -38,7 +38,7 @@ export function JourneyResultsSkeleton() {
               <PulseBlock height={14} radius={5} style={styles.departure} />
               <PulseBlock height={40} radius={999} style={styles.action} />
             </View>
-          </GlassCard>
+          </GlassSurface>
         </View>
 
         {PLACEHOLDER_ROWS.map((weight) => (

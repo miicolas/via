@@ -1,5 +1,6 @@
 import { type SFSymbol } from 'expo-symbols';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Button } from '@/components/button';
 import { SymbolIcon } from '@/components/symbol-icon';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -38,23 +39,23 @@ export function Shortcuts({ onClose, onLocate, onHouse, onWork, walkingMinutes }
   return (
     <View style={styles.content}>
       {items.map((item) => (
-        <Pressable
-          accessibilityRole="button"
-          key={item.label}
-          onPress={item.onPress}
-          style={({ pressed }) => [
+        <Button
+          contentStyle={[
             styles.shortcut,
             {
-              backgroundColor: colors.surfaceTranslucent,
+              backgroundColor: colors.surfaceGlass,
               borderColor: colors.line,
               boxShadow: `0 1px 4px ${colors.shadow}`,
             },
-            pressed && styles.pressed,
-          ]}>
+          ]}
+          key={item.label}
+          label={item.label}
+          onPress={item.onPress}
+          variant="plain">
           <SymbolIcon color={colors.primary} name={item.icon} size={13} />
           <Text style={[styles.label, { color: colors.ink }]}>{item.label}</Text>
           <Text style={[styles.value, { color: colors.primary }]}>{item.value}</Text>
-        </Pressable>
+        </Button>
       ))}
     </View>
   );
@@ -82,5 +83,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
-  pressed: { opacity: 0.55 },
 });

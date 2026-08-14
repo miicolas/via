@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 1,
   },
-  timing: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  timing: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   label: {
     fontFamily: 'Inter_600SemiBold',
     fontSize: 14,

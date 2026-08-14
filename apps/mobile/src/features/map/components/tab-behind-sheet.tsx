@@ -213,7 +213,7 @@ export function TabBehindSheet({
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, materialStyle]}>
         <View
           pointerEvents="none"
-          style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceTranslucent }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceGlass }]}
         />
       </Animated.View>
 

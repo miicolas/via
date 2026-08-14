@@ -1,8 +1,6 @@
-import { Button, Host, Text, VStack } from '@expo/ui/swift-ui';
+import { Host } from '@expo/ui';
+import { Text, VStack } from '@expo/ui/swift-ui';
 import {
-  accessibilityLabel,
-  buttonBorderShape,
-  buttonStyle,
   fixedSize,
   font,
   foregroundStyle,
@@ -10,10 +8,10 @@ import {
   glassEffect,
   multilineTextAlignment,
   padding,
-  tint,
 } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet } from 'react-native';
 
+import { Button } from '@/components/button';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 type NetworkErrorCardProps = {
@@ -45,22 +43,13 @@ export function NetworkErrorCard({ message, onRetry }: NetworkErrorCardProps) {
           {message}
         </Text>
         <Button
+          embedded
+          label="Réessayer"
           onPress={onRetry}
-          modifiers={[
-            accessibilityLabel('Réessayer de charger le réseau'),
-            buttonStyle('glassProminent'),
-            buttonBorderShape('capsule'),
-            tint(colors.primary),
-          ]}>
-          <Text
-            modifiers={[
-              font({ size: 14, weight: 'semibold' }),
-              frame({ minHeight: 32 }),
-              padding({ horizontal: 6 }),
-            ]}>
-            Réessayer
-          </Text>
-        </Button>
+          size="large"
+          tint={colors.primary}
+          variant="prominent"
+        />
       </VStack>
     </Host>
   );

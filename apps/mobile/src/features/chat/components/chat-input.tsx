@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
-import { SymbolIcon } from '@/components/symbol-icon';
+import { Button } from '@/components/button';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { SHEET_GUTTER } from '@/styles/metrics';
 
@@ -34,14 +34,17 @@ export function ChatInput({ disabled, onSend }: ChatInputProps) {
         submitBehavior="blurAndSubmit"
         value={text}
       />
-      <Pressable
-        accessibilityLabel="Envoyer"
-        accessibilityRole="button"
+      <Button
         disabled={!canSend}
+        iconOnly
+        label="Envoyer"
         onPress={send}
-        style={[styles.send, { backgroundColor: colors.primary, opacity: canSend ? 1 : 0.4 }]}>
-        <SymbolIcon color={colors.surface} name="arrow.up" size={16} />
-      </Pressable>
+        shape="circle"
+        size="large"
+        systemImage="arrow.up"
+        tint={colors.primary}
+        variant="prominent"
+      />
     </View>
   );
 }
@@ -66,12 +69,5 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
-  },
-  send: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

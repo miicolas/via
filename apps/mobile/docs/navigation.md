@@ -23,17 +23,20 @@ src/app/
 │       └── index.tsx
 └── (app)/
     ├── _layout.tsx
-    └── (tabs)/
+    ├── (tabs)/
+    │   ├── _layout.tsx
+    │   ├── (home)/
+    │   │   ├── _layout.tsx
+    │   │   └── index.tsx
+    │   ├── map/
+    │   │   ├── _layout.tsx
+    │   │   └── index.tsx
+    │   └── explore/
+    │       ├── _layout.tsx
+    │       └── index.tsx
+    └── map/
         ├── _layout.tsx
-        ├── (home)/
-        │   ├── _layout.tsx
-        │   └── index.tsx
-        ├── map/
-        │   ├── _layout.tsx
-        │   └── index.tsx
-        └── explore/
-            ├── _layout.tsx
-            └── index.tsx
+        └── index.tsx
 ```
 
 Les groupes entre parenthèses structurent la navigation sans modifier l’URL.
@@ -56,17 +59,20 @@ Les sous-pages éventuelles sont ajoutées dans ce même dossier. Le fichier
 
 ## Ajouter une sheet
 
-Une sheet suit exactement la même convention qu’une page. Sa présentation est
-déclarée dans le layout parent :
+Les sheets de la carte restent dans la route `map/index.tsx`, au même niveau que
+la `NativeTabs`. C’est important pour que le sheet, sa toolbar native et la
+barre d’onglets native partagent le même conteneur UIKit :
 
 ```text
-(app)/(sheets)/station-details/
+(app)/(tabs)/map/
 ├── _layout.tsx
 └── index.tsx
 ```
 
-Le groupe `(sheets)` sera créé avec la première sheet réelle afin de ne pas
-ajouter de route vide. Son layout utilisera `presentation: 'formSheet'`.
+`Stack.Toolbar` est déclaré dans cette route avec le bouton système `xmark`.
+Le contenu journey et Via remplace le contenu de `TabBehindSheet` sans pousser
+une nouvelle route : le grabber, les coins, la `NativeTabs` et la toolbar restent
+donc cohérents sur toutes les sheets et aucune sheet ne peut s’empiler.
 
 ## Authentification
 

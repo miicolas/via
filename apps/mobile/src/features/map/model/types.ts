@@ -38,6 +38,8 @@ export type StationFocus = {
 export type MapValue = {
   activeStation?: StationFocus;
   cancelJourney: () => void;
+  chatOpen: boolean;
+  closeChat: () => void;
   changeOverviewDetent: (index: number) => void;
   focusIntent?: MapFocusIntent;
   isNearbyStation: boolean;
@@ -62,6 +64,7 @@ export type MapValue = {
   screen: FlowScreen;
   selectedJourney?: Journey;
   selectedJourneyIndex: number;
+  openChat: () => void;
   openJourneyDetail: (index: number) => void;
   closeJourneyDetail: () => void;
   retryJourney: () => void;
@@ -70,7 +73,7 @@ export type MapValue = {
   startViaJourney: (destination: JourneyDestination, response: JourneysResponse) => void;
   resolveNaturalJourney: (choice: NaturalJourneyChoice) => void;
   selectResult: (result: SearchResult | RecentSearchSnapshot) => boolean;
-  selectStation: (stationId: string, focusCoordinate?: Coordinate) => void;
+  selectStation: (stationId: string, focusCoordinate?: Coordinate) => boolean;
   setSearchQuery: (query: string) => void;
   setSearchFocused: (focused: boolean) => void;
   userLocation: UserLocationState;

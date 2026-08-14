@@ -1,17 +1,7 @@
-import { Button, Host, HStack, Image, ProgressView, Text } from '@expo/ui/swift-ui';
-import {
-  accessibilityLabel,
-  buttonBorderShape,
-  buttonStyle,
-  disabled,
-  font,
-  foregroundStyle,
-  frame,
-  padding,
-  tint,
-} from '@expo/ui/swift-ui/modifiers';
+import { Host } from '@expo/ui';
 import { StyleSheet } from 'react-native';
 
+import { Button } from '@/components/button';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 type RecenterButtonProps = {
@@ -25,25 +15,21 @@ export function RecenterButton({ isLoading = false, onPress }: RecenterButtonPro
   return (
     <Host matchContents style={styles.host}>
       <Button
+        accessibilityHint="Recentre la carte sur votre position"
+        accessibilityLabel={
+          isLoading ? 'Localisation en cours' : 'Recentrer la carte sur ma position'
+        }
+        disabled={isLoading}
+        embedded
+        iconOnly
+        label={isLoading ? 'Localisation en cours' : 'Ma position'}
         onPress={onPress}
-        modifiers={[
-          accessibilityLabel('Recentrer la carte sur ma position'),
-          buttonStyle('glass'),
-          buttonBorderShape('capsule'),
-          disabled(isLoading),
-        ]}>
-        <HStack spacing={8} modifiers={[frame({ minHeight: 32 }), padding({ horizontal: 6 })]}>
-          {isLoading ? (
-            <ProgressView modifiers={[tint(colors.primary)]} />
-          ) : (
-            <Image color={colors.primary} size={15} systemName="location.fill" />
-          )}
-          <Text
-            modifiers={[font({ size: 14, weight: 'semibold' }), foregroundStyle(colors.ink)]}>
-            {isLoading ? 'Localisation…' : 'Ma position'}
-          </Text>
-        </HStack>
-      </Button>
+        shape="circle"
+        size="large"
+        systemImage="location.fill"
+        tint={colors.primary}
+        variant="glass"
+      />
     </Host>
   );
 }

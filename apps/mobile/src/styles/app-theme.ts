@@ -1,5 +1,8 @@
 import type { ColorSchemeName } from 'react-native';
 
+/** Cards and controls share one stable material; `clear` varies too much with the backdrop. */
+export const SURFACE_GLASS_EFFECT_STYLE = 'regular' as const;
+
 export const AppThemes = {
   light: {
     accentSoft: '#E5EFEB',
@@ -15,8 +18,7 @@ export const AppThemes = {
     shadow: 'rgba(22, 26, 24, 0.08)',
     sheetHandle: 'rgba(43, 49, 45, 0.48)',
     surface: '#FFFFFF',
-    surfaceGlass: '#FFFFFFCC',
-    surfaceTranslucent: '#FFFFFFE0',
+    surfaceGlass: '#FFFFFFEB',
     track: '#161A1810',
   },
   dark: {
@@ -33,8 +35,7 @@ export const AppThemes = {
     shadow: 'rgba(0, 0, 0, 0.32)',
     sheetHandle: 'rgba(235, 240, 237, 0.72)',
     surface: '#1B211D',
-    surfaceGlass: '#1B211DCC',
-    surfaceTranslucent: '#1B211DE8',
+    surfaceGlass: '#1B211DEB',
     track: '#F1F5F21A',
   },
 } as const;

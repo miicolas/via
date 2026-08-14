@@ -1,6 +1,7 @@
 import type { StationSearchResult } from '@via/contract';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '@/components/button';
 import { LineBadge } from '@/components/map/line-badge';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { formatDistance } from '@/lib/format-distance';
@@ -18,14 +19,12 @@ export function StationResultRow({ onPress, result }: StationResultRowProps) {
   const served = [...result.routes].sort(compareRoutes);
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    <Button
+      contentStyle={[styles.row, { borderBottomColor: colors.line }]}
+      fullWidth
+      label={`Station ${result.name}`}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { borderBottomColor: colors.line },
-        pressed && styles.pressed,
-      ]}>
+      variant="plain">
       <View style={styles.copy}>
         <Text numberOfLines={1} style={[styles.name, { color: colors.ink }]}>
           {result.name}
@@ -41,7 +40,7 @@ export function StationResultRow({ onPress, result }: StationResultRowProps) {
           {formatDistance(result.distanceMeters)}
         </Text>
       ) : null}
-    </Pressable>
+    </Button>
   );
 }
 
@@ -64,5 +63,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
   },
-  pressed: { opacity: 0.5 },
 });

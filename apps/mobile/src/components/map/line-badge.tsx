@@ -1,18 +1,12 @@
 import type { NetworkRoute } from '@via/contract';
-import {
-  GlassView,
-  isGlassEffectAPIAvailable,
-  isLiquidGlassAvailable,
-} from 'expo-glass-effect';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
+import { GlassSurface } from '@/components/glass-surface';
 import { transitBadgeFrame } from '@/components/map/transit-badge-shape';
 import { isNearWhite } from '@/lib/is-near-white';
 import { withAlpha } from '@/lib/with-alpha';
 
 export type LineBadgeRoute = Pick<NetworkRoute, 'mode' | 'color' | 'textColor' | 'shortName'>;
-
-const GLASS_AVAILABLE = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
 type LineBadgeProps = {
   /** `onLine` keeps the glass readable on a pill that already uses the line colour. */
@@ -49,18 +43,13 @@ export function LineBadge({ appearance = 'line', route, size }: LineBadgeProps) 
     </Text>
   );
 
-  if (!GLASS_AVAILABLE) {
-    const backgroundColor = onLine ? withAlpha(route.textColor, 0.2) : route.color;
-    return <View style={[frame, { backgroundColor }]}>{label}</View>;
-  }
-
   return (
-    <GlassView
-      glassEffectStyle="regular"
+    <GlassSurface
       style={frame}
-      tintColor={onLine ? undefined : route.color}>
+      tintColor={onLine ? null : route.color}
+      variant="tinted">
       {label}
-    </GlassView>
+    </GlassSurface>
   );
 }
 

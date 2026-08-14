@@ -8,24 +8,12 @@
     "scheme": "via",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "ai.impulselab.via",
+      "bundleIdentifier": "dev.via.app",
+      "appleTeamId": "HZAYG4Q47N",
       "icon": "./assets/via.icon",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Via utilise votre position pour afficher les stations à proximité."
       }
-    },
-    "android": {
-      "package": "ai.impulselab.via",
-      "adaptiveIcon": {
-        "backgroundColor": "#208AEF",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",

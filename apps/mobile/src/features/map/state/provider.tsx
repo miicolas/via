@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { useCallback, useDeferredValue, useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useReducer, useState } from 'react';
 import type {
   Coordinate,
   JourneyDestination,
@@ -28,6 +28,7 @@ export function MapProvider({ children }: PropsWithChildren) {
   const area = useAreaStations();
   const location = useUserLocation();
   const [flow, dispatchFlow] = useReducer(transitionMapFlow, INITIAL_MAP_FLOW);
+  const [chatOpen, setChatOpen] = useState(false);
   const deferredQuery = useDeferredValue(flow.searchQuery);
   const recentSearches = useRecentSearches();
   const naturalJourney = useNaturalJourneyFlow({
@@ -146,12 +147,14 @@ export function MapProvider({ children }: PropsWithChildren) {
   );
   const selectStation = useCallback(
     (stationId: string, focusCoordinate?: Coordinate) => {
+      const journeySelection = resolveStationJourney(stationId);
       dispatchFlow({
         type: 'station-selected',
         stationId,
         focusCoordinate,
-        ...resolveStationJourney(stationId),
+        ...journeySelection,
       });
+      return journeySelection.journeyDestination !== undefined;
     },
     [resolveStationJourney]
   );
@@ -173,7 +176,12 @@ export function MapProvider({ children }: PropsWithChildren) {
               },
               journeyDistanceMeters: distanceMeters,
             };
-        dispatchFlow({ type: 'station-selected', stationId: result.id, ...journeySelection });
+        dispatchFlow({
+          type: 'station-selected',
+          stationId: result.id,
+          query: result.name,
+          ...journeySelection,
+        });
         return journeySelection.journeyDestination !== undefined;
       }
 
@@ -186,6 +194,7 @@ export function MapProvider({ children }: PropsWithChildren) {
       };
       dispatchFlow({
         type: 'address-selected',
+        query: result.name,
         place: { name: result.name, coordinate: result.coordinate },
         journeyDestination,
         journeyDistanceMeters: distanceMeters,
@@ -198,6 +207,8 @@ export function MapProvider({ children }: PropsWithChildren) {
   const openJourneyDetail = useCallback((index: number) => {
     dispatchFlow({ type: 'journey-detail-opened', index });
   }, []);
+  const openChat = useCallback(() => setChatOpen(true), []);
+  const closeChat = useCallback(() => setChatOpen(false), []);
   const closeJourneyDetail = useCallback(() => {
     dispatchFlow({ type: 'journey-detail-closed' });
   }, []);
@@ -219,6 +230,8 @@ export function MapProvider({ children }: PropsWithChildren) {
     () => ({
       activeStation,
       cancelJourney,
+      chatOpen,
+      closeChat,
       changeOverviewDetent,
       focusIntent: flow.focusIntent,
       isNearbyStation,
@@ -228,6 +241,7 @@ export function MapProvider({ children }: PropsWithChildren) {
       journeyDistanceMeters: flow.journeyDistanceMeters,
       mapStations: stations ?? [],
       networkState: metro.state,
+      openChat,
       openJourneyDetail,
       overviewDetentIndex: flow.overviewDetentIndex,
       recentSearches,
@@ -257,6 +271,8 @@ export function MapProvider({ children }: PropsWithChildren) {
       area.reportViewport,
       cancelJourney,
       changeOverviewDetent,
+      chatOpen,
+      closeChat,
       closeJourneyDetail,
       flow.focusIntent,
       flow.screen,
@@ -273,6 +289,7 @@ export function MapProvider({ children }: PropsWithChildren) {
       location.state,
       metro.retry,
       metro.state,
+      openChat,
       openJourneyDetail,
       search,
       selectedJourney,

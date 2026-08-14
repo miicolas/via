@@ -1,42 +1,41 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Host } from '@expo/ui';
+import { Text } from '@expo/ui/swift-ui';
+import {
+  font,
+  foregroundStyle,
+  frame,
+  glassEffect,
+  monospacedDigit,
+} from '@expo/ui/swift-ui/modifiers';
 
 import type { LineBadgeRoute } from '@/components/map/line-badge';
-import { transitBadgeFrame } from '@/components/map/transit-badge-shape';
-import { withAlpha } from '@/lib/with-alpha';
 
 type GlassLineBadgeProps = {
   route: LineBadgeRoute;
   size: number;
 };
 
-/** A translucent fallback for platforms without SwiftUI Liquid Glass. */
+/** The route mark rendered as a real SwiftUI Liquid Glass shape. */
 export function GlassLineBadge({ route, size }: GlassLineBadgeProps) {
+  const isMetro = route.mode === 'metro';
+  const width = route.mode === 'bus' ? size * 1.4 : size;
+
   return (
-    <View
-      style={[
-        styles.badge,
-        transitBadgeFrame(route.mode, size),
-        { backgroundColor: withAlpha(route.textColor, 0.2) },
-      ]}
-    >
+    <Host matchContents style={{ height: size, minWidth: width }}>
       <Text
-        style={[
-          styles.label,
-          { color: route.textColor, fontSize: size * 0.5, lineHeight: size * 0.58 },
-        ]}
-      >
+        modifiers={[
+          font({ size: size * 0.5, weight: 'heavy' }),
+          monospacedDigit(),
+          foregroundStyle(route.textColor),
+          frame({ width, height: size }),
+          glassEffect({
+            glass: { variant: 'regular' },
+            shape: isMetro ? 'circle' : 'roundedRectangle',
+            cornerRadius: isMetro ? undefined : size * 0.16,
+          }),
+        ]}>
         {route.shortName}
       </Text>
-    </View>
+    </Host>
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-  },
-  label: { fontFamily: 'Archivo_800ExtraBold', letterSpacing: -0.5 },
-});

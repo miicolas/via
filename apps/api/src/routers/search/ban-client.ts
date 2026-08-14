@@ -9,7 +9,11 @@ import { fetchJsonOrNull } from '../../http/fetch-json-or-null';
  */
 const BAN_MIN_QUERY_LENGTH = 3;
 
-const BAN_TIMEOUT_MS = 2_000;
+/**
+ * Long enough to absorb the geocoder's slow tail when it throttles our shared
+ * IP; past this the response degrades to stations-only rather than hanging.
+ */
+const BAN_TIMEOUT_MS = 4_000;
 
 /** The eight departments that make up Île-de-France. */
 const ILE_DE_FRANCE_DEPARTMENT_CODES = ['75', '77', '78', '91', '92', '93', '94', '95'];
@@ -19,6 +23,7 @@ export type BanFeature = {
   geometry?: { type?: string; coordinates?: unknown };
   properties?: {
     id?: unknown;
+    type?: unknown;
     name?: unknown;
     postcode?: unknown;
     city?: unknown;

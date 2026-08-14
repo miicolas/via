@@ -1,6 +1,7 @@
-import { GlassView } from 'expo-glass-effect';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
+import { Button } from '@/components/button';
+import { GlassSurface } from '@/components/glass-surface';
 import { LineBadge } from '@/components/map/line-badge';
 import type { NetworkRoute } from '@via/contract';
 
@@ -15,7 +16,7 @@ type RouteSelectorProps = {
 /** Horizontal strip of line badges used to pick the displayed line. */
 export function RouteSelector({ routes, selectedRouteId, onSelect }: RouteSelectorProps) {
   return (
-    <GlassView glassEffectStyle="clear" style={styles.glass}>
+    <GlassSurface variant="tinted" style={styles.glass}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -24,25 +25,19 @@ export function RouteSelector({ routes, selectedRouteId, onSelect }: RouteSelect
         {routes.map((route) => {
           const selected = route.id === selectedRouteId;
           return (
-            <Pressable
+            <Button
               key={route.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Sélectionner la ligne ${route.shortName}`}
               accessibilityState={{ selected }}
-              hitSlop={4}
+              contentStyle={[styles.item, selected && styles.itemSelected]}
+              label={`Sélectionner la ligne ${route.shortName}`}
               onPress={() => onSelect(route.id)}
-              style={({ pressed }) => [
-                styles.item,
-                selected && styles.itemSelected,
-                pressed && styles.pressed,
-              ]}
-            >
+              variant="plain">
               <LineBadge route={route} size={BADGE_SIZE} />
-            </Pressable>
+            </Button>
           );
         })}
       </ScrollView>
-    </GlassView>
+    </GlassSurface>
   );
 }
 
@@ -71,5 +66,4 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.72)',
     boxShadow: '0 1px 5px rgba(0,0,0,0.14)',
   },
-  pressed: { opacity: 0.6 },
 });

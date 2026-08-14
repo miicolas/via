@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
   heading: {
     minWidth: 0,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16,
     paddingBottom: 4,

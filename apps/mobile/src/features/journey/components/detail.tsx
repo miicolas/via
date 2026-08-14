@@ -1,13 +1,14 @@
 import type { Journey, JourneyDestination } from '@via/contract';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { FadingScrollView } from '@/components/fading-scroll-view';
 import { JourneyDepartureCountdown } from '@/features/journey/components/departure-countdown';
 import { JourneyDetailFooter } from '@/features/journey/components/detail-footer';
 import { JourneyDurationHero } from '@/features/journey/components/duration-hero';
 import { JourneyLegStrip } from '@/features/journey/components/leg-strip';
 import { JourneyTimeline } from '@/features/journey/components/timeline';
+import { openJourneyInAppleMaps } from '@/features/journey/lib/open-journey-in-apple-maps';
 import { journeyMinutes } from '@/features/journey/model/minutes';
-import { useAppTheme } from '@/hooks/use-app-theme';
 import { useNow } from '@/hooks/use-now';
 import { SHEET_GUTTER } from '@/styles/metrics';
 
@@ -18,7 +19,6 @@ type JourneyDetailProps = {
 };
 
 export function JourneyDetail({ destination, journeys, selectedIndex }: JourneyDetailProps) {
-  const { colors } = useAppTheme();
   const now = useNow();
   const journey = journeys[selectedIndex] ?? journeys[0];
   if (!journey) return null;
@@ -29,31 +29,29 @@ export function JourneyDetail({ destination, journeys, selectedIndex }: JourneyD
   );
   return (
     <View style={styles.container}>
-      <ScrollView
+      <FadingScrollView
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
       >
-          <View style={styles.hero}>
-            <JourneyDurationHero minutes={duration} />
-            <JourneyDepartureCountdown
-              minutes={leaveIn}
-              realtime={journey.status !== 'theoretical'}
-            />
-          </View>
-          <View style={styles.strip}>
-            <JourneyLegStrip journey={journey} />
-          </View>
-          {journey.status === 'theoretical' ? (
-            <Text style={[styles.notice, { color: colors.muted }]}>
-              Horaires théoriques · le détail du tracé est indicatif
-            </Text>
-          ) : null}
+        <View style={styles.hero}>
+          <JourneyDurationHero minutes={duration} />
+          <JourneyDepartureCountdown
+            minutes={leaveIn}
+            realtime={journey.status !== 'theoretical'}
+          />
+        </View>
+        <View style={styles.strip}>
+          <JourneyLegStrip journey={journey} />
+        </View>
 
         <JourneyTimeline journey={journey} />
-      </ScrollView>
-      <JourneyDetailFooter destinationName={destination.name} />
+      </FadingScrollView>
+      <JourneyDetailFooter
+        destinationName={destination.name}
+        onGo={() => void openJourneyInAppleMaps(destination.coordinate)}
+      />
     </View>
   );
 }
@@ -64,5 +62,4 @@ const styles = StyleSheet.create({
   content: { gap: 12, paddingHorizontal: SHEET_GUTTER, paddingBottom: 16 },
   hero: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   strip: { flexDirection: 'row' },
-  notice: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 16 },
 });

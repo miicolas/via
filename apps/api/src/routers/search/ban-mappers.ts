@@ -37,3 +37,14 @@ export function toAddressResults(features: BanFeature[]): AddressSearchResult[] 
     ];
   });
 }
+
+/**
+ * The planner has no separate municipality destination kind, so a commune
+ * centre keeps the address-shaped contract while remaining identifiable to the
+ * server-side place resolver.
+ */
+export function toMunicipalityResults(features: BanFeature[]): AddressSearchResult[] {
+  return toAddressResults(
+    features.filter(({ properties }) => properties?.type === 'municipality')
+  );
+}

@@ -1,15 +1,13 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { SymbolIcon } from '@/components/symbol-icon';
+import { Button } from '@/components/button';
 import { JourneyGoButton } from '@/features/journey/components/go-button';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { SHEET_GUTTER } from '@/styles/metrics';
 
 type JourneyDetailFooterProps = {
   destinationName: string;
-  /** Absent while navigation isn't built: the button renders but does nothing yet. */
-  onGo?: () => void;
-  /** Absent while departure alerts aren't built: the bell renders but does nothing yet. */
+  onGo: () => void;
   onRemind?: () => void;
 };
 
@@ -22,30 +20,24 @@ export function JourneyDetailFooter({ destinationName, onGo, onRemind }: Journey
       <JourneyGoButton
         accessibilityLabel={`Lancer l’itinéraire vers ${destinationName}`}
         grow
-        onPress={onGo ?? noop}
+        label="J’y vais !"
+        onPress={onGo}
       />
-      <Pressable
-        accessibilityLabel="M’alerter avant le départ"
-        accessibilityRole="button"
-        hitSlop={4}
-        onPress={onRemind ?? noop}
-        style={({ pressed }) => [
-          styles.bell,
-          { backgroundColor: colors.accentSoft },
-          pressed && styles.pressed,
-        ]}>
-        <SymbolIcon
-          animation={{ effect: { type: 'bounce', direction: 'up' } }}
-          color={colors.primary}
-          name="bell"
-          size={17}
+      {onRemind ? (
+        <Button
+          iconOnly
+          label="M’alerter avant le départ"
+          onPress={onRemind}
+          shape="circle"
+          size="large"
+          systemImage="bell"
+          tint={colors.primary}
+          variant="glass"
         />
-      </Pressable>
+      ) : null}
     </View>
   );
 }
-
-function noop() {}
 
 const styles = StyleSheet.create({
   footer: {
@@ -57,14 +49,4 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  bell: {
-    width: 40,
-    height: 40,
-    flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 999,
-    borderCurve: 'continuous',
-  },
-  pressed: { opacity: 0.65 },
 });

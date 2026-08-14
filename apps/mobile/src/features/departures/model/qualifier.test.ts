@@ -2,11 +2,11 @@ import { expect, test } from 'bun:test';
 
 import { departureQualifier } from './qualifier';
 
-test('a theoretical time never passes for live, following departures or not', () => {
-  expect(departureQualifier('theoretical', { primaryMinutes: 3 })).toBe('horaires théoriques');
+test('scheduled times have no source qualifier', () => {
+  expect(departureQualifier('theoretical', { primaryMinutes: 3 })).toBe('');
   expect(
     departureQualifier('theoretical', { primaryMinutes: 3, followingLabel: 'puis 4 et 9 min' })
-  ).toBe('horaires théoriques');
+  ).toBe('puis 4 et 9 min');
 });
 
 test('live times spend the line on the departures that follow', () => {

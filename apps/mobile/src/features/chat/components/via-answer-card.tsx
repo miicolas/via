@@ -1,8 +1,8 @@
 import type { JourneyDestination } from '@via/contract';
-import { router } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { GlassCard } from '@/components/glass-card';
+import { GlassSurface } from '@/components/glass-surface';
 import { SectionEyebrow } from '@/components/section-eyebrow';
 import { SymbolIcon } from '@/components/symbol-icon';
 import { ViaAnswerActions } from '@/features/chat/components/via-answer-actions';
@@ -23,7 +23,9 @@ import { SHEET_GUTTER } from '@/styles/metrics';
 export function ViaAnswerCard() {
   const { colors } = useAppTheme();
   const { error, itinerary: streamedItinerary, messages, status } = useViaChatContext();
-  const { startViaJourney, stationRoutes } = useMap();
+  const { openChat, startViaJourney, stationRoutes } = useMap();
+  const pathname = usePathname();
+  const router = useRouter();
 
   if (messages.length === 0) return null;
 
@@ -57,10 +59,15 @@ export function ViaAnswerCard() {
             coordinate,
           };
     startViaJourney(journeyDestination, itinerary.response);
+    if (!pathname.endsWith('/map/journey')) router.navigate('/map/journey');
+  };
+  const openVia = () => {
+    openChat();
+    if (!pathname.endsWith('/map/journey')) router.navigate('/map/journey');
   };
 
   return (
-    <GlassCard style={styles.card}>
+    <GlassSurface variant="card" style={styles.card}>
       <View style={styles.eyebrow}>
         <SymbolIcon color={colors.primary} name="sparkles" size={13} />
         <SectionEyebrow label="VIA" />
@@ -90,10 +97,10 @@ export function ViaAnswerCard() {
       {!busy && text.length > 0 ? (
         <ViaAnswerActions
           onGo={destination && journey ? showItinerary : undefined}
-          onReply={() => router.push('/chat')}
+          onReply={openVia}
         />
       ) : null}
-    </GlassCard>
+    </GlassSurface>
   );
 }
 

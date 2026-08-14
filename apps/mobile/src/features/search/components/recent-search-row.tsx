@@ -1,9 +1,10 @@
 import type { RecentSearchSnapshot } from '@/features/search/model/recent-searches';
 import { SymbolIcon } from '@/components/symbol-icon';
+import { Button } from '@/components/button';
 import { LineBadge } from '@/components/map/line-badge';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { compareRoutes } from '@/lib/route-order';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 type RecentSearchRowProps = {
   onPress: () => void;
@@ -14,16 +15,14 @@ export function RecentSearchRow({ onPress, result }: RecentSearchRowProps) {
   const { colors } = useAppTheme();
 
   return (
-    <Pressable
+    <Button
       accessibilityHint="Ouvre cette destination"
-      accessibilityLabel={`${result.name}, recherche récente`}
-      accessibilityRole="button"
+      contentStyle={[styles.row, { borderBottomColor: colors.line }]}
+      fullWidth
+      label={`${result.name}, recherche récente`}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { borderBottomColor: colors.line },
-        pressed && styles.pressed,
-      ]}>
+      style={styles.host}
+      variant="plain">
       <SymbolIcon color={colors.muted} name="clock" size={24} weight="regular" />
       <View style={styles.copy}>
         <Text numberOfLines={1} selectable style={[styles.name, { color: colors.ink }]}>
@@ -41,11 +40,14 @@ export function RecentSearchRow({ onPress, result }: RecentSearchRowProps) {
           </Text>
         )}
       </View>
-    </Pressable>
+    </Button>
   );
 }
 
 const styles = StyleSheet.create({
+  // Keep the SwiftUI/Yoga bridge from collapsing the custom button to its
+  // default 44-point control height while the row content is measuring.
+  host: { minHeight: 76 },
   row: {
     minHeight: 76,
     flexDirection: 'row',
@@ -66,5 +68,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
-  pressed: { opacity: 0.5 },
 });

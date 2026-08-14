@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { GlassCard } from '@/components/glass-card';
+import { GlassSurface } from '@/components/glass-surface';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 type JourneyTimelineRowProps = {
@@ -41,9 +41,9 @@ export function JourneyTimelineRow({
         </View>
         {!last ? <View style={[styles.spine, { backgroundColor: colors.line }]} /> : null}
       </View>
-      <GlassCard style={[styles.body, last && styles.lastBody]}>
+      <GlassSurface variant="card" style={[styles.body, last && styles.lastBody]}>
         {children}
-      </GlassCard>
+      </GlassSurface>
     </View>
   );
 }

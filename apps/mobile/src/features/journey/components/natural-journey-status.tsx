@@ -1,6 +1,8 @@
 import type { NaturalJourneyResponse } from '@via/contract';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '@/components/button';
+import { FadingScrollView } from '@/components/fading-scroll-view';
 import { SectionEyebrow } from '@/components/section-eyebrow';
 import { JourneyResultsSkeleton } from '@/features/journey/components/results-skeleton';
 import type { NaturalJourneyChoice } from '@/features/journey/model/clarification-choice';
@@ -20,15 +22,15 @@ export function NaturalJourneyStatus({ clarification, onResolve }: Props) {
 
   if (!clarification) {
     return (
-      <ScrollView contentContainerStyle={styles.loading} showsVerticalScrollIndicator={false}>
+      <FadingScrollView contentContainerStyle={styles.loading} showsVerticalScrollIndicator={false}>
         <SectionEyebrow label="VIA PRÉPARE TON TRAJET" />
         <JourneyResultsSkeleton />
-      </ScrollView>
+      </FadingScrollView>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <FadingScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <SectionEyebrow label="UNE PRÉCISION" />
       {clarification.fields.map((field) => (
         <View key={field.target} style={styles.field}>
@@ -45,19 +47,15 @@ export function NaturalJourneyStatus({ clarification, onResolve }: Props) {
           {field.target === 'time' ? (
             <View style={styles.actions}>
               {(['arrival', 'departure'] as const).map((value) => (
-                <Pressable
-                  accessibilityRole="button"
+                <Button
+                  fullWidth
                   key={value}
+                  label={value === 'arrival' ? 'Arriver à cette heure' : 'Partir à cette heure'}
                   onPress={() => onResolve({ target: 'time', value })}
-                  style={({ pressed }) => [
-                    styles.action,
-                    { backgroundColor: colors.primary },
-                    pressed && styles.pressed,
-                  ]}>
-                  <Text style={[styles.actionText, { color: colors.surface }]}>
-                    {value === 'arrival' ? 'Arriver à cette heure' : 'Partir à cette heure'}
-                  </Text>
-                </Pressable>
+                  size="large"
+                  tint={colors.primary}
+                  variant="prominent"
+                />
               ))}
             </View>
           ) : null}
@@ -66,7 +64,7 @@ export function NaturalJourneyStatus({ clarification, onResolve }: Props) {
           ) : null}
         </View>
       ))}
-    </ScrollView>
+    </FadingScrollView>
   );
 }
 
@@ -76,8 +74,5 @@ const styles = StyleSheet.create({
   field: { gap: 8 },
   question: { fontFamily: 'Archivo_700Bold', fontSize: 22, lineHeight: 27 },
   actions: { gap: 10, paddingTop: 4 },
-  action: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24 },
-  actionText: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
   hint: { fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 20 },
-  pressed: { opacity: 0.7 },
 });

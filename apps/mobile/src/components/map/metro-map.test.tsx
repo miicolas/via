@@ -121,6 +121,9 @@ beforeAll(() => {
   mock.module('@/features/map/components/overview-sheet', () => ({
     OverviewSheet: 'OverviewSheet',
   }));
+  mock.module('@/features/map/components/map-sheet-content', () => ({
+    MapSheetContent: 'MapSheetContent',
+  }));
   mock.module('@/features/map/components/tab-behind-sheet', () => ({
     TabBehindSheet: 'TabBehindSheet',
   }));
@@ -204,6 +207,66 @@ describe('MetroMap station visibility', () => {
 
     expect(opacity.value).toBeGreaterThan(0);
     expect(opacity.value).toBeLessThan(1);
+  });
+
+  test('reports a user move when iOS omits gesture details', async () => {
+    const { MetroMap } = await import('@/components/map/metro-map');
+    const onUserMove = mock(() => undefined);
+    const props = {
+      edgePadding: { top: 0, right: 0, bottom: 0, left: 0 },
+      line: undefined,
+      lines: [],
+      onSelectStation: () => undefined,
+      onUserMove,
+      stationRoutes: [],
+      stations: [],
+      viewportHeight: 1_000,
+    };
+
+    const tree = MetroMap(props) as unknown as ElementNode;
+    const onRegionChange = tree.props.onRegionChange as (region: typeof layoutRegion) => void;
+
+    onRegionChange({ ...layoutRegion, latitude: layoutRegion.latitude + 0.001 });
+
+    expect(onUserMove).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not report a programmatic camera movement as a user move', async () => {
+    const { MetroMap } = await import('@/components/map/metro-map');
+    const animateToRegion = mock(() => undefined);
+    const onUserMove = mock(() => undefined);
+    const ref = { current: null };
+    const coordinate = { latitude: 48.853, longitude: 2.333 };
+    pendingRefValues.push({ animateToRegion });
+
+    const tree = MetroMap({
+      edgePadding: { top: 0, right: 0, bottom: 0, left: 0 },
+      line: undefined,
+      lines: [],
+      onSelectStation: () => undefined,
+      onUserMove,
+      ref,
+      stationRoutes: [],
+      stations: [],
+      viewportHeight: 1_000,
+    } as never) as unknown as ElementNode;
+    const handle = ref.current as unknown as {
+      focusCoordinate: (selected: typeof coordinate) => void;
+    };
+    handle.focusCoordinate(coordinate);
+
+    const onRegionChange = tree.props.onRegionChange as (region: typeof layoutRegion) => void;
+    const onRegionChangeComplete = tree.props.onRegionChangeComplete as (
+      region: typeof layoutRegion
+    ) => void;
+    const movedRegion = { ...layoutRegion, latitude: layoutRegion.latitude + 0.001 };
+
+    onRegionChange(movedRegion);
+    expect(onUserMove).not.toHaveBeenCalled();
+
+    onRegionChangeComplete(movedRegion);
+    onRegionChange({ ...movedRegion, latitude: movedRegion.latitude + 0.001 });
+    expect(onUserMove).toHaveBeenCalledTimes(1);
   });
 
   test('shows stations after a programmatic camera movement completes', async () => {

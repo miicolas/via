@@ -122,8 +122,15 @@ describe('map flow', () => {
     });
   });
 
-  test('an address selection starts planning and replaces the station selection', () => {
-    const selectedStation = transitionMapFlow(INITIAL_MAP_FLOW, {
+  test('an address selection starts planning, replaces the station selection, and fixes the query', () => {
+    const searched = transitionMapFlow(
+      transitionMapFlow(INITIAL_MAP_FLOW, {
+        type: 'search-focus-changed',
+        focused: true,
+      }),
+      { type: 'query-changed', query: '7 allée des chevux' }
+    );
+    const selectedStation = transitionMapFlow(searched, {
       type: 'station-selected',
       stationId: 'republique',
     });
@@ -138,6 +145,7 @@ describe('map flow', () => {
 
     const next = transitionMapFlow(selectedStation, {
       type: 'address-selected',
+      query: destination.name,
       place: { name: destination.name, coordinate },
       journeyDestination: destination,
       journeyDistanceMeters: 3_100,
@@ -145,6 +153,7 @@ describe('map flow', () => {
 
     expect(next).toMatchObject({
       screen: 'planning',
+      searchQuery: 'Place de l’Opéra',
       selectedPlace: { name: 'Place de l’Opéra', coordinate },
       journeyDestination: destination,
       journeyDistanceMeters: 3_100,

@@ -2,7 +2,7 @@ import type { SearchResponse } from '@via/contract';
 import { act, renderHook } from '@testing-library/react-native';
 
 import type { UserLocationState } from '@/features/map/model/types';
-import { type SearchPort, useSearch } from '@/features/search/hooks/use-search';
+import { SEARCH_DEBOUNCE_MS, type SearchPort, useSearch } from '@/features/search/hooks/use-search';
 
 jest.mock('@/lib/api', () => ({ api: { search: { query: jest.fn() } } }));
 
@@ -73,7 +73,7 @@ describe('useSearch', () => {
     expect(recorder.calls).toHaveLength(0);
   });
 
-  test('trims, debounces for 300 ms and rounds the position to four decimals', async () => {
+  test('trims, debounces for SEARCH_DEBOUNCE_MS and rounds the position to four decimals', async () => {
     const recorder = searchRecorder();
     const location: UserLocationState = {
       status: 'ready',
@@ -83,7 +83,7 @@ describe('useSearch', () => {
     const { result } = await renderHook(() => useSearch('  répu  ', location, recorder.port));
 
     expect(result.current.status).toBe('loading');
-    await act(() => jest.advanceTimersByTime(299));
+    await act(() => jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 1));
     expect(recorder.calls).toHaveLength(0);
 
     await act(() => jest.advanceTimersByTime(1));
@@ -108,7 +108,7 @@ describe('useSearch', () => {
       { initialProps: { query: 'répu' } }
     );
 
-    await act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS));
     await act(() => recorder.calls[0]!.request.resolve(RESPONSE));
     expect(result.current.status).toBe('ready');
 
@@ -120,12 +120,12 @@ describe('useSearch', () => {
       banUnavailable: false,
     });
 
-    await act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS));
     await act(() => recorder.calls[1]!.request.reject(new Error('new query failed')));
     expect(result.current).toEqual({ status: 'error', results: [], banUnavailable: false });
 
     await rerender({ query: 'ailleurs' });
-    await act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS));
     await rerender({ query: 'encore ailleurs' });
     await act(() => recorder.calls[2]!.request.reject(new Error('cancelled query failed')));
     expect(result.current.status).toBe('loading');
@@ -144,16 +144,16 @@ describe('useSearch', () => {
       { initialProps: { userLocation: location(48.85001) } }
     );
 
-    await act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS));
     await act(() => recorder.calls[0]!.request.resolve(RESPONSE));
 
     await rerender({ userLocation: location(48.85002) });
-    await act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS));
     expect(recorder.calls).toHaveLength(1);
 
     await rerender({ userLocation: location(48.85011) });
     expect(result.current.status).toBe('ready');
-    await act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS));
     expect(recorder.calls).toHaveLength(2);
     expect(recorder.calls[1]!.input.latitude).toBe(48.8501);
   });
@@ -162,7 +162,7 @@ describe('useSearch', () => {
     const recorder = searchRecorder();
     const { result } = await renderHook(() => useSearch('répu', NO_LOCATION, recorder.port));
 
-    await act(() => jest.advanceTimersByTime(300));
+    await act(() => jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS));
     await act(() =>
       recorder.calls[0]!.request.resolve({
         ...RESPONSE,

@@ -1,6 +1,8 @@
 import type { AnimationSpec, AnimationType, SFSymbol } from 'expo-symbols';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '@/components/button';
+import { FadingScrollView } from '@/components/fading-scroll-view';
 import { SymbolIcon } from '@/components/symbol-icon';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
@@ -28,7 +30,7 @@ export function UnavailableState({
   const { colors } = useAppTheme();
 
   return (
-    <ScrollView
+    <FadingScrollView
       bounces={false}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
@@ -61,22 +63,16 @@ export function UnavailableState({
         </View>
 
         {actionLabel && onAction ? (
-          <Pressable
-            accessibilityRole="button"
+          <Button
+            label={actionLabel}
             onPress={onAction}
-            style={({ pressed }) => [
-              styles.action,
-              {
-                backgroundColor: colors.primary,
-                boxShadow: `0 2px 6px ${colors.shadow}`,
-              },
-              pressed && styles.pressed,
-            ]}>
-            <Text style={[styles.actionLabel, { color: colors.surface }]}>{actionLabel}</Text>
-          </Pressable>
+            size="large"
+            tint={colors.primary}
+            variant="prominent"
+          />
         ) : null}
       </View>
-    </ScrollView>
+    </FadingScrollView>
   );
 }
 
@@ -121,22 +117,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     textAlign: 'center',
-  },
-  action: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    borderRadius: 22,
-    borderCurve: 'continuous',
-  },
-  actionLabel: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 15,
-    lineHeight: 19,
-  },
-  pressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.97 }],
   },
 });

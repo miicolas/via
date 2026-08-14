@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { GlassCard } from '@/components/glass-card';
+import { GlassSurface } from '@/components/glass-surface';
 import { SymbolIcon } from '@/components/symbol-icon';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
@@ -9,14 +9,14 @@ type Props = { answer: string; notice?: string };
 export function ViaAnswerCard({ answer, notice }: Props) {
   const { colors } = useAppTheme();
   return (
-    <GlassCard>
+    <GlassSurface variant="card">
       <View style={styles.label}>
         <SymbolIcon color={colors.primary} name="sparkles" size={14} />
         <Text style={[styles.eyebrow, { color: colors.primary }]}>VIA</Text>
       </View>
       <Text selectable style={[styles.answer, { color: colors.ink }]}>{answer}</Text>
       {notice ? <Text style={[styles.notice, { color: colors.muted }]}>{notice}</Text> : null}
-    </GlassCard>
+    </GlassSurface>
   );
 }
 

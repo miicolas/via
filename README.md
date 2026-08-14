@@ -25,7 +25,7 @@ bun run dev                   # api + mobile via turbo
 ```
 
 Run one side only: `bun run dev:api` / `bun run dev:mobile`.
-Native builds: `bun run ios` / `bun run android`.
+Native build: `bun run ios`.
 
 The symlink matters because `EXPO_PUBLIC_API_URL` is inlined at bundle time: without
 it, a bare `expo start` (instead of the `bun run` scripts, which pass `--env-file`)
@@ -76,7 +76,7 @@ const { routes, stations } = await api.network.map();   // fully typed
 ```
 
 Point `EXPO_PUBLIC_API_URL` at your machine's LAN IP when running on a physical
-device — `localhost` only resolves on the simulator and web.
+device — `localhost` only resolves on the iOS simulator.
 
 `bun run typecheck` at the root is what proves both sides still agree: adding a
 procedure to the contract without implementing it, or returning the wrong shape

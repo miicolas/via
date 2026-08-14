@@ -52,6 +52,7 @@ test('builds a direct journey with walking access and egress', async () => {
   expect(response.status).toBe('ready');
   expect(response.journeys).toHaveLength(1);
   expect(response.journeys[0]?.status).toBe('theoretical');
+  expect(response.journeys[0]?.warnings).toEqual([]);
   expect(response.journeys[0]?.sections.map((section) => section.type)).toEqual([
     'walk',
     'wait',

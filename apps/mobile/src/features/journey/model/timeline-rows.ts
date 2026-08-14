@@ -1,6 +1,7 @@
 import type { Journey, JourneySection } from '@via/contract';
 
 import { journeyMinutes } from '@/features/journey/model/minutes';
+import { visibleJourneyWarning } from '@/features/journey/model/visible-warning';
 
 export type TimelineRow =
   | { kind: 'walk'; minutes: number; targetName?: string }
@@ -25,6 +26,7 @@ export type TimelineRow =
  */
 export function journeyTimelineRows(journey: Journey): TimelineRow[] {
   const { sections } = journey;
+  const warning = visibleJourneyWarning(journey);
   const rows: TimelineRow[] = [];
   let firstTransit = true;
   let index = 0;
@@ -48,7 +50,7 @@ export function journeyTimelineRows(journey: Journey): TimelineRow[] {
         minutes: journeyMinutes(section.durationSeconds),
         section,
         stopCount: section.stops.length >= 2 ? section.stops.length - 1 : undefined,
-        warning: firstTransit ? journey.warnings[0] : undefined,
+        warning: firstTransit ? warning : undefined,
       });
       firstTransit = false;
       index += 1;

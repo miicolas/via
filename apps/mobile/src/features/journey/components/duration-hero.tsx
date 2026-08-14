@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   hero: {
     flexShrink: 0,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: 4,
   },
   value: {

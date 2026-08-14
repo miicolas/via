@@ -1,6 +1,6 @@
-import { GlassView } from 'expo-glass-effect';
 import { StyleSheet, View } from 'react-native';
 
+import { GlassSurface } from '@/components/glass-surface';
 import { LineBadge } from '@/components/map/line-badge';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -16,8 +16,8 @@ type RouteSummaryProps = {
 /** Glass card recapping the selected line: badge, name and station counts. */
 export function RouteSummary({ line }: RouteSummaryProps) {
   return (
-    <GlassView
-      glassEffectStyle="clear"
+    <GlassSurface
+      variant="tinted"
       style={styles.summary}
       accessible
       accessibilityLabel={`Ligne ${line.route.shortName} du métro`}
@@ -29,7 +29,7 @@ export function RouteSummary({ line }: RouteSummaryProps) {
           {line.stations.length} stations · {line.interchangeCount} correspondances
         </ThemedText>
       </View>
-    </GlassView>
+    </GlassSurface>
   );
 }
 

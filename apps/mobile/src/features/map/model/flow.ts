@@ -54,12 +54,14 @@ export type MapFlowEvent =
   | {
       type: 'station-selected';
       stationId: string;
+      query?: string;
       journeyDestination?: JourneyDestination;
       journeyDistanceMeters?: number;
       focusCoordinate?: Coordinate;
     }
   | {
       type: 'address-selected';
+      query?: string;
       place: SelectedPlace;
       journeyDestination: JourneyDestination;
       journeyDistanceMeters?: number;
@@ -128,6 +130,7 @@ export function transitionMapFlow(
         ...state,
         screen: plansJourney ? 'planning' : 'overview',
         searchFocused: false,
+        searchQuery: event.query ?? state.searchQuery,
         selectedJourneyIndex: 0,
         selectedStationId: event.stationId,
         selectedPlace: undefined,
@@ -151,6 +154,7 @@ export function transitionMapFlow(
         ...state,
         screen: 'planning',
         searchFocused: false,
+        searchQuery: event.query ?? state.searchQuery,
         selectedJourneyIndex: 0,
         selectedStationId: undefined,
         selectedPlace: event.place,

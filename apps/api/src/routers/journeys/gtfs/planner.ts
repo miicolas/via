@@ -466,7 +466,7 @@ function toReverseJourney(
     departureAt: toInstant(serviceDate, departureSeconds),
     arrivalAt: toInstant(serviceDate, arrivalSeconds),
     status: 'theoretical',
-    warnings: ['Horaires théoriques issus du GTFS'],
+    warnings: [],
     sections,
   };
 }
@@ -501,7 +501,7 @@ function toJourney(
     departureAt: toInstant(serviceDate, departureSeconds),
     arrivalAt: toInstant(serviceDate, arrivalSeconds),
     status: 'theoretical',
-    warnings: ['Horaires théoriques issus du GTFS'],
+    warnings: [],
     sections,
   };
 }

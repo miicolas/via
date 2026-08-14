@@ -1,7 +1,7 @@
-import type { Coordinate, SearchResult } from '@via/contract';
+import type { AddressSearchResult, Coordinate, SearchResult } from '@via/contract';
 
 import { searchBan } from './ban-client';
-import { toAddressResults } from './ban-mappers';
+import { toAddressResults, toMunicipalityResults } from './ban-mappers';
 import { toStationResults } from './mappers';
 import { mergeSearchResults } from './merge';
 import { selectMatchingStations } from './queries';
@@ -12,6 +12,8 @@ const ADDRESS_LIMIT = 5;
 
 export type PlaceSearch = {
   results: SearchResult[];
+  /** Commune centres kept separately so the resolver does not confuse them with nearby streets. */
+  municipalities: AddressSearchResult[];
   /** False when the BAN geocoder was unreachable, so addresses are missing. */
   banAvailable: boolean;
 };
@@ -29,12 +31,14 @@ export async function searchPlaces(
     selectMatchingStations(q, STATION_LIMIT, origin),
     searchBan(q, { limit: ADDRESS_LIMIT, origin, signal }),
   ]);
+  const addresses = toAddressResults(banFeatures ?? []);
   return {
-    results: mergeSearchResults(toStationResults(stationRows), toAddressResults(banFeatures ?? []), {
+    results: mergeSearchResults(toStationResults(stationRows), addresses, {
       q,
       limit,
       origin,
     }),
+    municipalities: toMunicipalityResults(banFeatures ?? []),
     banAvailable: banFeatures !== null,
   };
 }

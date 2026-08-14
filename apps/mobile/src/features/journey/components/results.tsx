@@ -1,7 +1,8 @@
 import type { JourneyDestination, JourneysResponse } from '@via/contract';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe, useReducedMotion } from 'react-native-reanimated';
 
+import { FadingScrollView } from '@/components/fading-scroll-view';
 import { SectionEyebrow } from '@/components/section-eyebrow';
 import { UnavailableState } from '@/components/unavailable-state';
 import { AskViaRow } from '@/features/journey/components/ask-via-row';
@@ -42,10 +43,10 @@ export function JourneyResults({
 
   if (loading) {
     return (
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <FadingScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {heading}
         <JourneyResultsSkeleton />
-      </ScrollView>
+      </FadingScrollView>
     );
   }
 
@@ -79,7 +80,7 @@ export function JourneyResults({
   const [recommended, ...alternatives] = response.journeys;
 
   return (
-    <ScrollView
+    <FadingScrollView
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
       showsVerticalScrollIndicator={false}>
@@ -116,7 +117,7 @@ export function JourneyResults({
           <AskViaRow />
         </Animated.View>
       </View>
-    </ScrollView>
+    </FadingScrollView>
   );
 }
 

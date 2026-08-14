@@ -1,6 +1,6 @@
-import { StyleSheet, Pressable, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { SymbolIcon } from '@/components/symbol-icon';
+import { Button } from '@/components/button';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 type ViaAnswerActionsProps = {
@@ -15,48 +15,29 @@ export function ViaAnswerActions({ onGo, onReply }: ViaAnswerActionsProps) {
   return (
     <View style={styles.row}>
       {onGo ? (
-        <Pressable
-          accessibilityRole="button"
+        <Button
+          grow
+          label="Voir l’itinéraire"
           onPress={onGo}
-          style={({ pressed }) => [
-            styles.pill,
-            { backgroundColor: colors.primary },
-            pressed && styles.pressed,
-          ]}>
-          <SymbolIcon color={colors.surface} name="location.fill" size={13} />
-          <Text style={[styles.label, { color: colors.surface }]}>Voir l’itinéraire</Text>
-        </Pressable>
+          size="regular"
+          systemImage="location.fill"
+          tint={colors.primary}
+          variant="prominent"
+        />
       ) : null}
-      <Pressable
-        accessibilityRole="button"
+      <Button
+        grow
+        label="Répondre"
         onPress={onReply}
-        style={({ pressed }) => [
-          styles.pill,
-          styles.outline,
-          { borderColor: colors.line },
-          pressed && styles.pressed,
-        ]}>
-        <SymbolIcon color={colors.ink} name="bubble.left" size={13} />
-        <Text style={[styles.label, { color: colors.ink }]}>Répondre</Text>
-      </Pressable>
+        size="regular"
+        systemImage="bubble.left"
+        tint={colors.ink}
+        variant="bordered"
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 4 },
-  pill: {
-    minHeight: 46,
-    flexGrow: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    borderRadius: 23,
-    borderCurve: 'continuous',
-  },
-  outline: { borderWidth: 1 },
-  label: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
-  pressed: { opacity: 0.7 },
 });

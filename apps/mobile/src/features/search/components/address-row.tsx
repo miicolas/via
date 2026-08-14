@@ -1,6 +1,7 @@
 import type { AddressSearchResult } from '@via/contract';
+import { Button } from '@/components/button';
 import { SymbolIcon } from '@/components/symbol-icon';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { formatDistance } from '@/lib/format-distance';
 import { useAppTheme } from '@/hooks/use-app-theme';
@@ -14,14 +15,12 @@ export function AddressResultRow({ onPress, result }: AddressResultRowProps) {
   const { colors } = useAppTheme();
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    <Button
+      contentStyle={[styles.row, { borderBottomColor: colors.line }]}
+      fullWidth
+      label={`Adresse ${result.name}`}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { borderBottomColor: colors.line },
-        pressed && styles.pressed,
-      ]}>
+      variant="plain">
       <SymbolIcon color={colors.muted} name="mappin.circle.fill" size={30} />
       <View style={styles.copy}>
         <Text numberOfLines={1} style={[styles.name, { color: colors.ink }]}>
@@ -36,7 +35,7 @@ export function AddressResultRow({ onPress, result }: AddressResultRowProps) {
           {formatDistance(result.distanceMeters)}
         </Text>
       ) : null}
-    </Pressable>
+    </Button>
   );
 }
 
@@ -62,5 +61,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 14,
   },
-  pressed: { opacity: 0.5 },
 });

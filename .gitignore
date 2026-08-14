@@ -46,3 +46,6 @@ example
 # generated native folders
 apps/*/ios
 apps/*/android
+
+# App Store Connect build artifacts
+.asc/artifacts/

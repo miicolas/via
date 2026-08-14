@@ -13,7 +13,7 @@
     "dev:api": "turbo run dev --filter=@via/api",
     "dev:mobile": "turbo run dev --filter=@via/mobile",
     "ios": "turbo run ios --filter=@via/mobile",
-    "android": "turbo run android --filter=@via/mobile",
+    "deploy:testflight": "bash scripts/deploy-testflight.sh",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

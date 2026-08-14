@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { Linking, StyleSheet, View } from 'react-native';
 import type { SearchResult } from '@via/contract';
 
@@ -12,7 +13,6 @@ import { SheetLoadingSkeleton } from '@/features/map/components/sheet-loading-sk
 import { Shortcuts } from '@/features/map/components/shortcuts';
 import { StationSection } from '@/features/departures/components/station-section';
 import { UnavailableState } from '@/components/unavailable-state';
-import { JourneySheetScreen } from '@/features/journey/components/sheet-screen';
 import { useMap } from '@/features/map/hooks/use-map';
 import { useSheetDetentProgress } from '@/features/map/hooks/use-sheet-detent-progress';
 import { isJourneyScreen } from '@/features/map/model/journey-screen';
@@ -26,6 +26,7 @@ import { walkingMinutes } from '@/features/journey/model/walking-time';
 const SHORTCUTS_SPACING = 8;
 
 export function OverviewSheet() {
+  const router = useRouter();
   const {
     activeStation,
     changeOverviewDetent,
@@ -56,8 +57,9 @@ export function OverviewSheet() {
   const showsOverview =
     networkState.status === 'ready' && !isSearchActive && !journeyDestination;
   const showsStation = showsOverview && isNearbyStation;
-  const handleSelectResult = (result: SearchResult | RecentSearchSnapshot) =>
-    void selectResult(result);
+  const handleSelectResult = (result: SearchResult | RecentSearchSnapshot) => {
+    if (selectResult(result)) router.navigate('/map/journey');
+  };
   // Submitting a phrase asks Via inline; the answer card streams into the sheet.
   const askVia = () => {
     const phrase = searchQuery.trim();
@@ -65,9 +67,7 @@ export function OverviewSheet() {
   };
   const viaActive = isSearchActive && viaChat.messages.length > 0;
 
-  if (isJourneyScreen(screen)) {
-    return <JourneySheetScreen />;
-  }
+  if (isJourneyScreen(screen)) return null;
 
   return (
     <View style={styles.container}>

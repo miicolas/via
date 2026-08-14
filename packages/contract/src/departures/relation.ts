@@ -9,7 +9,7 @@ export const departuresForStationRelation = oc
     summary: 'Prochains passages',
     description:
       'Prochains départs par ligne et destination pour une station, en temps réel ' +
-      "(PRIM Île-de-France Mobilités) quand la source répond, sinon à l'horaire théorique. " +
+      '(PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. ' +
       '`source` dit ce que les horodatages valent.',
     tags: ['departures'],
   })

@@ -1,13 +1,14 @@
 import type { Journey } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { GlassCard } from '@/components/glass-card';
+import { GlassSurface } from '@/components/glass-surface';
 import { JourneyDepartureNote } from '@/features/journey/components/departure-note';
 import { JourneyDisruptionNote } from '@/features/journey/components/disruption-note';
 import { JourneyDurationHero } from '@/features/journey/components/duration-hero';
 import { JourneyGoButton } from '@/features/journey/components/go-button';
 import { JourneyLegStrip } from '@/features/journey/components/leg-strip';
 import { journeyMinutes } from '@/features/journey/model/minutes';
+import { visibleJourneyWarning } from '@/features/journey/model/visible-warning';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 type JourneyCardProps = {
@@ -24,10 +25,10 @@ export function JourneyCard({ journey, onPress, reason }: JourneyCardProps) {
   const firstTransit = transit[0];
   const lastTransit = transit.at(-1);
   const duration = journeyMinutes(journey.durationSeconds);
-  const warning = journey.warnings[0] ?? theoreticalNotice(journey);
+  const warning = visibleJourneyWarning(journey);
 
   return (
-    <GlassCard>
+    <GlassSurface variant="card">
       <View style={styles.summary}>
         <JourneyLegStrip journey={journey} />
         <JourneyDurationHero minutes={duration} />
@@ -53,19 +54,13 @@ export function JourneyCard({ journey, onPress, reason }: JourneyCardProps) {
           onPress={onPress}
         />
       </View>
-    </GlassCard>
+    </GlassSurface>
   );
 }
 
 function routeTitle(from?: string, to?: string) {
   if (from && to) return `${from} → ${to}`;
   return 'Itinéraire à pied';
-}
-
-function theoreticalNotice(journey: Journey) {
-  return journey.status === 'theoretical'
-    ? 'Horaires théoriques — vérifiez les perturbations sur place.'
-    : undefined;
 }
 
 const styles = StyleSheet.create({

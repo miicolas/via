@@ -23,7 +23,12 @@ type SettledSearch = {
   response?: SearchResponse;
 };
 
-const DEBOUNCE_MS = 300;
+/**
+ * Every keystroke pause longer than this costs one BAN request, and the server
+ * is one IP for all users against the geocoder's rate limit — 300 ms let a
+ * hesitant typist burst enough requests to get the server throttled.
+ */
+export const SEARCH_DEBOUNCE_MS = 600;
 
 /**
  * Four decimals ≈ 11 m: precise enough to rank results, stable enough that GPS
@@ -64,7 +69,7 @@ export function useSearch(
           console.error('[search] La recherche a échoué', cause);
           setSettled({ forQuery: currentQuery });
         });
-    }, DEBOUNCE_MS);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => {
       clearTimeout(timer);

@@ -28,7 +28,7 @@ export function DepartureDirection({
         wait.followingMinutes?.length
           ? `puis ${wait.followingMinutes.map(minutesLabel).join(' et ')}`
           : undefined,
-        source === 'theoretical' ? 'horaires théoriques' : 'temps réel',
+        source === 'realtime' ? 'temps réel' : undefined,
       ]
         .filter(Boolean)
         .join(', ')
@@ -50,9 +50,6 @@ export function DepartureDirection({
         <Text numberOfLines={2} style={[styles.destination, { color: colors.ink }]}>
           {destination}
         </Text>
-        {source === 'theoretical' ? (
-          <Text style={[styles.theoretical, { color: colors.muted }]}>théorique</Text>
-        ) : null}
       </View>
       <View style={styles.passages}>
         {source === 'realtime' && wait ? (
@@ -106,21 +103,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
   },
-  theoretical: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 10,
-    lineHeight: 12,
-  },
   passages: {
     minWidth: 118,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 5,
   },
   primaryPassage: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
   },
   primaryPrime: {
     fontFamily: 'Inter_600SemiBold',

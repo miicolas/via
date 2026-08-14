@@ -51,6 +51,9 @@ beforeAll(() => {
   mock.module('@/features/chat/hooks/use-via-chat-context', () => ({
     useViaChatContext: () => ({ reset: resetViaChat }),
   }));
+  mock.module('@/hooks/use-app-theme', () => ({
+    useAppTheme: () => ({ colors: { surfaceGlass: '#FFFFFFEB' } }),
+  }));
 });
 
 afterAll(() => mock.restore());

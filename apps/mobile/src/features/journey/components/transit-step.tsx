@@ -1,6 +1,6 @@
 import type { JourneySection } from '@via/contract';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { Button } from '@/components/button';
 import { LineBadge } from '@/components/map/line-badge';
 import { SymbolIcon } from '@/components/symbol-icon';
 import { JourneyDisruptionNote } from '@/features/journey/components/disruption-note';
@@ -57,23 +58,23 @@ export function JourneyTransitStep({
           Direction {direction}
         </Text>
         {stops.length > 0 ? (
-          <Pressable
+          <Button
             accessibilityHint="Affiche les arrêts intermédiaires"
-            accessibilityLabel={`${stopCount} arrêts`}
-            accessibilityRole="button"
             accessibilityState={{ expanded }}
-            hitSlop={10}
+            contentStyle={styles.toggle}
+            iconOnly
+            label={`${stopCount} arrêts`}
             onPress={() => {
               rotation.value = withTiming(expanded ? 0 : 1, {
                 duration: reduceMotion ? 0 : 180,
               });
               setExpanded((value) => !value);
             }}
-            style={styles.toggle}>
+            variant="plain">
             <Animated.View style={chevronStyle}>
               <SymbolIcon color={colors.muted} name="chevron.down" size={13} />
             </Animated.View>
-          </Pressable>
+          </Button>
         ) : null}
       </View>
       <Text style={[styles.meta, { color: colors.muted }]}>

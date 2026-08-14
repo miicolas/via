@@ -95,6 +95,14 @@ const generatedCases: NaturalJourneyEvaluationCase[] = destinations.flatMap(
 );
 
 const edgeCases: NaturalJourneyEvaluationCase[] = [
+  edge(
+    'bare-city',
+    'Carrière sous Poissy pour 10h demain',
+    'current_location',
+    'Carrière sous Poissy',
+    'arrival',
+    'tomorrow-10:00'
+  ),
   edge('ambiguity-destination', 'je veux aller à la gare à 10h', 'current_location', 'la gare', 'arrival', 'today-10:00'),
   edge('missing-destination', 'je veux y aller demain matin', 'current_location', null, 'departure', 'tomorrow-morning'),
   edge('past-clock', 'République à 6h', 'current_location', 'République', 'arrival', 'next-future-06:00'),
