@@ -73,10 +73,44 @@ public struct ViaAPIClient: Sendable {
     public func planJourneys(
         originLatitude: Double,
         originLongitude: Double,
-        destination: Operations.Journeys_plan.Input.Query.DestinationPayload,
+        destinationKind: String,
+        destinationID: String,
+        destinationName: String,
+        destinationContext: String?,
+        destinationLatitude: Double,
+        destinationLongitude: Double,
         limit: Int
     ) async throws -> Operations.Journeys_plan.Output {
-        try await client.journeys_plan(
+        let coordinate = Operations.Journeys_plan.Input.Query.DestinationPayload.Value1Payload.CoordinatePayload(
+            latitude: destinationLatitude,
+            longitude: destinationLongitude
+        )
+        let destination: Operations.Journeys_plan.Input.Query.DestinationPayload
+        if destinationKind == "station" {
+            destination = .init(
+                value1: .init(
+                    kind: try! .init(unvalidatedValue: destinationKind),
+                    id: destinationID,
+                    name: destinationName,
+                    coordinate: coordinate
+                )
+            )
+        } else {
+            let addressCoordinate = Operations.Journeys_plan.Input.Query.DestinationPayload.Value2Payload.CoordinatePayload(
+                latitude: destinationLatitude,
+                longitude: destinationLongitude
+            )
+            destination = .init(
+                value2: .init(
+                    kind: try! .init(unvalidatedValue: destinationKind),
+                    id: destinationID,
+                    name: destinationName,
+                    context: destinationContext,
+                    coordinate: addressCoordinate
+                )
+            )
+        }
+        return try await client.journeys_plan(
             query: .init(
                 origin: .init(latitude: originLatitude, longitude: originLongitude),
                 destination: destination,

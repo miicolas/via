@@ -42,4 +42,12 @@ apps/ios/Scripts/verify-openapi-snapshot.sh
 
 Swift OpenAPI Generator is isolated in `Packages/ViaAPIContract`; generated
 transport types stay behind the app's `TransitAPI` seam and never reach feature
-views.
+views. The package uses ahead-of-time generation because the generator itself
+runs on macOS while the app target runs on iOS. After changing the OpenAPI
+document or generator configuration, regenerate and commit the checked-in
+sources:
+
+```sh
+swift package --package-path apps/ios/Packages/ViaAPIContract \
+  --allow-writing-to-package-directory generate-code-from-openapi
+```
