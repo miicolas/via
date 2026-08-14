@@ -30,13 +30,15 @@ struct TransitMapView: View {
                 }
             }
 
-            if model.locationProvider.shouldDisplayUserLocation {
+            if model.locationProvider.shouldDisplayUserLocation,
+               model.locationState.canDisplayUserLocation {
                 UserAnnotation()
             }
         }
         .mapStyle(.standard)
         .mapControls {
-            if model.locationProvider.shouldDisplayUserLocation {
+            if model.locationProvider.shouldDisplayUserLocation,
+               model.locationState.canDisplayUserLocation {
                 MapUserLocationButton()
             }
             MapCompass()

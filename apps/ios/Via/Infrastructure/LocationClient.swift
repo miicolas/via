@@ -4,18 +4,22 @@ import Foundation
 @MainActor
 protocol LocationProviding: AnyObject {
     var coordinate: GeoCoordinate? { get }
-    var authorizationStatus: CLAuthorizationStatus { get }
+    var authorization: LocationAuthorizationState { get }
     var shouldDisplayUserLocation: Bool { get }
+    var onUpdate: (@MainActor (LocationUpdate) -> Void)? { get set }
     func requestWhenInUseAuthorization()
+    func startUpdatingLocation()
 }
 
 @MainActor
 final class DemoLocationProvider: LocationProviding {
     let coordinate: GeoCoordinate? = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
-    let authorizationStatus: CLAuthorizationStatus = .authorizedWhenInUse
+    let authorization = LocationAuthorizationState.authorized
     let shouldDisplayUserLocation = false
+    var onUpdate: (@MainActor (LocationUpdate) -> Void)?
 
     func requestWhenInUseAuthorization() {}
+    func startUpdatingLocation() {}
 }
 
 @MainActor
@@ -25,9 +29,10 @@ final class LocationClient: NSObject, LocationProviding, CLLocationManagerDelega
     private(set) var coordinate: GeoCoordinate?
 
     let shouldDisplayUserLocation = true
+    var onUpdate: (@MainActor (LocationUpdate) -> Void)?
 
-    var authorizationStatus: CLAuthorizationStatus {
-        manager.authorizationStatus
+    var authorization: LocationAuthorizationState {
+        manager.authorizationState
     }
 
     override init() {
@@ -38,11 +43,21 @@ final class LocationClient: NSObject, LocationProviding, CLLocationManagerDelega
 
     func requestWhenInUseAuthorization() {
         manager.requestWhenInUseAuthorization()
+    }
+
+    func startUpdatingLocation() {
         manager.startUpdatingLocation()
     }
 
-    nonisolated func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        manager.startUpdatingLocation()
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let authorization = manager.authorizationState
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            onUpdate?(.authorizationChanged(authorization))
+            if authorization == .authorized {
+                startUpdatingLocation()
+            }
+        }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
@@ -52,7 +67,26 @@ final class LocationClient: NSObject, LocationProviding, CLLocationManagerDelega
             longitude: location.coordinate.longitude
         )
         Task { @MainActor [weak self] in
-            self?.coordinate = coordinate
+            guard let self else { return }
+            self.coordinate = coordinate
+            onUpdate?(.coordinateUpdated(coordinate))
+        }
+    }
+}
+
+private extension CLLocationManager {
+    var authorizationState: LocationAuthorizationState {
+        switch authorizationStatus {
+        case .notDetermined:
+            .notDetermined
+        case .authorizedAlways, .authorizedWhenInUse:
+            .authorized
+        case .denied:
+            .denied
+        case .restricted:
+            .restricted
+        @unknown default:
+            .denied
         }
     }
 }

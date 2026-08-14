@@ -172,10 +172,43 @@ struct DeparturesResponse: Codable, Hashable, Sendable {
     }
 }
 
+enum LocationAuthorizationState: Equatable, Sendable {
+    case notDetermined
+    case authorized
+    case denied
+    case restricted
+}
+
+enum LocationUpdate: Sendable {
+    case authorizationChanged(LocationAuthorizationState)
+    case coordinateUpdated(GeoCoordinate)
+}
+
 enum LocationState: Equatable, Sendable {
+    case notDetermined
     case loading
     case denied
+    case manual
     case ready(GeoCoordinate)
+
+    var canDisplayUserLocation: Bool {
+        if case .ready = self { return true }
+        return false
+    }
+}
+
+func makeLocationState(
+    for authorization: LocationAuthorizationState,
+    coordinate: GeoCoordinate?
+) -> LocationState {
+    switch authorization {
+    case .notDetermined:
+        .notDetermined
+    case .authorized:
+        coordinate.map(LocationState.ready) ?? .loading
+    case .denied, .restricted:
+        .denied
+    }
 }
 
 extension String {

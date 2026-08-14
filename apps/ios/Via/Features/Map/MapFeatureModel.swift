@@ -49,7 +49,7 @@ final class MapFeatureModel {
     var searchState: SearchState = .idle
     var departuresState: DeparturesState = .idle
     var journeyState: JourneyState = .idle
-    var locationState: LocationState = .loading
+    var locationState: LocationState = .notDetermined
     var cameraTarget: GeoCoordinate?
     var searchQuery = ""
 
@@ -67,6 +67,9 @@ final class MapFeatureModel {
     init(transitAPI: any TransitAPI, locationProvider: any LocationProviding) {
         self.transitAPI = transitAPI
         self.locationProvider = locationProvider
+        locationProvider.onUpdate = { [weak self] update in
+            self?.handleLocationUpdate(update)
+        }
     }
 
     var selectedStation: NetworkStation? {
@@ -129,17 +132,29 @@ final class MapFeatureModel {
         guard !didStart else { return }
         didStart = true
 
-        locationProvider.requestWhenInUseAuthorization()
-        if let coordinate = locationProvider.coordinate {
-            locationState = .ready(coordinate)
-        } else if locationProvider.authorizationStatus == .denied ||
-                    locationProvider.authorizationStatus == .restricted {
-            locationState = .denied
-        } else {
-            locationState = .ready(Self.paris)
+        refreshLocationState()
+        if locationProvider.authorization == .authorized {
+            locationProvider.startUpdatingLocation()
         }
 
         loadNetwork()
+    }
+
+    func requestLocationPermission() {
+        switch locationProvider.authorization {
+        case .notDetermined:
+            locationState = .loading
+            locationProvider.requestWhenInUseAuthorization()
+        case .authorized:
+            locationProvider.startUpdatingLocation()
+            refreshLocationState()
+        case .denied, .restricted:
+            locationState = .denied
+        }
+    }
+
+    func continueWithoutLocation() {
+        locationState = .manual
     }
 
     func loadNetwork() {
@@ -336,6 +351,7 @@ final class MapFeatureModel {
 
     func handle(isActive: Bool) {
         if isActive {
+            refreshLocationState()
             if flow.selectedStationID != nil { startDeparturePolling() }
         } else {
             departureTask?.cancel()
@@ -359,6 +375,27 @@ final class MapFeatureModel {
             } catch {
                 continue
             }
+        }
+    }
+
+    private func refreshLocationState() {
+        if case .manual = locationState,
+           locationProvider.authorization == .notDetermined {
+            return
+        }
+
+        locationState = makeLocationState(
+            for: locationProvider.authorization,
+            coordinate: locationProvider.coordinate
+        )
+    }
+
+    private func handleLocationUpdate(_ update: LocationUpdate) {
+        switch update {
+        case .authorizationChanged:
+            refreshLocationState()
+        case .coordinateUpdated(let coordinate):
+            locationState = .ready(coordinate)
         }
     }
 

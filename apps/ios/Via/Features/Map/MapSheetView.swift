@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct MapSheetView: View {
     let model: MapFeatureModel
@@ -26,6 +27,13 @@ struct MapSheetView: View {
                         set: { model.setSearchQuery($0) }
                     ),
                     onFocusChanged: { model.setSearchFocused($0) }
+                )
+
+                LocationPermissionView(
+                    state: model.locationState,
+                    onRequest: model.requestLocationPermission,
+                    onContinueManually: model.continueWithoutLocation,
+                    onOpenSettings: openLocationSettings
                 )
 
                 if [.planning, .results, .detail].contains(model.flow.screen) {
@@ -152,5 +160,10 @@ struct MapSheetView: View {
                 )
             }
         }
+    }
+
+    private func openLocationSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 }

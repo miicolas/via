@@ -80,3 +80,29 @@ struct MapFlowTests {
         #expect(expanded.overviewDetentIndex == 8)
     }
 }
+
+struct LocationPermissionTests {
+    @Test
+    func notDeterminedNeverUsesARealCoordinate() {
+        #expect(
+            makeLocationState(
+                for: .notDetermined,
+                coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+            ) == .notDetermined
+        )
+    }
+
+    @Test
+    func authorizedUsesTheLatestCoordinateAndWaitsWhenMissing() {
+        let coordinate = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+
+        #expect(makeLocationState(for: .authorized, coordinate: coordinate) == .ready(coordinate))
+        #expect(makeLocationState(for: .authorized, coordinate: nil) == .loading)
+    }
+
+    @Test
+    func deniedAndRestrictedStatesStayExplicit() {
+        #expect(makeLocationState(for: .denied, coordinate: nil) == .denied)
+        #expect(makeLocationState(for: .restricted, coordinate: nil) == .denied)
+    }
+}
