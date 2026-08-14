@@ -51,7 +51,7 @@ apps/*/android
 .asc/artifacts/
 
 # Native iOS derived data
-apps/ios/.derived/
+apps/ios/.derived*/
 
 # Swift Package Manager build products
 .build/
