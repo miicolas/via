@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000036 /* ViaAPIContract in Frameworks */ = {isa = PBXBuildFile; productRef = F20000000000000000000001 /* ViaAPIContract */; };
 		A10000000000000000000001 /* ViaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* ViaApp.swift */; };
 		A10000000000000000000002 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* AppRouter.swift */; };
 		A10000000000000000000003 /* AppDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* AppDependencies.swift */; };
@@ -143,6 +144,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000036 /* ViaAPIContract in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -361,6 +363,9 @@
 			dependencies = (
 			);
 			name = Via;
+			packageProductDependencies = (
+				F20000000000000000000001 /* ViaAPIContract */,
+			);
 			productName = Via;
 			productReference = B00000000000000000000001 /* Via.app */;
 			productType = "com.apple.product-type.application";
@@ -431,6 +436,9 @@
 				Base,
 			);
 			mainGroup = D1000000000000000000000C;
+			packageReferences = (
+				F30000000000000000000001 /* XCLocalSwiftPackageReference "Packages/ViaAPIContract" */,
+			);
 			productRefGroup = D1000000000000000000000B /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -441,6 +449,21 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		F30000000000000000000001 /* XCLocalSwiftPackageReference "Packages/ViaAPIContract" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/ViaAPIContract;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F20000000000000000000001 /* ViaAPIContract */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F30000000000000000000001 /* XCLocalSwiftPackageReference "Packages/ViaAPIContract" */;
+			productName = ViaAPIContract;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXResourcesBuildPhase section */
 		C30000000000000000000005 /* Resources */ = {
