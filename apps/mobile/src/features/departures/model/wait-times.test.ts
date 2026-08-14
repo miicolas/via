@@ -10,7 +10,11 @@ const inMinutes = (minutes: number) =>
 test('the next departure floors to whole minutes, the rest becomes a label', () => {
   const wait = waitTimes([inMinutes(2.5), inMinutes(4.2), inMinutes(9.9)], now);
 
-  expect(wait).toEqual({ primaryMinutes: 2, followingLabel: 'puis 4 et 9 min' });
+  expect(wait).toEqual({
+    primaryMinutes: 2,
+    followingMinutes: [4, 9],
+    followingLabel: 'puis 4 et 9 min',
+  });
 });
 
 test('a lone departure carries no following label', () => {

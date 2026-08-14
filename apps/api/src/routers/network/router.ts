@@ -1,5 +1,7 @@
-import { getNetworkMap } from './handlers/get-network-map';
+import { getRailMap } from './handlers/get-rail-map';
+import { getStationsInArea } from './handlers/get-stations-in-area';
 
 export const networkRouter = {
-  map: getNetworkMap,
+  railMap: getRailMap,
+  stationsInArea: getStationsInArea,
 };

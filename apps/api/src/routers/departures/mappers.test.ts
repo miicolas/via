@@ -1,3 +1,4 @@
+import type { RouteBadge } from '@via/contract';
 import { expect, test } from 'bun:test';
 
 import { toDepartureGroups } from './mappers';
@@ -14,6 +15,14 @@ const visit = (routeId: string, destination: string, minutes: number): Normalize
   expectedAt: at(minutes),
 });
 
+const badge = (id: string): RouteBadge => ({
+  id,
+  shortName: '1',
+  mode: 'metro',
+  color: '#FFCD00',
+  textColor: '#000000',
+});
+
 test('visits bucket by line and destination, soonest first', () => {
   const groups = toDepartureGroups(
     [
@@ -21,7 +30,7 @@ test('visits bucket by line and destination, soonest first', () => {
       visit('IDFM:C01371', 'Château de Vincennes', 2),
       visit('IDFM:C01371', 'La Défense', 3),
     ],
-    ['IDFM:C01371'],
+    [badge('IDFM:C01371')],
     now
   );
 
@@ -36,19 +45,29 @@ test('visits bucket by line and destination, soonest first', () => {
 test("other lines' visits in the same payload are filtered out", () => {
   const groups = toDepartureGroups(
     [visit('IDFM:C01742', 'Saint-Rémy-lès-Chevreuse', 4), visit('IDFM:C01371', 'La Défense', 5)],
-    ['IDFM:C01371'],
+    [badge('IDFM:C01371')],
     now
   );
 
-  expect(groups.map((group) => group.routeId)).toEqual(['IDFM:C01371']);
+  expect(groups.map((group) => group.route.id)).toEqual(['IDFM:C01371']);
 });
 
 test('what already left is dropped and each group caps at four', () => {
   const groups = toDepartureGroups(
     [-3, 1, 4, 7, 10, 13].map((minutes) => visit('IDFM:C01371', 'La Défense', minutes)),
-    ['IDFM:C01371'],
+    [badge('IDFM:C01371')],
     now
   );
 
   expect(groups[0].departures).toEqual([at(1), at(4), at(7), at(10)]);
+});
+
+test("each group carries its line's badge", () => {
+  const groups = toDepartureGroups(
+    [visit('IDFM:C01371', 'La Défense', 5)],
+    [badge('IDFM:C01371')],
+    now
+  );
+
+  expect(groups[0].route).toEqual(badge('IDFM:C01371'));
 });

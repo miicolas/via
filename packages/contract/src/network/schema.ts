@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { coordinateSchema } from '../shared/schema';
+import { coordinateSchema, routeBadgeSchema } from '../shared/schema';
 
 /**
  * One continuous run of track, drawn as a single polyline. Not one GTFS shape:
@@ -12,17 +12,7 @@ export const networkSegmentSchema = z.object({
   coordinates: z.array(coordinateSchema),
 });
 
-export const networkModeSchema = z.enum(['metro', 'rer', 'bus']);
-
-export const networkRouteSchema = z.object({
-  id: z.string(),
-  shortName: z.string(),
-  longName: z.string(),
-  /** CSS-ready. GTFS stores these bare ("FFCD00"). */
-  color: z.string(),
-  textColor: z.string(),
-  mode: networkModeSchema,
-  destinations: z.array(z.string()),
+export const networkRouteSchema = routeBadgeSchema.extend({
   segments: z.array(networkSegmentSchema),
 });
 
@@ -30,19 +20,54 @@ export const networkStationSchema = z.object({
   id: z.string(),
   name: z.string(),
   /**
-   * Keyed by route id: an interchange sits at a different snapped point on each
-   * line it serves, which lets the client place a station dot on every serving
-   * line and use the exact position when one line is selected.
-   *
-   * The keys are also the answer to "which lines serve this station". A separate
-   * `routeIds` array used to carry that same fact: built in the same loop, from
-   * the same rows, so equal by construction — but with no invariant saying so,
-   * and consumers split between trusting one or the other.
+   * One anchor per station — the stop snapped onto its first serving line,
+   * which is all the map renders today. Per-line positions will come back on a
+   * dedicated per-line endpoint the day a single-line view exists; carrying
+   * them for every station cost megabytes nobody read.
    */
-  positions: z.record(z.string(), coordinateSchema),
+  coordinate: coordinateSchema,
+  /** Which lines serve this station, resolvable against the response's routes. */
+  routeIds: z.array(z.string()),
 });
 
-export const networkMapSchema = z.object({
+/**
+ * The lines worth drawing — métro and RER — with every station they serve.
+ * Small enough (~0.5 MB) to load once at startup; bus stops arrive separately,
+ * viewport by viewport, through `stationsInArea`.
+ */
+export const railMapSchema = z.object({
   routes: z.array(networkRouteSchema),
   stations: z.array(networkStationSchema),
+});
+
+/**
+ * The widest stations query a client may ask, in degrees of latitude or
+ * longitude. Bus stops only render at street-level zoom, far below this, so no
+ * legitimate viewport ever hits the cap — it exists so a zoomed-out (or
+ * hostile) client cannot request all 14 000+ stops in one call.
+ */
+export const STATIONS_AREA_MAX_SPAN_DEGREES = 0.05;
+
+export const stationsInAreaInputSchema = z
+  .object({
+    minLatitude: z.number().min(-90).max(90),
+    maxLatitude: z.number().min(-90).max(90),
+    minLongitude: z.number().min(-180).max(180),
+    maxLongitude: z.number().min(-180).max(180),
+  })
+  .refine(
+    (area) => area.minLatitude < area.maxLatitude && area.minLongitude < area.maxLongitude,
+    { message: 'la zone doit avoir une étendue positive' }
+  )
+  .refine(
+    (area) =>
+      area.maxLatitude - area.minLatitude <= STATIONS_AREA_MAX_SPAN_DEGREES &&
+      area.maxLongitude - area.minLongitude <= STATIONS_AREA_MAX_SPAN_DEGREES,
+    { message: `la zone ne peut dépasser ${STATIONS_AREA_MAX_SPAN_DEGREES}° de côté` }
+  );
+
+export const stationsInAreaSchema = z.object({
+  stations: z.array(networkStationSchema),
+  /** The badges the stations' `routeIds` point to, deduplicated. */
+  routes: z.array(routeBadgeSchema),
 });

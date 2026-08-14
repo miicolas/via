@@ -159,6 +159,7 @@ describe('MetroMap station visibility', () => {
       line: undefined,
       lines: [],
       onSelectStation: () => undefined,
+      stationRoutes: [],
       stations: [],
       viewportHeight: 1_000,
     };
@@ -186,6 +187,7 @@ describe('MetroMap station visibility', () => {
       line: undefined,
       lines: [],
       onSelectStation: () => undefined,
+      stationRoutes: [],
       stations: [],
       viewportHeight: 1_000,
     };
@@ -208,6 +210,7 @@ describe('MetroMap station visibility', () => {
       line: undefined,
       lines: [],
       onSelectStation: () => undefined,
+      stationRoutes: [],
       stations: [],
       viewportHeight: 1_000,
     };
@@ -275,6 +278,17 @@ test('the overview sheet content lives inside the persistent tab-behind sheet', 
 
   expect(overview).toBeDefined();
   expect(sheet?.props.onDetentChange).toBe(changeOverviewDetent);
+});
+
+test('a journey detail sheet cannot collapse below its readable detent', async () => {
+  const { MetroMapScreen } = await import('@/components/map/metro-map-screen');
+  screen = 'detail';
+  overviewDetentIndex = 2;
+
+  const tree = MetroMapScreen() as unknown as ElementNode;
+  const sheet = elementWithProp(tree.props.children, 'detentFractions');
+
+  expect(sheet?.props.minimumDetentIndex).toBe(2);
 });
 
 test('network status floats only above a collapsed overview or a journey sheet', async () => {

@@ -31,9 +31,10 @@ export const openApiHandler = new OpenAPIHandler(apiRouter, {
 /**
  * `/rpc` speaks oRPC's own protocol, which is what `createORPCClient` in the app
  * talks to. It exists because the generated client is the point of a contract:
- * the app calls `api.network.map()` and never spells a URL.
+ * the app calls `api.network.railMap()` and never spells a URL.
  *
- * The client is configured to issue `GET`, so the ~890 kB network map stays
- * cacheable by the platform HTTP cache — a POST would silently give that up.
+ * The client is configured to issue `GET`, so the rail map and the per-tile
+ * station payloads stay cacheable by the platform HTTP cache — a POST would
+ * silently give that up.
  */
 export const rpcHandler = new RPCHandler(apiRouter, { plugins: plugins() });

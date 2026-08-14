@@ -1,4 +1,4 @@
-import { type Coordinate, type NetworkMap, networkMapSchema } from '@via/contract';
+import { type Coordinate, type RailMap, railMapSchema } from '@via/contract';
 
 /**
  * Follows the API's own `PORT` — the root script loads `.env`, so this points at
@@ -12,10 +12,10 @@ const apiUrl = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 30
  * else exercises it. Parsing against the contract means a payload that drifted
  * fails here loudly instead of being measured as if it were fine.
  */
-const response = await fetch(`${apiUrl}/api/network/map`);
-if (!response.ok) throw new Error(`Map API returned ${response.status}`);
+const response = await fetch(`${apiUrl}/api/network/rail-map`);
+if (!response.ok) throw new Error(`Rail map API returned ${response.status}`);
 
-const network: NetworkMap = networkMapSchema.parse(await response.json());
+const network: RailMap = railMapSchema.parse(await response.json());
 const routesById = new Map(network.routes.map((route) => [route.id, route]));
 
 function distanceToSegment(point: Coordinate, start: Coordinate, end: Coordinate) {
@@ -36,7 +36,7 @@ function distanceToSegment(point: Coordinate, start: Coordinate, end: Coordinate
   return Math.hypot(startX + progress * deltaX, startY + progress * deltaY);
 }
 
-function distanceToRoute(point: Coordinate, route: NetworkMap['routes'][number]) {
+function distanceToRoute(point: Coordinate, route: RailMap['routes'][number]) {
   let nearest = Number.POSITIVE_INFINITY;
   for (const segment of route.segments) {
     for (let index = 1; index < segment.coordinates.length; index += 1) {
@@ -50,27 +50,23 @@ function distanceToRoute(point: Coordinate, route: NetworkMap['routes'][number])
 }
 
 const failures: Array<{ station: string; line: string; distance: number }> = [];
-const busRoutesWithTrace = network.routes.filter(
-  (route) => route.mode === 'bus' && route.segments.length > 0
-);
-if (busRoutesWithTrace.length > 0) {
-  throw new Error(`${busRoutesWithTrace.length} bus routes unexpectedly carry a map trace`);
-}
 
 for (const station of network.stations) {
-  for (const [routeId, position] of Object.entries(station.positions)) {
-    const route = routesById.get(routeId);
-    if (!route) {
-      // A position keyed by a line the payload does not carry: the two halves of
-      // the network disagree, which is a failure in itself.
-      failures.push({ station: station.name, line: routeId, distance: Infinity });
-      continue;
-    }
-    // Bus stops deliberately use their GTFS point: the map carries no bus trace
-    // to align them against.
-    if (route.mode === 'bus') continue;
-    const distance = distanceToRoute(position, route);
-    if (distance > 1) failures.push({ station: station.name, line: route.shortName, distance });
+  const servingRoutes = station.routeIds.map((routeId) => routesById.get(routeId));
+  if (servingRoutes.some((route) => route === undefined)) {
+    // A station serves a line the payload does not carry: the two halves of
+    // the network disagree, which is a failure in itself.
+    failures.push({ station: station.name, line: 'unknown', distance: Infinity });
+    continue;
+  }
+
+  // The anchor sits on the station's first serving line; being near any of its
+  // lines is the invariant the map needs to look right.
+  const distance = Math.min(
+    ...servingRoutes.map((route) => distanceToRoute(station.coordinate, route!))
+  );
+  if (distance > 1) {
+    failures.push({ station: station.name, line: station.routeIds.join(','), distance });
   }
 }
 
@@ -85,10 +81,10 @@ if (failures.length > 0) {
       2
     )
   );
-  throw new Error(`${failures.length} station/line positions are not aligned`);
+  throw new Error(`${failures.length} station anchors are not aligned`);
 }
 
 console.log(
-  `${network.stations.length} transit stops loaded; every metro/RER position is aligned and ` +
-    `${network.routes.filter((route) => route.mode === 'bus').length} bus routes are trace-free.`
+  `${network.stations.length} rail stations loaded; every anchor sits on one of its lines ` +
+    `across ${network.routes.length} routes.`
 );

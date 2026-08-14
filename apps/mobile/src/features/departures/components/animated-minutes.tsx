@@ -19,11 +19,13 @@ type MinutesTransition = {
 };
 
 type AnimatedMinutesProps = {
+  appearance?: 'compact' | 'hero';
   color: string;
   value?: number;
 };
 
-export function AnimatedMinutes({ color, value }: AnimatedMinutesProps) {
+export function AnimatedMinutes({ appearance = 'hero', color, value }: AnimatedMinutesProps) {
+  const compact = appearance === 'compact';
   const reduceMotion = useReducedMotion();
   const label = value === undefined ? '—' : String(value);
   const [transition, setTransition] = useState<MinutesTransition>(() => ({
@@ -87,18 +89,36 @@ export function AnimatedMinutes({ color, value }: AnimatedMinutesProps) {
       : transition.labels[1];
 
   return (
-    <View accessible accessibilityLabel={label} accessibilityRole="text" style={styles.viewport}>
-      <Text accessible={false} style={[styles.minutes, styles.measurement]}>
+    <View
+      accessible
+      accessibilityLabel={label}
+      accessibilityRole="text"
+      style={[styles.viewport, compact && styles.compactViewport]}>
+      <Text
+        accessible={false}
+        style={[styles.minutes, compact && styles.compactMinutes, styles.measurement]}>
         {measurementLabel}
       </Text>
       <Animated.Text
         accessible={false}
-        style={[styles.minutes, styles.layer, { color }, firstSlotStyle]}>
+        style={[
+          styles.minutes,
+          compact && styles.compactMinutes,
+          styles.layer,
+          { color },
+          firstSlotStyle,
+        ]}>
         {transition.labels[0]}
       </Animated.Text>
       <Animated.Text
         accessible={false}
-        style={[styles.minutes, styles.layer, { color }, secondSlotStyle]}>
+        style={[
+          styles.minutes,
+          compact && styles.compactMinutes,
+          styles.layer,
+          { color },
+          secondSlotStyle,
+        ]}>
         {transition.labels[1]}
       </Animated.Text>
     </View>
@@ -113,6 +133,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  compactViewport: { height: 30, minWidth: 15 },
   minutes: {
     fontFamily: 'Archivo_900Black',
     fontSize: 38,
@@ -120,6 +141,11 @@ const styles = StyleSheet.create({
     lineHeight: MINUTES_LINE_HEIGHT,
     letterSpacing: -1.5,
     textAlign: 'right',
+  },
+  compactMinutes: {
+    fontSize: 27,
+    lineHeight: 30,
+    letterSpacing: -1,
   },
   measurement: { opacity: 0 },
   layer: { position: 'absolute', top: 0, right: 0 },

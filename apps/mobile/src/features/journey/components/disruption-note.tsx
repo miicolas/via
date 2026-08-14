@@ -23,7 +23,12 @@ export function JourneyDisruptionNote({ route, text, tone = 'body' }: JourneyDis
       {route ? (
         <LineBadge route={route} size={BADGE_SIZE} />
       ) : (
-        <SymbolIcon color={colors.critical} name="exclamationmark.circle.fill" size={BADGE_SIZE} />
+        <SymbolIcon
+          animation="pulse"
+          color={colors.critical}
+          name="exclamationmark.circle.fill"
+          size={BADGE_SIZE}
+        />
       )}
       <Text selectable style={[styles.text, { color: colors[tone] }]}>
         {text}

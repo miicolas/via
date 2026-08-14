@@ -1,4 +1,4 @@
-import type { Coordinate, Journey, NetworkRoute, NetworkStation } from '@via/contract';
+import type { Coordinate, Journey, NetworkRoute, NetworkStation, RouteBadge } from '@via/contract';
 import { useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react';
 import { StyleSheet, useWindowDimensions } from 'react-native';
 import MapView, { type EdgePadding, type Region } from 'react-native-maps';
@@ -57,8 +57,10 @@ export type MetroMapHandle = {
 type MetroMapProps = {
   /** The whole network, drawn muted underneath. */
   lines: NetworkRoute[];
-  /** Every station, dotted over the network while no line is in focus. */
+  /** Every loaded station, dotted over the network while no line is in focus. */
   stations: NetworkStation[];
+  /** Badges for every route `stations` can reference — rail lines and viewport-loaded bus lines. */
+  stationRoutes: RouteBadge[];
   /** The line in focus, with its stations. Absent until the network has loaded. */
   line: LineView | undefined;
   /** Room the caller's overlay needs around a fitted line. */
@@ -71,6 +73,12 @@ type MetroMapProps = {
   onSelectStation: (stationId: string, coordinate: Coordinate) => void;
   /** Fires when the camera moves from a user gesture, not a programmatic command. */
   onUserMove?: () => void;
+  /**
+   * Fires with every camera region, during and after movement. The tile loader
+   * behind it debounces and decides whether the zoom warrants fetching, so the
+   * map only has to report what is on screen.
+   */
+  onViewportChange?: (region: Region) => void;
   showsUserLocation?: boolean;
   /** The selected journey route, drawn above the muted transit network. */
   journey?: Journey;
@@ -92,12 +100,14 @@ type MetroMapProps = {
 export function MetroMap({
   lines,
   stations,
+  stationRoutes,
   line,
   edgePadding,
   developmentLocation,
   onReady,
   onSelectStation,
   onUserMove,
+  onViewportChange,
   journey,
   ref,
   showsUserLocation = false,
@@ -207,6 +217,7 @@ export function MetroMap({
       onMapReady={onReady}
       onRegionChange={(region, details) => {
         updateStationOpacity(region.longitudeDelta);
+        onViewportChange?.(region);
         if (details?.isGesture) onUserMove?.();
       }}
       onRegionChangeComplete={(region) => {
@@ -214,13 +225,14 @@ export function MetroMap({
           sameMapViewport(current, region) ? current : region
         );
         updateStationOpacity(region.longitudeDelta, true);
+        onViewportChange?.(region);
       }}
     >
       <RouteLines muted={Boolean(journey)} routes={positionedLines} selectedRoute={positionedLine?.route} />
       <JourneyRouteLayer journey={journey} />
       <StationMarkersLayer
         line={positionedLine}
-        routes={positionedLines}
+        routes={stationRoutes}
         stations={viewportStations}
         opacity={stationOpacity}
         tracksViewChanges={stationMarkersState.tracking}

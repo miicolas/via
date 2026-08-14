@@ -21,11 +21,9 @@ function route(
   return {
     id,
     shortName: id,
-    longName: `Line ${id}`,
     color: id === 'A' ? '#FF0000' : '#0000FF',
     textColor: '#FFFFFF',
     mode: 'metro',
-    destinations: [],
     segments: [{ id: `${id}-segment`, coordinates }],
   };
 }
@@ -113,8 +111,8 @@ describe('transit route layout', () => {
         {
           id: 'station',
           name: 'Station',
-          positions: { A: SHARED_TRACK[1]! },
           coordinate: SHARED_TRACK[1]!,
+          routeIds: ['A'],
         },
       ],
     };

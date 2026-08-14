@@ -7,13 +7,28 @@ import { SHEET_GUTTER } from '@/styles/metrics';
 type JourneySearchHeaderProps = {
   destination: string;
   onCancel: () => void;
+  onBack?: () => void;
 };
 
-export function JourneySearchHeader({ destination, onCancel }: JourneySearchHeaderProps) {
+export function JourneySearchHeader({ destination, onBack, onCancel }: JourneySearchHeaderProps) {
   const { colors } = useAppTheme();
 
   return (
     <View style={styles.container}>
+      {onBack ? (
+        <Pressable
+          accessibilityLabel="Retour aux itinéraires"
+          accessibilityRole="button"
+          onPress={onBack}
+          style={({ pressed }) => [
+            styles.back,
+            { backgroundColor: colors.track, borderColor: colors.hairline },
+            pressed && styles.pressed,
+          ]}>
+          <SymbolIcon color={colors.ink} name="chevron.left" size={19} />
+        </Pressable>
+      ) : null}
+
       <Pressable
         accessibilityHint="Revient à la recherche"
         accessibilityLabel={`Destination ${destination}`}
@@ -36,14 +51,6 @@ export function JourneySearchHeader({ destination, onCancel }: JourneySearchHead
           <SymbolIcon color={colors.surface} name="xmark" size={10} weight="bold" />
         </View>
       </Pressable>
-
-      <Pressable
-        accessibilityRole="button"
-        hitSlop={8}
-        onPress={onCancel}
-        style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}>
-        <Text style={[styles.cancelLabel, { color: colors.primary }]}>Annuler</Text>
-      </Pressable>
     </View>
   );
 }
@@ -56,6 +63,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: SHEET_GUTTER,
     paddingTop: 4,
     paddingBottom: 10,
+  },
+  back: {
+    width: 44,
+    height: 44,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 22,
+    borderCurve: 'continuous',
   },
   search: {
     minWidth: 0,
@@ -84,15 +101,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
-  },
-  cancel: {
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  cancelLabel: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 16,
-    lineHeight: 20,
   },
   pressed: { opacity: 0.55 },
 });

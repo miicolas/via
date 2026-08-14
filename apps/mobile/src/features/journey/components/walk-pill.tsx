@@ -14,8 +14,8 @@ export function JourneyWalkPill({ minutes }: JourneyWalkPillProps) {
 
   return (
     <JourneyLegPill background={colors.track}>
-      <SymbolIcon color={colors.muted} name="figure.walk" size={13} />
-      <Text style={[styles.minutes, { color: colors.muted }]}>{minutes}</Text>
+      <SymbolIcon color={colors.ink} name="figure.walk" size={15} weight="medium" />
+      <Text style={[styles.minutes, { color: colors.body }]}>{minutes}</Text>
     </JourneyLegPill>
   );
 }

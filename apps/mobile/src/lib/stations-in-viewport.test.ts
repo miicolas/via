@@ -14,7 +14,8 @@ function station(id: string, latitude: number, longitude: number): NetworkStatio
   return {
     id,
     name: id,
-    positions: { route: { latitude, longitude } },
+    coordinate: { latitude, longitude },
+    routeIds: ['route'],
   };
 }
 
@@ -27,17 +28,4 @@ test('keeps only stops in or just around the visible map', () => {
     visible,
     justOutside,
   ]);
-});
-
-test('keeps an interchange when any serving line position is visible', () => {
-  const interchange: NetworkStation = {
-    id: 'interchange',
-    name: 'Interchange',
-    positions: {
-      distant: { latitude: 49, longitude: 3 },
-      local: { latitude: 48.856, longitude: 2.351 },
-    },
-  };
-
-  expect(stationsInViewport([interchange], viewport)).toEqual([interchange]);
 });

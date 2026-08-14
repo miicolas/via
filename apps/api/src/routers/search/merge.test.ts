@@ -8,7 +8,9 @@ const republique: StationSearchResult = {
   id: 'IDFM:71311',
   name: 'République',
   coordinate: { latitude: 48.8676, longitude: 2.3641 },
-  routeIds: ['IDFM:C01373'],
+  routes: [
+    { id: 'IDFM:C01373', shortName: '3', mode: 'metro', color: '#837902', textColor: '#FFFFFF' },
+  ],
 };
 
 const rivoli12: AddressSearchResult = {

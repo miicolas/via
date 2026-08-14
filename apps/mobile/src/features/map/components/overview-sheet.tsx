@@ -23,7 +23,6 @@ const SHORTCUTS_SPACING = 8;
 
 export function OverviewSheet() {
   const {
-    activeRoutes,
     activeStation,
     changeOverviewDetent,
     isNearbyStation,
@@ -88,11 +87,11 @@ export function OverviewSheet() {
       ) : null}
 
       {networkState.status === 'ready' && isSearchActive ? (
-        <SearchResults onSelect={handleSelectResult} routes={networkState.lines} search={search} />
+        <SearchResults onSelect={handleSelectResult} search={search} />
       ) : null}
 
       {showsStation && activeStation ? (
-        <StationSection expanded={isExpanded} routes={activeRoutes} station={activeStation} />
+        <StationSection expanded={isExpanded} station={activeStation} />
       ) : null}
 
       {showsOverview && !activeStation ? (

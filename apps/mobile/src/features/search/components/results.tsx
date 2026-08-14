@@ -1,4 +1,4 @@
-import type { NetworkRoute, SearchResult } from '@via/contract';
+import type { SearchResult } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ListRowSkeleton } from '@/components/list-row-skeleton';
@@ -14,11 +14,10 @@ const BAN_UNAVAILABLE_MESSAGE = 'Adresses momentanément indisponibles';
 
 type SearchResultsProps = {
   onSelect: (result: SearchResult) => void;
-  routes: NetworkRoute[];
   search: SearchState;
 };
 
-export function SearchResults({ onSelect, routes, search }: SearchResultsProps) {
+export function SearchResults({ onSelect, search }: SearchResultsProps) {
   const { colors } = useAppTheme();
 
   if (search.status === 'loading' && search.results.length === 0) {
@@ -47,7 +46,6 @@ export function SearchResults({ onSelect, routes, search }: SearchResultsProps) 
             key={`station:${result.id}`}
             onPress={() => onSelect(result)}
             result={result}
-            routes={routes}
           />
         ) : (
           <AddressResultRow

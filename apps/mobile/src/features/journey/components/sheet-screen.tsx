@@ -19,16 +19,20 @@ export function JourneySheetScreen() {
   } = useMap();
 
   if (!journeyDestination) return null;
+  const showingDetail = screen === 'detail' && journey.status === 'ready';
 
   return (
     <View style={styles.container}>
-      <JourneySearchHeader destination={journeyDestination.name} onCancel={cancelJourney} />
+      <JourneySearchHeader
+        destination={journeyDestination.name}
+        onBack={showingDetail ? closeJourneyDetail : undefined}
+        onCancel={cancelJourney}
+      />
 
-      {screen === 'detail' && journey.status === 'ready' ? (
+      {showingDetail ? (
         <JourneyDetail
           destination={journeyDestination}
           journeys={journey.response.journeys}
-          onBack={closeJourneyDetail}
           selectedIndex={selectedJourneyIndex}
         />
       ) : (

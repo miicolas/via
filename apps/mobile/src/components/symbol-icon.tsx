@@ -7,6 +7,7 @@ import {
 } from 'expo-symbols';
 import { useEffect, useState } from 'react';
 import type { ColorValue, StyleProp, ViewStyle } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
 
 type SymbolIconProps = {
   /** Omit for a static symbol. Either an effect type (`'bounce'`) or a full `AnimationSpec`. */
@@ -35,8 +36,9 @@ export function SymbolIcon({
   style,
   weight = 'semibold',
 }: SymbolIconProps) {
+  const reduceMotion = useReducedMotion();
   const [replayKey, setReplayKey] = useState(0);
-  const replaying = Boolean(animation && replayIntervalMs);
+  const replaying = Boolean(animation && replayIntervalMs && !reduceMotion);
 
   useEffect(() => {
     if (!replaying) return;
@@ -50,7 +52,13 @@ export function SymbolIcon({
 
   return (
     <SymbolView
-      animationSpec={typeof animation === 'string' ? { effect: { type: animation } } : animation}
+      animationSpec={
+        reduceMotion
+          ? undefined
+          : typeof animation === 'string'
+            ? { effect: { type: animation } }
+            : animation
+      }
       key={replayKey}
       name={name}
       size={size}

@@ -1,6 +1,7 @@
 import { StyleSheet, Text } from 'react-native';
 
 import { JourneyTimelineRow } from '@/features/journey/components/timeline-row';
+import { JourneyWalkingMarker } from '@/features/journey/components/walking-marker';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 type JourneyWalkStepProps = {
@@ -15,7 +16,11 @@ export function JourneyWalkStep({ last, minutes, targetName }: JourneyWalkStepPr
   const { colors } = useAppTheme();
 
   return (
-    <JourneyTimelineRow color={colors.muted} last={last} marker="dot">
+    <JourneyTimelineRow
+      color={colors.muted}
+      last={last}
+      marker="dot"
+      markerContent={<JourneyWalkingMarker color={colors.muted} />}>
       <Text style={[styles.title, { color: colors.ink }]}>{minutes} min à pied</Text>
       {targetName ? (
         <Text selectable style={[styles.target, { color: colors.muted }]}>

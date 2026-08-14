@@ -71,6 +71,20 @@
       "when": 1786641216697,
       "tag": "0009_nebulous_killmonger",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786660217896,
+      "tag": "0010_furry_reavers",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786687603752,
+      "tag": "0011_search_trgm",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { coordinateSchema } from '../shared/schema';
+import { coordinateSchema, routeBadgeSchema } from '../shared/schema';
 
 export const searchInputSchema = z
   .object({
@@ -25,8 +25,8 @@ export const stationSearchResultSchema = z.object({
   name: z.string(),
   /** The stop entrance, not a per-line snapped point — right for walking. */
   coordinate: coordinateSchema,
-  /** For line badges; resolved against the network map client-side. */
-  routeIds: z.array(z.string()),
+  /** The serving lines' badges, ready to render without another fetch. */
+  routes: z.array(routeBadgeSchema),
   distanceMeters: z.number().optional(),
 });
 

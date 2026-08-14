@@ -7,11 +7,9 @@ function route(id: string, mode: NetworkRoute['mode']): NetworkRoute {
   return {
     id,
     shortName: id,
-    longName: id,
     color: '#000000',
     textColor: '#FFFFFF',
     mode,
-    destinations: [],
     segments: [
       {
         id: `${id}-shape`,

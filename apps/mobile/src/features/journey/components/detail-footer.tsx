@@ -34,7 +34,12 @@ export function JourneyDetailFooter({ destinationName, onGo, onRemind }: Journey
           { backgroundColor: colors.accentSoft },
           pressed && styles.pressed,
         ]}>
-        <SymbolIcon color={colors.primary} name="bell" size={17} />
+        <SymbolIcon
+          animation={{ effect: { type: 'bounce', direction: 'up' } }}
+          color={colors.primary}
+          name="bell"
+          size={17}
+        />
       </Pressable>
     </View>
   );

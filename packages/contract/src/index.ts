@@ -1,7 +1,7 @@
 import { departuresForStationRelation } from './departures';
 import { healthRelation } from './health';
 import { journeysPlanRelation } from './journeys';
-import { networkMapRelation } from './network';
+import { railMapRelation, stationsInAreaRelation } from './network';
 import { searchQueryRelation } from './search';
 
 export const contract = {
@@ -13,7 +13,8 @@ export const contract = {
     plan: journeysPlanRelation,
   },
   network: {
-    map: networkMapRelation,
+    railMap: railMapRelation,
+    stationsInArea: stationsInAreaRelation,
   },
   search: {
     query: searchQueryRelation,

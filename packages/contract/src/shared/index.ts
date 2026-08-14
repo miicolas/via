@@ -1,2 +1,2 @@
-export { coordinateSchema } from './schema';
-export type { Coordinate } from './type';
+export { coordinateSchema, networkModeSchema, routeBadgeSchema } from './schema';
+export type { Coordinate, NetworkMode, RouteBadge } from './type';

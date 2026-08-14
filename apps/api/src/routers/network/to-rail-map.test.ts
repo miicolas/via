@@ -1,48 +1,40 @@
 import { describe, expect, test } from 'bun:test';
-import { networkMapSchema } from '@via/contract';
+import { railMapSchema } from '@via/contract';
 
-import { toNetworkMap } from './mappers';
-import type { NetworkPatternRow, NetworkStationPositionRow } from './queries';
+import type { NetworkPatternRow, RailStationPositionRow } from './queries';
+import { toRailMap } from './to-rail-map';
 
-const LINE_1 = '{"type":"LineString","coordinates":[[2.3364,48.8606],[2.3522,48.8566]]}';
-const LINE_1_BRANCH = '{"type":"LineString","coordinates":[[2.3522,48.8566],[2.3600,48.8600]]}';
-const LINE_4 = '{"type":"LineString","coordinates":[[2.3470,48.8583],[2.3480,48.8500]]}';
+const LINE_1 = '{"type":"MultiLineString","coordinates":[[[2.3364,48.8606],[2.3522,48.8566]]]}';
+const LINE_1_BRANCH =
+  '{"type":"MultiLineString","coordinates":[[[2.3522,48.8566],[2.3600,48.8600]]]}';
+const LINE_4 = '{"type":"MultiLineString","coordinates":[[[2.3470,48.8583],[2.3480,48.8500]]]}';
 
 const patternRows: NetworkPatternRow[] = [
   {
     routeId: 'IDFM:C01371',
     shortName: '1',
-    longName: 'La Défense - Château de Vincennes',
     color: 'FFCD00',
     textColor: '000000',
-    patternId: 'shape-1-a',
-    headsign: 'La Défense',
     routeType: 1,
-    isCanonical: true,
+    patternId: 'shape-1-a',
     geometry: LINE_1,
   },
   {
     routeId: 'IDFM:C01371',
     shortName: '1',
-    longName: 'La Défense - Château de Vincennes',
     color: 'FFCD00',
     textColor: '000000',
-    patternId: 'shape-1-b',
-    headsign: 'Château de Vincennes',
     routeType: 1,
-    isCanonical: false,
+    patternId: 'shape-1-b',
     geometry: LINE_1_BRANCH,
   },
   {
     routeId: 'IDFM:C01374',
     shortName: '4',
-    longName: 'Porte de Clignancourt - Bagneux',
     color: 'A0006E',
     textColor: 'FFFFFF',
-    patternId: 'shape-4-a',
-    headsign: 'Bagneux – Lucie Aubrac',
     routeType: 1,
-    isCanonical: true,
+    patternId: 'shape-4-a',
     geometry: LINE_4,
   },
 ];
@@ -51,7 +43,7 @@ const patternRows: NetworkPatternRow[] = [
  * Châtelet is the interchange: it appears once per line it serves, snapped to a
  * different point each time. Louvre is served by line 1 only.
  */
-const stationRows: NetworkStationPositionRow[] = [
+const stationRows: RailStationPositionRow[] = [
   {
     id: 'IDFM:474151',
     name: 'Châtelet',
@@ -75,9 +67,9 @@ const stationRows: NetworkStationPositionRow[] = [
   },
 ];
 
-describe('toNetworkMap', () => {
+describe('toRailMap', () => {
   test('collapses a route’s patterns into its segments', () => {
-    const { routes } = toNetworkMap(patternRows, stationRows);
+    const { routes } = toRailMap(patternRows, stationRows);
 
     expect(routes).toHaveLength(2);
 
@@ -85,7 +77,6 @@ describe('toNetworkMap', () => {
     expect(lineOne.id).toBe('IDFM:C01371');
     expect(lineOne.shortName).toBe('1');
     expect(lineOne.mode).toBe('metro');
-    expect(lineOne.destinations).toEqual(['La Défense', 'Château de Vincennes']);
     expect(lineOne.segments.map((segment) => segment.id)).toEqual(['shape-1-a#0', 'shape-1-b#0']);
     expect(lineOne.segments[0].coordinates).toEqual([
       { latitude: 48.8606, longitude: 2.3364 },
@@ -93,59 +84,20 @@ describe('toNetworkMap', () => {
     ]);
   });
 
-  test('publishes bus lines and destinations without a map trace', () => {
-    const busPattern: NetworkPatternRow = {
-      ...patternRows[0],
-      routeId: 'IDFM:C00091',
-      shortName: '91',
-      longName: 'Montparnasse - Bastille',
-      patternId: 'bus-91-shape',
-      headsign: 'Bastille',
-      routeType: 3,
-      geometry: '{"type":"LineString","coordinates":[]}',
-    };
-
-    const busStop: NetworkStationPositionRow = {
-      id: 'bus-stop',
-      name: 'Bastille',
-      routeId: busPattern.routeId,
-      latitude: 48.853,
-      longitude: 2.369,
-    };
-    const { routes, stations } = toNetworkMap([busPattern], [busStop]);
-
-    expect(routes).toEqual([
-      expect.objectContaining({
-        id: 'IDFM:C00091',
-        mode: 'bus',
-        destinations: ['Bastille'],
-        segments: [],
-      }),
-    ]);
-    expect(stations[0].positions[busPattern.routeId]).toEqual({
-      latitude: 48.853,
-      longitude: 2.369,
-    });
-  });
-
   /**
-   * The query returns an empty geometry when an opposite direction adds no
-   * branch: no stroke to draw twice, but its headsign is still one of the line's
-   * destinations.
+   * The stored geometry is empty when an opposite direction adds no branch: no
+   * stroke to draw twice, but its route keeps its other patterns' segments.
    */
-  test('keeps the destination of a pattern whose track fully deduplicated', () => {
+  test('keeps a route whose extra pattern fully deduplicated', () => {
     const returnPattern: NetworkPatternRow = {
       ...patternRows[0],
       patternId: 'shape-1-return',
-      headsign: 'Pont de Neuilly',
-      isCanonical: false,
-      geometry: '{"type":"GeometryCollection","geometries":[]}',
+      geometry: '{"type":"MultiLineString","coordinates":[]}',
     };
 
-    const { routes } = toNetworkMap([...patternRows, returnPattern], stationRows);
+    const { routes } = toRailMap([...patternRows, returnPattern], stationRows);
     const [lineOne] = routes;
 
-    expect(lineOne.destinations).toContain('Pont de Neuilly');
     expect(lineOne.segments.map((segment) => segment.id)).toEqual(['shape-1-a#0', 'shape-1-b#0']);
   });
 
@@ -158,7 +110,7 @@ describe('toNetworkMap', () => {
         '{"type":"MultiLineString","coordinates":[[[2.3364,48.8606],[2.3522,48.8566]],[[2.3600,48.8600],[2.3700,48.8650]]]}',
     };
 
-    const { routes } = toNetworkMap([cutPattern], stationRows);
+    const { routes } = toRailMap([cutPattern], stationRows);
 
     expect(routes[0].segments.map((segment) => segment.id)).toEqual([
       'shape-1-loop#0',
@@ -175,42 +127,33 @@ describe('toNetworkMap', () => {
         '{"type":"MultiLineString","coordinates":[[[2.3364,48.8606],[2.3522,48.8566]],[[2.3600,48.8600],[2.36027,48.8600]]]}',
     };
 
-    const { routes } = toNetworkMap([withSliver], stationRows);
+    const { routes } = toRailMap([withSliver], stationRows);
 
     expect(routes[0].segments.map((segment) => segment.id)).toEqual(['shape-1-sliver#0']);
   });
 
   test('makes GTFS colours CSS-ready', () => {
-    const { routes } = toNetworkMap(patternRows, stationRows);
+    const { routes } = toRailMap(patternRows, stationRows);
 
     expect(routes[0].color).toBe('#FFCD00');
     expect(routes[0].textColor).toBe('#000000');
     expect(routes[1].color).toBe('#A0006E');
   });
 
-  test('gives an interchange one entry per line, with a position for each', () => {
-    const { stations } = toNetworkMap(patternRows, stationRows);
+  test('anchors a station on its first serving line and lists every line', () => {
+    const { stations } = toRailMap(patternRows, stationRows);
 
     expect(stations).toHaveLength(2);
 
     const [chatelet] = stations;
     expect(chatelet.name).toBe('Châtelet');
-    expect(Object.keys(chatelet.positions)).toEqual(['IDFM:C01371', 'IDFM:C01374']);
-    expect(chatelet.positions['IDFM:C01371']).toEqual({
+    expect(chatelet.routeIds).toEqual(['IDFM:C01371', 'IDFM:C01374']);
+    // The line-1 row leads, so the anchor is the projection onto line 1 — the
+    // same point the old payload served as the station's primary position.
+    expect(chatelet.coordinate).toEqual({
       latitude: 48.85796592134573,
       longitude: 2.3468046106843596,
     });
-    expect(chatelet.positions['IDFM:C01374']).toEqual({
-      latitude: 48.8583,
-      longitude: 2.347,
-    });
-  });
-
-  test('keys positions by route id so a single dot can move between lines', () => {
-    const { stations } = toNetworkMap(patternRows, stationRows);
-    const louvre = stations.find((station) => station.name === 'Louvre - Rivoli');
-
-    expect(Object.keys(louvre!.positions)).toEqual(['IDFM:C01371']);
   });
 
   /**
@@ -227,13 +170,12 @@ describe('toNetworkMap', () => {
         longitude: '2.3470',
         latitude: '48.8583',
       },
-    ] as unknown as NetworkStationPositionRow[];
+    ] as unknown as RailStationPositionRow[];
 
-    const { stations } = toNetworkMap(patternRows, stringy);
+    const { stations } = toRailMap(patternRows, stringy);
 
-    const position = stations[0].positions['IDFM:C01371'];
-    expect(typeof position.latitude).toBe('number');
-    expect(typeof position.longitude).toBe('number');
+    expect(typeof stations[0].coordinate.latitude).toBe('number');
+    expect(typeof stations[0].coordinate.longitude).toBe('number');
   });
 
   /**
@@ -242,12 +184,12 @@ describe('toNetworkMap', () => {
    * test exists to prevent.
    */
   test('matches the wire contract', () => {
-    expect(() => networkMapSchema.parse(toNetworkMap(patternRows, stationRows))).not.toThrow();
+    expect(() => railMapSchema.parse(toRailMap(patternRows, stationRows))).not.toThrow();
   });
 
   /** The `#` prefix is the mapper's job — GTFS stores colours bare. */
   test('emits CSS colours the contract alone would not catch', () => {
-    const { routes } = toNetworkMap(patternRows, stationRows);
+    const { routes } = toRailMap(patternRows, stationRows);
 
     for (const route of routes) {
       expect(route.color).toMatch(/^#[0-9A-Fa-f]{6}$/);
@@ -256,6 +198,6 @@ describe('toNetworkMap', () => {
   });
 
   test('returns empty collections rather than throwing on an empty network', () => {
-    expect(toNetworkMap([], [])).toEqual({ routes: [], stations: [] });
+    expect(toRailMap([], [])).toEqual({ routes: [], stations: [] });
   });
 });

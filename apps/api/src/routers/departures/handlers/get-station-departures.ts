@@ -10,7 +10,8 @@ import { toDepartureGroups } from '../mappers';
 import { fetchStopMonitoring } from '../prim/client';
 import { parseStopMonitoring } from '../prim/parse';
 import { toMonitoringRef } from '../prim/refs';
-import { selectStationRouteIds } from '../queries';
+import { toRouteBadge } from '../../route-badge';
+import { selectStationRoutes } from '../queries';
 import { theoreticalRowLoader } from '../theoretical/load-rows';
 import { nextTheoreticalDepartures } from '../theoretical/next-departures';
 
@@ -23,8 +24,8 @@ const DEPARTURES_CACHE_CONTROL = 'public, max-age=30';
 
 export const getStationDepartures = implementer.departures.forStation.handler(
   async ({ input, context, signal }) => {
-    const routeIds = await selectStationRouteIds(input.stationId);
-    if (routeIds.length === 0) throw new ORPCError('NOT_FOUND');
+    const routes = (await selectStationRoutes(input.stationId)).map(toRouteBadge);
+    if (routes.length === 0) throw new ORPCError('NOT_FOUND');
 
     context.resHeaders?.set('Cache-Control', DEPARTURES_CACHE_CONTROL);
 
@@ -43,7 +44,7 @@ export const getStationDepartures = implementer.departures.forStation.handler(
     });
 
     if (visits !== null) {
-      const groups = toDepartureGroups(visits, routeIds, now);
+      const groups = toDepartureGroups(visits, routes, now);
       // PRIM answering with nothing is not proof of a quiet station: the stop
       // may sit outside the realtime perimeter. Falling through to the
       // schedule costs one indexed query and tells the difference — if the
@@ -55,7 +56,7 @@ export const getStationDepartures = implementer.departures.forStation.handler(
 
     const scheduled = await nextTheoreticalDepartures(
       now,
-      routeIds,
+      routes,
       theoreticalRowLoader(input.stationId)
     );
 

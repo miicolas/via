@@ -1,6 +1,8 @@
 export type WaitTimes = {
   /** Full minutes until the next departure — 0 means it is at the platform. */
   primaryMinutes: number;
+  /** The next announced departures, kept numeric for compact departure boards. */
+  followingMinutes?: number[];
   /** The ones after that, e.g. "puis 4 et 9 min". Absent when nothing follows. */
   followingLabel?: string;
 };
@@ -28,6 +30,7 @@ export function waitTimes(departures: string[], now: Date): WaitTimes | undefine
 
   return {
     primaryMinutes: primary,
+    followingMinutes: shown.length > 0 ? shown : undefined,
     followingLabel:
       shown.length > 0 ? `puis ${shown.join(' et ')} min` : undefined,
   };

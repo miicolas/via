@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { AnimatedNumberText } from '@/components/animated-number-text';
 import { useAppTheme } from '@/hooks/use-app-theme';
 
 type JourneyDurationHeroProps = {
@@ -16,9 +17,11 @@ export function JourneyDurationHero({ minutes }: JourneyDurationHeroProps) {
       accessibilityLabel={`${minutes} minutes`}
       accessibilityRole="text"
       style={styles.hero}>
-      <Text accessible={false} style={[styles.value, { color: colors.ink }]}>
-        {minutes}
-      </Text>
+      <AnimatedNumberText
+        accessible={false}
+        style={[styles.value, { color: colors.ink }]}
+        value={minutes}
+      />
       <Text accessible={false} style={[styles.unit, { color: colors.muted }]}>
         min
       </Text>

@@ -9,11 +9,9 @@ export function nearestStation(
   let nearest: StationFocus | undefined;
 
   for (const station of stations) {
-    for (const coordinate of Object.values(station.positions)) {
-      const distanceMeters = distanceBetween(origin, coordinate);
-      if (!nearest || distanceMeters < (nearest.distanceMeters ?? Infinity)) {
-        nearest = { station, coordinate, distanceMeters };
-      }
+    const distanceMeters = distanceBetween(origin, station.coordinate);
+    if (!nearest || distanceMeters < (nearest.distanceMeters ?? Infinity)) {
+      nearest = { station, coordinate: station.coordinate, distanceMeters };
     }
   }
 

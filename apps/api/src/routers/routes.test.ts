@@ -28,7 +28,8 @@ test('the public route table is stable', async () => {
     'GET /api/departures',
     'GET /api/health',
     'GET /api/journeys',
-    'GET /api/network/map',
+    'GET /api/network/rail-map',
+    'GET /api/network/stations',
     'GET /api/search',
   ]);
 });

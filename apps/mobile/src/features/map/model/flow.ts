@@ -2,6 +2,7 @@ import type { Coordinate, Journey, JourneyDestination } from '@via/contract';
 
 import { isJourneyScreen } from './journey-screen';
 import {
+  MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX,
   MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
   MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
 } from './overview-sheet';
@@ -138,7 +139,7 @@ export function transitionMapFlow(
         ...state,
         screen: 'detail',
         selectedJourneyIndex: event.index,
-        overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+        overviewDetentIndex: MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX,
         focusIntent: undefined,
       };
     case 'journey-detail-closed':
@@ -186,7 +187,12 @@ export function transitionMapFlow(
         ? withFocus(state, { kind: 'journey', journey: event.journey })
         : state;
     case 'detent-changed': {
-      const moved = { ...state, overviewDetentIndex: event.index };
+      const minimumDetentIndex =
+        state.screen === 'detail' ? MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX : 0;
+      const moved = {
+        ...state,
+        overviewDetentIndex: Math.max(minimumDetentIndex, event.index),
+      };
       const intent = state.focusIntent;
       if (!intent) return moved;
       const replays =

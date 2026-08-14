@@ -1,29 +1,44 @@
 import type { PropsWithChildren } from 'react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useReducer } from 'react';
-import type { Coordinate, JourneyDestination, NetworkRoute, SearchResult } from '@via/contract';
+import type { Coordinate, JourneyDestination, RouteBadge, SearchResult } from '@via/contract';
 
 import { nearestStation } from '@/features/map/model/nearest-station';
 import { INITIAL_MAP_FLOW, transitionMapFlow } from '@/features/map/model/flow';
-import { routesForStation } from '@/features/map/model/routes-for-station';
+import { mergeStations } from '@/features/map/model/merge-stations';
 import { isNearbyDistance } from '@/features/map/model/nearby-distance';
+import { useAreaStations } from '@/features/map/hooks/use-area-stations';
 import { useSearch } from '@/features/search/hooks/use-search';
 import { useJourneyPlan } from '@/features/journey/hooks/use-plan';
 import { useUserLocation } from '@/features/map/hooks/use-location';
 import { MapContext } from '@/features/map/state/context';
 import { journeyRequestKey, type JourneyRequest } from '@/features/journey/model/request';
 import { useMetroNetwork } from '@/hooks/use-metro-network';
-import { stationCoordinate } from '@/lib/metro-network';
-
-const EMPTY_ROUTES: NetworkRoute[] = [];
 
 export function MapProvider({ children }: PropsWithChildren) {
   const metro = useMetroNetwork();
+  const area = useAreaStations();
   const location = useUserLocation();
   const [flow, dispatchFlow] = useReducer(transitionMapFlow, INITIAL_MAP_FLOW);
   const deferredQuery = useDeferredValue(flow.searchQuery);
 
-  const stations = metro.network?.stations;
-  const routes = metro.state.status === 'ready' ? metro.state.lines : EMPTY_ROUTES;
+  const railStations = metro.network?.stations;
+  const stations = useMemo(
+    () => (railStations ? mergeStations(railStations, area.stations) : undefined),
+    [area.stations, railStations]
+  );
+  const stationRoutes = useMemo<RouteBadge[]>(() => {
+    const byId = new Map<string, RouteBadge>();
+    for (const route of metro.network?.routes ?? []) byId.set(route.id, route);
+    for (const route of area.routes) if (!byId.has(route.id)) byId.set(route.id, route);
+    return [...byId.values()];
+  }, [area.routes, metro.network?.routes]);
+
+  // The nearest-station lookup needs the stops around the user — including bus
+  // stops the viewport may never have visited — so their tiles load eagerly.
+  useEffect(() => {
+    if (location.state.status === 'ready') area.ensureArea(location.state.coordinate);
+  }, [area.ensureArea, location.state]);
+
   const closestStation = useMemo(() => {
     if (location.state.status !== 'ready' || !stations) return undefined;
     const closest = nearestStation(stations, location.state.coordinate);
@@ -33,21 +48,16 @@ export function MapProvider({ children }: PropsWithChildren) {
   const selectedStation = useMemo(() => {
     if (!flow.selectedStationId) return undefined;
     const station = stations?.find(({ id }) => id === flow.selectedStationId);
-    const coordinate = station && stationCoordinate(station);
-    if (!station || !coordinate) return undefined;
+    if (!station) return undefined;
     const distanceMeters =
       location.state.status === 'ready'
         ? nearestStation([station], location.state.coordinate)?.distanceMeters
         : undefined;
-    return { station, coordinate, distanceMeters };
+    return { station, coordinate: station.coordinate, distanceMeters };
   }, [flow.selectedStationId, location.state, stations]);
 
   const activeStation = selectedStation ?? closestStation;
   const search = useSearch(deferredQuery, location.state);
-  const activeRoutes = useMemo(
-    () => routesForStation(routes, activeStation?.station),
-    [activeStation?.station, routes]
-  );
   const isNearbyStation = isNearbyDistance(activeStation?.distanceMeters);
   const journeyRequest = useMemo<JourneyRequest | undefined>(() => {
     if (!flow.journeyDestination || location.state.status !== 'ready') return undefined;
@@ -96,8 +106,7 @@ export function MapProvider({ children }: PropsWithChildren) {
   const resolveStationJourney = useCallback(
     (stationId: string) => {
       const station = stations?.find(({ id }) => id === stationId);
-      const coordinate = station && stationCoordinate(station);
-      if (!station || !coordinate) return {};
+      if (!station) return {};
       const distanceMeters =
         location.state.status === 'ready'
           ? nearestStation([station], location.state.coordinate)?.distanceMeters
@@ -108,7 +117,7 @@ export function MapProvider({ children }: PropsWithChildren) {
           kind: 'station' as const,
           id: station.id,
           name: station.name,
-          coordinate,
+          coordinate: station.coordinate,
         },
         journeyDistanceMeters: distanceMeters,
       };
@@ -129,7 +138,20 @@ export function MapProvider({ children }: PropsWithChildren) {
   const selectResult = useCallback(
     (result: SearchResult) => {
       if (result.kind === 'station') {
-        const journeySelection = resolveStationJourney(result.id);
+        // From its own payload, not the loaded stations: a searched bus stop
+        // across town sits in no visited viewport tile, yet its result already
+        // carries the coordinate and distance the journey needs.
+        const journeySelection = isNearbyDistance(result.distanceMeters)
+          ? {}
+          : {
+              journeyDestination: {
+                kind: 'station' as const,
+                id: result.id,
+                name: result.name,
+                coordinate: result.coordinate,
+              },
+              journeyDistanceMeters: result.distanceMeters,
+            };
         dispatchFlow({ type: 'station-selected', stationId: result.id, ...journeySelection });
         return journeySelection.journeyDestination !== undefined;
       }
@@ -170,7 +192,6 @@ export function MapProvider({ children }: PropsWithChildren) {
 
   const value = useMemo(
     () => ({
-      activeRoutes,
       activeStation,
       cancelJourney,
       changeOverviewDetent,
@@ -179,10 +200,12 @@ export function MapProvider({ children }: PropsWithChildren) {
       journey,
       journeyDestination: flow.journeyDestination,
       journeyDistanceMeters: flow.journeyDistanceMeters,
+      mapStations: stations ?? [],
       networkState: metro.state,
       openJourneyDetail,
       overviewDetentIndex: flow.overviewDetentIndex,
       refreshLocation: location.refresh,
+      reportViewport: area.reportViewport,
       retryNetwork: metro.retry,
       screen: flow.screen,
       searchQuery: flow.searchQuery,
@@ -191,14 +214,15 @@ export function MapProvider({ children }: PropsWithChildren) {
       selectedJourneyIndex: flow.selectedJourneyIndex,
       selectResult,
       selectStation,
+      stationRoutes,
       closeJourneyDetail,
       retryJourney,
       setSearchQuery,
       userLocation: location.state,
     }),
     [
-      activeRoutes,
       activeStation,
+      area.reportViewport,
       cancelJourney,
       changeOverviewDetent,
       closeJourneyDetail,
@@ -220,6 +244,8 @@ export function MapProvider({ children }: PropsWithChildren) {
       selectedJourney,
       selectResult,
       selectStation,
+      stations,
+      stationRoutes,
       retryJourney,
       setSearchQuery,
     ]

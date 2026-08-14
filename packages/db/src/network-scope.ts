@@ -2,7 +2,7 @@ import {
   RER_SHORT_NAMES,
   ROUTE_TYPE,
   transitRoutes,
-} from '@via/db/schema';
+} from './schema';
 import { and, eq, inArray, or } from 'drizzle-orm';
 
 /** The exact route subset shared by the network map and station search. */

@@ -46,13 +46,13 @@ export function JourneyTransitStep({
   const direction = section.direction ?? section.to.name;
 
   return (
-    <JourneyTimelineRow color={section.route?.color ?? colors.primary} last={last} marker="dot">
+    <JourneyTimelineRow
+      color={section.route?.color ?? colors.primary}
+      last={last}
+      marker="dot"
+      markerContent={section.route ? <LineBadge route={section.route} size={30} /> : undefined}>
       <View style={styles.header}>
-        {section.route ? (
-          <LineBadge route={section.route} size={26} />
-        ) : (
-          <SymbolIcon color={colors.primary} name="tram.fill" size={22} />
-        )}
+        {!section.route ? <SymbolIcon color={colors.primary} name="tram.fill" size={22} /> : null}
         <Text numberOfLines={2} selectable style={[styles.title, { color: colors.ink }]}>
           Direction {direction}
         </Text>

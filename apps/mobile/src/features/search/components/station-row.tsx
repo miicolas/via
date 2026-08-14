@@ -1,20 +1,21 @@
-import type { NetworkRoute, StationSearchResult } from '@via/contract';
+import type { StationSearchResult } from '@via/contract';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { LineBadge } from '@/components/map/line-badge';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { formatDistance } from '@/lib/format-distance';
+import { compareRoutes } from '@/lib/route-order';
 
 type StationResultRowProps = {
   onPress: () => void;
   result: StationSearchResult;
-  /** The whole network's lines; the row keeps the ones serving this station. */
-  routes: NetworkRoute[];
 };
 
-export function StationResultRow({ onPress, result, routes }: StationResultRowProps) {
+export function StationResultRow({ onPress, result }: StationResultRowProps) {
   const { colors } = useAppTheme();
-  const served = routes.filter((route) => result.routeIds.includes(route.id));
+  // The result carries its own badges, so a row renders without waiting for
+  // any other payload.
+  const served = [...result.routes].sort(compareRoutes);
 
   return (
     <Pressable

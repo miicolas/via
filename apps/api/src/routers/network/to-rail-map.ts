@@ -1,9 +1,9 @@
-import type { NetworkMap, NetworkRoute, NetworkSegment, NetworkStation } from '@via/contract';
-import { networkMode } from '@via/db/schema';
+import type { NetworkRoute, NetworkSegment, NetworkStation, RailMap } from '@via/contract';
 
 import { toLineStrings } from '../../geo/coordinates';
 import { lineLengthMeters } from '../../geo/line-length';
-import type { NetworkPatternRow, NetworkStationPositionRow } from './queries';
+import { toRouteBadge } from '../route-badge';
+import type { NetworkPatternRow, RailStationPositionRow } from './queries';
 
 /**
  * Normalising an additional pattern against the displayed track leaves confetti
@@ -12,10 +12,10 @@ import type { NetworkPatternRow, NetworkStationPositionRow } from './queries';
  */
 const MIN_SEGMENT_LENGTH_METERS = 80;
 
-export function toNetworkMap(
+export function toRailMap(
   patternRows: NetworkPatternRow[],
-  stationRows: NetworkStationPositionRow[]
-): NetworkMap {
+  stationRows: RailStationPositionRow[]
+): RailMap {
   const routes = toRoutes(patternRows);
 
   return {
@@ -27,19 +27,9 @@ export function toNetworkMap(
 function toRoutes(rows: NetworkPatternRow[]): NetworkRoute[] {
   return [...Map.groupBy(rows, (row) => row.routeId).values()].map((routeRows) => {
     const [route] = routeRows;
-    const mode = networkMode(route.routeType, route.shortName);
-    if (!mode) throw new Error(`Unsupported route ${route.routeId}`);
 
     return {
-      id: route.routeId,
-      shortName: route.shortName,
-      longName: route.longName,
-      color: `#${route.color}`,
-      textColor: `#${route.textColor}`,
-      mode,
-      // From every row on purpose: a return pattern whose track deduplicated
-      // into nothing still names a destination.
-      destinations: [...new Set(routeRows.map(({ headsign }) => headsign))],
+      ...toRouteBadge({ ...route, id: route.routeId }),
       segments: routeRows.flatMap(toSegments),
     };
   });
@@ -53,30 +43,25 @@ function toSegments(row: NetworkPatternRow): NetworkSegment[] {
 }
 
 function toStations(
-  rows: NetworkStationPositionRow[],
+  rows: RailStationPositionRow[],
   routes: NetworkRoute[]
 ): NetworkStation[] {
   const routeById = new Map(routes.map((route) => [route.id, route]));
 
   return [...Map.groupBy(rows, (row) => row.id).values()].map((stationRows) => {
+    // Rows arrive ordered by route id, so the anchor is the station's first
+    // serving line — the same entry the client used to read out of `positions`.
     const [station] = stationRows;
+    const source = {
+      latitude: Number(station.latitude),
+      longitude: Number(station.longitude),
+    };
 
     return {
       id: station.id,
       name: station.name,
-      positions: Object.fromEntries(
-        stationRows.map((row) => {
-          const source = {
-            latitude: Number(row.latitude),
-            longitude: Number(row.longitude),
-          };
-          const route = routeById.get(row.routeId);
-          const coordinate =
-            route?.mode === 'bus' ? source : nearestCoordinateOnRoute(source, route) ?? source;
-
-          return [row.routeId, coordinate];
-        })
-      ),
+      coordinate: nearestCoordinateOnRoute(source, routeById.get(station.routeId)) ?? source,
+      routeIds: stationRows.map((row) => row.routeId),
     };
   });
 }

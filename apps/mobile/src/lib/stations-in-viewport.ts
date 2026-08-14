@@ -21,10 +21,11 @@ export function stationsInViewport(
   const west = viewport.longitude - longitudeRadius;
   const east = viewport.longitude + longitudeRadius;
 
-  return stations.filter((station) =>
-    Object.values(station.positions).some(
-      ({ latitude, longitude }) =>
-        latitude >= south && latitude <= north && longitude >= west && longitude <= east
-    )
+  return stations.filter(
+    ({ coordinate }) =>
+      coordinate.latitude >= south &&
+      coordinate.latitude <= north &&
+      coordinate.longitude >= west &&
+      coordinate.longitude <= east
   );
 }

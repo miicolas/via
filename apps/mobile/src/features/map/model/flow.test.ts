@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { Journey } from '@via/contract';
 
 import {
+  MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX,
   MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
   MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
 } from './overview-sheet';
@@ -121,6 +122,7 @@ describe('map flow', () => {
     });
     const results = transitionMapFlow(planning, { type: 'planning-settled' });
     const detail = transitionMapFlow(results, { type: 'journey-detail-opened', index: 2 });
+    const collapsedDetail = transitionMapFlow(detail, { type: 'detent-changed', index: 0 });
     const movedDetail = transitionMapFlow(detail, { type: 'detent-changed', index: 2 });
     const closed = transitionMapFlow(movedDetail, { type: 'journey-detail-closed' });
     const retrying = transitionMapFlow(closed, { type: 'journey-retried' });
@@ -129,8 +131,11 @@ describe('map flow', () => {
     expect(detail).toMatchObject({
       screen: 'detail',
       selectedJourneyIndex: 2,
-      overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+      overviewDetentIndex: MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX,
     });
+    expect(collapsedDetail.overviewDetentIndex).toBe(
+      MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX
+    );
     expect(movedDetail.overviewDetentIndex).toBe(2);
     expect(closed).toMatchObject({
       screen: 'results',

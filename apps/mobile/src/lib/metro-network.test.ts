@@ -1,13 +1,7 @@
-import type { NetworkMap, NetworkRoute, NetworkStation } from '@via/contract';
+import type { NetworkRoute, NetworkStation, RailMap } from '@via/contract';
 import { describe, expect, test } from 'bun:test';
 
-import {
-  isInterchange,
-  resolveLine,
-  routeBounds,
-  sortRoutes,
-  stationPositions,
-} from './metro-network';
+import { isInterchange, resolveLine, routeBounds, sortRoutes } from './metro-network';
 
 function route(
   shortName: string,
@@ -17,11 +11,9 @@ function route(
   return {
     id,
     shortName,
-    longName: `Ligne ${shortName}`,
     color: '#FFCD00',
     textColor: '#000000',
     mode,
-    destinations: [`Terminus ${shortName}`],
     segments: [
       {
         id: `shape-${shortName}`,
@@ -36,19 +28,20 @@ function route(
 
 function station(
   name: string,
-  positions: Record<string, { latitude: number; longitude: number }>
+  coordinate: { latitude: number; longitude: number },
+  routeIds: string[]
 ): NetworkStation {
-  return { id: `stop-${name}`, name, positions };
+  return { id: `stop-${name}`, name, coordinate, routeIds };
 }
 
 const LINE_1 = route('1');
 const LINE_4 = route('4');
-const CHATELET = station('Châtelet', {
-  'IDFM:1': { latitude: 48.8583, longitude: 2.347 },
-  'IDFM:4': { latitude: 48.859, longitude: 2.3475 },
-});
-const LOUVRE = station('Louvre', { 'IDFM:1': { latitude: 48.8607, longitude: 2.341 } });
-const NETWORK: NetworkMap = { routes: [LINE_4, LINE_1], stations: [CHATELET, LOUVRE] };
+const CHATELET = station('Châtelet', { latitude: 48.8583, longitude: 2.347 }, [
+  'IDFM:1',
+  'IDFM:4',
+]);
+const LOUVRE = station('Louvre', { latitude: 48.8607, longitude: 2.341 }, ['IDFM:1']);
+const NETWORK: RailMap = { routes: [LINE_4, LINE_1], stations: [CHATELET, LOUVRE] };
 
 describe('sortRoutes', () => {
   test('orders numerically, with the suffix as tie-breaker', () => {
@@ -92,19 +85,11 @@ describe('routeBounds', () => {
 describe('resolveLine', () => {
   const lines = sortRoutes(NETWORK.routes);
 
-  test('keeps only the stations that sit on the line, with their position on it', () => {
+  test('keeps only the stations that sit on the line', () => {
     const view = resolveLine(lines, NETWORK.stations, 'IDFM:4')!;
 
     expect(view.route.shortName).toBe('4');
     expect(view.stations.map((s) => s.name)).toEqual(['Châtelet']);
-    expect(view.stations[0]!.coordinate).toEqual({ latitude: 48.859, longitude: 2.3475 });
-  });
-
-  test('gives a station its own coordinate per line', () => {
-    const onOne = resolveLine(lines, NETWORK.stations, 'IDFM:1')!;
-    const onFour = resolveLine(lines, NETWORK.stations, 'IDFM:4')!;
-
-    expect(onOne.stations[0]!.coordinate).not.toEqual(onFour.stations[0]!.coordinate);
   });
 
   test('counts interchanges among the line’s own stations', () => {
@@ -126,20 +111,5 @@ describe('isInterchange', () => {
   test('is true only when a station serves more than one line', () => {
     expect(isInterchange(CHATELET)).toBe(true);
     expect(isInterchange(LOUVRE)).toBe(false);
-  });
-});
-
-describe('stationPositions', () => {
-  test('keeps one coordinate for every line serving an interchange', () => {
-    expect(stationPositions(CHATELET)).toEqual([
-      { routeId: 'IDFM:1', coordinate: { latitude: 48.8583, longitude: 2.347 } },
-      { routeId: 'IDFM:4', coordinate: { latitude: 48.859, longitude: 2.3475 } },
-    ]);
-  });
-
-  test('returns the single position for a station served by one line', () => {
-    expect(stationPositions(LOUVRE)).toEqual([
-      { routeId: 'IDFM:1', coordinate: { latitude: 48.8607, longitude: 2.341 } },
-    ]);
   });
 });

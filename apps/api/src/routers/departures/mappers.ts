@@ -1,4 +1,4 @@
-import type { DepartureGroup } from '@via/contract';
+import type { DepartureGroup, RouteBadge } from '@via/contract';
 
 import { groupDepartures } from './group-departures';
 import type { NormalizedVisit } from './prim/parse';
@@ -10,7 +10,7 @@ import type { NormalizedVisit } from './prim/parse';
  */
 export function toDepartureGroups(
   visits: NormalizedVisit[],
-  stationRouteIds: string[],
+  stationRoutes: RouteBadge[],
   now: Date
 ): DepartureGroup[] {
   return groupDepartures(
@@ -21,6 +21,6 @@ export function toDepartureGroups(
         destination: visit.destination,
         at: visit.expectedAt,
       })),
-    stationRouteIds
+    stationRoutes
   );
 }

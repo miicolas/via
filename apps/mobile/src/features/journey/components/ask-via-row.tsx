@@ -16,7 +16,7 @@ export function AskViaRow({ onPress }: AskViaRowProps) {
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
-      <SymbolIcon color={colors.primary} name="sparkles" size={14} />
+      <SymbolIcon animation="pulse" color={colors.primary} name="sparkles" size={14} />
       <Text style={[styles.label, { color: colors.primary }]}>Demander autrement à Via</Text>
       <SymbolIcon color={colors.primary} name="chevron.right" size={14} />
     </Pressable>

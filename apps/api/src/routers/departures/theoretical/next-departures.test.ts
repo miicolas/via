@@ -1,6 +1,16 @@
 import { expect, test } from 'bun:test';
 
+import type { RouteBadge } from '@via/contract';
+
 import { nextTheoreticalDepartures, type TheoreticalDepartureRow } from './next-departures';
+
+const badge = (id: string): RouteBadge => ({
+  id,
+  shortName: '1',
+  mode: 'metro',
+  color: '#FFCD00',
+  textColor: '#000000',
+});
 
 const row = (
   routeId: string,
@@ -16,7 +26,7 @@ const loaderOf = (byDate: Record<string, TheoreticalDepartureRow[]>) =>
 test('departures group by line and headsign, soonest first', async () => {
   const groups = await nextTheoreticalDepartures(
     new Date('2026-08-12T16:00:00Z'), // 18:00 Paris
-    ['IDFM:C01371'],
+    [badge('IDFM:C01371')],
     loaderOf({
       '2026-08-12': [
         row('IDFM:C01371', 'La Défense', 18 * 3600 + 240),
@@ -39,7 +49,7 @@ test('departures group by line and headsign, soonest first', async () => {
 test("just past midnight, yesterday's service still supplies the trains", async () => {
   const groups = await nextTheoreticalDepartures(
     new Date('2026-08-12T22:30:00Z'), // 00:30 Paris on the 13th
-    ['IDFM:C01371'],
+    [badge('IDFM:C01371')],
     loaderOf({
       // "24:45" of the 12th — the night service, recorded past 24 h.
       '2026-08-12': [row('IDFM:C01371', 'La Défense', 24 * 3600 + 45 * 60)],
@@ -56,7 +66,7 @@ test("just past midnight, yesterday's service still supplies the trains", async 
 test("lines the station does not serve are dropped", async () => {
   const groups = await nextTheoreticalDepartures(
     new Date('2026-08-12T16:00:00Z'),
-    ['IDFM:C01371'],
+    [badge('IDFM:C01371')],
     loaderOf({
       '2026-08-12': [
         row('IDFM:C01381', 'Châtelet', 18 * 3600 + 60),
@@ -65,13 +75,13 @@ test("lines the station does not serve are dropped", async () => {
     })
   );
 
-  expect(groups.map((group) => group.routeId)).toEqual(['IDFM:C01371']);
+  expect(groups.map((group) => group.route.id)).toEqual(['IDFM:C01371']);
 });
 
 test('each group caps at four departures', async () => {
   const groups = await nextTheoreticalDepartures(
     new Date('2026-08-12T16:00:00Z'),
-    ['IDFM:C01371'],
+    [badge('IDFM:C01371')],
     loaderOf({
       '2026-08-12': [2, 5, 8, 11, 14, 17].map((minutes) =>
         row('IDFM:C01371', 'La Défense', 18 * 3600 + minutes * 60)
@@ -85,7 +95,7 @@ test('each group caps at four departures', async () => {
 test('nothing scheduled yields no groups', async () => {
   const groups = await nextTheoreticalDepartures(
     new Date('2026-08-12T16:00:00Z'),
-    ['IDFM:C01371'],
+    [badge('IDFM:C01371')],
     loaderOf({})
   );
 

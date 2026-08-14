@@ -5,8 +5,8 @@ import {
   isGlassEffectAPIAvailable,
 } from 'expo-glass-effect';
 import { type PropsWithChildren, useEffect, useMemo } from 'react';
-import { type AccessibilityActionEvent, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Gesture } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
   Extrapolation,
@@ -20,19 +20,20 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
+import {
+  SheetHandle,
+  SHEET_HANDLE_HEIGHT,
+} from '@/features/map/components/sheet-handle';
 import { SheetExpansionContext } from '@/features/map/state/sheet-expansion';
 
 const SHEET_HORIZONTAL_INSET = 10;
 const SHEET_BOTTOM_INSET = 10;
 const COLLAPSED_SHEET_WIDTH = 276;
-const HANDLE_HEIGHT = 30;
-const HANDLE_VERTICAL_HIT_SLOP = 7;
 const TAB_ENVELOPE_DEPTH = 96;
 const TAB_CONTENT_CLEARANCE = 90;
 const MATERIAL_REVEAL_DISTANCE = 48;
 const VELOCITY_PROJECTION_SECONDS = 0.16;
 const COLLAPSED_DETENT_INDEX = 0;
-const REVEALED_DETENT_INDEX = 1;
 const CORNER_RADIUS_ANCHORS = [54, 40, 34]; // collapsed, first revealed, expanded
 const CONTENT_FADE_START_OFFSET = 30;
 const CONTENT_RISE_DISTANCE = 18;
@@ -44,6 +45,7 @@ const GLASS_AVAILABLE = isGlassEffectAPIAvailable();
 type TabBehindSheetProps = PropsWithChildren<{
   detentFractions: readonly [number, number, ...number[]]; // collapsed, first revealed, …
   detentIndex: number;
+  minimumDetentIndex?: number;
   onDetentChange: (index: number) => void;
   topInset: number;
 }>;
@@ -52,6 +54,7 @@ export function TabBehindSheet({
   children,
   detentFractions,
   detentIndex,
+  minimumDetentIndex = COLLAPSED_DETENT_INDEX,
   onDetentChange,
   topInset,
 }: TabBehindSheetProps) {
@@ -74,11 +77,17 @@ export function TabBehindSheet({
   const collapsedHeight = snapHeights[0];
   const mediumHeight = snapHeights[1];
   const expandedHeight = snapHeights[snapHeights.length - 1];
+  const resolvedMinimumDetentIndex = Math.max(
+    0,
+    Math.min(snapHeights.length - 1, minimumDetentIndex)
+  );
+  const minimumHeight = snapHeights[resolvedMinimumDetentIndex] ?? collapsedHeight;
   const collapsedHorizontalInset = Math.max(
     SHEET_HORIZONTAL_INSET,
     (viewportWidth - COLLAPSED_SHEET_WIDTH) / 2
   );
-  const targetHeight = snapHeights[detentIndex] ?? mediumHeight;
+  const targetHeight =
+    snapHeights[Math.max(detentIndex, resolvedMinimumDetentIndex)] ?? minimumHeight;
   const visibleHeight = useSharedValue(targetHeight);
   const dragStartHeight = useSharedValue(targetHeight);
   useEffect(() => {
@@ -99,20 +108,24 @@ export function TabBehindSheet({
         })
         .onUpdate((event) => {
           visibleHeight.value = Math.max(
-            collapsedHeight,
+            minimumHeight,
             Math.min(expandedHeight, dragStartHeight.value - event.translationY)
           );
         })
         .onEnd((event) => {
           const projectedHeight = Math.max(
-            collapsedHeight,
+            minimumHeight,
             Math.min(
               expandedHeight,
               visibleHeight.value - event.velocityY * VELOCITY_PROJECTION_SECONDS
             )
           );
-          let nextIndex = 0;
-          for (let index = 1; index < snapHeights.length; index += 1) {
+          let nextIndex = resolvedMinimumDetentIndex;
+          for (
+            let index = resolvedMinimumDetentIndex + 1;
+            index < snapHeights.length;
+            index += 1
+          ) {
             if (
               Math.abs(projectedHeight - snapHeights[index]) <
               Math.abs(projectedHeight - snapHeights[nextIndex])
@@ -137,11 +150,12 @@ export function TabBehindSheet({
           );
         }),
     [
-      collapsedHeight,
       dragStartHeight,
       expandedHeight,
+      minimumHeight,
       onDetentChange,
       reduceMotion,
+      resolvedMinimumDetentIndex,
       snapHeights,
       visibleHeight,
     ]
@@ -208,19 +222,6 @@ export function TabBehindSheet({
         : ('none' as const),
   }));
   const isCollapsed = detentIndex === COLLAPSED_DETENT_INDEX;
-  const toggleDetent = () =>
-    onDetentChange(isCollapsed ? REVEALED_DETENT_INDEX : COLLAPSED_DETENT_INDEX);
-  const adjustDetent = ({ nativeEvent }: AccessibilityActionEvent) => {
-    const offset =
-      nativeEvent.actionName === 'increment'
-        ? 1
-        : nativeEvent.actionName === 'decrement'
-          ? -1
-          : 0;
-    if (offset) {
-      onDetentChange(Math.max(0, Math.min(snapHeights.length - 1, detentIndex + offset)));
-    }
-  };
 
   return (
     <Animated.View style={[styles.sheet, shellStyle]}>
@@ -240,25 +241,14 @@ export function TabBehindSheet({
         )}
       </Animated.View>
 
-      <GestureDetector gesture={pan}>
-        <Pressable
-          accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-          accessibilityHint={isCollapsed ? 'Déplie le panneau' : 'Replie le panneau'}
-          accessibilityLabel="Panneau de la carte"
-          accessibilityRole="adjustable"
-          accessibilityValue={{ min: 0, max: snapHeights.length - 1, now: detentIndex }}
-          hitSlop={{
-            top: HANDLE_VERTICAL_HIT_SLOP,
-            bottom: HANDLE_VERTICAL_HIT_SLOP,
-            left: 0,
-            right: 0,
-          }}
-          onAccessibilityAction={adjustDetent}
-          onPress={toggleDetent}
-          style={styles.handleTarget}>
-          <View style={[styles.handle, { backgroundColor: colors.sheetHandle }]} />
-        </Pressable>
-      </GestureDetector>
+      <SheetHandle
+        color={colors.sheetHandle}
+        detentIndex={detentIndex}
+        gesture={pan}
+        maximumDetentIndex={snapHeights.length - 1}
+        minimumDetentIndex={resolvedMinimumDetentIndex}
+        onDetentChange={onDetentChange}
+      />
 
       <Animated.View
         pointerEvents={isCollapsed ? 'none' : 'auto'}
@@ -277,20 +267,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderCurve: 'continuous',
   },
-  handleTarget: {
-    height: HANDLE_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 8,
-  },
-  handle: {
-    width: 46,
-    height: 5,
-    borderRadius: 3,
-  },
   content: {
     position: 'absolute',
-    top: HANDLE_HEIGHT,
+    top: SHEET_HANDLE_HEIGHT,
     right: 0,
     bottom: TAB_CONTENT_CLEARANCE,
     left: 0,

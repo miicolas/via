@@ -19,6 +19,7 @@ import {
   type LonLat,
   type NetworkMode,
 } from '@via/db/schema';
+import { computeDrawnGeometry } from '@via/db/drawn-geometry';
 import { projectStopsOntoPatterns } from '@via/db/projection';
 import { parse } from 'csv-parse';
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
@@ -312,6 +313,8 @@ async function importTransitNetwork(gtfsPath: string) {
     });
 
     await tx.execute(projectStopsOntoPatterns());
+    await tx.execute(computeDrawnGeometry());
+    await tx.execute(sql`ANALYZE ${transitRoutePatterns}`);
     await tx.execute(sql`ANALYZE ${transitStops}`);
     await tx.execute(sql`ANALYZE ${transitStopRoutes}`);
     await tx.execute(sql`ANALYZE ${transitTransfers}`);

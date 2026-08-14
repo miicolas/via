@@ -12,7 +12,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 
-import { lineStringWgs84, pointWgs84 } from './columns';
+import { lineStringWgs84, multiLineStringWgs84, pointWgs84 } from './columns';
 
 /**
  * This module is the side-effect-free half of the package: table definitions and
@@ -72,6 +72,19 @@ export const transitRoutePatterns = pgTable(
     isCanonical: boolean('is_canonical').notNull().default(false),
     /** Bus patterns keep their calls and destinations, but deliberately no map trace. */
     geometry: lineStringWgs84('geometry'),
+    /**
+     * The normalized track this pattern contributes to the map: the canonical
+     * spine untouched, a real branch reduced to what leaves the already-drawn
+     * track, everything else empty.
+     *
+     * It only changes when an import runs, yet it used to be recomputed by
+     * PostGIS on every network request — windowed ST_Union + ST_Buffer +
+     * ST_Difference, seconds of work per call. Stored instead, following the
+     * `snapped_location` precedent below. Nullable because bus patterns never
+     * get one and an interrupted import may leave gaps; readers filter on
+     * NOT NULL. The rule that writes it lives in `@via/db/drawn-geometry`.
+     */
+    drawnGeometry: multiLineStringWgs84('drawn_geometry'),
   },
   (table) => [
     index('transit_route_patterns_geometry_idx').using('gist', table.geometry),

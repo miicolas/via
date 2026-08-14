@@ -1,4 +1,4 @@
-import { DEPARTURES_PER_GROUP, type DepartureGroup } from '@via/contract';
+import { DEPARTURES_PER_GROUP, type DepartureGroup, type RouteBadge } from '@via/contract';
 
 /** A departure reduced to what grouping needs, whatever source it came from. */
 export type DatedDeparture = {
@@ -14,17 +14,18 @@ export type DatedDeparture = {
  * so a realtime row and a scheduled row can never drift apart in how they
  * bucket, sort or cap — nor in which lines they keep: a station's payload can
  * carry every line calling there (an interchange's RER traffic rides with its
- * metro traffic), so only `stationRouteIds` survive.
+ * metro traffic), so only the station's own `routes` survive, and each group
+ * carries its line's badge.
  */
 export function groupDepartures(
   departures: DatedDeparture[],
-  stationRouteIds: string[]
+  routes: RouteBadge[]
 ): DepartureGroup[] {
-  const served = new Set(stationRouteIds);
+  const badgeById = new Map(routes.map((route) => [route.id, route]));
   const buckets = new Map<string, DepartureGroup>();
 
   const sorted = departures
-    .filter((departure) => served.has(departure.routeId))
+    .filter((departure) => badgeById.has(departure.routeId))
     .sort((a, b) => a.at.localeCompare(b.at));
 
   for (const departure of sorted) {
@@ -32,7 +33,7 @@ export function groupDepartures(
     const group = buckets.get(key);
     if (!group) {
       buckets.set(key, {
-        routeId: departure.routeId,
+        route: badgeById.get(departure.routeId)!,
         destination: departure.destination,
         departures: [departure.at],
       });
@@ -41,8 +42,8 @@ export function groupDepartures(
     }
   }
 
-  // Stable payload order; the client re-associates by routeId anyway.
+  // Stable payload order; the client re-associates by route id anyway.
   return [...buckets.values()].sort(
-    (a, b) => a.routeId.localeCompare(b.routeId) || a.destination.localeCompare(b.destination)
+    (a, b) => a.route.id.localeCompare(b.route.id) || a.destination.localeCompare(b.destination)
   );
 }

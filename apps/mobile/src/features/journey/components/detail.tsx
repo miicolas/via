@@ -1,8 +1,8 @@
 import type { Journey, JourneyDestination } from '@via/contract';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { SymbolIcon } from '@/components/symbol-icon';
 import { GlassCard } from '@/components/glass-card';
+import { JourneyDepartureCountdown } from '@/features/journey/components/departure-countdown';
 import { JourneyDetailFooter } from '@/features/journey/components/detail-footer';
 import { JourneyDurationHero } from '@/features/journey/components/duration-hero';
 import { JourneyLegStrip } from '@/features/journey/components/leg-strip';
@@ -16,38 +16,33 @@ type JourneyDetailProps = {
   destination: JourneyDestination;
   journeys: Journey[];
   selectedIndex: number;
-  onBack: () => void;
 };
 
-export function JourneyDetail({ destination, journeys, selectedIndex, onBack }: JourneyDetailProps) {
+export function JourneyDetail({ destination, journeys, selectedIndex }: JourneyDetailProps) {
   const { colors } = useAppTheme();
   const now = useNow();
   const journey = journeys[selectedIndex] ?? journeys[0];
   if (!journey) return null;
   const duration = journeyMinutes(journey.durationSeconds);
-  const leaveIn = Math.max(0, Math.round((Date.parse(journey.departureAt) - now.getTime()) / 60_000));
+  const leaveIn = Math.max(
+    0,
+    Math.floor((Date.parse(journey.departureAt) - now.getTime()) / 60_000)
+  );
   return (
     <View style={styles.container}>
-      <View style={styles.navigation}>
-        <Pressable
-          accessibilityLabel="Retour aux itinéraires"
-          accessibilityRole="button"
-          onPress={onBack}
-          style={({ pressed }) => [
-            styles.back,
-            { backgroundColor: colors.track, borderColor: colors.hairline },
-            pressed && styles.pressed,
-          ]}>
-          <SymbolIcon color={colors.ink} name="chevron.left" size={19} />
-        </Pressable>
-      </View>
-      <ScrollView contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic" showsVerticalScrollIndicator={false} style={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+        showsVerticalScrollIndicator={false}
+        style={styles.scroll}
+      >
         <GlassCard>
           <View style={styles.hero}>
             <JourneyDurationHero minutes={duration} />
-            <Text style={[styles.leave, { color: colors.ink }]}>
-              {leaveIn > 0 ? `Pars d’ici dans ${leaveIn} min` : 'Pars maintenant'}
-            </Text>
+            <JourneyDepartureCountdown
+              minutes={leaveIn}
+              realtime={journey.status !== 'theoretical'}
+            />
           </View>
           <View style={styles.strip}>
             <JourneyLegStrip journey={journey} />
@@ -67,21 +62,9 @@ export function JourneyDetail({ destination, journeys, selectedIndex, onBack }: 
 
 const styles = StyleSheet.create({
   container: { flex: 1, gap: 4 },
-  navigation: { paddingHorizontal: SHEET_GUTTER, paddingTop: 6 },
-  back: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 22,
-    borderCurve: 'continuous',
-  },
   scroll: { flex: 1 },
   content: { gap: 12, paddingHorizontal: SHEET_GUTTER, paddingBottom: 16 },
-  hero: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
-  leave: { fontFamily: 'Inter_600SemiBold', fontSize: 14, fontVariant: ['tabular-nums'] },
+  hero: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   strip: { flexDirection: 'row' },
   notice: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 16 },
-  pressed: { opacity: 0.65 },
 });

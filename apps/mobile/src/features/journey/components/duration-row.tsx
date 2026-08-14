@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { AnimatedNumberText } from '@/components/animated-number-text';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { formatTime } from '@/lib/format-time';
 
@@ -25,11 +26,11 @@ export function JourneyDurationRow({ arrivalAt, minutes, struck = false }: Journ
       accessibilityLabel={`${minutes} minutes, arrivée à ${arrival}`}
       accessibilityRole="text"
       style={styles.block}>
-      <Text
+      <AnimatedNumberText
         accessible={false}
-        style={[styles.total, { color: struck ? colors.muted : colors.ink }, struck && styles.struck]}>
-        {minutes} min
-      </Text>
+        style={[styles.total, { color: struck ? colors.muted : colors.ink }, struck && styles.struck]}
+        value={`${minutes} min`}
+      />
       <Text accessible={false} style={[styles.arrival, { color: colors.muted }]}>
         → {arrival}
       </Text>

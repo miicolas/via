@@ -1,4 +1,3 @@
-import type { NetworkRoute } from '@via/contract';
 import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -19,11 +18,10 @@ const SCROLL_FADE_EPSILON = 2;
 
 type StationSectionProps = {
   expanded: boolean;
-  routes: NetworkRoute[];
   station: StationFocus;
 };
 
-export function StationSection({ expanded, routes, station }: StationSectionProps) {
+export function StationSection({ expanded, station }: StationSectionProps) {
   const { colors } = useAppTheme();
   const departures = useDepartures(station.station.id);
   const now = useNow();
@@ -45,7 +43,7 @@ export function StationSection({ expanded, routes, station }: StationSectionProp
 
   const source = departures.status === 'ready' ? departures.response.source : 'unavailable';
   const groups = departures.status === 'ready' ? departures.response.groups : [];
-  const rows = departureRows(routes, groups, now);
+  const rows = departureRows(groups, now);
 
   return (
     <View style={styles.container}>
@@ -92,10 +90,9 @@ export function StationSection({ expanded, routes, station }: StationSectionProp
           >
             {rows.map((row) => (
               <DepartureRow
+                directions={row.directions}
                 key={row.key}
                 route={row.route}
-                destination={row.destination}
-                wait={row.wait}
                 source={source}
               />
             ))}

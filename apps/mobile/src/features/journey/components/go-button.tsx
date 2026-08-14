@@ -25,7 +25,12 @@ export function JourneyGoButton({ accessibilityLabel, grow = false, onPress }: J
         { backgroundColor: colors.primary },
         pressed && styles.pressed,
       ]}>
-      <SymbolIcon color={colors.surface} name="paperplane.fill" size={15} />
+      <SymbolIcon
+        animation={{ effect: { type: 'bounce', direction: 'up' } }}
+        color={colors.surface}
+        name="paperplane.fill"
+        size={15}
+      />
       <Text style={[styles.label, { color: colors.surface }]}>Y aller</Text>
     </Pressable>
   );

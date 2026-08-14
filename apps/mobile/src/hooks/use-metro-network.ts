@@ -1,4 +1,4 @@
-import type { NetworkMap, NetworkRoute, NetworkStation } from '@via/contract';
+import type { NetworkRoute, NetworkStation, RailMap } from '@via/contract';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api, apiBaseUrl } from '@/lib/api';
@@ -6,7 +6,7 @@ import { resolveLine, sortRoutes, type LineView } from '@/lib/metro-network';
 
 /** The one remote operation the network request cycle needs. */
 export type NetworkPort = {
-  load: (signal: AbortSignal) => Promise<NetworkMap>;
+  load: (signal: AbortSignal) => Promise<RailMap>;
 };
 
 export type NetworkState =
@@ -19,20 +19,23 @@ export const LOAD_FAILED_MESSAGE =
 export const EMPTY_NETWORK_MESSAGE = 'Aucune ligne de transport à afficher.';
 
 export type MetroNetwork = {
-  network?: NetworkMap;
+  network?: RailMap;
   state: NetworkState;
   select: (routeId: string) => void;
   retry: () => void;
 };
 
 /**
- * Loads the whole visible transit network once and owns which line is shown.
+ * Loads the rail map — métro and RER, the only lines with a drawn track — once
+ * at startup, and owns which line is shown. Bus stops are not here on purpose:
+ * they only render at street-level zoom, so `useAreaStations` fetches them
+ * viewport by viewport instead of shipping 14 000 stops nobody is looking at.
  *
  * Loading, retry, selection and visible state stay behind this interface. The
  * narrow port lets tests replace only the one remote operation involved.
  */
 export function useMetroNetwork(port: NetworkPort = apiNetworkPort): MetroNetwork {
-  const [network, setNetwork] = useState<NetworkMap>();
+  const [network, setNetwork] = useState<RailMap>();
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   const [selectedRouteId, setSelectedRouteId] = useState<string>();
@@ -67,11 +70,11 @@ export function useMetroNetwork(port: NetworkPort = apiNetworkPort): MetroNetwor
 }
 
 const apiNetworkPort: NetworkPort = {
-  load: (signal) => api.network.map(undefined, { signal }),
+  load: (signal) => api.network.railMap(undefined, { signal }),
 };
 
 function deriveNetworkState(
-  network: NetworkMap | undefined,
+  network: RailMap | undefined,
   error: string | undefined,
   selectedRouteId: string | undefined
 ): NetworkState {

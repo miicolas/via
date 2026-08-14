@@ -1,4 +1,4 @@
-import type { Coordinate, NetworkRoute, NetworkStation } from '@via/contract';
+import type { Coordinate, NetworkStation, RouteBadge } from '@via/contract';
 import { useEffect, useState } from 'react';
 import type { SharedValue } from 'react-native-reanimated';
 
@@ -12,7 +12,7 @@ const TRACKING_SETTLE_DURATION_MS = 100;
 type StationMarkersLayerProps = {
   line: LineView | undefined;
   opacity: SharedValue<number>;
-  routes: NetworkRoute[];
+  routes: RouteBadge[];
   stations: NetworkStation[];
   tracksViewChanges: boolean;
   visible: boolean;

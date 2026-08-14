@@ -1,4 +1,4 @@
-import type { DepartureGroup } from '@via/contract';
+import type { DepartureGroup, RouteBadge } from '@via/contract';
 
 import { groupDepartures } from '../group-departures';
 import { parisServiceDay, previousDate, toInstant } from './service-day';
@@ -28,7 +28,7 @@ type LoadRows = (
  */
 export async function nextTheoreticalDepartures(
   now: Date,
-  stationRouteIds: string[],
+  stationRoutes: RouteBadge[],
   loadRows: LoadRows
 ): Promise<DepartureGroup[]> {
   const { date, seconds } = parisServiceDay(now);
@@ -48,6 +48,6 @@ export async function nextTheoreticalDepartures(
       destination: row.headsign,
       at: toInstant(serviceDate, row.departureSeconds),
     })),
-    stationRouteIds
+    stationRoutes
   );
 }

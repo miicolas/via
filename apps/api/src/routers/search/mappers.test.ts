@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 
 import { toStationResults } from './mappers';
 
-test('rows become station results, coordinates numeric', () => {
+test('rows become station results, coordinates numeric, badges built', () => {
   const results = toStationResults([
     {
       id: 'IDFM:462921',
@@ -10,7 +10,10 @@ test('rows become station results, coordinates numeric', () => {
       // The driver can hand geometry accessors back as strings.
       longitude: '2.3633' as unknown as number,
       latitude: '48.8675' as unknown as number,
-      routeIds: ['IDFM:C01373', 'IDFM:C01377'],
+      routes: [
+        { id: 'IDFM:C01373', shortName: '3', routeType: 1, color: '837902', textColor: 'FFFFFF' },
+        { id: 'IDFM:C01377', shortName: '11', routeType: 1, color: '8D5E2A', textColor: 'FFFFFF' },
+      ],
     },
   ]);
 
@@ -20,7 +23,22 @@ test('rows become station results, coordinates numeric', () => {
       id: 'IDFM:462921',
       name: 'République',
       coordinate: { latitude: 48.8675, longitude: 2.3633 },
-      routeIds: ['IDFM:C01373', 'IDFM:C01377'],
+      routes: [
+        {
+          id: 'IDFM:C01373',
+          shortName: '3',
+          mode: 'metro',
+          color: '#837902',
+          textColor: '#FFFFFF',
+        },
+        {
+          id: 'IDFM:C01377',
+          shortName: '11',
+          mode: 'metro',
+          color: '#8D5E2A',
+          textColor: '#FFFFFF',
+        },
+      ],
     },
   ]);
 });

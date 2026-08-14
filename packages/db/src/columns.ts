@@ -59,6 +59,22 @@ export const pointWgs84 = customType<{
   },
 });
 
+/**
+ * A WGS84 multi-track geometry — `geometry(MultiLineString,4326)`.
+ *
+ * Written and read exclusively by SQL (`ST_AsGeoJSON` on the way out), so the
+ * driver value stays an opaque EWKB hex string: parsing it in JS would add a
+ * decoder with no consumer.
+ */
+export const multiLineStringWgs84 = customType<{
+  data: string;
+  driverData: string;
+}>({
+  dataType() {
+    return 'geometry(MultiLineString,4326)';
+  },
+});
+
 /** A WGS84 transit alignment — `geometry(LineString,4326)`. */
 export const lineStringWgs84 = customType<{
   data: LonLat[];

@@ -2,10 +2,12 @@ import type {
   Coordinate,
   Journey,
   JourneyDestination,
-  NetworkRoute,
   NetworkStation,
+  RouteBadge,
   SearchResult,
 } from '@via/contract';
+
+import type { ViewportRegion } from '@/lib/viewport-tiles';
 
 import type { SearchState } from '@/features/search/hooks/use-search';
 import type { FlowScreen, MapFocusIntent } from '@/features/map/model/flow';
@@ -29,16 +31,21 @@ export type StationFocus = {
 };
 
 export type MapValue = {
-  activeRoutes: NetworkRoute[];
   activeStation?: StationFocus;
   cancelJourney: () => void;
   changeOverviewDetent: (index: number) => void;
   focusIntent?: MapFocusIntent;
   isNearbyStation: boolean;
+  /** Rail stations merged with whatever the viewport tiles have loaded. */
+  mapStations: NetworkStation[];
   networkState: NetworkState;
   overviewDetentIndex: number;
   refreshLocation: () => Promise<void>;
+  /** Tells the tile loader what the user currently sees. */
+  reportViewport: (region: ViewportRegion) => void;
   retryNetwork: () => void;
+  /** Badges for every route `mapStations` can reference, rail and bus alike. */
+  stationRoutes: RouteBadge[];
   searchQuery: string;
   search: SearchState;
   journey: JourneyState;

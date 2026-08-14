@@ -1,4 +1,4 @@
-import type { NetworkMap, NetworkRoute, NetworkStation } from '@via/contract';
+import type { NetworkRoute, NetworkStation, RailMap } from '@via/contract';
 import { act, renderHook } from '@testing-library/react-native';
 
 import {
@@ -9,7 +9,7 @@ import {
 } from '@/hooks/use-metro-network';
 
 jest.mock('@/lib/api', () => ({
-  api: { network: { map: jest.fn() } },
+  api: { network: { railMap: jest.fn() } },
   apiBaseUrl: 'http://test.invalid',
 }));
 
@@ -17,30 +17,25 @@ function route(shortName: string): NetworkRoute {
   return {
     id: `IDFM:${shortName}`,
     shortName,
-    longName: `Ligne ${shortName}`,
     color: '#FFCD00',
     textColor: '#000000',
     mode: 'metro',
-    destinations: [`Terminus ${shortName}`],
     segments: [],
   };
 }
 
-function station(
-  name: string,
-  positions: NetworkStation['positions']
-): NetworkStation {
-  return { id: `stop-${name}`, name, positions };
+function station(name: string, routeIds: string[]): NetworkStation {
+  return {
+    id: `stop-${name}`,
+    name,
+    coordinate: { latitude: 48.8583, longitude: 2.347 },
+    routeIds,
+  };
 }
 
-const NETWORK: NetworkMap = {
+const NETWORK: RailMap = {
   routes: [route('4'), route('1')],
-  stations: [
-    station('Châtelet', {
-      'IDFM:1': { latitude: 48.8583, longitude: 2.347 },
-      'IDFM:4': { latitude: 48.859, longitude: 2.3475 },
-    }),
-  ],
+  stations: [station('Châtelet', ['IDFM:1', 'IDFM:4'])],
 };
 
 type Deferred<T> = {
@@ -60,10 +55,10 @@ function deferred<T>(): Deferred<T> {
 }
 
 function networkRecorder() {
-  const calls: Array<{ request: Deferred<NetworkMap>; signal: AbortSignal }> = [];
+  const calls: Array<{ request: Deferred<RailMap>; signal: AbortSignal }> = [];
   const port: NetworkPort = {
     load: (signal) => {
-      const request = deferred<NetworkMap>();
+      const request = deferred<RailMap>();
       calls.push({ request, signal });
       return request.promise;
     },

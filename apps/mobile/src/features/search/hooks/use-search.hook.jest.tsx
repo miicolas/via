@@ -13,7 +13,9 @@ const RESPONSE: SearchResponse = {
       id: 'republique',
       name: 'République',
       coordinate: { latitude: 48.8675, longitude: 2.3638 },
-      routeIds: ['line-5'],
+      routes: [
+        { id: 'line-5', shortName: '5', mode: 'metro', color: '#FF7E2E', textColor: '#000000' },
+      ],
     },
   ],
   sources: { ban: 'ok' },

@@ -1,5 +1,7 @@
 import type { Coordinate, NetworkRoute, NetworkStation } from '@via/contract';
 
+import { compareRoutes } from '@/lib/route-order';
+
 /**
  * Everything the map screen knows about the network, as data.
  *
@@ -8,8 +10,8 @@ import type { Coordinate, NetworkRoute, NetworkStation } from '@via/contract';
  * is only the adapter that feeds it.
  */
 
-/** A station together with where it sits on one specific line. */
-export type LineStation = NetworkStation & { coordinate: Coordinate };
+/** A station shown as part of one specific line. */
+export type LineStation = NetworkStation;
 
 /**
  * A line and its stations, resolved together.
@@ -40,10 +42,7 @@ export function resolveLine(
   const route = lines.find((line) => line.id === selectedRouteId) ?? lines[0];
   if (!route) return undefined;
 
-  const lineStations = stations.flatMap((station) => {
-    const coordinate = station.positions[route.id];
-    return coordinate ? [{ ...station, coordinate }] : [];
-  });
+  const lineStations = stations.filter((station) => station.routeIds.includes(route.id));
 
   return {
     route,
@@ -52,19 +51,8 @@ export function resolveLine(
   };
 }
 
-/** 1, 2, 3, 3bis, 4… — numeric part first, suffix as tie-breaker. */
 export function sortRoutes(routes: NetworkRoute[]): NetworkRoute[] {
-  return [...routes].sort((a, b) => {
-    const modeDifference = modeOrder(a.mode) - modeOrder(b.mode);
-    if (modeDifference !== 0) return modeDifference;
-    const [numberA, suffixA] = routeOrder(a.shortName);
-    const [numberB, suffixB] = routeOrder(b.shortName);
-    return numberA - numberB || suffixA.localeCompare(suffixB);
-  });
-}
-
-function modeOrder(mode: NetworkRoute['mode']) {
-  return { metro: 0, rer: 1, bus: 2 }[mode];
+  return [...routes].sort(compareRoutes);
 }
 
 /**
@@ -94,38 +82,5 @@ export function routeBounds(route: NetworkRoute): Coordinate[] {
 }
 
 export function isInterchange(station: NetworkStation): boolean {
-  return Object.keys(station.positions).length > 1;
-}
-
-/** Every place where a station sits on one of the lines it serves. */
-export function stationPositions(
-  station: NetworkStation
-): Array<{ routeId: string; coordinate: Coordinate }> {
-  return Object.entries(station.positions).map(([routeId, coordinate]) => ({
-    routeId,
-    coordinate,
-  }));
-}
-
-/**
- * The position used to focus the map on a station when no line is selected.
- * The network view uses it as one shared anchor for the station label, while
- * `stationPositions` supplies the colours of the serving lines.
- */
-export function primaryPosition(
-  station: NetworkStation
-): { routeId: string; coordinate: Coordinate } | undefined {
-  const [entry] = Object.entries(station.positions);
-  return entry ? { routeId: entry[0], coordinate: entry[1] } : undefined;
-}
-
-/** Where to draw a station when no particular line is in focus. */
-export function stationCoordinate(station: NetworkStation): Coordinate | undefined {
-  return primaryPosition(station)?.coordinate;
-}
-
-function routeOrder(shortName: string) {
-  const match = /^(\d+)(.*)$/.exec(shortName);
-  if (!match) return [Number.MAX_SAFE_INTEGER, shortName] as const;
-  return [Number(match[1]), match[2]] as const;
+  return station.routeIds.length > 1;
 }

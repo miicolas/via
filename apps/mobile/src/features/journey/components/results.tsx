@@ -1,5 +1,6 @@
 import type { JourneyDestination, JourneysResponse } from '@via/contract';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { Easing, Keyframe, useReducedMotion } from 'react-native-reanimated';
 
 import { SectionEyebrow } from '@/components/section-eyebrow';
 import { UnavailableState } from '@/components/unavailable-state';
@@ -30,6 +31,7 @@ export function JourneyResults({
   onRetry,
   onSelect,
 }: JourneyResultsProps) {
+  const reduceMotion = useReducedMotion();
   const distance = distanceMeters === undefined ? '' : ` · ${formatDistance(distanceMeters)}`;
   const heading = <JourneyResultsHeading detail={`${destination.name}${distance}`} />;
 
@@ -76,35 +78,49 @@ export function JourneyResults({
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
       showsVerticalScrollIndicator={false}>
-      {heading}
+      <Animated.View entering={resultEntry(reduceMotion, 0)}>{heading}</Animated.View>
 
-      <View style={styles.gutter}>
+      <Animated.View entering={resultEntry(reduceMotion, 40)} style={styles.gutter}>
         <JourneyCard
           journey={recommended}
           onPress={() => onSelect(0)}
           reason={recommendationReason(response.journeys)}
         />
-      </View>
+      </Animated.View>
 
       <View>
         {alternatives.length > 0 ? (
-          <View style={styles.listHeader}>
+          <Animated.View entering={resultEntry(reduceMotion, 80)} style={styles.listHeader}>
             <SectionEyebrow label="AUTRES ITINÉRAIRES" />
-          </View>
+          </Animated.View>
         ) : null}
         {alternatives.map((journey, index) => (
-          <JourneyAlternativeRow
-            journey={journey}
-            key={journey.id}
-            onPress={() => onSelect(index + 1)}
-          />
+          <Animated.View
+            entering={resultEntry(reduceMotion, 100 + Math.min(index, 3) * 40)}
+            key={journey.id}>
+            <JourneyAlternativeRow journey={journey} onPress={() => onSelect(index + 1)} />
+          </Animated.View>
         ))}
-        <View style={styles.gutter}>
+        <Animated.View entering={resultEntry(reduceMotion, 140)} style={styles.gutter}>
           <AskViaRow onPress={onRetry} />
-        </View>
+        </Animated.View>
       </View>
     </ScrollView>
   );
+}
+
+function resultEntry(reduceMotion: boolean, delayMs: number) {
+  if (reduceMotion) return undefined;
+
+  return new Keyframe({
+    0: { transform: [{ translateY: 8 }] },
+    100: {
+      transform: [{ translateY: 0 }],
+      easing: Easing.bezier(0.23, 1, 0.32, 1),
+    },
+  })
+    .duration(220)
+    .delay(delayMs);
 }
 
 const styles = StyleSheet.create({

@@ -11,6 +11,7 @@ import { TabBehindSheet } from '@/features/map/components/tab-behind-sheet';
 import { useMap } from '@/features/map/hooks/use-map';
 import { isJourneyScreen } from '@/features/map/model/journey-screen';
 import {
+  MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX,
   MAP_JOURNEY_SHEET_DETENTS,
   MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX,
   MAP_OVERVIEW_SHEET_DETENTS,
@@ -29,13 +30,16 @@ export function MetroMapScreen() {
   const {
     changeOverviewDetent,
     focusIntent,
+    mapStations,
     networkState,
     overviewDetentIndex,
     refreshLocation,
+    reportViewport,
     retryNetwork,
     screen,
     selectStation,
     selectedJourney,
+    stationRoutes,
     userLocation,
   } = useMap();
   const journeySheetActive = isJourneyScreen(screen);
@@ -92,10 +96,12 @@ export function MetroMapScreen() {
         line={undefined}
         lines={networkState.status === 'ready' ? networkState.lines : []}
         journey={screen === 'detail' ? selectedJourney : undefined}
-        stations={networkState.status === 'ready' ? networkState.stations : []}
+        stations={networkState.status === 'ready' ? mapStations : []}
+        stationRoutes={stationRoutes}
         onReady={() => setMapReady(true)}
         onSelectStation={selectMapStation}
         onUserMove={() => setCenteredOnUser(false)}
+        onViewportChange={reportViewport}
         showsUserLocation={
           userLocation.status === 'ready' && userLocation.source === 'device'
         }
@@ -122,6 +128,9 @@ export function MetroMapScreen() {
       <TabBehindSheet
         detentFractions={sheetDetents}
         detentIndex={overviewDetentIndex}
+        minimumDetentIndex={
+          screen === 'detail' ? MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX : undefined
+        }
         onDetentChange={changeOverviewDetent}
         topInset={insets.top}>
         <OverviewSheet />

@@ -1,5 +1,7 @@
 import * as z from 'zod';
 
+import { routeBadgeSchema } from '../shared/schema';
+
 /** How deep a departure board group goes — the server builds to this cap, the schema enforces it. */
 export const DEPARTURES_PER_GROUP = 4;
 
@@ -9,8 +11,8 @@ export const departuresInputSchema = z.object({
 });
 
 export const departureGroupSchema = z.object({
-  /** For line badges; resolved against the network map client-side. */
-  routeId: z.string(),
+  /** The line's badge, ready to render without another fetch. */
+  route: routeBadgeSchema,
   destination: z.string(),
   /**
    * ISO timestamps of the next departures, soonest first. Timestamps rather
