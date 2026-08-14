@@ -4,7 +4,8 @@ struct LinesView: View {
     let transitAPI: any TransitAPI
 
     @State private var routes: [NetworkRoute] = []
-    @State private var stationCount = 0
+    @State private var stations: [NetworkStation] = []
+    @State private var selectedRoute: NetworkRoute?
     @State private var isLoading = true
     @State private var errorMessage: String?
 
@@ -31,13 +32,17 @@ struct LinesView: View {
                             ViaButton("Réessayer", systemImage: "arrow.clockwise", action: load)
                         }
                     } else {
-                        Text("\(routes.count) lignes · \(stationCount) stations")
+                        Text("\(routes.count) lignes · \(stations.count) stations")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(ViaTheme.primary)
 
                         LazyVStack(spacing: 10) {
                             ForEach(routes) { route in
-                                LineRowView(route: route, stationCount: stationCount(for: route))
+                                LineRowView(
+                                    route: route,
+                                    stationCount: stationsOnRoute(route, from: stations).count,
+                                    action: { selectedRoute = route }
+                                )
                             }
                         }
                     }
@@ -48,6 +53,16 @@ struct LinesView: View {
             .navigationTitle("Lignes")
             .navigationBarTitleDisplayMode(.inline)
             .task { await load() }
+            .sheet(item: $selectedRoute) { route in
+                NavigationStack {
+                    LineDetailView(
+                        route: route,
+                        stations: stationsOnRoute(route, from: stations)
+                    )
+                }
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
         }
     }
 
@@ -61,16 +76,11 @@ struct LinesView: View {
         do {
             let map = try await transitAPI.loadRailMap()
             routes = map.routes.sortedForDisplay
-            stationCount = map.stations.count
+            stations = map.stations
         } catch {
             errorMessage = "Le réseau est indisponible."
         }
         isLoading = false
     }
 
-    private func stationCount(for route: NetworkRoute) -> Int {
-        // The API currently returns route geometry and station membership separately.
-        // Keeping this calculation local avoids making the shell own map state.
-        max(0, stationCount / max(routes.count, 1))
-    }
 }

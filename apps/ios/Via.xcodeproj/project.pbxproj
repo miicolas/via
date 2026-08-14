@@ -64,6 +64,10 @@
 		A10000000000000000000037 /* NativeRuntimeConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000036 /* NativeRuntimeConfiguration.swift */; };
 		A10000000000000000000038 /* ViaLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000037 /* ViaLogger.swift */; };
 		A10000000000000000000039 /* NativeRuntimeConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000038 /* NativeRuntimeConfigurationTests.swift */; };
+		A1000000000000000000003A /* LinePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000039 /* LinePresentation.swift */; };
+		A1000000000000000000003B /* LineDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003A /* LineDetailView.swift */; };
+		A1000000000000000000003C /* LineStationRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003B /* LineStationRowView.swift */; };
+		A1000000000000000000003D /* LinePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003C /* LinePresentationTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -143,6 +147,10 @@
 		B10000000000000000000036 /* NativeRuntimeConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRuntimeConfiguration.swift; sourceTree = "<group>"; };
 		B10000000000000000000037 /* ViaLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViaLogger.swift; sourceTree = "<group>"; };
 		B10000000000000000000038 /* NativeRuntimeConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRuntimeConfigurationTests.swift; sourceTree = "<group>"; };
+		B10000000000000000000039 /* LinePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinePresentation.swift; sourceTree = "<group>"; };
+		B1000000000000000000003A /* LineDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineDetailView.swift; sourceTree = "<group>"; };
+		B1000000000000000000003B /* LineStationRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineStationRowView.swift; sourceTree = "<group>"; };
+		B1000000000000000000003C /* LinePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinePresentationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -200,6 +208,7 @@
 			isa = PBXGroup;
 			children = (
 				B10000000000000000000008 /* TransitModels.swift */,
+				B10000000000000000000039 /* LinePresentation.swift */,
 				B10000000000000000000009 /* ViewportTiles.swift */,
 				B1000000000000000000000A /* MapFlow.swift */,
 				B1000000000000000000000B /* DepartureRows.swift */,
@@ -284,6 +293,8 @@
 			children = (
 				B10000000000000000000032 /* LinesView.swift */,
 				B10000000000000000000033 /* LineRowView.swift */,
+				B1000000000000000000003A /* LineDetailView.swift */,
+				B1000000000000000000003B /* LineStationRowView.swift */,
 				B10000000000000000000034 /* NavigoView.swift */,
 			);
 			path = Shell;
@@ -324,6 +335,7 @@
 				B10000000000000000000026 /* JourneyPresentationTests.swift */,
 				B10000000000000000000035 /* ChatStreamParserTests.swift */,
 				B10000000000000000000038 /* NativeRuntimeConfigurationTests.swift */,
+				B1000000000000000000003C /* LinePresentationTests.swift */,
 			);
 			path = ViaTests;
 			sourceTree = "<group>";
@@ -565,6 +577,9 @@
 				A10000000000000000000034 /* NavigoView.swift in Sources */,
 				A10000000000000000000037 /* NativeRuntimeConfiguration.swift in Sources */,
 				A10000000000000000000038 /* ViaLogger.swift in Sources */,
+				A1000000000000000000003A /* LinePresentation.swift in Sources */,
+				A1000000000000000000003B /* LineDetailView.swift in Sources */,
+				A1000000000000000000003C /* LineStationRowView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -578,6 +593,7 @@
 				A10000000000000000000026 /* JourneyPresentationTests.swift in Sources */,
 				A10000000000000000000035 /* ChatStreamParserTests.swift in Sources */,
 				A10000000000000000000039 /* NativeRuntimeConfigurationTests.swift in Sources */,
+				A1000000000000000000003D /* LinePresentationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

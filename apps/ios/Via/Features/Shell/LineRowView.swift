@@ -3,34 +3,33 @@ import SwiftUI
 struct LineRowView: View {
     let route: NetworkRoute
     let stationCount: Int
+    let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
-            LineBadgeView(
-                route: RouteBadge(
-                    id: route.id,
-                    shortName: route.shortName,
-                    mode: route.mode,
-                    color: route.color,
-                    textColor: route.textColor
-                )
-            )
+        ViaButton(action: action) {
+            HStack(spacing: 14) {
+                LineBadgeView(route: route.badge)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text(route.mode == .metro ? "Métro \(route.shortName)" : route.shortName)
-                    .font(.headline)
-                    .foregroundStyle(ViaTheme.ink)
-                Text("\(stationCount) stations · réseau Via")
-                    .font(.caption)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(route.mode == .metro ? "Métro \(route.shortName)" : route.shortName)
+                        .font(.headline)
+                        .foregroundStyle(ViaTheme.ink)
+                    Text("\(stationCount) stations · réseau Via")
+                        .font(.caption)
+                        .foregroundStyle(ViaTheme.muted)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(ViaTheme.muted)
             }
-
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(ViaTheme.muted)
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .padding(14)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .buttonStyle(.plain)
+        .accessibilityLabel("Ouvrir la ligne \(route.shortName)")
+        .accessibilityIdentifier("via.line.\(route.id)")
     }
 }
