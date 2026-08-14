@@ -8,7 +8,12 @@ struct AppDependencies {
     static func live() -> AppDependencies {
         let identity = ClientIdentityStore().identifier
         let baseURL = URL(string: ProcessInfo.processInfo.environment["VIA_API_URL"] ?? "http://localhost:3000")!
+
+        #if DEBUG
         let isDemo = ProcessInfo.processInfo.arguments.contains("--via-demo")
+        #else
+        let isDemo = false
+        #endif
 
         let api: any TransitAPI
         if isDemo {
