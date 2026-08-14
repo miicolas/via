@@ -43,5 +43,6 @@ struct StationRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("via.station.\(station.id)")
     }
 }

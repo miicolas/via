@@ -13,6 +13,7 @@ struct StationDetailsView: View {
                     Text(station.name)
                         .font(.title2.weight(.bold))
                         .foregroundStyle(ViaTheme.ink)
+                        .accessibilityIdentifier("via.stationDetail.\(station.id)")
                     HStack(spacing: 6) {
                         ForEach(routes) { route in
                             LineBadgeView(route: route)

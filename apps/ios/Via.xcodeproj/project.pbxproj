@@ -36,10 +36,18 @@
 		A1000000000000000000001B /* MapFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001B /* MapFlowTests.swift */; };
 		A1000000000000000000001C /* DepartureRowsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001C /* DepartureRowsTests.swift */; };
 		A1000000000000000000001D /* ViewportTilesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001D /* ViewportTilesTests.swift */; };
+		A1000000000000000000001E /* ViaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001E /* ViaUITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		C10000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C20000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C30000000000000000000001;
+			remoteInfo = Via;
+		};
+		C10000000000000000000003 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = C20000000000000000000001 /* Project object */;
 			proxyType = 1;
@@ -51,6 +59,7 @@
 /* Begin PBXFileReference section */
 		B00000000000000000000001 /* Via.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Via.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B00000000000000000000002 /* ViaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ViaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00000000000000000000003 /* ViaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ViaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000001 /* ViaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViaApp.swift; sourceTree = "<group>"; };
 		B10000000000000000000002 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		B10000000000000000000003 /* AppDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencies.swift; sourceTree = "<group>"; };
@@ -80,6 +89,7 @@
 		B1000000000000000000001B /* MapFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapFlowTests.swift; sourceTree = "<group>"; };
 		B1000000000000000000001C /* DepartureRowsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepartureRowsTests.swift; sourceTree = "<group>"; };
 		B1000000000000000000001D /* ViewportTilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewportTilesTests.swift; sourceTree = "<group>"; };
+		B1000000000000000000001E /* ViaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViaUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,6 +101,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C30000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C30000000000000000000009 /* UI Test Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -207,11 +224,20 @@
 			path = ViaTests;
 			sourceTree = "<group>";
 		};
+		D1000000000000000000000E /* ViaUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B1000000000000000000001E /* ViaUITests.swift */,
+			);
+			path = ViaUITests;
+			sourceTree = "<group>";
+		};
 		D1000000000000000000000B /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000001 /* Via.app */,
 				B00000000000000000000002 /* ViaTests.xctest */,
+				B00000000000000000000003 /* ViaUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -221,6 +247,7 @@
 			children = (
 				D10000000000000000000009 /* Via */,
 				D1000000000000000000000A /* ViaTests */,
+				D1000000000000000000000E /* ViaUITests */,
 				D1000000000000000000000B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -263,6 +290,24 @@
 			productReference = B00000000000000000000002 /* ViaTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C3000000000000000000000C /* ViaUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E10000000000000000000004 /* Build configuration list for PBXNativeTarget "ViaUITests" */;
+			buildPhases = (
+				C3000000000000000000000A /* UI Test Sources */,
+				C30000000000000000000009 /* UI Test Frameworks */,
+				C3000000000000000000000B /* UI Test Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C10000000000000000000004 /* PBXTargetDependency */,
+			);
+			name = ViaUITests;
+			productName = ViaUITests;
+			productReference = B00000000000000000000003 /* ViaUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -276,6 +321,9 @@
 						LastSwiftMigration = 2630;
 					};
 					C30000000000000000000006 = {
+						TestTargetID = C30000000000000000000001;
+					};
+					C3000000000000000000000C = {
 						TestTargetID = C30000000000000000000001;
 					};
 				};
@@ -296,6 +344,7 @@
 			targets = (
 				C30000000000000000000001 /* Via */,
 				C30000000000000000000006 /* ViaTests */,
+				C3000000000000000000000C /* ViaUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -316,6 +365,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C3000000000000000000000B /* UI Test Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -323,6 +379,11 @@
 			isa = PBXTargetDependency;
 			target = C30000000000000000000001 /* Via */;
 			targetProxy = C10000000000000000000001 /* PBXContainerItemProxy */;
+		};
+		C10000000000000000000004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C30000000000000000000001 /* Via */;
+			targetProxy = C10000000000000000000003 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -366,6 +427,14 @@
 				A1000000000000000000001B /* MapFlowTests.swift in Sources */,
 				A1000000000000000000001C /* DepartureRowsTests.swift in Sources */,
 				A1000000000000000000001D /* ViewportTilesTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C3000000000000000000000A /* UI Test Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000001E /* ViaUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -482,6 +551,42 @@
 			};
 			name = Release;
 		};
+		F10000000000000000000007 /* UI Test Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HZAYG4Q47N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.native.uitests;
+				PRODUCT_NAME = ViaUITests;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Via;
+			};
+			name = Debug;
+		};
+		F10000000000000000000008 /* UI Test Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HZAYG4Q47N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.native.uitests;
+				PRODUCT_NAME = ViaUITests;
+				SDKROOT = iphoneos;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Via;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -508,6 +613,15 @@
 			buildConfigurations = (
 				F10000000000000000000005 /* Project Debug */,
 				F10000000000000000000006 /* Project Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E10000000000000000000004 /* Build configuration list for PBXNativeTarget "ViaUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000000000000000000007 /* UI Test Debug */,
+				F10000000000000000000008 /* UI Test Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

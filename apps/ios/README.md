@@ -20,3 +20,15 @@ The first vertical slice is intentionally small and production-shaped:
 
 The REST adapter consumes the existing `/api` OpenAPI surface while the Expo
 client continues to use `/rpc` during coexistence.
+
+The canonical contract snapshot lives in
+`Packages/ViaAPIContract/Sources/ViaAPIContract/openapi.json`. Verify that it
+has not drifted from the TypeScript contract with:
+
+```sh
+apps/ios/Scripts/verify-openapi-snapshot.sh
+```
+
+Swift OpenAPI Generator is isolated in `Packages/ViaAPIContract`; generated
+transport types stay behind the app's `TransitAPI` seam and never reach feature
+views.

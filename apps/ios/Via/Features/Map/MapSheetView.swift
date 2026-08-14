@@ -114,7 +114,7 @@ struct MapSheetView: View {
                 StationRowView(
                     station: station,
                     routes: stationRoutes(for: station, model: model),
-                    distanceMeters: station.coordinate.distance(to: MapFeatureModel.paris),
+                    distanceMeters: model.distanceMeters(to: station.coordinate),
                     action: { model.selectStation(station) }
                 )
             }

@@ -13,6 +13,7 @@ struct SearchBarView: View {
             TextField("Rechercher une station ou une adresse", text: $query)
                 .font(.body)
                 .focused($isFocused)
+                .accessibilityIdentifier("via.searchField")
                 .textInputAutocapitalization(.words)
                 .submitLabel(.search)
                 .onChange(of: isFocused) { _, focused in

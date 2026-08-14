@@ -96,16 +96,22 @@ final class MapFeatureModel {
     }
 
     var nearbyStations: [NetworkStation] {
-        let origin: GeoCoordinate
-        if case .ready(let coordinate) = locationState {
-            origin = coordinate
-        } else {
-            origin = Self.paris
-        }
+        let origin = currentCoordinate
         return mapStations
             .sorted { $0.coordinate.distance(to: origin) < $1.coordinate.distance(to: origin) }
             .prefix(8)
             .map { $0 }
+    }
+
+    var currentCoordinate: GeoCoordinate {
+        if case .ready(let coordinate) = locationState {
+            return coordinate
+        }
+        return Self.paris
+    }
+
+    func distanceMeters(to coordinate: GeoCoordinate) -> Double {
+        coordinate.distance(to: currentCoordinate)
     }
 
     func start() {
