@@ -21,7 +21,7 @@ struct AppDependencies {
         if isDemo {
             api = DemoTransitAPI()
         } else {
-            api = URLSessionTransitAPI(baseURL: baseURL, clientIdentifier: identity)
+            api = OpenAPITransitAPI(baseURL: baseURL, clientIdentifier: identity)
         }
 
         let chatClient: any ChatClient = isDemo

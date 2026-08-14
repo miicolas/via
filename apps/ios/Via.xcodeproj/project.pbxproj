@@ -20,7 +20,7 @@
 		A1000000000000000000000A /* MapFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000A /* MapFlow.swift */; };
 		A1000000000000000000000B /* DepartureRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000B /* DepartureRows.swift */; };
 		A1000000000000000000000C /* TransitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* TransitAPI.swift */; };
-		A1000000000000000000000D /* URLSessionTransitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* URLSessionTransitAPI.swift */; };
+		A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* OpenAPITransitAPI.swift */; };
 		A1000000000000000000000E /* ClientIdentityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* ClientIdentityStore.swift */; };
 		A1000000000000000000000F /* LocationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000F /* LocationClient.swift */; };
 		A10000000000000000000010 /* MapFeatureModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* MapFeatureModel.swift */; };
@@ -96,7 +96,7 @@
 		B1000000000000000000000A /* MapFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapFlow.swift; sourceTree = "<group>"; };
 		B1000000000000000000000B /* DepartureRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepartureRows.swift; sourceTree = "<group>"; };
 		B1000000000000000000000C /* TransitAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransitAPI.swift; sourceTree = "<group>"; };
-		B1000000000000000000000D /* URLSessionTransitAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionTransitAPI.swift; sourceTree = "<group>"; };
+		B1000000000000000000000D /* OpenAPITransitAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAPITransitAPI.swift; sourceTree = "<group>"; };
 		B1000000000000000000000E /* ClientIdentityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientIdentityStore.swift; sourceTree = "<group>"; };
 		B1000000000000000000000F /* LocationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationClient.swift; sourceTree = "<group>"; };
 		B10000000000000000000010 /* MapFeatureModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapFeatureModel.swift; sourceTree = "<group>"; };
@@ -207,7 +207,7 @@
 			isa = PBXGroup;
 			children = (
 				B1000000000000000000000C /* TransitAPI.swift */,
-				B1000000000000000000000D /* URLSessionTransitAPI.swift */,
+				B1000000000000000000000D /* OpenAPITransitAPI.swift */,
 				B1000000000000000000000E /* ClientIdentityStore.swift */,
 				B1000000000000000000000F /* LocationClient.swift */,
 				B1000000000000000000002B /* ChatClient.swift */,
@@ -522,7 +522,7 @@
 				A1000000000000000000001F /* JourneyModels.swift in Sources */,
 				A10000000000000000000020 /* JourneyPresentation.swift in Sources */,
 				A1000000000000000000000C /* TransitAPI.swift in Sources */,
-				A1000000000000000000000D /* URLSessionTransitAPI.swift in Sources */,
+				A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */,
 				A1000000000000000000000E /* ClientIdentityStore.swift in Sources */,
 				A1000000000000000000000F /* LocationClient.swift in Sources */,
 				A10000000000000000000010 /* MapFeatureModel.swift in Sources */,
