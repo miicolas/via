@@ -64,4 +64,19 @@ struct MapFlowTests {
         #expect(state.screen == .results)
         #expect(state.selectedStationID == "station-1")
     }
+
+    @Test
+    func mapSheetDetentEventsKeepTheExistingNonNegativeInvariant() {
+        let collapsed = transitionMapFlow(
+            MapFlowState(overviewDetentIndex: 0),
+            event: .detentChanged(-1)
+        )
+        let expanded = transitionMapFlow(
+            MapFlowState(overviewDetentIndex: 2),
+            event: .detentChanged(8)
+        )
+
+        #expect(collapsed.overviewDetentIndex == 0)
+        #expect(expanded.overviewDetentIndex == 8)
+    }
 }

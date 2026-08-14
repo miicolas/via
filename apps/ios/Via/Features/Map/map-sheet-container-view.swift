@@ -12,7 +12,13 @@ struct MapSheetContainerView: View {
             Capsule()
                 .fill(ViaTheme.muted.opacity(0.45))
                 .frame(width: 36, height: 5)
-                .accessibilityHidden(true)
+                .accessibilityLabel("Ajuster la hauteur du panneau")
+                .gesture(
+                    DragGesture(minimumDistance: 20)
+                        .onEnded { value in
+                            onDragEnded(value.translation.height)
+                        }
+                )
 
             MapSheetView(
                 model: model,
@@ -26,11 +32,5 @@ struct MapSheetContainerView: View {
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .padding(.horizontal, 8)
-        .gesture(
-            DragGesture(minimumDistance: 20)
-                .onEnded { value in
-                    onDragEnded(value.translation.height)
-                }
-        )
     }
 }

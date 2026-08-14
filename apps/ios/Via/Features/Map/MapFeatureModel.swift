@@ -166,7 +166,10 @@ final class MapFeatureModel {
 
     func changeSheetDetent(by translation: CGFloat) {
         guard abs(translation) >= 40 else { return }
-        let nextIndex = flow.overviewDetentIndex + (translation < 0 ? 1 : -1)
+        let nextIndex = min(
+            2,
+            max(0, flow.overviewDetentIndex + (translation < 0 ? 1 : -1))
+        )
         flow = transitionMapFlow(flow, event: .detentChanged(nextIndex))
     }
 
