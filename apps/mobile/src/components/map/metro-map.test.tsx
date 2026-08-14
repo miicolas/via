@@ -15,6 +15,7 @@ let layoutRegion = {
 let overviewDetentIndex = 0;
 let safeAreaTop = 0;
 let screen = 'overview';
+let selectedJourney: unknown;
 let networkState: Record<string, unknown> = { status: 'ready', lines: [], stations: [] };
 const pendingRefValues: unknown[] = [];
 const focusCoordinate = mock(() => undefined);
@@ -134,6 +135,7 @@ beforeAll(() => {
       retryNetwork: () => undefined,
       screen,
       selectStation,
+      selectedJourney,
       userLocation: { status: 'loading' },
     }),
   }));
@@ -149,6 +151,7 @@ beforeEach(() => {
   networkState = { status: 'ready', lines: [], stations: [] };
   overviewDetentIndex = 0;
   screen = 'overview';
+  selectedJourney = undefined;
 });
 
 describe('MetroMap station visibility', () => {
@@ -280,7 +283,7 @@ test('the overview sheet content lives inside the persistent tab-behind sheet', 
   expect(sheet?.props.onDetentChange).toBe(changeOverviewDetent);
 });
 
-test('a journey detail sheet cannot collapse below its readable detent', async () => {
+test('a journey detail sheet can collapse to expose the selected route', async () => {
   const { MetroMapScreen } = await import('@/components/map/metro-map-screen');
   screen = 'detail';
   overviewDetentIndex = 2;
@@ -288,7 +291,20 @@ test('a journey detail sheet cannot collapse below its readable detent', async (
   const tree = MetroMapScreen() as unknown as ElementNode;
   const sheet = elementWithProp(tree.props.children, 'detentFractions');
 
-  expect(sheet?.props.minimumDetentIndex).toBe(2);
+  // No minimum override: the sheet keeps TabBehindSheet's collapsed default.
+  expect(sheet?.props.minimumDetentIndex).toBeUndefined();
+});
+
+test('the selected journey stays visible behind the results sheet', async () => {
+  const { MetroMapScreen } = await import('@/components/map/metro-map-screen');
+  const journey = { id: 'journey-1' };
+  selectedJourney = journey;
+  screen = 'results';
+
+  const tree = MetroMapScreen() as unknown as ElementNode;
+  const map = elementWithProp(tree.props.children, 'onSelectStation');
+
+  expect(map?.props.journey).toBe(journey);
 });
 
 test('network status floats only above a collapsed overview or a journey sheet', async () => {

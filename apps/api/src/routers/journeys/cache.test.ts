@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 
 import { fakeRedis } from '../departures/__fixtures__/fake-redis';
-import { valueThroughCache } from './cache';
+import { journeyCacheKey, valueThroughCache } from './cache';
 
 test('concurrent journey misses share one upstream calculation', async () => {
   const { client } = fakeRedis();
@@ -20,4 +20,22 @@ test('concurrent journey misses share one upstream calculation', async () => {
   expect(loads).toBe(1);
   expect(first).toEqual({ status: 'ready' });
   expect(second).toEqual(first);
+});
+
+test('time direction and modal policies partition the journey cache', () => {
+  const base = {
+    origin: { latitude: 48.8566, longitude: 2.3522 },
+    destination: {
+      id: 'north',
+      coordinate: { latitude: 48.8809, longitude: 2.3553 },
+    },
+    limit: 4,
+    requestedAt: new Date('2026-08-14T08:00:00Z'),
+  };
+  const departure = journeyCacheKey({ ...base, datetimeRepresents: 'departure' });
+  const arrival = journeyCacheKey({ ...base, datetimeRepresents: 'arrival' });
+  const preferredBus = journeyCacheKey({ ...base, preferredModes: ['bus'] });
+  const requiredBus = journeyCacheKey({ ...base, requiredModes: ['bus'] });
+
+  expect(new Set([departure, arrival, preferredBus, requiredBus]).size).toBe(4);
 });

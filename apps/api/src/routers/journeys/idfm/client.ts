@@ -1,6 +1,7 @@
 import type { JourneyInput } from '@via/contract';
 
 import { fetchJsonOrNull } from '../../../http/fetch-json-or-null';
+import { compactParisDateTime } from '../../../time/paris';
 import type { IdfmJourneyPlanner } from '../service';
 import { parseIdfmJourneys } from './parse';
 
@@ -19,8 +20,8 @@ export function createIdfmJourneyPlanner({
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: IdfmJourneyPlannerConfig): IdfmJourneyPlanner {
   return {
-    plan: async (input, now, signal) => {
-      const requestUrl = journeyUrl(url, input, now);
+    plan: async (input, requestedAt, signal) => {
+      const requestUrl = journeyUrl(url, input, requestedAt);
       const body = await fetchJsonOrNull(requestUrl, {
         headers: { apikey: apiKey },
         signal,
@@ -28,13 +29,13 @@ export function createIdfmJourneyPlanner({
         logLabel: '[journeys] IDFM',
       });
       if (body === null) return null;
-      const journeys = parseIdfmJourneys(body, input, now);
+      const journeys = parseIdfmJourneys(body, input, requestedAt);
       return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys };
     },
   };
 }
 
-function journeyUrl(baseUrl: string, input: JourneyInput, now: Date) {
+export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Date) {
   const url = new URL(baseUrl);
   url.searchParams.set('from', `${input.origin.longitude};${input.origin.latitude}`);
   url.searchParams.set(
@@ -43,21 +44,19 @@ function journeyUrl(baseUrl: string, input: JourneyInput, now: Date) {
   );
   url.searchParams.set('count', String(input.limit));
   url.searchParams.set('data_freshness', 'realtime');
-  url.searchParams.set('datetime', toNavitiaDate(now));
+  url.searchParams.set('datetime', compactParisDateTime(requestedAt));
+  url.searchParams.set('datetime_represents', input.datetimeRepresents ?? 'departure');
+  for (const mode of input.requiredModes ?? []) {
+    url.searchParams.append('allowed_id[]', physicalModeUri(mode));
+  }
+  for (const mode of input.excludedModes ?? []) {
+    url.searchParams.append('forbidden_uris[]', physicalModeUri(mode));
+  }
   return url;
 }
 
-function toNavitiaDate(now: Date) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Paris',
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(now);
-  const map = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return `${map.year}${map.month}${map.day}T${map.hour === '24' ? '00' : map.hour}${map.minute}${map.second}`;
+function physicalModeUri(mode: 'metro' | 'rer' | 'bus') {
+  if (mode === 'bus') return 'physical_mode:Bus';
+  if (mode === 'rer') return 'physical_mode:RapidTransit';
+  return 'physical_mode:Metro';
 }

@@ -10,6 +10,7 @@ import { RouteLines } from '@/components/map/route-lines';
 import { StationMarkersLayer } from '@/components/map/station-markers-layer';
 import { PARIS_COORDINATE } from '@/features/map/model/location';
 import { routeBounds, type LineView } from '@/lib/metro-network';
+import { journeySectionCoordinates } from '@/lib/journey-map-geometry';
 import { stationsInViewport } from '@/lib/stations-in-viewport';
 import {
   alignLineWithRouteLayout,
@@ -189,7 +190,7 @@ export function MetroMap({
         );
       },
       fitToJourney(selectedJourney, { animated = true } = {}) {
-        const coordinates = selectedJourney.sections.flatMap((section) => section.geometry);
+        const coordinates = selectedJourney.sections.flatMap(journeySectionCoordinates);
         if (coordinates.length < 2) return;
         mapRef.current?.fitToCoordinates(coordinates, { animated, edgePadding });
       },

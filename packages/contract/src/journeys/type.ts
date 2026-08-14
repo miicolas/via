@@ -3,6 +3,7 @@ import * as z from 'zod';
 import {
   journeyDestinationSchema,
   journeyInputSchema,
+  journeyModeSchema,
   journeySchema,
   journeysResponseSchema,
   journeySectionSchema,
@@ -11,6 +12,7 @@ import {
 
 export type JourneyDestination = z.infer<typeof journeyDestinationSchema>;
 export type JourneyInput = z.infer<typeof journeyInputSchema>;
+export type JourneyMode = z.infer<typeof journeyModeSchema>;
 export type Journey = z.infer<typeof journeySchema>;
 export type JourneySection = z.infer<typeof journeySectionSchema>;
 export type JourneyStop = z.infer<typeof journeyStopSchema>;

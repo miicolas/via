@@ -49,10 +49,14 @@ export function journeyCacheKey(input: {
   origin: { latitude: number; longitude: number };
   destination: { id: string; coordinate: { latitude: number; longitude: number } };
   limit: number;
-  now: Date;
+  requestedAt: Date;
+  datetimeRepresents?: 'departure' | 'arrival';
+  requiredModes?: string[];
+  excludedModes?: string[];
+  preferredModes?: string[];
 }) {
   const round = (value: number) => Math.round(value * 10_000) / 10_000;
-  const minute = Math.floor(input.now.getTime() / 60_000);
+  const minute = Math.floor(input.requestedAt.getTime() / 60_000);
   return [
     round(input.origin.latitude),
     round(input.origin.longitude),
@@ -61,5 +65,9 @@ export function journeyCacheKey(input: {
     round(input.destination.coordinate.longitude),
     input.limit,
     minute,
+    input.datetimeRepresents ?? 'departure',
+    [...(input.requiredModes ?? [])].sort().join(','),
+    [...(input.excludedModes ?? [])].sort().join(','),
+    [...(input.preferredModes ?? [])].sort().join(','),
   ].join(':');
 }

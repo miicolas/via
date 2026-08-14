@@ -1,7 +1,9 @@
 export { journeysPlanRelation } from './relation';
 export {
   journeyDestinationSchema,
+  journeyDatetimeRepresentsSchema,
   journeyInputSchema,
+  journeyModeSchema,
   journeyQualifierSchema,
   journeyRouteSchema,
   journeySchema,

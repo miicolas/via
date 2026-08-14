@@ -7,7 +7,7 @@ import {
   MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
 } from './overview-sheet';
 
-export type FlowScreen = 'overview' | 'search' | 'planning' | 'results' | 'detail';
+export type FlowScreen = 'overview' | 'search' | 'planning' | 'clarification' | 'results' | 'detail';
 
 export type SelectedPlace = {
   name: string;
@@ -30,6 +30,7 @@ export type MapFocusIntent = MapFocusTarget & { detentIndex: number };
 
 export type MapFlowState = {
   screen: FlowScreen;
+  searchFocused: boolean;
   searchQuery: string;
   selectedJourneyIndex: number;
   overviewDetentIndex: number;
@@ -42,6 +43,10 @@ export type MapFlowState = {
 };
 
 export type MapFlowEvent =
+  | {
+      type: 'search-focus-changed';
+      focused: boolean;
+    }
   | {
       type: 'query-changed';
       query: string;
@@ -60,6 +65,10 @@ export type MapFlowEvent =
       journeyDistanceMeters?: number;
     }
   | { type: 'planning-settled' }
+  | { type: 'natural-journey-submitted' }
+  | { type: 'natural-journey-needs-clarification' }
+  | { type: 'natural-journey-ready'; destination: JourneyDestination }
+  | { type: 'natural-journey-failed' }
   | { type: 'journey-detail-opened'; index: number }
   | { type: 'journey-detail-closed' }
   | { type: 'journey-retried' }
@@ -74,6 +83,7 @@ export type MapFlowEvent =
 
 export const INITIAL_MAP_FLOW: MapFlowState = {
   screen: 'overview',
+  searchFocused: false,
   searchQuery: '',
   selectedJourneyIndex: 0,
   overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
@@ -86,10 +96,25 @@ export function transitionMapFlow(
   event: MapFlowEvent
 ): MapFlowState {
   switch (event.type) {
+    case 'search-focus-changed': {
+      const hasQuery = state.searchQuery.trim().length > 0;
+      const active = event.focused || hasQuery;
+
+      return {
+        ...state,
+        screen: active ? 'search' : 'overview',
+        searchFocused: event.focused,
+        overviewDetentIndex: event.focused
+          ? MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX
+          : hasQuery
+            ? state.overviewDetentIndex
+            : MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+      };
+    }
     case 'query-changed':
       return {
         ...state,
-        screen: event.query.trim().length > 0 ? 'search' : 'overview',
+        screen: event.query.trim().length > 0 || state.searchFocused ? 'search' : 'overview',
         searchQuery: event.query,
         selectedJourneyIndex: 0,
         selectedStationId: undefined,
@@ -102,6 +127,7 @@ export function transitionMapFlow(
       const next: MapFlowState = {
         ...state,
         screen: plansJourney ? 'planning' : 'overview',
+        searchFocused: false,
         selectedJourneyIndex: 0,
         selectedStationId: event.stationId,
         selectedPlace: undefined,
@@ -124,6 +150,7 @@ export function transitionMapFlow(
       return {
         ...state,
         screen: 'planning',
+        searchFocused: false,
         selectedJourneyIndex: 0,
         selectedStationId: undefined,
         selectedPlace: event.place,
@@ -134,6 +161,36 @@ export function transitionMapFlow(
       };
     case 'planning-settled':
       return state.screen === 'planning' ? { ...state, screen: 'results' } : state;
+    case 'natural-journey-submitted':
+      return {
+        ...state,
+        screen: 'planning',
+        searchFocused: false,
+        selectedJourneyIndex: 0,
+        selectedStationId: undefined,
+        selectedPlace: undefined,
+        journeyDestination: undefined,
+        journeyDistanceMeters: undefined,
+        overviewDetentIndex: MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+      };
+    case 'natural-journey-needs-clarification':
+      return state.screen === 'planning' ? { ...state, screen: 'clarification' } : state;
+    case 'natural-journey-ready':
+      return {
+        ...state,
+        screen: 'results',
+        searchFocused: false,
+        journeyDestination: event.destination,
+        selectedJourneyIndex: 0,
+        overviewDetentIndex: MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+      };
+    case 'natural-journey-failed':
+      return {
+        ...state,
+        screen: 'search',
+        searchFocused: false,
+        journeyDestination: undefined,
+      };
     case 'journey-detail-opened':
       return {
         ...state,
@@ -159,19 +216,18 @@ export function transitionMapFlow(
         focusIntent: undefined,
       };
     case 'journey-cancelled': {
-      const hasQuery = state.searchQuery.trim().length > 0;
       return {
         ...state,
-        screen: hasQuery ? 'search' : 'overview',
+        screen: 'overview',
+        searchFocused: false,
+        searchQuery: '',
         selectedJourneyIndex: 0,
         selectedStationId: undefined,
         selectedPlace: undefined,
         journeyDestination: undefined,
         journeyDistanceMeters: undefined,
         focusIntent: undefined,
-        overviewDetentIndex: hasQuery
-          ? MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX
-          : MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+        overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
       };
     }
     case 'station-focus-available':
@@ -183,20 +239,20 @@ export function transitionMapFlow(
             coordinate: event.coordinate,
           });
     case 'journey-focus-available':
-      return state.screen === 'detail'
+      return state.screen === 'results' || state.screen === 'detail'
         ? withFocus(state, { kind: 'journey', journey: event.journey })
         : state;
     case 'detent-changed': {
-      const minimumDetentIndex =
-        state.screen === 'detail' ? MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX : 0;
       const moved = {
         ...state,
-        overviewDetentIndex: Math.max(minimumDetentIndex, event.index),
+        overviewDetentIndex: Math.max(0, event.index),
       };
       const intent = state.focusIntent;
       if (!intent) return moved;
       const replays =
-        intent.kind === 'station' ? !isJourneyScreen(state.screen) : state.screen === 'detail';
+        intent.kind === 'station'
+          ? !isJourneyScreen(state.screen)
+          : state.screen === 'results' || state.screen === 'detail';
       return replays ? withFocus(moved, intent, true) : moved;
     }
   }

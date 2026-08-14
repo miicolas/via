@@ -1,7 +1,7 @@
 import type { DepartureGroup, RouteBadge } from '@via/contract';
 
 import { groupDepartures } from '../group-departures';
-import { parisServiceDay, previousDate, toInstant } from './service-day';
+import { parisDay, previousDate, toInstant } from '../../../time/paris';
 
 /** Enough rows to fill several directions of a busy interchange. */
 const ROW_LIMIT = 60;
@@ -31,7 +31,7 @@ export async function nextTheoreticalDepartures(
   stationRoutes: RouteBadge[],
   loadRows: LoadRows
 ): Promise<DepartureGroup[]> {
-  const { date, seconds } = parisServiceDay(now);
+  const { date, seconds } = parisDay(now);
   const yesterdayDate = previousDate(date);
 
   const [today, yesterday] = await Promise.all([

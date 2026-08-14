@@ -1,10 +1,14 @@
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
+import {
+  GlassView,
+  isGlassEffectAPIAvailable,
+  isLiquidGlassAvailable,
+} from 'expo-glass-effect';
 import type { ReactNode } from 'react';
 import { StyleSheet, type StyleProp, View, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '@/hooks/use-app-theme';
 
-const GLASS_AVAILABLE = isLiquidGlassAvailable();
+const GLASS_AVAILABLE = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
 type GlassCardProps = {
   children: ReactNode;

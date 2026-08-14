@@ -16,13 +16,29 @@ export type DepartureDirectionDescriptor = {
   wait?: WaitTimes;
 };
 
+// Hermes does not ship `Map.groupBy`, so the grouping stays hand-rolled here.
+function groupByRoute(groups: DepartureGroup[]) {
+  const groupsByRoute = new Map<string, DepartureGroup[]>();
+
+  for (const group of groups) {
+    const routeGroups = groupsByRoute.get(group.route.id);
+    if (routeGroups) {
+      routeGroups.push(group);
+    } else {
+      groupsByRoute.set(group.route.id, [group]);
+    }
+  }
+
+  return groupsByRoute;
+}
+
 /**
  * The departure board's rows, straight from the groups: each group carries its
  * line's badge, so no network payload has to be consulted to draw one. Lines
  * whose every announced passage has expired do not create placeholder rows.
  */
 export function departureRows(groups: DepartureGroup[], now: Date): DepartureRowDescriptor[] {
-  return [...Map.groupBy(groups, (group) => group.route.id).values()]
+  return [...groupByRoute(groups).values()]
     .flatMap((routeGroups) => {
       const [{ route }] = routeGroups;
       const directions = routeGroups.map((group) => ({

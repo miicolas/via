@@ -2,8 +2,12 @@ import { Linking, StyleSheet, View } from 'react-native';
 import type { SearchResult } from '@via/contract';
 
 import { CollapsibleReveal } from '@/components/collapsible-reveal';
+import { ViaAnswerCard } from '@/features/chat/components/via-answer-card';
+import { useViaChatContext } from '@/features/chat/hooks/use-via-chat-context';
 import { SearchField } from '@/features/search/components/field';
 import { SearchResults } from '@/features/search/components/results';
+import { RecentSearches } from '@/features/search/components/recent-searches';
+import type { RecentSearchSnapshot } from '@/features/search/model/recent-searches';
 import { SheetLoadingSkeleton } from '@/features/map/components/sheet-loading-skeleton';
 import { Shortcuts } from '@/features/map/components/shortcuts';
 import { StationSection } from '@/features/departures/components/station-section';
@@ -31,23 +35,35 @@ export function OverviewSheet() {
     overviewDetentIndex,
     refreshLocation,
     retryNetwork,
+    recentSearches,
     search,
+    searchFocused,
     searchQuery,
     screen,
     selectResult,
+    setSearchFocused,
     setSearchQuery,
     userLocation,
   } = useMap();
+  const viaChat = useViaChatContext();
   const shortcutsProgress = useSheetDetentProgress(
     MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
     MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX
   );
   const isExpanded = overviewDetentIndex === MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX;
   const isSearchActive = screen === 'search';
+  const showsRecentSearches = searchFocused && searchQuery.trim().length === 0;
   const showsOverview =
     networkState.status === 'ready' && !isSearchActive && !journeyDestination;
   const showsStation = showsOverview && isNearbyStation;
-  const handleSelectResult = (result: SearchResult) => void selectResult(result);
+  const handleSelectResult = (result: SearchResult | RecentSearchSnapshot) =>
+    void selectResult(result);
+  // Submitting a phrase asks Via inline; the answer card streams into the sheet.
+  const askVia = () => {
+    const phrase = searchQuery.trim();
+    if (phrase) viaChat.ask(phrase);
+  };
+  const viaActive = isSearchActive && viaChat.messages.length > 0;
 
   if (isJourneyScreen(screen)) {
     return <JourneySheetScreen />;
@@ -55,27 +71,28 @@ export function OverviewSheet() {
 
   return (
     <View style={styles.container}>
-      {/* Without the network the search has nothing to query; hiding it frees the
-          vertical space the error state needs at the medium detent. */}
-      {networkState.status !== 'error' ? (
-        <View style={styles.header}>
-          <SearchField onChange={setSearchQuery} value={searchQuery} />
+      <View style={styles.header}>
+        <SearchField
+          onChange={setSearchQuery}
+          onFocusChange={setSearchFocused}
+          onSubmit={askVia}
+          value={searchQuery}
+        />
 
-          {showsStation ? (
-            <CollapsibleReveal progress={shortcutsProgress} spacing={SHORTCUTS_SPACING}>
-              <Shortcuts
-                onClose={() => changeOverviewDetent(MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX)}
-                onLocate={() => void refreshLocation()}
-                walkingMinutes={walkingMinutes(activeStation?.distanceMeters)}
-              />
-            </CollapsibleReveal>
-          ) : null}
-        </View>
-      ) : null}
+        {showsStation ? (
+          <CollapsibleReveal progress={shortcutsProgress} spacing={SHORTCUTS_SPACING}>
+            <Shortcuts
+              onClose={() => changeOverviewDetent(MAP_OVERVIEW_SHEET_COLLAPSED_DETENT_INDEX)}
+              onLocate={() => void refreshLocation()}
+              walkingMinutes={walkingMinutes(activeStation?.distanceMeters)}
+            />
+          </CollapsibleReveal>
+        ) : null}
+      </View>
 
-      {networkState.status === 'loading' ? <SheetLoadingSkeleton /> : null}
+      {networkState.status === 'loading' && !showsRecentSearches ? <SheetLoadingSkeleton /> : null}
 
-      {networkState.status === 'error' ? (
+      {networkState.status === 'error' && !showsRecentSearches ? (
         <UnavailableState
           actionLabel="Réessayer"
           animation={{ effect: { type: 'pulse' }, repeating: true }}
@@ -86,7 +103,26 @@ export function OverviewSheet() {
         />
       ) : null}
 
-      {networkState.status === 'ready' && isSearchActive ? (
+      {showsRecentSearches ? (
+        <RecentSearches
+          entries={recentSearches.entries}
+          onRemove={recentSearches.remove}
+          onSelect={handleSelectResult}
+        />
+      ) : null}
+
+      {viaActive ? (
+        <>
+          <ViaAnswerCard />
+          <RecentSearches
+            entries={recentSearches.entries}
+            onRemove={recentSearches.remove}
+            onSelect={handleSelectResult}
+          />
+        </>
+      ) : null}
+
+      {networkState.status === 'ready' && !viaActive && isSearchActive && searchQuery.trim().length > 0 ? (
         <SearchResults onSelect={handleSelectResult} search={search} />
       ) : null}
 

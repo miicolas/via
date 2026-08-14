@@ -2,6 +2,9 @@ import * as z from 'zod';
 
 import { coordinateSchema } from '../shared/schema';
 
+export const journeyModeSchema = z.enum(['metro', 'rer', 'bus']);
+export const journeyDatetimeRepresentsSchema = z.enum(['departure', 'arrival']);
+
 export const journeyDestinationSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('station'),
@@ -22,6 +25,12 @@ export const journeyInputSchema = z.object({
   origin: coordinateSchema,
   destination: journeyDestinationSchema,
   limit: z.int().min(1).max(6).default(4),
+  /** Omitted by the classic flow, which keeps its current "leave now" behavior. */
+  requestedAt: z.iso.datetime({ offset: true }).optional(),
+  datetimeRepresents: journeyDatetimeRepresentsSchema.optional(),
+  requiredModes: z.array(journeyModeSchema).max(3).optional(),
+  excludedModes: z.array(journeyModeSchema).max(3).optional(),
+  preferredModes: z.array(journeyModeSchema).max(3).optional(),
 });
 
 export const journeyQualifierSchema = z.enum([
@@ -47,7 +56,7 @@ export const journeyRouteSchema = z.object({
   id: z.string(),
   shortName: z.string(),
   longName: z.string(),
-  mode: z.enum(['metro', 'rer', 'bus']),
+  mode: journeyModeSchema,
   color: z.string(),
   textColor: z.string(),
 });

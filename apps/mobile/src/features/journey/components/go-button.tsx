@@ -31,14 +31,14 @@ export function JourneyGoButton({ accessibilityLabel, grow = false, onPress }: J
         name="paperplane.fill"
         size={15}
       />
-      <Text style={[styles.label, { color: colors.surface }]}>Y aller</Text>
+      <Text style={[styles.label, { color: colors.surface }]}>Voir l’itinéraire</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    height: 40,
+    minHeight: 44,
     flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',

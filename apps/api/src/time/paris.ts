@@ -1,10 +1,15 @@
 /**
- * Where an instant sits in the transit calendar: which service day it belongs
- * to, and how far into that day it is. Both are Paris facts — the server runs
- * in UTC, so nothing here may lean on the host timezone.
+ * The single home for Europe/Paris calendar, clock and formatting logic. The
+ * server runs in UTC, so nothing here may lean on the host timezone — and no
+ * other module may build its own Paris `Intl.DateTimeFormat`.
  */
-export type ServiceDayPosition = {
-  /** ISO date of the service day, e.g. "2026-08-12". */
+
+/**
+ * Where an instant sits in the transit calendar: which day it belongs to, and
+ * how far into that day it is.
+ */
+export type ParisDay = {
+  /** ISO date, e.g. "2026-08-12". */
   date: string;
   /** Seconds since that day's local midnight. */
   seconds: number;
@@ -12,7 +17,7 @@ export type ServiceDayPosition = {
 
 // Built once: the constructor is one of the most expensive in the stdlib, and
 // `toInstant` runs per row on the fallback path. Formatters are stateless.
-const PARIS_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+const PARIS_PARTS_FORMATTER = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Paris',
   hour12: false,
   year: 'numeric',
@@ -23,12 +28,31 @@ const PARIS_FORMATTER = new Intl.DateTimeFormat('en-CA', {
   second: '2-digit',
 });
 
-export function parisServiceDay(now: Date): ServiceDayPosition {
-  const parts = partsInParis(now);
+const PARIS_TIME_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Europe/Paris',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+const PARIS_LONG_DATE_FORMATTER = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Europe/Paris',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+export function parisDay(instant: Date): ParisDay {
+  const parts = partsInParis(instant);
   return {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     seconds: Number(parts.hour) * 3600 + Number(parts.minute) * 60 + Number(parts.second),
   };
+}
+
+/** The Paris civil date of an instant, e.g. "2026-08-12". */
+export function parisDate(instant: Date): string {
+  return parisDay(instant).date;
 }
 
 /** The day before a service day — where after-midnight departures come from. */
@@ -51,11 +75,30 @@ export function toInstant(date: string, seconds: number): string {
   return new Date(instant).toISOString();
 }
 
+/** Paris wall-clock time of an ISO instant, e.g. "9 h 05" or "9h05". */
+export function formatParisTime(value: string, separator: ' h ' | 'h' = ' h '): string {
+  return PARIS_TIME_FORMATTER.format(new Date(value)).replace(':', separator);
+}
+
+/** Paris long date of an ISO instant, e.g. "mercredi 12 août". */
+export function formatParisLongDate(value: string): string {
+  return PARIS_LONG_DATE_FORMATTER.format(new Date(value));
+}
+
+/** Navitia's compact Paris-local datetime, e.g. "20260812T215000". */
+export function compactParisDateTime(instant: Date): string {
+  const { date, seconds } = parisDay(instant);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.replaceAll('-', '')}T${pad(hours)}${pad(minutes)}${pad(seconds % 60)}`;
+}
+
 type DateParts = Record<'year' | 'month' | 'day' | 'hour' | 'minute' | 'second', string>;
 
 function partsInParis(instant: Date): DateParts {
   const parts = Object.fromEntries(
-    PARIS_FORMATTER.formatToParts(instant).map(({ type, value }) => [type, value])
+    PARIS_PARTS_FORMATTER.formatToParts(instant).map(({ type, value }) => [type, value])
   ) as DateParts;
 
   // Intl renders midnight as hour 24 in some engines; normalize it.

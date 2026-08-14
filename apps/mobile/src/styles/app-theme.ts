@@ -16,7 +16,7 @@ export const AppThemes = {
     sheetHandle: 'rgba(43, 49, 45, 0.48)',
     surface: '#FFFFFF',
     surfaceGlass: '#FFFFFFCC',
-    surfaceTranslucent: '#FFFFFFB8',
+    surfaceTranslucent: '#FFFFFFE0',
     track: '#161A1810',
   },
   dark: {

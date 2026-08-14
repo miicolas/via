@@ -1,17 +1,17 @@
 import { expect, test } from 'bun:test';
 
-import { parisServiceDay, previousDate, toInstant } from './service-day';
+import { compactParisDateTime, formatParisTime, parisDay, previousDate, toInstant } from './paris';
 
 test('late evening in Paris is still the same service day, not UTC yesterday', () => {
   // 22:50 UTC = 00:50 Paris the next day.
-  expect(parisServiceDay(new Date('2026-08-12T21:50:00Z'))).toEqual({
+  expect(parisDay(new Date('2026-08-12T21:50:00Z'))).toEqual({
     date: '2026-08-12',
     seconds: 23 * 3600 + 50 * 60,
   });
 });
 
 test('past midnight in Paris rolls the date forward', () => {
-  expect(parisServiceDay(new Date('2026-08-12T22:30:00Z')).date).toBe('2026-08-13');
+  expect(parisDay(new Date('2026-08-12T22:30:00Z')).date).toBe('2026-08-13');
 });
 
 test('service-day seconds convert back to the right instant in summer time', () => {
@@ -29,4 +29,13 @@ test('an after-midnight departure lands on the following calendar day', () => {
 
 test('the previous date crosses months', () => {
   expect(previousDate('2026-08-01')).toBe('2026-07-31');
+});
+
+test('times format on the Paris clock', () => {
+  expect(formatParisTime('2026-08-12T16:05:00.000Z')).toBe('18 h 05');
+  expect(formatParisTime('2026-08-12T16:05:00.000Z', 'h')).toBe('18h05');
+});
+
+test('compact datetimes use the Paris wall clock', () => {
+  expect(compactParisDateTime(new Date('2026-08-12T21:50:30Z'))).toBe('20260812T235030');
 });

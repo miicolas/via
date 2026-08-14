@@ -9,6 +9,7 @@ import { JourneyAlternativeRow } from '@/features/journey/components/alternative
 import { JourneyCard } from '@/features/journey/components/card';
 import { JourneyResultsHeading } from '@/features/journey/components/results-heading';
 import { JourneyResultsSkeleton } from '@/features/journey/components/results-skeleton';
+import { ViaAnswerCard } from '@/features/journey/components/via-answer-card';
 import { recommendationReason } from '@/features/journey/model/recommendation-reason';
 import { formatDistance } from '@/lib/format-distance';
 import { SHEET_GUTTER } from '@/styles/metrics';
@@ -20,6 +21,8 @@ type JourneyResultsProps = {
   loading: boolean;
   onRetry: () => void;
   onSelect: (index: number) => void;
+  naturalAnswer?: string;
+  naturalNotice?: string;
 };
 
 /** The computed answer: one recommended journey, then the alternatives it beat. */
@@ -30,6 +33,8 @@ export function JourneyResults({
   loading,
   onRetry,
   onSelect,
+  naturalAnswer,
+  naturalNotice,
 }: JourneyResultsProps) {
   const reduceMotion = useReducedMotion();
   const distance = distanceMeters === undefined ? '' : ` · ${formatDistance(distanceMeters)}`;
@@ -80,6 +85,12 @@ export function JourneyResults({
       showsVerticalScrollIndicator={false}>
       <Animated.View entering={resultEntry(reduceMotion, 0)}>{heading}</Animated.View>
 
+      {naturalAnswer ? (
+        <Animated.View entering={resultEntry(reduceMotion, 30)} style={styles.gutter}>
+          <ViaAnswerCard answer={naturalAnswer} notice={naturalNotice} />
+        </Animated.View>
+      ) : null}
+
       <Animated.View entering={resultEntry(reduceMotion, 40)} style={styles.gutter}>
         <JourneyCard
           journey={recommended}
@@ -91,7 +102,7 @@ export function JourneyResults({
       <View>
         {alternatives.length > 0 ? (
           <Animated.View entering={resultEntry(reduceMotion, 80)} style={styles.listHeader}>
-            <SectionEyebrow label="AUTRES ITINÉRAIRES" />
+            <SectionEyebrow label="VOIR LES AUTRES ITINÉRAIRES" />
           </Animated.View>
         ) : null}
         {alternatives.map((journey, index) => (
@@ -102,7 +113,7 @@ export function JourneyResults({
           </Animated.View>
         ))}
         <Animated.View entering={resultEntry(reduceMotion, 140)} style={styles.gutter}>
-          <AskViaRow onPress={onRetry} />
+          <AskViaRow />
         </Animated.View>
       </View>
     </ScrollView>

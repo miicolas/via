@@ -9,6 +9,51 @@ import {
 import { INITIAL_MAP_FLOW, transitionMapFlow } from './flow';
 
 describe('map flow', () => {
+  test('focuses the empty search and returns to overview when focus is lost', () => {
+    const focused = transitionMapFlow(INITIAL_MAP_FLOW, {
+      type: 'search-focus-changed',
+      focused: true,
+    });
+    const cleared = transitionMapFlow(focused, {
+      type: 'query-changed',
+      query: '   ',
+    });
+    const blurred = transitionMapFlow(cleared, {
+      type: 'search-focus-changed',
+      focused: false,
+    });
+
+    expect(focused).toMatchObject({
+      screen: 'search',
+      searchFocused: true,
+      searchQuery: '',
+      overviewDetentIndex: MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+    });
+    expect(cleared.screen).toBe('search');
+    expect(blurred).toMatchObject({
+      screen: 'overview',
+      searchFocused: false,
+      overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+    });
+  });
+
+  test('keeps non-empty search results visible after the field loses focus', () => {
+    const searched = transitionMapFlow(
+      transitionMapFlow(INITIAL_MAP_FLOW, {
+        type: 'search-focus-changed',
+        focused: true,
+      }),
+      { type: 'query-changed', query: 'Nation' }
+    );
+
+    const blurred = transitionMapFlow(searched, {
+      type: 'search-focus-changed',
+      focused: false,
+    });
+
+    expect(blurred).toMatchObject({ screen: 'search', searchFocused: false, searchQuery: 'Nation' });
+  });
+
   test('a query change clears the selection without moving the sheet', () => {
     const selected = {
       ...INITIAL_MAP_FLOW,
@@ -133,9 +178,7 @@ describe('map flow', () => {
       selectedJourneyIndex: 2,
       overviewDetentIndex: MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX,
     });
-    expect(collapsedDetail.overviewDetentIndex).toBe(
-      MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX
-    );
+    expect(collapsedDetail.overviewDetentIndex).toBe(0);
     expect(movedDetail.overviewDetentIndex).toBe(2);
     expect(closed).toMatchObject({
       screen: 'results',
@@ -149,7 +192,7 @@ describe('map flow', () => {
     });
   });
 
-  test('cancelling a journey returns to the remaining query or to the overview', () => {
+  test('cancelling a journey clears the search and returns to the location overview', () => {
     const searched = transitionMapFlow(INITIAL_MAP_FLOW, {
       type: 'query-changed',
       query: 'Nation',
@@ -165,24 +208,17 @@ describe('map flow', () => {
       place: { name: destination.name, coordinate: destination.coordinate },
       journeyDestination: destination,
     });
-    const backToSearch = transitionMapFlow(planning, { type: 'journey-cancelled' });
-    const backToOverview = transitionMapFlow(
-      { ...planning, searchQuery: '' },
-      { type: 'journey-cancelled' }
-    );
+    const cancelled = transitionMapFlow(planning, { type: 'journey-cancelled' });
 
-    expect(backToSearch).toMatchObject({
-      screen: 'search',
-      searchQuery: 'Nation',
-      overviewDetentIndex: MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+    expect(cancelled).toMatchObject({
+      screen: 'overview',
+      searchFocused: false,
+      searchQuery: '',
+      overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
       selectedJourneyIndex: 0,
     });
-    expect(backToOverview).toMatchObject({
-      screen: 'overview',
-      overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
-    });
-    expect(backToSearch.selectedPlace).toBeUndefined();
-    expect(backToSearch.journeyDestination).toBeUndefined();
+    expect(cancelled.selectedPlace).toBeUndefined();
+    expect(cancelled.journeyDestination).toBeUndefined();
   });
 
   test('station focus is declarative, deduplicated, and replayed for a new detent', () => {
@@ -220,8 +256,20 @@ describe('map flow', () => {
     expect(repeatedTap.focusIntent).not.toBe(moved.focusIntent);
   });
 
-  test('journey focus is issued only from detail and replayed for its detents', () => {
+  test('journey focus is issued from results and detail and replayed for its detents', () => {
     const journey = { id: 'journey-1' } as Journey;
+    const results = {
+      ...INITIAL_MAP_FLOW,
+      screen: 'results' as const,
+    };
+    const focusedResults = transitionMapFlow(results, {
+      type: 'journey-focus-available',
+      journey,
+    });
+    const movedResults = transitionMapFlow(focusedResults, {
+      type: 'detent-changed',
+      index: 0,
+    });
     const detail = {
       ...INITIAL_MAP_FLOW,
       screen: 'detail' as const,
@@ -242,6 +290,9 @@ describe('map flow', () => {
       coordinate: { latitude: 48.848, longitude: 2.396 },
     });
 
+    expect(focusedResults.focusIntent).toMatchObject({ kind: 'journey', journey });
+    expect(movedResults.overviewDetentIndex).toBe(0);
+    expect(movedResults.focusIntent).toMatchObject({ kind: 'journey', detentIndex: 0 });
     expect(focused.focusIntent).toEqual({
       kind: 'journey',
       journey,
@@ -279,5 +330,76 @@ describe('map flow', () => {
     const search = { ...INITIAL_MAP_FLOW, screen: 'search' as const, searchQuery: 'Nation' };
 
     expect(transitionMapFlow(search, { type: 'planning-settled' })).toBe(search);
+  });
+
+  test('natural search owns interpretation, clarification and verified result states', () => {
+    const search = {
+      ...INITIAL_MAP_FLOW,
+      screen: 'search' as const,
+      searchQuery: 'Croissy à 7h demain matin',
+    };
+    const interpreting = transitionMapFlow(search, { type: 'natural-journey-submitted' });
+    const clarification = transitionMapFlow(interpreting, {
+      type: 'natural-journey-needs-clarification',
+    });
+    const destination = {
+      kind: 'station' as const,
+      id: 'nation',
+      name: 'Nation',
+      coordinate: { latitude: 48.848, longitude: 2.396 },
+    };
+    const ready = transitionMapFlow(interpreting, {
+      type: 'natural-journey-ready',
+      destination,
+    });
+    const returned = transitionMapFlow(ready, { type: 'journey-cancelled' });
+
+    expect(interpreting.screen).toBe('planning');
+    expect(clarification.screen).toBe('clarification');
+    expect(ready).toMatchObject({
+      screen: 'results',
+      searchQuery: 'Croissy à 7h demain matin',
+      journeyDestination: destination,
+    });
+    expect(returned).toMatchObject({
+      screen: 'overview',
+      searchFocused: false,
+      searchQuery: '',
+      overviewDetentIndex: MAP_OVERVIEW_SHEET_INITIAL_DETENT_INDEX,
+    });
+  });
+
+  test('opening Via\'s itinerary goes directly to the recommended journey detail', () => {
+    const destination = {
+      kind: 'station' as const,
+      id: 'chatou-croissy',
+      name: 'Chatou - Croissy',
+      coordinate: { latitude: 48.885, longitude: 2.156 },
+    };
+    const answered = {
+      ...INITIAL_MAP_FLOW,
+      screen: 'search' as const,
+      searchFocused: true,
+      searchQuery: 'Croissy à 7h demain matin',
+      focusIntent: {
+        kind: 'station' as const,
+        stationId: 'hotel-de-ville',
+        coordinate: { latitude: 48.857, longitude: 2.352 },
+        detentIndex: MAP_OVERVIEW_SHEET_EXPANDED_DETENT_INDEX,
+      },
+    };
+
+    const ready = transitionMapFlow(answered, { type: 'natural-journey-ready', destination });
+    const detail = transitionMapFlow(ready, { type: 'journey-detail-opened', index: 0 });
+
+    expect(detail).toMatchObject({
+      screen: 'detail',
+      searchFocused: false,
+      searchQuery: 'Croissy à 7h demain matin',
+      journeyDestination: destination,
+      selectedJourneyIndex: 0,
+      overviewDetentIndex: MAP_JOURNEY_DETAIL_SHEET_INITIAL_DETENT_INDEX,
+    });
+    expect(detail.focusIntent).toBeUndefined();
   });
 });

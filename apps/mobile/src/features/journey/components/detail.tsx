@@ -1,7 +1,6 @@
 import type { Journey, JourneyDestination } from '@via/contract';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { GlassCard } from '@/components/glass-card';
 import { JourneyDepartureCountdown } from '@/features/journey/components/departure-countdown';
 import { JourneyDetailFooter } from '@/features/journey/components/detail-footer';
 import { JourneyDurationHero } from '@/features/journey/components/duration-hero';
@@ -36,7 +35,6 @@ export function JourneyDetail({ destination, journeys, selectedIndex }: JourneyD
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
       >
-        <GlassCard>
           <View style={styles.hero}>
             <JourneyDurationHero minutes={duration} />
             <JourneyDepartureCountdown
@@ -52,7 +50,7 @@ export function JourneyDetail({ destination, journeys, selectedIndex }: JourneyD
               Horaires théoriques · le détail du tracé est indicatif
             </Text>
           ) : null}
-        </GlassCard>
+
         <JourneyTimeline journey={journey} />
       </ScrollView>
       <JourneyDetailFooter destinationName={destination.name} />

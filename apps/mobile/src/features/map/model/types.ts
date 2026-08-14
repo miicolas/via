@@ -2,6 +2,7 @@ import type {
   Coordinate,
   Journey,
   JourneyDestination,
+  JourneysResponse,
   NetworkStation,
   RouteBadge,
   SearchResult,
@@ -10,8 +11,12 @@ import type {
 import type { ViewportRegion } from '@/lib/viewport-tiles';
 
 import type { SearchState } from '@/features/search/hooks/use-search';
+import type { RecentSearchesState } from '@/features/search/hooks/use-recent-searches';
+import type { RecentSearchSnapshot } from '@/features/search/model/recent-searches';
+import type { NaturalJourneyChoice } from '@/features/journey/model/clarification-choice';
 import type { FlowScreen, MapFocusIntent } from '@/features/map/model/flow';
 import type { JourneyState } from '@/features/journey/hooks/use-plan';
+import type { NaturalJourneyState } from '@/features/journey/hooks/use-natural-journey';
 import type { NetworkState } from '@/hooks/use-metro-network';
 
 export type UserLocationState =
@@ -44,11 +49,14 @@ export type MapValue = {
   /** Tells the tile loader what the user currently sees. */
   reportViewport: (region: ViewportRegion) => void;
   retryNetwork: () => void;
+  recentSearches: RecentSearchesState;
   /** Badges for every route `mapStations` can reference, rail and bus alike. */
   stationRoutes: RouteBadge[];
   searchQuery: string;
+  searchFocused: boolean;
   search: SearchState;
   journey: JourneyState;
+  naturalJourney: NaturalJourneyState;
   journeyDestination?: JourneyDestination;
   journeyDistanceMeters?: number;
   screen: FlowScreen;
@@ -57,8 +65,13 @@ export type MapValue = {
   openJourneyDetail: (index: number) => void;
   closeJourneyDetail: () => void;
   retryJourney: () => void;
-  selectResult: (result: SearchResult) => boolean;
+  submitNaturalJourney: () => void;
+  /** Shows an already-computed itinerary (the chat's answer) in the journey flow. */
+  startViaJourney: (destination: JourneyDestination, response: JourneysResponse) => void;
+  resolveNaturalJourney: (choice: NaturalJourneyChoice) => void;
+  selectResult: (result: SearchResult | RecentSearchSnapshot) => boolean;
   selectStation: (stationId: string, focusCoordinate?: Coordinate) => void;
   setSearchQuery: (query: string) => void;
+  setSearchFocused: (focused: boolean) => void;
   userLocation: UserLocationState;
 };

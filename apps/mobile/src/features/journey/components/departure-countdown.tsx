@@ -9,7 +9,6 @@ type JourneyDepartureCountdownProps = {
   realtime: boolean;
 };
 
-/** Live leave cue; its number rolls with the same motion as nearby departures. */
 export function JourneyDepartureCountdown({ minutes, realtime }: JourneyDepartureCountdownProps) {
   const { colors } = useAppTheme();
   const accessibilityLabel =

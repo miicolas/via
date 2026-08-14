@@ -50,6 +50,40 @@ const envSchema = z.object({
     .default('900')
     .transform(Number)
     .pipe(z.number().int().min(60)),
+  /** Dedicated server-only key for natural-language interpretation. */
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_MODEL: z.string().min(1).default('gpt-5.6-luna'),
+  OPENAI_INPUT_COST_PER_MILLION: z.string().default('0.20').transform(Number).pipe(z.number().nonnegative()),
+  OPENAI_OUTPUT_COST_PER_MILLION: z.string().default('1.20').transform(Number).pipe(z.number().nonnegative()),
+  NATURAL_JOURNEYS_ENABLED: z
+    .string()
+    .default('true')
+    .transform((value) => value === 'true'),
+  NATURAL_JOURNEYS_ROLLOUT_PERCENT: z
+    .string()
+    .default('10')
+    .transform(Number)
+    .pipe(z.number().min(0).max(100)),
+  NATURAL_JOURNEYS_PERSONAL_LIMIT: z
+    .string()
+    .default('20')
+    .transform(Number)
+    .pipe(z.number().int().min(1)),
+  NATURAL_JOURNEYS_PERSONAL_WINDOW_SECONDS: z
+    .string()
+    .default('900')
+    .transform(Number)
+    .pipe(z.number().int().min(60)),
+  NATURAL_JOURNEYS_BREAKER_FAILURES: z
+    .string()
+    .default('5')
+    .transform(Number)
+    .pipe(z.number().int().min(1)),
+  NATURAL_JOURNEYS_BREAKER_COOLDOWN_SECONDS: z
+    .string()
+    .default('60')
+    .transform(Number)
+    .pipe(z.number().int().min(1)),
 });
 
 const parsed = envSchema.safeParse(process.env);

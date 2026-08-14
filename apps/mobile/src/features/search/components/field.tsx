@@ -1,11 +1,11 @@
 import { Host, HStack, Image, TextField, useNativeState } from '@expo/ui/swift-ui';
 import {
-  autocorrectionDisabled,
   background,
   font,
   foregroundStyle,
   frame,
   padding,
+  onSubmit as onSubmitModifier,
   shadow,
   shapes,
   submitLabel,
@@ -19,10 +19,12 @@ import { useAppTheme } from '@/hooks/use-app-theme';
 
 type SearchFieldProps = {
   onChange: (query: string) => void;
+  onFocusChange: (focused: boolean) => void;
+  onSubmit: () => void;
   value: string;
 };
 
-export function SearchField({ onChange, value }: SearchFieldProps) {
+export function SearchField({ onChange, onFocusChange, onSubmit, value }: SearchFieldProps) {
   const { colorScheme, colors } = useAppTheme();
   const query = useNativeState('');
 
@@ -43,15 +45,16 @@ export function SearchField({ onChange, value }: SearchFieldProps) {
         ]}>
         <Image color={colors.primary} size={17} systemName="magnifyingglass" />
         <TextField
+          onFocusChange={onFocusChange}
           onTextChange={onChange}
-          placeholder="Rechercher une station"
+          placeholder="Où veux-tu aller ?"
           text={query}
           modifiers={[
-            autocorrectionDisabled(),
             font({ size: 17 }),
             foregroundStyle(colors.ink),
+            onSubmitModifier(onSubmit),
             submitLabel('search'),
-            textInputAutocapitalization('words'),
+            textInputAutocapitalization('sentences'),
             tint(colors.primary),
           ]}
         />

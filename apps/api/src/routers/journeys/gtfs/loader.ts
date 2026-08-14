@@ -11,32 +11,37 @@ import {
   transitTripStopTimes,
   transitTrips,
 } from '@via/db/schema';
-import { and, asc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 
-import { previousDate, parisServiceDay } from '../../departures/theoretical/service-day';
+import { parisDay, previousDate } from '../../../time/paris';
 import type { GtfsJourneyPlanner } from '../service';
 import { plannerTripKey, planWithGtfs } from './planner';
 import type {
   GtfsPlannerLoader,
+  PlannerAlighting,
   PlannerBoarding,
   PlannerCall,
   PlannerStop,
   PlannerTrip,
+  PlannerReverseTransfer,
   PlannerTransfer,
 } from './planner';
 
 const MAX_BOARDINGS_PER_STOP = 32;
 const MAX_BOARDING_CANDIDATES = 1_500;
 
-type BoardingCandidate = {
+/** 'board' walks departures forward in time; 'alight' walks arrivals backward. */
+type StopTimeDirection = 'board' | 'alight';
+
+type StopTimeCandidate = {
   tripId: string;
   stopKey: number;
-  departureSeconds: number;
+  seconds: number;
   serviceDate: string;
 };
 
 export function createGtfsLoader(now: Date): GtfsPlannerLoader {
-  const { date } = parisServiceDay(now);
+  const { date } = parisDay(now);
   const yesterday = previousDate(date);
   const stopCache = new Map<string, PlannerStop>();
   const stopKeyById = new Map<string, number>();
@@ -58,6 +63,87 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
         );
       });
     return activeServiceIdsByDate;
+  };
+
+  const stopTimeEvents = async (
+    direction: StopTimeDirection,
+    stopIds: string[],
+    boundByStop: Map<string, number>,
+    serviceDates: string[]
+  ) => {
+    if (stopIds.length === 0) return [];
+    const stopKeys = stopIds.flatMap((id) => {
+      const key = stopKeyById.get(id);
+      return key === undefined ? [] : [key];
+    });
+    if (stopKeys.length === 0) return [];
+    const bound =
+      direction === 'board' ? Math.min(...boundByStop.values()) : Math.max(...boundByStop.values());
+    const services = await activeServices(serviceDates);
+    const rows = (
+      await Promise.all([
+        loadStopTimeCandidates(direction, stopKeys, services.get(date) ?? [], bound, date, 0),
+        loadStopTimeCandidates(
+          direction,
+          stopKeys,
+          services.get(yesterday) ?? [],
+          bound + 86_400,
+          yesterday,
+          -86_400
+        ),
+      ])
+    )
+      .flat()
+      .sort((a, b) => (direction === 'board' ? a.seconds - b.seconds : b.seconds - a.seconds))
+      .slice(0, MAX_BOARDING_CANDIDATES);
+
+    const counts = new Map<string, number>();
+    return rows.flatMap((row) => {
+      const stopId = stopIdByKey.get(row.stopKey);
+      if (!stopId) return [];
+      const outOfBound =
+        direction === 'board'
+          ? row.seconds < (boundByStop.get(stopId) ?? Infinity)
+          : row.seconds > (boundByStop.get(stopId) ?? -Infinity);
+      if (outOfBound) return [];
+      const count = counts.get(stopId) ?? 0;
+      if (count >= MAX_BOARDINGS_PER_STOP) return [];
+      counts.set(stopId, count + 1);
+      return [{ tripId: row.tripId, stopId, seconds: row.seconds, serviceDate: row.serviceDate }];
+    });
+  };
+
+  const loadTransfers = async (anchorStopIds: string[], hydrate: 'to' | 'from') => {
+    if (anchorStopIds.length === 0) return [];
+    const hydratedColumn =
+      hydrate === 'to' ? transitTransfers.toStopId : transitTransfers.fromStopId;
+    const anchorColumn = hydrate === 'to' ? transitTransfers.fromStopId : transitTransfers.toStopId;
+    const rows = await db
+      .select({
+        fromStopId: transitTransfers.fromStopId,
+        toStopId: transitTransfers.toStopId,
+        minTransferSeconds: transitTransfers.minTransferSeconds,
+        numericId: transitStops.numericId,
+        name: transitStops.name,
+        coordinate: sql<Coordinate>`json_build_object(
+          'latitude', ST_Y(${transitStops.location}),
+          'longitude', ST_X(${transitStops.location})
+        )`,
+      })
+      .from(transitTransfers)
+      .innerJoin(transitStops, eq(transitStops.id, hydratedColumn))
+      .where(inArray(anchorColumn, anchorStopIds));
+    return rows.map((row) => {
+      const stop = {
+        id: hydrate === 'to' ? row.toStopId : row.fromStopId,
+        name: row.name,
+        coordinate: row.coordinate,
+      };
+      stopCache.set(stop.id, stop);
+      stopKeyById.set(stop.id, row.numericId);
+      stopIdByKey.set(row.numericId, stop.id);
+      return { row, stop };
+    });
   };
 
   return {
@@ -99,52 +185,15 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
       });
     },
 
-    boardings: async (stopIds, earliestByStop, serviceDates) => {
-      if (stopIds.length === 0) return [];
-      const stopKeys = stopIds.flatMap((id) => {
-        const key = stopKeyById.get(id);
-        return key === undefined ? [] : [key];
-      });
-      if (stopKeys.length === 0) return [];
-      const minimum = Math.min(...earliestByStop.values());
-      const services = await activeServices(serviceDates);
-      const rows = (
-        await Promise.all([
-          loadBoardingCandidates(
-            stopKeys,
-            services.get(date) ?? [],
-            minimum,
-            date,
-            0
-          ),
-          loadBoardingCandidates(
-            stopKeys,
-            services.get(yesterday) ?? [],
-            minimum + 86_400,
-            yesterday,
-            -86_400
-          ),
-        ])
-      )
-        .flat()
-        .sort((a, b) => a.departureSeconds - b.departureSeconds)
-        .slice(0, MAX_BOARDING_CANDIDATES);
+    boardings: async (stopIds, earliestByStop, serviceDates) =>
+      (await stopTimeEvents('board', stopIds, earliestByStop, serviceDates)).map(
+        ({ seconds, ...event }): PlannerBoarding => ({ ...event, departureSeconds: seconds })
+      ),
 
-      const counts = new Map<string, number>();
-      return rows.flatMap((row): PlannerBoarding[] => {
-        const stopId = stopIdByKey.get(row.stopKey);
-        if (!stopId || row.departureSeconds < (earliestByStop.get(stopId) ?? Infinity)) return [];
-        const count = counts.get(stopId) ?? 0;
-        if (count >= MAX_BOARDINGS_PER_STOP) return [];
-        counts.set(stopId, count + 1);
-        return [{
-          tripId: row.tripId,
-          stopId,
-          departureSeconds: row.departureSeconds,
-          serviceDate: row.serviceDate,
-        }];
-      });
-    },
+    alightings: async (stopIds, latestByStop, serviceDates) =>
+      (await stopTimeEvents('alight', stopIds, latestByStop, serviceDates)).map(
+        ({ seconds, ...event }): PlannerAlighting => ({ ...event, arrivalSeconds: seconds })
+      ),
 
     trips: async (boardings) => {
       const tripIds = [...new Set(boardings.map((boarding) => boarding.tripId))];
@@ -255,35 +304,23 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
       );
     },
 
-    transfers: async (stopIds) => {
-      if (stopIds.length === 0) return [];
-      const rows = await db
-        .select({
-          fromStopId: transitTransfers.fromStopId,
-          toStopId: transitTransfers.toStopId,
-          minTransferSeconds: transitTransfers.minTransferSeconds,
-          numericId: transitStops.numericId,
-          name: transitStops.name,
-          coordinate: sql<Coordinate>`json_build_object(
-            'latitude', ST_Y(${transitStops.location}),
-            'longitude', ST_X(${transitStops.location})
-          )`,
-        })
-        .from(transitTransfers)
-        .innerJoin(transitStops, eq(transitStops.id, transitTransfers.toStopId))
-        .where(inArray(transitTransfers.fromStopId, stopIds));
-      return rows.map((row): PlannerTransfer => {
-        const toStop = { id: row.toStopId, name: row.name, coordinate: row.coordinate };
-        stopCache.set(toStop.id, toStop);
-        stopKeyById.set(toStop.id, row.numericId);
-        stopIdByKey.set(row.numericId, toStop.id);
-        return {
+    transfers: async (stopIds) =>
+      (await loadTransfers(stopIds, 'to')).map(
+        ({ row, stop }): PlannerTransfer => ({
           fromStopId: row.fromStopId,
-          toStop,
+          toStop: stop,
           minTransferSeconds: row.minTransferSeconds,
-        };
-      });
-    },
+        })
+      ),
+
+    reverseTransfers: async (stopIds) =>
+      (await loadTransfers(stopIds, 'from')).map(
+        ({ row, stop }): PlannerReverseTransfer => ({
+          fromStop: stop,
+          toStopId: row.toStopId,
+          minTransferSeconds: row.minTransferSeconds,
+        })
+      ),
   };
 }
 
@@ -297,7 +334,8 @@ export function createGtfsJourneyPlanner(): GtfsJourneyPlanner {
         input.destination,
         now,
         input.limit,
-        createGtfsLoader(now)
+        createGtfsLoader(now),
+        input.datetimeRepresents ?? 'departure'
       );
       signal?.throwIfAborted();
       return response;
@@ -305,19 +343,24 @@ export function createGtfsJourneyPlanner(): GtfsJourneyPlanner {
   };
 }
 
-async function loadBoardingCandidates(
+async function loadStopTimeCandidates(
+  direction: StopTimeDirection,
   stopKeys: number[],
   activeServiceIds: string[],
-  minimumDepartureSeconds: number,
+  boundSeconds: number,
   serviceDate: string,
-  departureOffset: number
-): Promise<BoardingCandidate[]> {
+  offset: number
+): Promise<StopTimeCandidate[]> {
   if (activeServiceIds.length === 0) return [];
+  const column =
+    direction === 'board'
+      ? transitTripStopTimes.departureSeconds
+      : transitTripStopTimes.arrivalSeconds;
   const rows = await db
     .select({
       tripId: transitTrips.id,
       stopKey: transitTripStopTimes.stopKey,
-      departureSeconds: transitTripStopTimes.departureSeconds,
+      seconds: column,
     })
     .from(transitTripStopTimes)
     .innerJoin(transitTrips, eq(transitTrips.numericId, transitTripStopTimes.tripKey))
@@ -325,14 +368,14 @@ async function loadBoardingCandidates(
       and(
         inArray(transitTripStopTimes.stopKey, stopKeys),
         inArray(transitTrips.serviceId, activeServiceIds),
-        gte(transitTripStopTimes.departureSeconds, minimumDepartureSeconds)
+        direction === 'board' ? gte(column, boundSeconds) : lte(column, boundSeconds)
       )
     )
-    .orderBy(asc(transitTripStopTimes.departureSeconds))
+    .orderBy(direction === 'board' ? asc(column) : desc(column))
     .limit(MAX_BOARDING_CANDIDATES);
   return rows.map((row) => ({
     ...row,
-    departureSeconds: row.departureSeconds + departureOffset,
+    seconds: row.seconds + offset,
     serviceDate,
   }));
 }

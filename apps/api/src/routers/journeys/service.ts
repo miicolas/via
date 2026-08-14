@@ -1,4 +1,4 @@
-import type { Journey, JourneyInput, JourneysResponse } from '@via/contract';
+import type { Journey, JourneyInput, JourneyMode, JourneysResponse } from '@via/contract';
 
 import type { RedisClient } from '../../redis';
 import { tryConsumeDailyIdfmBudget } from '../idfm/daily-budget';
@@ -65,15 +65,20 @@ export function createJourneyPlanner({
   return {
     plan: async (input, { identity, signal }) => {
       const now = clock.now();
+      const requestedAt = requestedInstant(input, now);
       const cacheKey = journeyCacheKey({
         origin: input.origin,
         destination: input.destination,
         limit: input.limit,
-        now,
+        requestedAt,
+        datetimeRepresents: input.datetimeRepresents,
+        requiredModes: input.requiredModes,
+        excludedModes: input.excludedModes,
+        preferredModes: input.preferredModes,
       });
 
       const gtfsFallback = async () => ({
-        value: await planWithGtfs(gtfs, input, now, signal),
+        value: await planWithGtfs(gtfs, input, requestedAt, now, signal),
         ttlSeconds: GTFS_TTL_SECONDS,
       });
 
@@ -108,9 +113,44 @@ export function createJourneyPlanner({
           return gtfsFallback();
         }
 
-        const realtime = await planWithIdfm(idfm, input, now, signal);
+        let realtime = await planWithIdfm(idfm, input, requestedAt, now, signal);
+        if (
+          realtime?.status === 'ready' &&
+          input.preferredModes?.length &&
+          !hasReasonablePreferred(realtime.journeys, input.preferredModes)
+        ) {
+          const extraBudget = await tryConsumeDailyIdfmBudget(redis, {
+            dailyBudget: config.dailyBudget,
+            now,
+            counterKeyPrefix: 'prim:budget:journeys',
+          });
+          if (extraBudget.allowed) {
+            const preferredOnly = await planWithIdfm(
+              idfm,
+              {
+                ...input,
+                requiredModes: input.preferredModes,
+                preferredModes: [],
+              },
+              requestedAt,
+              now,
+              signal
+            );
+            if (preferredOnly?.journeys.length) {
+              realtime = qualify(
+                {
+                  ...realtime,
+                  journeys: dedupeJourneys([...realtime.journeys, ...preferredOnly.journeys]),
+                },
+                'idfm-realtime',
+                now,
+                input
+              );
+            }
+          }
+        }
         return {
-          value: realtime ?? (await planWithGtfs(gtfs, input, now, signal)),
+          value: realtime ?? (await planWithGtfs(gtfs, input, requestedAt, now, signal)),
           ttlSeconds: IDFM_TTL_SECONDS,
         };
       });
@@ -123,12 +163,13 @@ export function createJourneyPlanner({
 async function planWithIdfm(
   idfm: IdfmJourneyPlanner,
   input: JourneyInput,
+  requestedAt: Date,
   now: Date,
   signal?: AbortSignal
 ): Promise<JourneysResponse | null> {
   try {
-    const response = await idfm.plan(input, now, signal);
-    return response ? qualify(response, 'idfm-realtime', now) : null;
+    const response = await idfm.plan(input, requestedAt, signal);
+    return response ? qualify(response, 'idfm-realtime', now, input) : null;
   } catch (cause) {
     console.error('[journeys] planificateur IDFM indisponible', cause);
     return null;
@@ -138,11 +179,17 @@ async function planWithIdfm(
 async function planWithGtfs(
   gtfs: GtfsJourneyPlanner,
   input: JourneyInput,
+  requestedAt: Date,
   now: Date,
   signal?: AbortSignal
 ): Promise<JourneysResponse> {
   try {
-    return qualify(await gtfs.plan(input, now, signal), 'gtfs-theoretical', now);
+    return qualify(
+      await gtfs.plan(input, requestedAt, signal),
+      'gtfs-theoretical',
+      now,
+      input
+    );
   } catch (cause) {
     console.error('[journeys] planificateur GTFS indisponible', cause);
     return unavailable(now);
@@ -152,9 +199,103 @@ async function planWithGtfs(
 function qualify(
   response: PlannedJourneys,
   source: NonNullable<JourneysResponse['source']>,
-  now: Date
+  now: Date,
+  input: JourneyInput
 ): JourneysResponse {
-  return { ...response, source, generatedAt: now.toISOString() };
+  const filtered = response.journeys.filter(
+    (journey) =>
+      matchesModePolicy(journey, input) &&
+      (input.datetimeRepresents !== 'arrival' || new Date(journey.departureAt) >= now)
+  );
+  const journeys = rankPreferredJourney(filtered, input.preferredModes ?? []);
+  return {
+    ...response,
+    status: journeys.length > 0 ? 'ready' : response.status === 'unavailable' ? 'unavailable' : 'no-route',
+    journeys,
+    source,
+    generatedAt: now.toISOString(),
+  };
+}
+
+function requestedInstant(input: JourneyInput, now: Date) {
+  if (!input.requestedAt) return now;
+  const instant = new Date(input.requestedAt);
+  return Number.isNaN(instant.getTime()) ? now : instant;
+}
+
+function matchesModePolicy(journey: Journey, input: JourneyInput) {
+  const modes = journey.sections.flatMap((section) =>
+    section.type === 'transit' && section.route ? [section.route.mode] : []
+  );
+  if (modes.length === 0) return false;
+  const required = input.requiredModes ?? [];
+  const excluded = new Set(input.excludedModes ?? []);
+  return (
+    modes.every((mode) => !excluded.has(mode)) &&
+    (required.length === 0 || modes.every((mode) => required.includes(mode)))
+  );
+}
+
+export function rankPreferredJourney(journeys: Journey[], preferredModes: JourneyMode[]) {
+  const baseline = journeys[0];
+  if (!baseline || preferredModes.length === 0) return journeys;
+  const preferred = new Set(preferredModes);
+  const candidate = journeys
+    .filter((journey) => isReasonablePreferred(journey, baseline, preferred))
+    .sort(
+      (a, b) =>
+        a.durationSeconds - b.durationSeconds ||
+        preferredShare(b, preferred) - preferredShare(a, preferred)
+    )[0];
+  if (!candidate || candidate.id === baseline.id) return journeys;
+  return [
+    { ...candidate, qualifier: 'recommended' as const },
+    ...journeys
+      .filter((journey) => journey.id !== candidate.id)
+      .map((journey) =>
+        journey.id === baseline.id && journey.qualifier === 'recommended'
+          ? { ...journey, qualifier: 'rapid' as const }
+          : journey
+      ),
+  ];
+}
+
+export function preferredShare(journey: Journey, preferredModes: ReadonlySet<JourneyMode>) {
+  let preferredSeconds = 0;
+  let transitSeconds = 0;
+  for (const section of journey.sections) {
+    if (section.type !== 'transit' || !section.route) continue;
+    transitSeconds += section.durationSeconds;
+    if (preferredModes.has(section.route.mode)) preferredSeconds += section.durationSeconds;
+  }
+  return transitSeconds > 0 ? preferredSeconds / transitSeconds : 0;
+}
+
+function hasReasonablePreferred(journeys: Journey[], preferredModes: JourneyMode[]) {
+  const baseline = journeys[0];
+  if (!baseline) return false;
+  const preferred = new Set(preferredModes);
+  return journeys.some((journey) => isReasonablePreferred(journey, baseline, preferred));
+}
+
+/**
+ * The single definition of an acceptable preferred-mode journey: mostly in a
+ * preferred mode, and not meaningfully slower than the fastest baseline.
+ */
+function isReasonablePreferred(
+  journey: Journey,
+  baseline: Journey,
+  preferred: ReadonlySet<JourneyMode>
+) {
+  return (
+    preferredShare(journey, preferred) > 0.5 &&
+    journey.durationSeconds <= baseline.durationSeconds + 15 * 60 &&
+    journey.durationSeconds <= baseline.durationSeconds * 1.25
+  );
+}
+
+function dedupeJourneys(journeys: Journey[]) {
+  return [...new Map(journeys.map((journey) => [journey.id, journey])).values()];
 }
 
 function unavailable(now: Date): JourneysResponse {

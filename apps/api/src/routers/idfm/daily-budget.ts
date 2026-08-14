@@ -1,5 +1,5 @@
 import type { RedisClient } from '../../redis';
-import { parisServiceDay } from '../departures/theoretical/service-day';
+import { parisDay } from '../../time/paris';
 
 /** Keep a reserve for races near the provider's hard daily ceiling. */
 const SAFETY_RESERVE_RATIO = 0.05;
@@ -26,7 +26,7 @@ export async function tryConsumeDailyIdfmBudget(
   redis: RedisClient,
   { dailyBudget, now, counterKeyPrefix }: DailyIdfmBudgetInput
 ): Promise<DailyIdfmBudgetDecision> {
-  const { date, seconds } = parisServiceDay(now);
+  const { date, seconds } = parisDay(now);
   const key = `${counterKeyPrefix}:${date}`;
   const count = await redis.incr(key);
   if (count === 1) await redis.expire(key, COUNTER_TTL_SECONDS);

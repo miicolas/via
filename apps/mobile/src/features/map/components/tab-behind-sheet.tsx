@@ -1,9 +1,4 @@
 /* eslint-disable react-hooks/immutability -- Reanimated shared values are mutable worklet state. */
-import {
-  GlassView,
-  type GlassViewProps,
-  isGlassEffectAPIAvailable,
-} from 'expo-glass-effect';
 import { type PropsWithChildren, useEffect, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
@@ -12,7 +7,6 @@ import Animated, {
   Extrapolation,
   interpolate,
   runOnJS,
-  useAnimatedProps,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -37,10 +31,7 @@ const COLLAPSED_DETENT_INDEX = 0;
 const CORNER_RADIUS_ANCHORS = [54, 40, 34]; // collapsed, first revealed, expanded
 const CONTENT_FADE_START_OFFSET = 30;
 const CONTENT_RISE_DISTANCE = 18;
-const GLASS_ACTIVATION_OFFSET = 1;
 const SPRING = { damping: 36, mass: 1, overshootClamping: true, stiffness: 360 } as const;
-const AnimatedGlassView = Animated.createAnimatedComponent(GlassView);
-const GLASS_AVAILABLE = isGlassEffectAPIAvailable();
 
 type TabBehindSheetProps = PropsWithChildren<{
   detentFractions: readonly [number, number, ...number[]]; // collapsed, first revealed, …
@@ -59,7 +50,7 @@ export function TabBehindSheet({
   topInset,
 }: TabBehindSheetProps) {
   const { height: viewportHeight, width: viewportWidth } = useWindowDimensions();
-  const { colorScheme, colors } = useAppTheme();
+  const { colors } = useAppTheme();
   const reduceMotion = useReducedMotion();
   const availableHeight = Math.max(1, viewportHeight - topInset - SHEET_BOTTOM_INSET);
   const snapHeights = useMemo(
@@ -215,30 +206,15 @@ export function TabBehindSheet({
     () => ({ height: visibleHeight, snapHeights }),
     [snapHeights, visibleHeight]
   );
-  const glassProps = useAnimatedProps<GlassViewProps>(() => ({
-    glassEffectStyle:
-      visibleHeight.value > collapsedHeight + GLASS_ACTIVATION_OFFSET
-        ? ('regular' as const)
-        : ('none' as const),
-  }));
   const isCollapsed = detentIndex === COLLAPSED_DETENT_INDEX;
 
   return (
     <Animated.View style={[styles.sheet, shellStyle]}>
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, materialStyle]}>
-        {GLASS_AVAILABLE ? (
-          <AnimatedGlassView
-            animatedProps={glassProps}
-            colorScheme={colorScheme}
-            pointerEvents="none"
-            style={StyleSheet.absoluteFill}
-          />
-        ) : (
-          <View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceTranslucent }]}
-          />
-        )}
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceTranslucent }]}
+        />
       </Animated.View>
 
       <SheetHandle

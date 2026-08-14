@@ -2,6 +2,7 @@ import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { ContractRouterClient } from '@orpc/contract';
 import type { contract } from '@via/contract';
+import { rpcMethod } from '@via/contract/methods';
 
 import { getClientIdentity } from '@/lib/client-identity';
 
@@ -16,16 +17,15 @@ export const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:
 );
 
 /**
- * `GET` rather than the default `POST`.
- *
- * The full transit map changes at most once a day. Issued as a GET it is cacheable
- * and compressible, so `Cache-Control` from the server actually applies and a
- * warm app start pays nothing; as a POST the platform cache would ignore it.
- * `fallbackMethod` covers any future procedure whose input is too long for a URL.
+ * The verb comes from the contract: GETs are cacheable and compressible, so
+ * `Cache-Control` from the server actually applies and a warm app start pays
+ * nothing, while procedures the contract marks POST never leak their input
+ * into a cacheable URL. `fallbackMethod` covers any future procedure whose
+ * input is too long for a URL.
  */
 const link = new RPCLink({
   url: `${apiBaseUrl}/rpc`,
-  method: () => 'GET',
+  method: (_options, path) => rpcMethod(path),
   fallbackMethod: 'POST',
   headers: async () => ({ 'x-via-client-id': await getClientIdentity() }),
 });

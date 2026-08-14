@@ -2,8 +2,7 @@ import type { SearchResult } from '@via/contract';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ListRowSkeleton } from '@/components/list-row-skeleton';
-import { AddressResultRow } from '@/features/search/components/address-row';
-import { StationResultRow } from '@/features/search/components/station-row';
+import { SearchResultRow } from '@/features/search/components/result-row';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { SHEET_GUTTER } from '@/styles/metrics';
 import type { SearchState } from '@/features/search/hooks/use-search';
@@ -40,21 +39,13 @@ export function SearchResults({ onSelect, search }: SearchResultsProps) {
 
   return (
     <View style={styles.content}>
-      {search.results.map((result) =>
-        result.kind === 'station' ? (
-          <StationResultRow
-            key={`station:${result.id}`}
-            onPress={() => onSelect(result)}
-            result={result}
-          />
-        ) : (
-          <AddressResultRow
-            key={`address:${result.id}`}
-            onPress={() => onSelect(result)}
-            result={result}
-          />
-        )
-      )}
+      {search.results.map((result) => (
+        <SearchResultRow
+          key={`${result.kind}:${result.id}`}
+          onPress={() => onSelect(result)}
+          result={result}
+        />
+      ))}
       {search.banUnavailable ? (
         <Text style={[styles.notice, { color: colors.muted }]}>{BAN_UNAVAILABLE_MESSAGE}</Text>
       ) : null}

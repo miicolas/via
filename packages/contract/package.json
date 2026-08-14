@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./methods": "./src/methods.ts",
     "./package.json": "./package.json"
   },
   "types": "./src/index.ts",

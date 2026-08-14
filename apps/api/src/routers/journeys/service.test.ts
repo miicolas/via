@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { JourneyInput, JourneysResponse } from '@via/contract';
+import type { Journey, JourneyInput, JourneyMode, JourneysResponse } from '@via/contract';
 
 import { fakeRedis } from '../departures/__fixtures__/fake-redis';
 import {
@@ -26,6 +26,7 @@ const theoretical = { status: 'no-route' as const, journeys: [] };
 function setup(options: {
   apiKey?: boolean;
   idfmResult?: Awaited<ReturnType<IdfmJourneyPlanner['plan']>>;
+  idfmResults?: Array<Awaited<ReturnType<IdfmJourneyPlanner['plan']>>>;
   gtfsError?: Error;
   personalLimit?: number;
   dailyBudget?: number;
@@ -38,7 +39,8 @@ function setup(options: {
     plan: async (_input, _now, signal) => {
       calls.idfm += 1;
       signals.push(signal);
-      return options.idfmResult === undefined ? realtime : options.idfmResult;
+      return options.idfmResults?.[calls.idfm - 1] ??
+        (options.idfmResult === undefined ? realtime : options.idfmResult);
     },
   };
   const gtfs: GtfsJourneyPlanner = {
@@ -74,8 +76,11 @@ function setup(options: {
   };
 }
 
-const plan = (planner: ReturnType<typeof createJourneyPlanner>, signal?: AbortSignal) =>
-  planner.plan(input, { identity: 'person-a', signal });
+const plan = (
+  planner: ReturnType<typeof createJourneyPlanner>,
+  signal?: AbortSignal,
+  journeyInput = input
+) => planner.plan(journeyInput, { identity: 'person-a', signal });
 
 function cachedResponse(store: Map<string, unknown>) {
   return [...store.entries()].find(([key]) => key.startsWith('journeys:cache:'))?.[1] as
@@ -136,7 +141,7 @@ describe('journey planning module', () => {
     const response = await plan(planner);
 
     expect(response).toEqual({
-      status: 'ready',
+      status: 'no-route',
       source: 'idfm-realtime',
       generatedAt: now.toISOString(),
       journeys: [],
@@ -194,4 +199,42 @@ describe('journey planning module', () => {
 
     expect(cachedResponse(store)).toEqual(response);
   });
+
+  test('makes at most one extra filtered IDFM request for a soft mode preference', async () => {
+    const metro = modalJourney('metro', 1_800);
+    const bus = modalJourney('bus', 2_000);
+    const { planner, calls } = setup({
+      idfmResults: [
+        { status: 'ready', journeys: [metro] },
+        { status: 'ready', journeys: [bus] },
+      ],
+    });
+    const response = await plan(planner, undefined, { ...input, preferredModes: ['bus'] });
+
+    expect(calls.idfm).toBe(2);
+    expect(response.journeys[0]?.id).toBe('bus');
+  });
 });
+
+function modalJourney(mode: JourneyMode, durationSeconds: number): Journey {
+  return {
+    id: mode,
+    qualifier: 'recommended',
+    durationSeconds,
+    walkingDurationSeconds: 60,
+    transferCount: 0,
+    departureAt: '2026-08-12T10:05:00Z',
+    arrivalAt: new Date(Date.parse('2026-08-12T10:05:00Z') + durationSeconds * 1_000).toISOString(),
+    status: 'normal',
+    warnings: [],
+    sections: [{
+      type: 'transit',
+      durationSeconds,
+      from: { name: 'Départ', coordinate: input.origin },
+      to: { name: input.destination.name, coordinate: input.destination.coordinate },
+      geometry: [],
+      route: { id: mode, shortName: '1', longName: mode, mode, color: '#000', textColor: '#fff' },
+      stops: [],
+    }],
+  };
+}

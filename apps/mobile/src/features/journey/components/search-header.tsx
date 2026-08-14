@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { GlassIconButton } from '@/components/glass-icon-button';
 import { SymbolIcon } from '@/components/symbol-icon';
 import { useAppTheme } from '@/hooks/use-app-theme';
 import { SHEET_GUTTER } from '@/styles/metrics';
@@ -16,21 +17,13 @@ export function JourneySearchHeader({ destination, onBack, onCancel }: JourneySe
   return (
     <View style={styles.container}>
       {onBack ? (
-        <Pressable
-          accessibilityLabel="Retour aux itinéraires"
-          accessibilityRole="button"
-          onPress={onBack}
-          style={({ pressed }) => [
-            styles.back,
-            { backgroundColor: colors.track, borderColor: colors.hairline },
-            pressed && styles.pressed,
-          ]}>
+        <GlassIconButton accessibilityLabel="Retour aux itinéraires" onPress={onBack}>
           <SymbolIcon color={colors.ink} name="chevron.left" size={19} />
-        </Pressable>
+        </GlassIconButton>
       ) : null}
 
       <Pressable
-        accessibilityHint="Revient à la recherche"
+        accessibilityHint="Annule la recherche et revient à ta localisation"
         accessibilityLabel={`Destination ${destination}`}
         accessibilityRole="button"
         onPress={onCancel}
@@ -63,16 +56,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SHEET_GUTTER,
     paddingTop: 4,
     paddingBottom: 10,
-  },
-  back: {
-    width: 44,
-    height: 44,
-    flexShrink: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 22,
-    borderCurve: 'continuous',
   },
   search: {
     minWidth: 0,

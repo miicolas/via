@@ -1,6 +1,6 @@
 import type { Coordinate, Journey, JourneyInput, JourneySection } from '@via/contract';
 
-import { toInstant } from '../../departures/theoretical/service-day';
+import { toInstant } from '../../../time/paris';
 
 export function parseIdfmJourneys(body: unknown, input: JourneyInput, generatedAt: Date): Journey[] {
   const rows = Array.isArray((body as { journeys?: unknown[] } | null)?.journeys)
@@ -188,14 +188,21 @@ function placeOf(value: unknown, fallbackCoordinate: Coordinate, fallbackName: s
 
 function geometryOf(value: unknown, from: Coordinate, to: Coordinate): Coordinate[] {
   const coordinates = (value as { coordinates?: unknown } | undefined)?.coordinates;
-  if (!Array.isArray(coordinates)) return [from, to];
-  const points = coordinates.flatMap((point) => {
-    if (!Array.isArray(point) || point.length < 2) return [];
-    const longitude = Number(point[0]);
-    const latitude = Number(point[1]);
-    return Number.isFinite(latitude) && Number.isFinite(longitude) ? [{ latitude, longitude }] : [];
-  });
+  const points = flattenLineCoordinates(coordinates);
   return points.length > 1 ? points : [from, to];
+}
+
+/** Accepts both a LineString and the nested lines of a MultiLineString. */
+function flattenLineCoordinates(value: unknown): Coordinate[] {
+  if (!Array.isArray(value)) return [];
+  if (value.length >= 2 && value.every((part) => typeof part === 'number')) {
+    const longitude = Number(value[0]);
+    const latitude = Number(value[1]);
+    return Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? [{ latitude, longitude }]
+      : [];
+  }
+  return value.flatMap(flattenLineCoordinates);
 }
 
 function coordinateOf(value: unknown): Coordinate | undefined {
