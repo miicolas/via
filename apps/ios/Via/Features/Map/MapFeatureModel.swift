@@ -164,6 +164,12 @@ final class MapFeatureModel {
         flow = transitionMapFlow(flow, event: .searchFocusChanged(focused))
     }
 
+    func changeSheetDetent(by translation: CGFloat) {
+        guard abs(translation) >= 40 else { return }
+        let nextIndex = flow.overviewDetentIndex + (translation < 0 ? 1 : -1)
+        flow = transitionMapFlow(flow, event: .detentChanged(nextIndex))
+    }
+
     func setSearchQuery(_ query: String) {
         searchQuery = query
         flow = transitionMapFlow(flow, event: .queryChanged(query))

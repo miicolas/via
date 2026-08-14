@@ -54,7 +54,6 @@ struct MapSheetView: View {
             .padding(.bottom, 28)
         }
         .scrollIndicators(.hidden)
-        .presentationDragIndicator(.visible)
     }
 
     @ViewBuilder

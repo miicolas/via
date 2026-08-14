@@ -12,8 +12,6 @@ struct MapScreen: View {
             span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
         )
     )
-    @State private var sheetPresented = true
-
     init(
         model: MapFeatureModel,
         featureFlags: NativeFeatureFlags = NativeFeatureFlags(),
@@ -26,6 +24,15 @@ struct MapScreen: View {
 
     var body: some View {
         TransitMapView(model: model, position: $position)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                MapSheetContainerView(
+                    model: model,
+                    featureFlags: featureFlags,
+                    maxHeight: sheetMaxHeight,
+                    onOpenChat: onOpenChat,
+                    onDragEnded: model.changeSheetDetent
+                )
+            }
             .onAppear { model.start() }
             .onChange(of: scenePhase) { _, phase in
                 model.handle(isActive: phase == .active)
@@ -39,21 +46,21 @@ struct MapScreen: View {
                     )
                 )
             }
-            .sheet(isPresented: $sheetPresented) {
-                MapSheetView(
-                    model: model,
-                    featureFlags: featureFlags,
-                    onOpenChat: onOpenChat
-                )
-                    .presentationDetents([
-                        .fraction(0.14),
-                        .fraction(0.42),
-                        .fraction(0.70),
-                        .fraction(0.90),
-                    ])
-                    .presentationBackgroundInteraction(.enabled)
-                    .interactiveDismissDisabled()
-            }
             .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private var sheetMaxHeight: CGFloat {
+        switch model.flow.screen {
+        case .planning, .clarification, .results, .detail:
+            620
+        case .search:
+            480
+        case .overview where model.flow.overviewDetentIndex <= 0:
+            140
+        case .overview where model.flow.overviewDetentIndex == 1:
+            360
+        case .overview:
+            620
+        }
     }
 }

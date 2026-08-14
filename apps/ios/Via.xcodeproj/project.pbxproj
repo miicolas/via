@@ -68,6 +68,7 @@
 		A1000000000000000000003B /* LineDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003A /* LineDetailView.swift */; };
 		A1000000000000000000003C /* LineStationRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003B /* LineStationRowView.swift */; };
 		A1000000000000000000003D /* LinePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003C /* LinePresentationTests.swift */; };
+		A1000000000000000000003E /* map-sheet-container-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003D /* map-sheet-container-view.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -151,6 +152,7 @@
 		B1000000000000000000003A /* LineDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineDetailView.swift; sourceTree = "<group>"; };
 		B1000000000000000000003B /* LineStationRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineStationRowView.swift; sourceTree = "<group>"; };
 		B1000000000000000000003C /* LinePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinePresentationTests.swift; sourceTree = "<group>"; };
+		B1000000000000000000003D /* map-sheet-container-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = map-sheet-container-view.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -242,6 +244,7 @@
 				B10000000000000000000016 /* StationDetailsView.swift */,
 				B10000000000000000000017 /* TransitMapView.swift */,
 				B10000000000000000000018 /* MapSheetView.swift */,
+				B1000000000000000000003D /* map-sheet-container-view.swift */,
 				B10000000000000000000019 /* MapScreen.swift */,
 			);
 			path = Map;
@@ -580,6 +583,7 @@
 				A1000000000000000000003A /* LinePresentation.swift in Sources */,
 				A1000000000000000000003B /* LineDetailView.swift in Sources */,
 				A1000000000000000000003C /* LineStationRowView.swift in Sources */,
+				A1000000000000000000003E /* map-sheet-container-view.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

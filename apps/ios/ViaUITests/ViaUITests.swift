@@ -50,4 +50,21 @@ final class ViaUITests: XCTestCase {
         itinerary.tap()
         XCTAssertTrue(app.staticTexts["Détail du trajet"].waitForExistence(timeout: 10))
     }
+
+    func testLinesOpenNativeLineDetail() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--via-demo"]
+        app.launch()
+
+        let linesTab = app.tabBars.buttons["Lignes"]
+        XCTAssertTrue(linesTab.waitForExistence(timeout: 10))
+        linesTab.tap()
+
+        let line = app.buttons["via.line.demo:1"]
+        XCTAssertTrue(line.waitForExistence(timeout: 10))
+        line.tap()
+
+        XCTAssertTrue(app.staticTexts["Stations"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Châtelet"].waitForExistence(timeout: 10))
+    }
 }
