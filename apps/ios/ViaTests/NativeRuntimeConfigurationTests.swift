@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Via
 
@@ -55,5 +56,45 @@ struct NativeRuntimeConfigurationTests {
         )
 
         #expect(configuration.apiBaseURL == NativeRuntimeConfiguration.defaultAPIURL)
+    }
+}
+
+struct AppDeepLinkTests {
+    @Test
+    func parsesStationLinksWithHostAndPath() {
+        let route = AppDeepLink.route(for: URL(string: "via://station/chatelet")!)
+
+        #expect(route == .station(id: "chatelet"))
+    }
+
+    @Test
+    func parsesStationLinksWithQueryIdentifier() {
+        let route = AppDeepLink.route(for: URL(string: "via:///station?id=chatelet")!)
+
+        #expect(route == .station(id: "chatelet"))
+    }
+
+    @Test
+    func decodesLineIdentifiersAndChatLinks() {
+        let line = AppDeepLink.route(for: URL(string: "via://line/metro%201")!)
+        let chat = AppDeepLink.route(for: URL(string: "via://chat")!)
+
+        #expect(line == .line(id: "metro 1"))
+        #expect(chat == .chat)
+    }
+
+    @Test
+    func rejectsUnknownMalformedOrForeignLinks() {
+        let links = [
+            URL(string: "https://station/chatelet")!,
+            URL(string: "via://unknown/chatelet")!,
+            URL(string: "via://station")!,
+            URL(string: "via://chat/extra")!,
+            URL(string: "via://station/a/b")!,
+        ]
+
+        for link in links {
+            #expect(AppDeepLink.route(for: link) == nil)
+        }
     }
 }
