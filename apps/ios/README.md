@@ -32,6 +32,9 @@ The native chat adapter consumes `POST /ai/chat/v1` as newline-delimited JSON;
 the existing `POST /ai/chat` UI-message stream remains dedicated to the web
 client.
 
+The coexistence rules, Debug-only feature overrides, cohort headers and
+cutover gates live in [`docs/ios-native-coexistence.md`](../../docs/ios-native-coexistence.md).
+
 The canonical contract snapshot lives in
 `Packages/ViaAPIContract/Sources/ViaAPIContract/openapi.json`. Verify that it
 has not drifted from the TypeScript contract with:
