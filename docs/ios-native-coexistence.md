@@ -116,12 +116,19 @@ log stream --level debug --predicate 'subsystem == "dev.via.app"'
 Une recherche utilisateur, un identifiant de station, une coordonnée, un
 token ou l’identifiant Keychain ne doit pas être ajouté à `ViaLogger`.
 
-Le client iOS 26 s’abonne aussi à `MXMetricManager` pendant toute la durée de
-l’application. Il compte les rapports MetricKit reçus dans la catégorie
+Le client iOS 26 s'abonne aussi à `MXMetricManager` pendant toute la durée de
+l'application. Il compte les rapports MetricKit reçus dans la catégorie
 `metrics`, sans sérialiser leur contenu, leurs coordonnées, leurs messages ou
 un identifiant utilisateur. Les budgets réels restent à mesurer sur appareil
 et TestFlight ; cette souscription prépare cette mesure sans créer un second
 pipeline de télémétrie propriétaire.
+
+La localisation standard est une session de premier plan : `MapFeatureModel`
+appelle `stopUpdatingLocation()` lorsque la scène quitte l'état actif et
+réactive la livraison au retour, sans déclarer de mode de localisation en
+arrière-plan. Les coordonnées déjà reçues restent disponibles pour afficher
+un état cohérent, mais aucun suivi continu n'est maintenu quand l'utilisateur
+n'utilise plus la carte.
 
 ## Critères de cutover
 

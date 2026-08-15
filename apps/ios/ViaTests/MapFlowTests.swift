@@ -126,6 +126,25 @@ struct MapFeatureModelSearchTests {
 }
 
 @MainActor
+struct MapFeatureModelLifecycleTests {
+    @Test
+    func locationUpdatesPauseInTheBackgroundAndResumeInTheForeground() {
+        let locationProvider = SpyLocationProvider()
+        let model = MapFeatureModel(
+            transitAPI: DemoTransitAPI(),
+            locationProvider: locationProvider
+        )
+
+        model.start()
+        model.handle(isActive: false)
+        model.handle(isActive: true)
+
+        #expect(locationProvider.startCount == 2)
+        #expect(locationProvider.stopCount == 1)
+    }
+}
+
+@MainActor
 struct SearchModelTests {
     @Test
     func debouncedSearchPublishesResultsWithoutOwningMapFlow() async throws {
@@ -193,5 +212,25 @@ struct LocationPermissionTests {
     func deniedAndRestrictedStatesStayExplicit() {
         #expect(makeLocationState(for: .denied, coordinate: nil) == .denied)
         #expect(makeLocationState(for: .restricted, coordinate: nil) == .denied)
+    }
+}
+
+@MainActor
+private final class SpyLocationProvider: LocationProviding {
+    let coordinate: GeoCoordinate? = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+    let authorization = LocationAuthorizationState.authorized
+    let shouldDisplayUserLocation = false
+    var onUpdate: (@MainActor (LocationUpdate) -> Void)?
+    private(set) var startCount = 0
+    private(set) var stopCount = 0
+
+    func requestWhenInUseAuthorization() {}
+
+    func startUpdatingLocation() {
+        startCount += 1
+    }
+
+    func stopUpdatingLocation() {
+        stopCount += 1
     }
 }

@@ -26,6 +26,8 @@ final class MapFeatureModel {
     private var loadedTiles: [String: StationsInArea] = [:]
     private var inFlightTiles = Set<String>()
     private var didStart = false
+    private var isActive = true
+    private var locationUpdatesRunning = false
     private var viewportTask: Task<Void, Never>?
     private var pendingStationID: String?
 
@@ -129,9 +131,7 @@ final class MapFeatureModel {
         didStart = true
 
         refreshLocationState()
-        if locationProvider.authorization == .authorized {
-            locationProvider.startUpdatingLocation()
-        }
+        startLocationUpdatesIfNeeded()
 
         loadNetwork()
     }
@@ -142,7 +142,7 @@ final class MapFeatureModel {
             locationState = .loading
             locationProvider.requestWhenInUseAuthorization()
         case .authorized:
-            locationProvider.startUpdatingLocation()
+            startLocationUpdatesIfNeeded()
             refreshLocationState()
         case .denied, .restricted:
             locationState = .denied
@@ -330,12 +330,15 @@ final class MapFeatureModel {
     }
 
     func handle(isActive: Bool) {
+        self.isActive = isActive
         if isActive {
             refreshLocationState()
+            startLocationUpdatesIfNeeded()
             if let stationID = flow.selectedStationID {
                 departuresModel.start(for: stationID)
             }
         } else {
+            stopLocationUpdates()
             departuresModel.stopPolling()
         }
     }
@@ -412,10 +415,28 @@ final class MapFeatureModel {
         )
     }
 
+    private func startLocationUpdatesIfNeeded() {
+        guard isActive,
+              locationProvider.authorization == .authorized,
+              !locationUpdatesRunning
+        else { return }
+
+        locationProvider.startUpdatingLocation()
+        locationUpdatesRunning = true
+    }
+
+    private func stopLocationUpdates() {
+        guard locationUpdatesRunning else { return }
+
+        locationProvider.stopUpdatingLocation()
+        locationUpdatesRunning = false
+    }
+
     private func handleLocationUpdate(_ update: LocationUpdate) {
         switch update {
         case .authorizationChanged:
             refreshLocationState()
+            startLocationUpdatesIfNeeded()
         case .coordinateUpdated(let coordinate):
             locationState = .ready(coordinate)
         }

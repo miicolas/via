@@ -9,6 +9,7 @@ protocol LocationProviding: AnyObject {
     var onUpdate: (@MainActor (LocationUpdate) -> Void)? { get set }
     func requestWhenInUseAuthorization()
     func startUpdatingLocation()
+    func stopUpdatingLocation()
 }
 
 @MainActor
@@ -20,6 +21,7 @@ final class DemoLocationProvider: LocationProviding {
 
     func requestWhenInUseAuthorization() {}
     func startUpdatingLocation() {}
+    func stopUpdatingLocation() {}
 }
 
 @MainActor
@@ -49,14 +51,15 @@ final class LocationClient: NSObject, LocationProviding, CLLocationManagerDelega
         manager.startUpdatingLocation()
     }
 
+    func stopUpdatingLocation() {
+        manager.stopUpdatingLocation()
+    }
+
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let authorization = manager.authorizationState
         Task { @MainActor [weak self] in
             guard let self else { return }
             onUpdate?(.authorizationChanged(authorization))
-            if authorization == .authorized {
-                startUpdatingLocation()
-            }
         }
     }
 
