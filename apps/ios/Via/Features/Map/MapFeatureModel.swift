@@ -2,21 +2,6 @@ import CoreLocation
 import Foundation
 import Observation
 
-enum SearchState: Equatable, Sendable {
-    case idle
-    case loading(previous: [SearchResult])
-    case ready(results: [SearchResult], banUnavailable: Bool)
-    case failed(previous: [SearchResult])
-
-    var results: [SearchResult] {
-        switch self {
-        case .idle: []
-        case .loading(let previous), .failed(let previous): previous
-        case .ready(let results, _): results
-        }
-    }
-}
-
 enum DeparturesState: Equatable, Sendable {
     case idle
     case loading
@@ -40,21 +25,19 @@ final class MapFeatureModel {
     let clock: any ViaClock
     let networkModel: TransitNetworkModel
     let naturalJourneyModel: NaturalJourneyModel
+    let searchModel: SearchModel
 
     var flow = MapFlowState()
-    var searchState: SearchState = .idle
     var departuresState: DeparturesState = .idle
     var journeyState: JourneyState = .idle
     var recentSearches: [SearchResult]
     var locationState: LocationState = .notDetermined
     var cameraTarget: GeoCoordinate?
-    var searchQuery = ""
 
     private var selectedStationOverride: NetworkStation?
     private var loadedTiles: [String: StationsInArea] = [:]
     private var inFlightTiles = Set<String>()
     private var didStart = false
-    private var searchTask: Task<Void, Never>?
     private var viewportTask: Task<Void, Never>?
     private var departureTask: Task<Void, Never>?
     private var journeyTask: Task<Void, Never>?
@@ -74,6 +57,11 @@ final class MapFeatureModel {
         let sharedNetworkModel = networkModel ?? TransitNetworkModel(transitAPI: transitAPI)
         self.networkModel = sharedNetworkModel
         self.naturalJourneyModel = NaturalJourneyModel(transitAPI: transitAPI)
+        self.searchModel = SearchModel(
+            transitAPI: transitAPI,
+            locationProvider: locationProvider,
+            clock: clock
+        )
         recentSearches = recentSearchStore.load()
         locationProvider.onUpdate = { [weak self] update in
             self?.handleLocationUpdate(update)
@@ -192,38 +180,17 @@ final class MapFeatureModel {
     }
 
     func setSearchQuery(_ query: String) {
-        searchQuery = query
-        flow = transitionMapFlow(flow, event: .queryChanged(query))
-        searchTask?.cancel()
+        searchModel.setQuery(query)
+        flow = transitionMapFlow(
+            flow,
+            event: .queryChanged(
+                hasText: !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            )
+        )
+    }
 
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            searchState = .idle
-            return
-        }
-
-        let previous = searchState.results
-        searchState = .loading(previous: previous)
-        searchTask = Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await self.clock.sleep(for: .milliseconds(600))
-                guard !Task.isCancelled else { return }
-                let response = try await transitAPI.search(query: trimmed, near: locationProvider.coordinate)
-                guard !Task.isCancelled, searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else {
-                    return
-                }
-                searchState = .ready(
-                    results: response.results,
-                    banUnavailable: response.sources.ban == .unavailable
-                )
-            } catch is CancellationError {
-                return
-            } catch {
-                guard !Task.isCancelled else { return }
-                self.searchState = .failed(previous: previous)
-            }
-        }
+    func retrySearch() {
+        searchModel.retry()
     }
 
     func selectSearchResult(_ result: SearchResult) {
@@ -262,7 +229,7 @@ final class MapFeatureModel {
         selectedStationOverride = station
         flow = transitionMapFlow(
             flow,
-            event: .stationSelected(id: station.id, query: searchQuery)
+            event: .stationSelected(id: station.id)
         )
         cameraTarget = station.coordinate
         ensureArea(around: station.coordinate)

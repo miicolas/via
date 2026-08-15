@@ -12,7 +12,7 @@ enum FlowScreen: String, Codable, Hashable, Sendable {
 struct MapFlowState: Equatable, Sendable {
     var screen: FlowScreen = .overview
     var searchFocused = false
-    var searchQuery = ""
+    var hasSearchQuery = false
     var selectedStationID: String?
     var selectedJourneyIndex: Int?
     var overviewDetentIndex = 1
@@ -20,8 +20,8 @@ struct MapFlowState: Equatable, Sendable {
 
 enum MapFlowEvent: Equatable, Sendable {
     case searchFocusChanged(Bool)
-    case queryChanged(String)
-    case stationSelected(id: String, query: String?)
+    case queryChanged(hasText: Bool)
+    case stationSelected(id: String)
     case stationDeselected
     case detentChanged(Int)
     case journeyPlanningStarted
@@ -46,26 +46,25 @@ func transitionMapFlow(
     switch event {
     case .searchFocusChanged(let focused):
         next.searchFocused = focused
-        next.screen = focused || !state.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        next.screen = focused || state.hasSearchQuery
             ? .search
             : .overview
-        if !focused && state.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !focused && !state.hasSearchQuery {
             next.overviewDetentIndex = 1
         }
 
-    case .queryChanged(let query):
-        next.searchQuery = query
+    case .queryChanged(let hasText):
+        next.hasSearchQuery = hasText
         next.selectedStationID = nil
         next.selectedJourneyIndex = nil
-        next.screen = query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !state.searchFocused
+        next.screen = !hasText && !state.searchFocused
             ? .overview
             : .search
 
-    case .stationSelected(let id, let query):
+    case .stationSelected(let id):
         next.selectedStationID = id
         next.selectedJourneyIndex = nil
         next.searchFocused = false
-        if let query { next.searchQuery = query }
         next.screen = .overview
         next.overviewDetentIndex = 2
 
@@ -73,7 +72,7 @@ func transitionMapFlow(
         next.selectedStationID = nil
         next.selectedJourneyIndex = nil
         next.searchFocused = false
-        next.searchQuery = ""
+        next.hasSearchQuery = false
         next.screen = .overview
         next.overviewDetentIndex = 1
 

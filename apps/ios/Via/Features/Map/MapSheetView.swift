@@ -23,7 +23,7 @@ struct MapSheetView: View {
             VStack(alignment: .leading, spacing: 18) {
                 SearchBarView(
                     query: Binding(
-                        get: { model.searchQuery },
+                        get: { model.searchModel.query },
                         set: { model.setSearchQuery($0) }
                     ),
                     onFocusChanged: { model.setSearchFocused($0) }
@@ -52,11 +52,11 @@ struct MapSheetView: View {
                         onClose: model.closeSelectedStation,
                         onPlanJourney: model.planSelectedStation
                     )
-                } else if !model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                } else if !model.searchModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     SearchResultsView(
-                        state: model.searchState,
+                        state: model.searchModel.state,
                         onSelect: model.selectSearchResult,
-                        onRetry: { model.setSearchQuery(model.searchQuery) }
+                        onRetry: model.retrySearch
                     )
                 } else {
                     overview(model: model)

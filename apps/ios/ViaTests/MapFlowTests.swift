@@ -16,18 +16,18 @@ struct MapFlowTests {
     @Test
     func selectingStationExpandsTheSheetAndKeepsTheQuery() {
         var initial = MapFlowState()
-        initial.searchQuery = "Châtelet"
+        initial.hasSearchQuery = true
         initial.searchFocused = true
 
         let state = transitionMapFlow(
             initial,
-            event: .stationSelected(id: "station-1", query: "Châtelet")
+            event: .stationSelected(id: "station-1")
         )
 
         #expect(state.screen == .overview)
         #expect(state.selectedStationID == "station-1")
         #expect(state.overviewDetentIndex == 2)
-        #expect(state.searchQuery == "Châtelet")
+        #expect(state.hasSearchQuery)
     }
 
     @Test
@@ -46,7 +46,7 @@ struct MapFlowTests {
     func journeyFlowKeepsStationFocusAcrossResultsAndDetail() {
         var state = transitionMapFlow(
             MapFlowState(),
-            event: .stationSelected(id: "station-1", query: "Châtelet")
+            event: .stationSelected(id: "station-1")
         )
 
         state = transitionMapFlow(state, event: .journeyPlanningStarted)
@@ -122,6 +122,31 @@ struct MapFeatureModelSearchTests {
         #expect(store.entries == model.recentSearches)
         #expect(model.journeyState.request?.destination.kind == .address)
         #expect(model.journeyState.request?.destination.name == "Louvre")
+    }
+}
+
+@MainActor
+struct SearchModelTests {
+    @Test
+    func debouncedSearchPublishesResultsWithoutOwningMapFlow() async throws {
+        let model = SearchModel(
+            transitAPI: DemoTransitAPI(),
+            locationProvider: DemoLocationProvider(),
+            clock: ImmediateViaClock()
+        )
+
+        model.setQuery("Châtelet")
+        #expect(model.query == "Châtelet")
+        #expect(model.state.results.isEmpty)
+
+        try await Task.sleep(for: .milliseconds(80))
+
+        guard case .ready(let results, let banUnavailable) = model.state else {
+            Issue.record("Expected the search model to publish results")
+            return
+        }
+        #expect(results.first?.name == "Châtelet")
+        #expect(banUnavailable)
     }
 }
 

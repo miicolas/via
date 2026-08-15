@@ -89,6 +89,7 @@
 		A10000000000000000000050 /* ViaClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004F /* ViaClock.swift */; };
 		A10000000000000000000051 /* NaturalJourneyModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000050 /* NaturalJourneyModel.swift */; };
 		A10000000000000000000052 /* TransitNetworkModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000051 /* TransitNetworkModel.swift */; };
+		A10000000000000000000053 /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000052 /* SearchModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -193,6 +194,7 @@
 		B1000000000000000000004F /* ViaClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViaClock.swift; sourceTree = "<group>"; };
 		B10000000000000000000050 /* NaturalJourneyModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaturalJourneyModel.swift; sourceTree = "<group>"; };
 		B10000000000000000000051 /* TransitNetworkModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransitNetworkModel.swift; sourceTree = "<group>"; };
+		B10000000000000000000052 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -302,6 +304,7 @@
 		D10000000000000000000006 /* Search */ = {
 			isa = PBXGroup;
 			children = (
+				B10000000000000000000052 /* SearchModel.swift */,
 				B10000000000000000000014 /* SearchResultsView.swift */,
 				B10000000000000000000044 /* search-result-row-view.swift */,
 				B1000000000000000000004E /* recent-searches-view.swift */,
@@ -616,6 +619,7 @@
 				A10000000000000000000044 /* NaturalJourneyModels.swift in Sources */,
 				A10000000000000000000051 /* NaturalJourneyModel.swift in Sources */,
 				A10000000000000000000052 /* TransitNetworkModel.swift in Sources */,
+				A10000000000000000000053 /* SearchModel.swift in Sources */,
 				A1000000000000000000004D /* RecentSearches.swift in Sources */,
 				A1000000000000000000000C /* TransitAPI.swift in Sources */,
 				A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */,
