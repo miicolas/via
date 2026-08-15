@@ -16,10 +16,10 @@ struct WelcomeView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Vos trajets,\navec Via.")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .font(ViaFont.display)
                         .foregroundStyle(ViaTheme.ink)
                     Text("Une carte claire, des départs en direct et un assistant qui comprend vos déplacements.")
-                        .font(.title3)
+                        .font(ViaFont.title3)
                         .foregroundStyle(ViaTheme.body)
                 }
 

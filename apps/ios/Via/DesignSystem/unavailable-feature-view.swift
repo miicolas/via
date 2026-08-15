@@ -14,11 +14,11 @@ struct UnavailableFeatureView: View {
                 .foregroundStyle(ViaTheme.primary)
 
             Text(title)
-                .font(.largeTitle.weight(.bold))
+                .font(ViaFont.largeTitle)
                 .foregroundStyle(ViaTheme.ink)
 
             Text(description)
-                .font(.body)
+                .font(ViaFont.body)
                 .foregroundStyle(ViaTheme.body)
 
             if let actionTitle, let action {

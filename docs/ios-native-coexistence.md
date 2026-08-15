@@ -135,6 +135,12 @@ session réseau ne reste donc pas attachée à une vue disparue, que l'utilisate
 ferme la sheet avec le bouton d'arrêt, le geste système ou l'ouverture du
 détail d'itinéraire.
 
+La typographie native embarque les mêmes graisses Archivo et Inter que le
+client Expo. Les composants passent par `ViaFont` au lieu de répéter des noms
+de police ; les appels `Font.custom(_:size:relativeTo:)` conservent la mise à
+l'échelle Dynamic Type. Les fichiers de police et leurs licences OFL sont
+versionnés dans `apps/ios/Via/Fonts`.
+
 ## Critères de cutover
 
 Le remplacement du bundle public est autorisé seulement lorsque tous les

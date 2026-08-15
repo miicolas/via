@@ -5,7 +5,7 @@ struct LineBadgeView: View {
 
     var body: some View {
         Text(route.shortName)
-            .font(.caption.weight(.bold))
+            .font(ViaFont.captionStrong)
             .foregroundStyle(Color(hex: route.textColor))
             .frame(minWidth: 28, minHeight: 28)
             .padding(.horizontal, 4)

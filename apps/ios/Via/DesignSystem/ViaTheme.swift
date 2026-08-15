@@ -12,6 +12,25 @@ enum ViaTheme {
     static let accentSoft = Color(light: "E5EFEB", dark: "18352D")
 }
 
+enum ViaFont {
+    static let body = Font.custom("Inter-Regular", size: 15, relativeTo: .body)
+    static let bodyMedium = Font.custom("Inter-Medium", size: 15, relativeTo: .body)
+    static let bodySemibold = Font.custom("Inter-SemiBold", size: 15, relativeTo: .body)
+    static let button = Font.custom("Inter-SemiBold", size: 15, relativeTo: .body)
+    static let caption = Font.custom("Inter-Regular", size: 13, relativeTo: .caption)
+    static let captionStrong = Font.custom("Archivo-ExtraBold", size: 13, relativeTo: .caption)
+    static let footnote = Font.custom("Inter-Regular", size: 13, relativeTo: .footnote)
+    static let headline = Font.custom("Archivo-Bold", size: 17, relativeTo: .headline)
+    static let headlineStrong = Font.custom("Archivo-ExtraBold", size: 17, relativeTo: .headline)
+    static let largeTitle = Font.custom("Archivo-ExtraBold", size: 34, relativeTo: .largeTitle)
+    static let title = Font.custom("Archivo-Bold", size: 28, relativeTo: .title)
+    static let title2 = Font.custom("Archivo-Bold", size: 22, relativeTo: .title2)
+    static let title3 = Font.custom("Archivo-Bold", size: 20, relativeTo: .title3)
+    static let display = Font.custom("Archivo-Black", size: 42, relativeTo: .largeTitle)
+    static let displayDigit = display.monospacedDigit()
+    static let title3Digit = title3.monospacedDigit()
+}
+
 extension Color {
     init(light: String, dark: String) {
         self.init(

@@ -14,6 +14,7 @@ struct ViaButton<Content: View>: View {
 
     var body: some View {
         Button(action: action, label: content)
+            .font(ViaFont.button)
             .buttonStyle(.glass)
     }
 }

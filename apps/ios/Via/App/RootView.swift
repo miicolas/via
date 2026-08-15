@@ -48,6 +48,7 @@ struct RootView: View {
             }
         }
         .onOpenURL { router.handle($0) }
+        .environment(\.font, ViaFont.body)
     }
 
     private var shell: some View {

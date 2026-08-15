@@ -96,6 +96,12 @@
 		A10000000000000000000058 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B10000000000000000000057 /* libsqlite3.tbd */; };
 		A10000000000000000000059 /* PerformanceMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000058 /* PerformanceMetrics.swift */; };
 		A1000000000000000000005A /* ClientIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000059 /* ClientIdentityTests.swift */; };
+		A1000000000000000000005B /* Archivo_700Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000005A /* Archivo_700Bold.ttf */; };
+		A1000000000000000000005C /* Archivo_800ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000005B /* Archivo_800ExtraBold.ttf */; };
+		A1000000000000000000005D /* Archivo_900Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000005C /* Archivo_900Black.ttf */; };
+		A1000000000000000000005E /* Inter_400Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000005D /* Inter_400Regular.ttf */; };
+		A1000000000000000000005F /* Inter_500Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000005E /* Inter_500Medium.ttf */; };
+		A10000000000000000000060 /* Inter_600SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000005F /* Inter_600SemiBold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -207,6 +213,12 @@
 		B10000000000000000000057 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = wrapper.library; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		B10000000000000000000058 /* PerformanceMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMetrics.swift; sourceTree = "<group>"; };
 		B10000000000000000000059 /* ClientIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientIdentityTests.swift; sourceTree = "<group>"; };
+		B1000000000000000000005A /* Archivo_700Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Archivo_700Bold.ttf; sourceTree = "<group>"; };
+		B1000000000000000000005B /* Archivo_800ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Archivo_800ExtraBold.ttf; sourceTree = "<group>"; };
+		B1000000000000000000005C /* Archivo_900Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Archivo_900Black.ttf; sourceTree = "<group>"; };
+		B1000000000000000000005D /* Inter_400Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Inter_400Regular.ttf; sourceTree = "<group>"; };
+		B1000000000000000000005E /* Inter_500Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Inter_500Medium.ttf; sourceTree = "<group>"; };
+		B1000000000000000000005F /* Inter_600SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Inter_600SemiBold.ttf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -412,9 +424,23 @@
 				D10000000000000000000003 /* Domain */,
 				D10000000000000000000004 /* Infrastructure */,
 				D10000000000000000000008 /* Features */,
+				D10000000000000000000013 /* Fonts */,
 				B1000000000000000000001A /* PrivacyInfo.xcprivacy */,
 			);
 			path = Via;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000013 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				B1000000000000000000005A /* Archivo_700Bold.ttf */,
+				B1000000000000000000005B /* Archivo_800ExtraBold.ttf */,
+				B1000000000000000000005C /* Archivo_900Black.ttf */,
+				B1000000000000000000005D /* Inter_400Regular.ttf */,
+				B1000000000000000000005E /* Inter_500Medium.ttf */,
+				B1000000000000000000005F /* Inter_600SemiBold.ttf */,
+			);
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 		D1000000000000000000000A /* ViaTests */ = {
@@ -584,6 +610,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000000000000000000001A /* PrivacyInfo.xcprivacy in Resources */,
+				A1000000000000000000005B /* Archivo_700Bold.ttf in Resources */,
+				A1000000000000000000005C /* Archivo_800ExtraBold.ttf in Resources */,
+				A1000000000000000000005D /* Archivo_900Black.ttf in Resources */,
+				A1000000000000000000005E /* Inter_400Regular.ttf in Resources */,
+				A1000000000000000000005F /* Inter_500Medium.ttf in Resources */,
+				A10000000000000000000060 /* Inter_600SemiBold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

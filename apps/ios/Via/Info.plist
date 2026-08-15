@@ -16,6 +16,15 @@
 	<string>Via</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Archivo_700Bold.ttf</string>
+		<string>Archivo_800ExtraBold.ttf</string>
+		<string>Archivo_900Black.ttf</string>
+		<string>Inter_400Regular.ttf</string>
+		<string>Inter_500Medium.ttf</string>
+		<string>Inter_600SemiBold.ttf</string>
+	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
