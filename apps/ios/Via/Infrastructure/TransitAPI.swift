@@ -70,6 +70,7 @@ protocol TransitAPI: Sendable {
     func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse
     func loadDepartures(stationID: String) async throws -> DeparturesResponse
     func planJourneys(_ request: JourneyRequest) async throws -> JourneysResponse
+    func submitNaturalJourney(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResponse
 }
 
 struct DemoTransitAPI: TransitAPI {
@@ -161,26 +162,11 @@ struct DemoTransitAPI: TransitAPI {
     }
 
     func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
-        let normalized = query.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-        let lineOne = RouteBadge(id: "demo:1", shortName: "1", mode: .metro, color: "FFCD00", textColor: "161A18")
-        let lineFour = RouteBadge(id: "demo:4", shortName: "4", mode: .metro, color: "6D1E91", textColor: "FFFFFF")
+        let normalized = normalizedSearchText(query)
         let results = railMap.stations.compactMap { station -> SearchResult? in
-            guard station.name.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            guard normalizedSearchText(station.name)
                 .contains(normalized) else { return nil }
-
-            let routes = station.routeIds.compactMap { id in
-                id == lineOne.id ? lineOne : id == lineFour.id ? lineFour : nil
-            }
-            let distance = coordinate.map { station.coordinate.distance(to: $0) }
-            return .station(
-                StationSearchResult(
-                    id: station.id,
-                    name: station.name,
-                    coordinate: station.coordinate,
-                    routes: routes,
-                    distanceMeters: distance
-                )
-            )
+            return stationSearchResult(for: station, near: coordinate)
         }
         return SearchResponse(results: results, sources: .init(ban: .unavailable))
     }
@@ -301,6 +287,184 @@ struct DemoTransitAPI: TransitAPI {
             generatedAt: viaTimestamp(generatedAt),
             journeys: [primary, alternative]
         )
+    }
+
+    func submitNaturalJourney(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResponse {
+        try await Task.sleep(for: .milliseconds(160))
+
+        switch request {
+        case .submit(let query, let currentLocation):
+            guard let destination = naturalDestination(for: query) else {
+                let draft = NaturalJourneyDraft(
+                    intent: NaturalJourneyIntent(
+                        scope: .journey,
+                        origin: .currentLocation,
+                        destinationQuery: query,
+                        requestedAt: nil,
+                        datetimeRepresents: .ambiguous,
+                        requiredModes: [],
+                        excludedModes: [],
+                        preferredModes: []
+                    ),
+                    origin: nil,
+                    destination: nil
+                )
+                return .needsClarification(
+                    NaturalJourneyNeedsClarification(
+                        draft: draft,
+                        fields: [
+                            NaturalJourneyClarificationField(
+                                target: .destination,
+                                question: "Quelle destination voulez-vous rejoindre ?",
+                                candidates: stationSearchResults
+                            )
+                        ]
+                    )
+                )
+            }
+
+            let draft = NaturalJourneyDraft(
+                intent: NaturalJourneyIntent(
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destinationQuery: destination.name,
+                    requestedAt: nil,
+                    datetimeRepresents: .ambiguous,
+                    requiredModes: [],
+                    excludedModes: [],
+                    preferredModes: []
+                ),
+                origin: nil,
+                destination: destination
+            )
+            return try await resolveNaturalJourney(
+                draft: draft,
+                currentLocation: currentLocation,
+                origin: nil,
+                destination: destination,
+                datetimeRepresents: nil
+            )
+
+        case .resolve(let draft, let currentLocation, let origin, let destination, let datetimeRepresents):
+            return try await resolveNaturalJourney(
+                draft: draft,
+                currentLocation: currentLocation,
+                origin: origin,
+                destination: destination,
+                datetimeRepresents: datetimeRepresents
+            )
+        }
+    }
+
+    private func resolveNaturalJourney(
+        draft: NaturalJourneyDraft,
+        currentLocation: GeoCoordinate?,
+        origin: SearchResult?,
+        destination: SearchResult?,
+        datetimeRepresents: NaturalJourneyDatetimeRepresents?
+    ) async throws -> NaturalJourneyResponse {
+        let selectedOrigin = origin ?? draft.origin
+        if case .place = draft.intent.origin, selectedOrigin == nil {
+            return .needsClarification(
+                NaturalJourneyNeedsClarification(
+                    draft: draft,
+                    fields: [
+                        NaturalJourneyClarificationField(
+                            target: .origin,
+                            question: "Depuis quel endroit partez-vous ?",
+                            candidates: stationSearchResults
+                        )
+                    ]
+                )
+            )
+        }
+
+        let selectedDestination = destination
+            ?? draft.destination
+            ?? draft.intent.destinationQuery.flatMap(naturalDestination(for:))
+        guard let selectedDestination,
+              let journeyDestination = JourneyDestination(searchResult: selectedDestination)
+        else {
+            return .needsClarification(
+                NaturalJourneyNeedsClarification(
+                    draft: draft,
+                    fields: [
+                        NaturalJourneyClarificationField(
+                            target: .destination,
+                            question: "Quelle destination voulez-vous rejoindre ?",
+                            candidates: stationSearchResults
+                        )
+                    ]
+                )
+            )
+        }
+
+        let originCoordinate = selectedOrigin?.coordinate ?? currentLocation ?? paris
+        let journeyResponse = try await planJourneys(
+            JourneyRequest(origin: originCoordinate, destination: journeyDestination)
+        )
+        let effectiveDate = draft.intent.requestedAt ?? viaTimestamp(Date())
+        let effectiveDatetimeRepresents = datetimeRepresents ?? draft.intent.datetimeRepresents
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: selectedOrigin?.name ?? "Votre position",
+            destination: journeyDestination,
+            destinationResult: selectedDestination,
+            requestedAt: effectiveDate,
+            datetimeRepresents: effectiveDatetimeRepresents,
+            requiredModes: draft.intent.requiredModes,
+            excludedModes: draft.intent.excludedModes,
+            preferredModes: draft.intent.preferredModes
+        )
+
+        return .ready(
+            NaturalJourneyReady(
+                answer: "Voici le meilleur itinéraire vers (journeyDestination.name).",
+                answerSource: .deterministic,
+                preferenceNotice: nil,
+                interpretation: interpretation,
+                journeys: journeyResponse
+            )
+        )
+    }
+
+    private var stationSearchResults: [SearchResult] {
+        railMap.stations.map { station in
+            stationSearchResult(for: station, near: nil)
+        }
+    }
+
+    private func naturalDestination(for query: String) -> SearchResult? {
+        let normalizedQuery = normalizedSearchText(query)
+        return railMap.stations
+            .first(where: { normalizedQuery.contains(normalizedSearchText($0.name)) })
+            .map { stationSearchResult(for: $0, near: nil) }
+    }
+
+    private func stationSearchResult(for station: NetworkStation, near coordinate: GeoCoordinate?) -> SearchResult {
+        let routes = station.routeIds.compactMap { routeID in
+            railMap.routes.first(where: { $0.id == routeID }).map { route in
+                RouteBadge(
+                    id: route.id,
+                    shortName: route.shortName,
+                    mode: route.mode,
+                    color: route.color,
+                    textColor: route.textColor
+                )
+            }
+        }
+        return .station(
+            StationSearchResult(
+                id: station.id,
+                name: station.name,
+                coordinate: station.coordinate,
+                routes: routes,
+                distanceMeters: coordinate.map { station.coordinate.distance(to: $0) }
+            )
+        )
+    }
+
+    private func normalizedSearchText(_ value: String) -> String {
+        value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
     }
 
     private func walkingJourney(

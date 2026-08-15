@@ -53,8 +53,7 @@ struct ChatStreamParser: Sendable {
 
 final class URLSessionChatClient: ChatClient, @unchecked Sendable {
     private let baseURL: URL
-    private let clientIdentifier: String
-    private let clientMetadata: NativeClientMetadata
+    private let identityHeaders: ClientIdentityHeaders
     private let session: URLSession
     private let logger: ViaLogger
 
@@ -66,8 +65,10 @@ final class URLSessionChatClient: ChatClient, @unchecked Sendable {
         logger: ViaLogger = ViaLogger(category: "chat")
     ) {
         self.baseURL = baseURL
-        self.clientIdentifier = clientIdentifier
-        self.clientMetadata = clientMetadata
+        identityHeaders = ClientIdentityHeaders(
+            clientIdentifier: clientIdentifier,
+            metadata: clientMetadata
+        )
         self.session = session
         self.logger = logger
     }
@@ -88,10 +89,7 @@ final class URLSessionChatClient: ChatClient, @unchecked Sendable {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("application/x-ndjson", forHTTPHeaderField: "Accept")
-            request.setValue(clientIdentifier, forHTTPHeaderField: "x-via-client-id")
-            request.setValue(clientMetadata.platform, forHTTPHeaderField: "x-via-client-platform")
-            request.setValue(clientMetadata.version, forHTTPHeaderField: "x-via-client-version")
-            request.setValue(clientMetadata.build, forHTTPHeaderField: "x-via-client-build")
+            request = identityHeaders.applying(to: request)
             request.httpBody = try JSONEncoder().encode(
                 ChatRequest(messages: messages, location: location)
             )

@@ -90,6 +90,37 @@ struct JourneyPresentationTests {
 
 struct NaturalJourneyModelTests {
     @Test
+    func demoAdapterResolvesARecognizedDestination() async throws {
+        let response = try await DemoTransitAPI().submitNaturalJourney(
+            .submit(
+                query: "Comment aller à Châtelet ?",
+                currentLocation: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+            )
+        )
+
+        guard case .ready(let ready) = response else {
+            Issue.record("Expected the demo adapter to resolve Châtelet")
+            return
+        }
+        #expect(ready.interpretation.destination.name == "Châtelet")
+        #expect(ready.journeys.journeys.isEmpty == false)
+    }
+
+    @Test
+    func demoAdapterReturnsCandidatesWhenDestinationIsUnknown() async throws {
+        let response = try await DemoTransitAPI().submitNaturalJourney(
+            .submit(query: "Comment aller au musée ?", currentLocation: nil)
+        )
+
+        guard case .needsClarification(let clarification) = response else {
+            Issue.record("Expected the demo adapter to ask for a destination")
+            return
+        }
+        #expect(clarification.fields.first?.target == .destination)
+        #expect(clarification.fields.first?.candidates.isEmpty == false)
+    }
+
+    @Test
     func submitRequestPreservesTheMinimalWireShape() throws {
         let data = try JSONEncoder().encode(
             NaturalJourneyRequest.submit(

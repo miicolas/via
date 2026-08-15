@@ -21,6 +21,25 @@ struct NativeClientMetadata: Sendable {
     }
 }
 
+struct ClientIdentityHeaders: Sendable {
+    private let clientIdentifier: String
+    private let metadata: NativeClientMetadata
+
+    init(clientIdentifier: String, metadata: NativeClientMetadata) {
+        self.clientIdentifier = clientIdentifier
+        self.metadata = metadata
+    }
+
+    func applying(to request: URLRequest) -> URLRequest {
+        var request = request
+        request.setValue(clientIdentifier, forHTTPHeaderField: "x-via-client-id")
+        request.setValue(metadata.platform, forHTTPHeaderField: "x-via-client-platform")
+        request.setValue(metadata.version, forHTTPHeaderField: "x-via-client-version")
+        request.setValue(metadata.build, forHTTPHeaderField: "x-via-client-build")
+        return request
+    }
+}
+
 struct ClientIdentityStore: Sendable {
     private let service = "dev.via.app"
     private let account = "via.anonymous-client-id"

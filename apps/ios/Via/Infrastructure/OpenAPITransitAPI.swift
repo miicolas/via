@@ -7,6 +7,9 @@ import ViaAPIContract
 /// churn local to one adapter and leaves reducers, models, and views domain-only.
 final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
     private let client: ViaAPIClient
+    private let apiBaseURL: URL
+    private let identityHeaders: ClientIdentityHeaders
+    private let session: URLSession
     private let logger: ViaLogger
 
     init(
@@ -16,6 +19,12 @@ final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
         session: URLSession = .shared,
         logger: ViaLogger = ViaLogger(category: "network")
     ) {
+        apiBaseURL = Self.apiURL(for: baseURL)
+        identityHeaders = ClientIdentityHeaders(
+            clientIdentifier: clientIdentifier,
+            metadata: clientMetadata
+        )
+        self.session = session
         client = ViaAPIClient(
             baseURL: baseURL,
             clientIdentifier: clientIdentifier,
@@ -96,6 +105,39 @@ final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
             },
             decode: mapJourneysResponse
         )
+    }
+
+    func submitNaturalJourney(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResponse {
+        try await self.request(
+            operationName: "naturalJourneys.submit",
+            path: "/api/natural-journeys",
+            execute: { try await self.loadNaturalJourney(request) },
+            decode: { $0 }
+        )
+    }
+
+    private func loadNaturalJourney(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResponse {
+        let url = apiBaseURL.appendingPathComponent("natural-journeys")
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest = identityHeaders.applying(to: urlRequest)
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw TransitAPIError.server(statusCode: 0)
+        }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw TransitAPIError.from(statusCode: httpResponse.statusCode)
+        }
+
+        do {
+            return try JSONDecoder().decode(NaturalJourneyResponse.self, from: data)
+        } catch {
+            throw TransitAPIError.decoding
+        }
     }
 
     private func request<Response, Value>(
@@ -362,6 +404,15 @@ final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
+    }
+
+    private static func apiURL(for baseURL: URL) -> URL {
+        let normalizedPath = baseURL.path
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard normalizedPath.split(separator: "/").last != "api" else {
+            return baseURL
+        }
+        return baseURL.appendingPathComponent("api")
     }
 
 }
