@@ -108,6 +108,9 @@ final class OpenAPITransitAPI: TransitAPI, @unchecked Sendable {
     }
 
     func submitNaturalJourney(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResponse {
+        // Keep this compatibility adapter local to the natural-journey seam:
+        // the current Swift OpenAPI Generator output cannot represent the
+        // nullable anyOf fields in the resolve draft without dropping them.
         try await self.request(
             operationName: "naturalJourneys.submit",
             path: "/api/natural-journeys",

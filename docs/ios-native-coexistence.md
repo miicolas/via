@@ -18,6 +18,14 @@ portent les headers `x-via-client-platform: ios-native`,
 par plateforme, version et build sans inclure de recherche, coordonnées ou
 identifiant anonyme dans les logs applicatifs.
 
+Le trajet naturel (`POST /api/natural-journeys`) conserve une interface
+domaine Swift typée, mais son adapter live utilise ponctuellement
+`URLSession`: la version générée actuelle de Swift OpenAPI Generator ne
+matérialise pas correctement les champs `nullable` issus de `anyOf` dans le
+brouillon `resolve`, et risquerait de les supprimer. Cette compatibilité est
+isolée dans `OpenAPITransitAPI` et devra être retirée après validation d’une
+version corrigée du [générateur Apple](https://github.com/apple/swift-openapi-generator/issues/926).
+
 ## Contrats encore absents
 
 L’audit du contrat actuel ne contient pas de route d’identité/session ni de
@@ -29,6 +37,13 @@ un état indisponible et le shell affiche un écran d’attente honnête.
 Ces adapters sont les seams à remplacer quand les contrats backend seront
 validés. Tant qu’ils restent indisponibles, aucun mot de passe, jeton ou titre
 Navigo ne doit être stocké ou envoyé par le client natif.
+
+Les recherches récentes natives sont stockées sous la clé versionnée
+`via.recent-searches.v1` avec `UserDefaults`, dédupliquées et limitées à cinq
+entrées. L’import du stockage SQLite `expo-sqlite/localStorage` n’est pas
+encore activé dans le nouveau bundle : avant le cutover App Store, il faudra
+soit ajouter un importeur idempotent testé sur un conteneur Expo réel, soit
+valider explicitement la remise à zéro de cette commodité.
 
 ## Bascule locale et garde-fous
 
