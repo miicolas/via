@@ -82,6 +82,7 @@
 		A10000000000000000000049 /* natural-journey-answer-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000048 /* natural-journey-answer-view.swift */; };
 		A1000000000000000000004A /* natural-journey-failure-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000049 /* natural-journey-failure-view.swift */; };
 		A1000000000000000000004B /* natural-journey-screen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004A /* natural-journey-screen.swift */; };
+		A1000000000000000000004C /* apple-maps-directions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004B /* apple-maps-directions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -179,6 +180,7 @@
 		B10000000000000000000048 /* natural-journey-answer-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-answer-view.swift; sourceTree = "<group>"; };
 		B10000000000000000000049 /* natural-journey-failure-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-failure-view.swift; sourceTree = "<group>"; };
 		B1000000000000000000004A /* natural-journey-screen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-screen.swift; sourceTree = "<group>"; };
+		B1000000000000000000004B /* apple-maps-directions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = apple-maps-directions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -313,6 +315,7 @@
 				B10000000000000000000048 /* natural-journey-answer-view.swift */,
 				B10000000000000000000049 /* natural-journey-failure-view.swift */,
 				B1000000000000000000004A /* natural-journey-screen.swift */,
+				B1000000000000000000004B /* apple-maps-directions.swift */,
 			);
 			path = Journey;
 			sourceTree = "<group>";
@@ -636,6 +639,7 @@
 				A10000000000000000000049 /* natural-journey-answer-view.swift in Sources */,
 				A1000000000000000000004A /* natural-journey-failure-view.swift in Sources */,
 				A1000000000000000000004B /* natural-journey-screen.swift in Sources */,
+				A1000000000000000000004C /* apple-maps-directions.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

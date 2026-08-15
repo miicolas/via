@@ -23,7 +23,8 @@ struct JourneyScreen: View {
                     journey: journey,
                     destination: request.destination,
                     onBack: model.closeJourneyDetail,
-                    onCancel: onCancel
+                    onCancel: onCancel,
+                    onOpenMaps: { openAppleMapsDirections(to: request.destination.coordinate) }
                 )
             } else {
                 JourneyResultsView(

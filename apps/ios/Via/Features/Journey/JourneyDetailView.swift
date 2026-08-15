@@ -5,6 +5,7 @@ struct JourneyDetailView: View {
     let destination: JourneyDestination
     let onBack: () -> Void
     let onCancel: () -> Void
+    let onOpenMaps: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -44,6 +45,13 @@ struct JourneyDetailView: View {
                     .foregroundStyle(ViaTheme.body)
                 Spacer()
             }
+
+            ViaButton(
+                "Ouvrir dans Plans",
+                systemImage: "arrow.triangle.turn.up.right.diamond",
+                action: onOpenMaps
+            )
+            .accessibilityIdentifier("via.openJourneyInMaps")
 
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(journey.sections.enumerated()), id: \.offset) { index, section in

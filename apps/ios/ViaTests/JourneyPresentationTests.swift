@@ -88,6 +88,26 @@ struct JourneyPresentationTests {
     }
 }
 
+struct AppleMapsDirectionsTests {
+    @Test
+    func buildsPublicTransitDirectionsURLFromDestinationCoordinate() throws {
+        let url = try #require(
+            appleMapsDirectionsURL(
+                to: GeoCoordinate(latitude: 48.8584, longitude: 2.3470)
+            )
+        )
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        let query = Dictionary(
+            uniqueKeysWithValues: components.queryItems?.map { ($0.name, $0.value) } ?? []
+        )
+
+        #expect(components.scheme == "http")
+        #expect(components.host == "maps.apple.com")
+        #expect(query["daddr"] == "48.8584,2.347")
+        #expect(query["dirflg"] == "r")
+    }
+}
+
 struct NaturalJourneyModelTests {
     @Test
     func demoAdapterResolvesARecognizedDestination() async throws {

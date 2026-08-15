@@ -67,7 +67,8 @@ struct AppShellView: View {
                         journey: journey,
                         destination: itinerary.destination,
                         onBack: { presentedSheet = nil },
-                        onCancel: { presentedSheet = nil }
+                        onCancel: { presentedSheet = nil },
+                        onOpenMaps: { openAppleMapsDirections(to: itinerary.destination.coordinate) }
                     )
                     .padding(20)
                     .presentationDetents([.large])
