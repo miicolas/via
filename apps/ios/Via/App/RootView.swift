@@ -4,7 +4,7 @@ struct RootView: View {
     private let dependencies: AppDependencies
 
     @AppStorage("via.onboarding.completed.v1") private var onboardingCompleted = false
-    @AppStorage("via.authenticated.v1") private var authenticated = false
+    @AppStorage("via.anonymous-access.v1") private var anonymousAccessGranted = false
     @State private var router = AppRouter()
     @State private var mapModel: MapFeatureModel
     @State private var chatModel: ChatFeatureModel
@@ -33,9 +33,10 @@ struct RootView: View {
                 WelcomeView {
                     onboardingCompleted = true
                 }
-            } else if !authenticated {
+            } else if dependencies.authenticationClient.availability == .unavailable,
+                      !anonymousAccessGranted {
                 AuthView {
-                    authenticated = true
+                    anonymousAccessGranted = true
                 }
             } else {
                 shell
@@ -50,7 +51,8 @@ struct RootView: View {
             chatModel: chatModel,
             transitAPI: dependencies.transitAPI,
             featureFlags: dependencies.featureFlags,
-            router: router
+            router: router,
+            navigoClient: dependencies.navigoClient
         )
     }
 }

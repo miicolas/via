@@ -5,6 +5,8 @@ struct AppDependencies {
     let transitAPI: any TransitAPI
     let locationProvider: any LocationProviding
     let chatClient: any ChatClient
+    let authenticationClient: any AuthenticationClient
+    let navigoClient: any NavigoClient
     let featureFlags: NativeFeatureFlags
 
     static func live(processInfo: ProcessInfo = .processInfo) -> AppDependencies {
@@ -42,6 +44,8 @@ struct AppDependencies {
                 ? DemoLocationProvider()
                 : LocationClient(),
             chatClient: chatClient,
+            authenticationClient: UnavailableAuthenticationClient(),
+            navigoClient: UnavailableNavigoClient(),
             featureFlags: featureFlags
         )
     }

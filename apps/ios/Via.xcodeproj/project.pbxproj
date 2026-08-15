@@ -71,6 +71,9 @@
 		A1000000000000000000003E /* map-sheet-container-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003D /* map-sheet-container-view.swift */; };
 		A1000000000000000000003F /* location-permission-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003E /* location-permission-view.swift */; };
 		A10000000000000000000040 /* location-permission-card-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003F /* location-permission-card-view.swift */; };
+		A10000000000000000000041 /* AuthenticationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* AuthenticationClient.swift */; };
+		A10000000000000000000042 /* NavigoClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* NavigoClient.swift */; };
+		A10000000000000000000043 /* unavailable-feature-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* unavailable-feature-view.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -157,6 +160,9 @@
 		B1000000000000000000003D /* map-sheet-container-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = map-sheet-container-view.swift; sourceTree = "<group>"; };
 		B1000000000000000000003E /* location-permission-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = location-permission-view.swift; sourceTree = "<group>"; };
 		B1000000000000000000003F /* location-permission-card-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = location-permission-card-view.swift; sourceTree = "<group>"; };
+		B10000000000000000000040 /* AuthenticationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000041 /* NavigoClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigoClient.swift; sourceTree = "<group>"; };
+		B10000000000000000000042 /* unavailable-feature-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = unavailable-feature-view.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -206,6 +212,7 @@
 				B10000000000000000000005 /* ViaTheme.swift */,
 				B10000000000000000000006 /* ViaButton.swift */,
 				B10000000000000000000007 /* LineBadgeView.swift */,
+				B10000000000000000000042 /* unavailable-feature-view.swift */,
 			);
 			path = DesignSystem;
 			sourceTree = "<group>";
@@ -232,6 +239,8 @@
 				B1000000000000000000000D /* OpenAPITransitAPI.swift */,
 				B1000000000000000000000E /* ClientIdentityStore.swift */,
 				B1000000000000000000000F /* LocationClient.swift */,
+				B10000000000000000000040 /* AuthenticationClient.swift */,
+				B10000000000000000000041 /* NavigoClient.swift */,
 				B1000000000000000000002B /* ChatClient.swift */,
 				B10000000000000000000037 /* ViaLogger.swift */,
 			);
@@ -555,6 +564,8 @@
 				A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */,
 				A1000000000000000000000E /* ClientIdentityStore.swift in Sources */,
 				A1000000000000000000000F /* LocationClient.swift in Sources */,
+				A10000000000000000000041 /* AuthenticationClient.swift in Sources */,
+				A10000000000000000000042 /* NavigoClient.swift in Sources */,
 				A10000000000000000000010 /* MapFeatureModel.swift in Sources */,
 				A10000000000000000000011 /* SearchBarView.swift in Sources */,
 				A10000000000000000000012 /* StationMarkerView.swift in Sources */,
@@ -592,6 +603,7 @@
 				A1000000000000000000003E /* map-sheet-container-view.swift in Sources */,
 				A1000000000000000000003F /* location-permission-view.swift in Sources */,
 				A10000000000000000000040 /* location-permission-card-view.swift in Sources */,
+				A10000000000000000000043 /* unavailable-feature-view.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

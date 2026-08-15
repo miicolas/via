@@ -6,6 +6,7 @@ struct AppShellView: View {
     let transitAPI: any TransitAPI
     let featureFlags: NativeFeatureFlags
     let router: AppRouter
+    let navigoClient: any NavigoClient
 
     @SceneStorage("via.shell.selected-tab") private var selectedTab = 0
     @State private var presentedSheet: PresentedSheet?
@@ -40,7 +41,7 @@ struct AppShellView: View {
                 .tabItem { Label("Lignes", systemImage: "tram") }
                 .tag(1)
 
-            NavigoView()
+            NavigoView(client: navigoClient)
                 .tabItem { Label("Navigo", systemImage: "creditcard") }
                 .tag(2)
         }

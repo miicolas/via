@@ -1,26 +1,22 @@
 import SwiftUI
 
 struct NavigoView: View {
+    let client: any NavigoClient
+
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 18) {
-                Image(systemName: "creditcard.fill")
-                    .font(.system(size: 42, weight: .semibold))
-                    .foregroundStyle(ViaTheme.primary)
-
-                Text("Navigo")
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundStyle(ViaTheme.ink)
-
-                Text("Retrouvez bientôt vos titres de transport et vos informations de validité dans Via.")
-                    .font(.body)
-                    .foregroundStyle(ViaTheme.body)
-
-                Spacer()
+            Group {
+                switch client.availability {
+                case .unavailable:
+                    UnavailableFeatureView(
+                        title: "Navigo",
+                        description: "Le service Navigo n’est pas encore exposé par l’API Via. Vos titres et leur validité apparaîtront ici quand le contrat sera disponible.",
+                        systemImage: "creditcard.fill",
+                        actionTitle: nil,
+                        action: nil
+                    )
+                }
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(ViaTheme.ground)
             .navigationTitle("Navigo")
             .navigationBarTitleDisplayMode(.inline)
         }

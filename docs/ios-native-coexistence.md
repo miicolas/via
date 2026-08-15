@@ -18,6 +18,18 @@ portent les headers `x-via-client-platform: ios-native`,
 par plateforme, version et build sans inclure de recherche, coordonnées ou
 identifiant anonyme dans les logs applicatifs.
 
+## Contrats encore absents
+
+L’audit du contrat actuel ne contient pas de route d’identité/session ni de
+route Navigo. Le client natif ne simule donc pas une connexion : son adapter
+`AuthenticationClient` expose explicitement l’état indisponible et l’écran
+propose une continuation anonyme. De la même manière, `NavigoClient` expose
+un état indisponible et le shell affiche un écran d’attente honnête.
+
+Ces adapters sont les seams à remplacer quand les contrats backend seront
+validés. Tant qu’ils restent indisponibles, aucun mot de passe, jeton ou titre
+Navigo ne doit être stocké ou envoyé par le client natif.
+
 ## Bascule locale et garde-fous
 
 Les overrides ci-dessous sont volontairement disponibles uniquement dans la
