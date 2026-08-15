@@ -244,14 +244,19 @@ final class MapFeatureModel {
 
     func selectSearchResult(_ result: SearchResult) {
         rememberRecentSearch(result)
-        guard case .station(let stationResult) = result else { return }
-        let station = NetworkStation(
-            id: stationResult.id,
-            name: stationResult.name,
-            coordinate: stationResult.coordinate,
-            routeIds: stationResult.routes.map(\.id)
-        )
-        selectStation(station)
+        switch result {
+        case .station(let stationResult):
+            let station = NetworkStation(
+                id: stationResult.id,
+                name: stationResult.name,
+                coordinate: stationResult.coordinate,
+                routeIds: stationResult.routes.map(\.id)
+            )
+            selectStation(station)
+        case .address:
+            guard let destination = JourneyDestination(searchResult: result) else { return }
+            planJourney(to: destination)
+        }
     }
 
     func removeRecentSearch(_ result: SearchResult) {
@@ -306,10 +311,14 @@ final class MapFeatureModel {
     func planSelectedStation() {
         guard let station = selectedStation else { return }
 
+        planJourney(to: JourneyDestination(station: station))
+    }
+
+    private func planJourney(to destination: JourneyDestination) {
         resetNaturalJourneyState()
         let request = JourneyRequest(
             origin: currentCoordinate,
-            destination: JourneyDestination(station: station)
+            destination: destination
         )
         journeyTask?.cancel()
         journeyState = .planning(request: request)
