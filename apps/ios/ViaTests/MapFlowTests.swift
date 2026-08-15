@@ -96,6 +96,35 @@ struct MapFlowTests {
     }
 }
 
+@MainActor
+struct MapFeatureModelSearchTests {
+    @Test
+    func selectingAnAddressKeepsItRecentAndUsesTheJourneySeam() {
+        let store = InMemoryRecentSearchStore()
+        let model = MapFeatureModel(
+            transitAPI: DemoTransitAPI(),
+            locationProvider: DemoLocationProvider(),
+            recentSearchStore: store
+        )
+        let address = SearchResult.address(
+            AddressSearchResult(
+                id: "address-louvre",
+                name: "Louvre",
+                context: "Paris",
+                coordinate: GeoCoordinate(latitude: 48.8607, longitude: 2.3376),
+                distanceMeters: 120
+            )
+        )
+
+        model.selectSearchResult(address)
+
+        #expect(model.recentSearches == [recentSearchSnapshot(address)])
+        #expect(store.entries == model.recentSearches)
+        #expect(model.journeyState.request?.destination.kind == .address)
+        #expect(model.journeyState.request?.destination.name == "Louvre")
+    }
+}
+
 struct LocationPermissionTests {
     @Test
     func notDeterminedNeverUsesARealCoordinate() {
