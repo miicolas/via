@@ -44,7 +44,7 @@ struct NativeFeatureFlags: Equatable, Sendable {
         )
     }
 
-    #if DEBUG
+    #if DEBUG || STAGING
     static let localOverridesEnabled = true
     #else
     static let localOverridesEnabled = false

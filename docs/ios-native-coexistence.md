@@ -68,9 +68,9 @@ du bundle de production `dev.via.app`, pas avec `dev.via.app.native`.
 
 ## Bascule locale et garde-fous
 
-Les overrides ci-dessous sont volontairement disponibles uniquement dans la
-configuration Debug. Un binaire Release ne peut pas sélectionner les données
-de démonstration ni masquer silencieusement une tranche native.
+Les overrides ci-dessous sont volontairement disponibles uniquement dans les
+configurations Debug et Staging. Un binaire Release ne peut pas sélectionner
+les données de démonstration ni masquer silencieusement une tranche native.
 
 | Override | Effet |
 | --- | --- |
@@ -98,7 +98,8 @@ xcodebuild \
 
 Le smoke test UI ajoute `--via-demo` dans
 `apps/ios/ViaUITests/ViaUITests.swift`; il ne doit jamais être ajouté au
-schéma Release.
+schéma Release. Staging conserve ce levier pour les validations internes et
+utilise le bundle séparé `dev.via.app.staging`.
 
 ## Journalisation
 
