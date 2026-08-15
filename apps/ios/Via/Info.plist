@@ -14,6 +14,8 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>Via</string>
+	<key>VIA_API_URL</key>
+	<string>$(VIA_API_URL)</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>UIAppFonts</key>

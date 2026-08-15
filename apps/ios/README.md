@@ -7,12 +7,13 @@ Expo `ios/` project.
 ## Run
 
 Open `Via.xcodeproj` in Xcode 26 and select the `Via` scheme. Debug and Staging
-are local/test configurations: set the `VIA_API_URL` launch environment
-variable to the API origin (for the iOS Simulator, `http://localhost:3000`
-works). Staging uses the separate bundle identifier `dev.via.app.staging` and
+are local/test configurations and default to `http://localhost:3000` for the
+iOS Simulator. A `VIA_API_URL` launch environment variable overrides that
+default. Staging uses the separate bundle identifier `dev.via.app.staging` and
 keeps the same local feature overrides as Debug. Release disables those
-overrides and requires its API origin to be supplied by the distribution
-configuration.
+overrides and requires its API origin to be embedded by the distribution
+configuration, for example with `VIA_API_URL=https://...` on the archive
+command.
 
 For a deterministic visual smoke test without a running API, add the launch
 argument `--via-demo`. The demo adapter is never selected by Release builds.

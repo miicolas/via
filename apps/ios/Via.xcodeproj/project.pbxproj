@@ -496,6 +496,7 @@
 				C30000000000000000000004 /* Sources */,
 				C30000000000000000000002 /* Frameworks */,
 				C30000000000000000000005 /* Resources */,
+				C3000000000000000000000D /* Validate Release API URL */,
 			);
 			buildRules = (
 			);
@@ -546,6 +547,28 @@
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C3000000000000000000000D /* Validate Release API URL */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Validate Release API URL";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$CONFIGURATION\" = \"Release\" ] && [ -z \"$VIA_API_URL\" ]; then\n  echo \"error: Release requires VIA_API_URL when creating an archive.\"\n  exit 1\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXProject section */
 		C20000000000000000000001 /* Project object */ = {
@@ -778,6 +801,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.native;
 				PRODUCT_NAME = Via;
+				VIA_API_URL = "http://localhost:3000";
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -805,6 +829,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app;
 				PRODUCT_NAME = Via;
+				VIA_API_URL = "";
 				SDKROOT = iphoneos;
 				SWIFT_STRICT_CONCURRENCY = complete;
 				SWIFT_VERSION = 6.0;
@@ -831,6 +856,7 @@
 				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.staging;
 				PRODUCT_NAME = Via;
+				VIA_API_URL = "http://localhost:3000";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG STAGING";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";

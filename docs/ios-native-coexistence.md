@@ -79,7 +79,7 @@ les données de démonstration ni masquer silencieusement une tranche native.
 | `--via-disable-classic-journeys` ou `VIA_FEATURE_CLASSIC_JOURNEYS=0` | Masque la planification classique |
 | `--via-disable-natural-journeys` ou `VIA_FEATURE_NATURAL_JOURNEYS=0` | Masque la planification en langage naturel |
 | `--via-diagnostics` ou `VIA_DIAGNOSTICS=1` | Active les logs réseau détaillés |
-| `VIA_API_URL=https://...` | Change l’origine API après validation HTTP(S) |
+| `VIA_API_URL=https://...` | Change l’origine API après validation HTTP(S), ou l’embarque lors de l’archive Release |
 
 Exemple de lancement UI déterministe :
 
@@ -100,6 +100,13 @@ Le smoke test UI ajoute `--via-demo` dans
 `apps/ios/ViaUITests/ViaUITests.swift`; il ne doit jamais être ajouté au
 schéma Release. Staging conserve ce levier pour les validations internes et
 utilise le bundle séparé `dev.via.app.staging`.
+
+L’URL embarquée est lue depuis `Info.plist` (`VIA_API_URL`) lorsque l’app est
+installée hors de Xcode ; l’environnement de lancement reste prioritaire pour
+les sessions Debug et Staging. L’archive Release doit donc recevoir une URL
+HTTP(S) réelle au moment de la distribution, par exemple
+`xcodebuild ... VIA_API_URL=https://...`. La phase de build échoue si ce
+paramètre est absent d’une configuration Release.
 
 ## Journalisation
 

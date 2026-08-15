@@ -47,6 +47,28 @@ struct NativeRuntimeConfigurationTests {
     }
 
     @Test
+    func launchEnvironmentTakesPrecedenceOverBundledAPIURL() {
+        let configuration = NativeRuntimeConfiguration.make(
+            environment: ["VIA_API_URL": "https://launch.example.com"],
+            arguments: [],
+            bundledAPIURL: "https://bundled.example.com"
+        )
+
+        #expect(configuration.apiBaseURL.absoluteString == "https://launch.example.com")
+    }
+
+    @Test
+    func validBundledAPIURLIsUsedWhenLaunchEnvironmentIsAbsent() {
+        let configuration = NativeRuntimeConfiguration.make(
+            environment: [:],
+            arguments: [],
+            bundledAPIURL: "https://bundled.example.com"
+        )
+
+        #expect(configuration.apiBaseURL.absoluteString == "https://bundled.example.com")
+    }
+
+    @Test
     func releaseConfigurationIgnoresLocalOverrides() {
         let flags = NativeFeatureFlags.live(
             environment: ["VIA_DEMO_DATA": "1"],

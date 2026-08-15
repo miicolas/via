@@ -60,23 +60,20 @@ struct NativeRuntimeConfiguration: Equatable, Sendable {
     static func live(processInfo: ProcessInfo = .processInfo) -> NativeRuntimeConfiguration {
         make(
             environment: processInfo.environment,
-            arguments: processInfo.arguments
+            arguments: processInfo.arguments,
+            bundledAPIURL: Bundle.main.object(forInfoDictionaryKey: "VIA_API_URL") as? String
         )
     }
 
     static func make(
         environment: [String: String],
         arguments: [String],
+        bundledAPIURL: String? = nil,
         allowLocalOverrides: Bool = NativeFeatureFlags.localOverridesEnabled
     ) -> NativeRuntimeConfiguration {
-        let apiBaseURL = environment["VIA_API_URL"].flatMap { value in
-            guard let url = URL(string: value),
-                  let scheme = url.scheme?.lowercased(),
-                  ["http", "https"].contains(scheme),
-                  url.host != nil
-            else { return nil }
-            return url
-        }
+        let apiBaseURL = [environment["VIA_API_URL"], bundledAPIURL]
+            .compactMap(Self.validatedURL)
+            .first
             ?? defaultAPIURL
 
         return NativeRuntimeConfiguration(
@@ -87,6 +84,16 @@ struct NativeRuntimeConfiguration: Equatable, Sendable {
                 allowLocalOverrides: allowLocalOverrides
             )
         )
+    }
+
+    private static func validatedURL(_ value: String?) -> URL? {
+        guard let value,
+              let url = URL(string: value),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              url.host != nil
+        else { return nil }
+        return url
     }
 }
 
