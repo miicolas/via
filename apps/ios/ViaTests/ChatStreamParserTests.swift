@@ -25,6 +25,34 @@ struct ChatStreamParserTests {
         #expect(try parser.append(encoded).isEmpty)
         #expect(try parser.finish().count == 1)
     }
+
+    @Test
+    func decodesTheNativeItineraryDestinationShape() throws {
+        let destination = JourneyDestination(
+            kind: .station,
+            id: "station-chatelet",
+            name: "Châtelet",
+            context: "Paris",
+            coordinate: GeoCoordinate(latitude: 48.8584, longitude: 2.3470)
+        )
+        let response = JourneysResponse(
+            status: .ready,
+            source: nil,
+            generatedAt: "2026-08-15T10:00:00.000Z",
+            journeys: []
+        )
+        let encoded = try JSONEncoder().encode(
+            ChatStreamEvent.itinerary(destination: destination, response: response)
+        ) + Data([0x0A])
+        var parser = ChatStreamParser()
+
+        guard case .itinerary(let decodedDestination, let decodedResponse) = try parser.append(encoded).first else {
+            Issue.record("Expected a native itinerary event")
+            return
+        }
+        #expect(decodedDestination == destination)
+        #expect(decodedResponse == response)
+    }
 }
 
 private extension ChatStreamEvent {

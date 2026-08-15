@@ -1,6 +1,25 @@
 import { expect, test } from 'bun:test';
 
-import { createNativeChatHandler } from './handler';
+import { createNativeChatHandler, toNativeChatDestination } from './handler';
+
+test('native itinerary destinations use the coordinate object decoded by Swift', () => {
+  expect(
+    toNativeChatDestination({
+      kind: 'station',
+      id: 'station-chatelet',
+      name: 'Châtelet',
+      latitude: 48.8584,
+      longitude: 2.347,
+      context: 'Paris',
+    })
+  ).toEqual({
+    kind: 'station',
+    id: 'station-chatelet',
+    name: 'Châtelet',
+    context: 'Paris',
+    coordinate: { latitude: 48.8584, longitude: 2.347 },
+  });
+});
 
 test('native chat reports unavailable when the model is not configured', async () => {
   const handler = createNativeChatHandler(dependencies());

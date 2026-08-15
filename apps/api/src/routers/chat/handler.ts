@@ -48,6 +48,27 @@ export type ChatItineraryData = {
   response: JourneysResponse;
 };
 
+export type NativeChatDestination = {
+  kind: ChatDestination['kind'];
+  id: string;
+  name: string;
+  context?: string;
+  coordinate: Coordinate;
+};
+
+export function toNativeChatDestination(destination: ChatDestination): NativeChatDestination {
+  return {
+    kind: destination.kind,
+    id: destination.id,
+    name: destination.name,
+    ...(destination.context ? { context: destination.context } : {}),
+    coordinate: {
+      latitude: destination.latitude,
+      longitude: destination.longitude,
+    },
+  };
+}
+
 const chatBodySchema = z.object({
   messages: z.array(z.unknown()).min(1).max(40),
   location: z
@@ -193,7 +214,7 @@ export function createNativeChatHandler({
               encoder.encode(
                 JSON.stringify({
                   type: 'itinerary',
-                  destination: itinerary.destination,
+                  destination: toNativeChatDestination(itinerary.destination),
                   journeys: itinerary.response,
                 }) + '\n'
               )
