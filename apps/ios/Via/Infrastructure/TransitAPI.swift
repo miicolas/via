@@ -418,7 +418,7 @@ struct DemoTransitAPI: TransitAPI {
 
         return .ready(
             NaturalJourneyReady(
-                answer: "Voici le meilleur itinéraire vers (journeyDestination.name).",
+                answer: "Voici le meilleur itinéraire vers \(journeyDestination.name).",
                 answerSource: .deterministic,
                 preferenceNotice: nil,
                 interpretation: interpretation,

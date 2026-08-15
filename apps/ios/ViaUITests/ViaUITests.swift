@@ -71,6 +71,9 @@ final class ViaUITests: XCTestCase {
         candidate.tap()
 
         XCTAssertTrue(app.staticTexts["Trajet compris"].waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            app.staticTexts["Voici le meilleur itinéraire vers Châtelet."].waitForExistence(timeout: 10)
+        )
         XCTAssertTrue(app.buttons["via.journey.demo:walk:demo:chatelet"].waitForExistence(timeout: 10))
     }
 
