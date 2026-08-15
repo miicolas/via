@@ -47,7 +47,7 @@ struct MapSheetView: View {
                     StationDetailsView(
                         station: station,
                         routes: stationRoutes(for: station, model: model),
-                        departuresState: model.departuresState,
+                        departuresState: model.departuresModel.state,
                         canPlanJourney: featureFlags.classicJourneysEnabled,
                         onClose: model.closeSelectedStation,
                         onPlanJourney: model.planSelectedStation

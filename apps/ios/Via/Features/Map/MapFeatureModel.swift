@@ -2,18 +2,6 @@ import CoreLocation
 import Foundation
 import Observation
 
-enum DeparturesState: Equatable, Sendable {
-    case idle
-    case loading
-    case ready(response: DeparturesResponse, stale: Bool)
-    case failed
-
-    var response: DeparturesResponse? {
-        if case .ready(let response, _) = self { return response }
-        return nil
-    }
-}
-
 @MainActor
 @Observable
 final class MapFeatureModel {
@@ -26,9 +14,9 @@ final class MapFeatureModel {
     let networkModel: TransitNetworkModel
     let naturalJourneyModel: NaturalJourneyModel
     let searchModel: SearchModel
+    let departuresModel: DeparturesModel
 
     var flow = MapFlowState()
-    var departuresState: DeparturesState = .idle
     var journeyState: JourneyState = .idle
     var recentSearches: [SearchResult]
     var locationState: LocationState = .notDetermined
@@ -39,7 +27,6 @@ final class MapFeatureModel {
     private var inFlightTiles = Set<String>()
     private var didStart = false
     private var viewportTask: Task<Void, Never>?
-    private var departureTask: Task<Void, Never>?
     private var journeyTask: Task<Void, Never>?
     private var pendingStationID: String?
 
@@ -62,6 +49,7 @@ final class MapFeatureModel {
             locationProvider: locationProvider,
             clock: clock
         )
+        self.departuresModel = DeparturesModel(transitAPI: transitAPI, clock: clock)
         recentSearches = recentSearchStore.load()
         locationProvider.onUpdate = { [weak self] update in
             self?.handleLocationUpdate(update)
@@ -233,7 +221,7 @@ final class MapFeatureModel {
         )
         cameraTarget = station.coordinate
         ensureArea(around: station.coordinate)
-        startDeparturePolling()
+        departuresModel.start(for: station.id)
     }
 
     func openStation(id: String) {
@@ -250,11 +238,9 @@ final class MapFeatureModel {
 
     func closeSelectedStation() {
         naturalJourneyModel.cancel()
-        departureTask?.cancel()
-        departureTask = nil
+        departuresModel.reset()
         journeyTask?.cancel()
         journeyTask = nil
-        departuresState = .idle
         journeyState = .idle
         selectedStationOverride = nil
         flow = transitionMapFlow(flow, event: .stationDeselected)
@@ -368,10 +354,11 @@ final class MapFeatureModel {
     func handle(isActive: Bool) {
         if isActive {
             refreshLocationState()
-            if flow.selectedStationID != nil { startDeparturePolling() }
+            if let stationID = flow.selectedStationID {
+                departuresModel.start(for: stationID)
+            }
         } else {
-            departureTask?.cancel()
-            departureTask = nil
+            departuresModel.stopPolling()
         }
     }
 
@@ -451,34 +438,4 @@ final class MapFeatureModel {
         selectStation(station)
     }
 
-    private func startDeparturePolling() {
-        departureTask?.cancel()
-        departureTask = Task { [weak self] in
-            guard let self else { return }
-            while !Task.isCancelled {
-                guard let stationID = flow.selectedStationID else { return }
-                if departuresState.response == nil { departuresState = .loading }
-
-                do {
-                    let response = try await transitAPI.loadDepartures(stationID: stationID)
-                    guard !Task.isCancelled, flow.selectedStationID == stationID else { return }
-                    departuresState = .ready(response: response, stale: false)
-                } catch is CancellationError {
-                    return
-                } catch {
-                    if let response = departuresState.response {
-                        departuresState = .ready(response: response, stale: true)
-                    } else {
-                        departuresState = .failed
-                    }
-                }
-
-                do {
-                    try await clock.sleep(for: .seconds(60))
-                } catch {
-                    return
-                }
-            }
-        }
-    }
 }

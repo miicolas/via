@@ -150,6 +150,26 @@ struct SearchModelTests {
     }
 }
 
+@MainActor
+struct DeparturesModelTests {
+    @Test
+    func pollingPublishesTheCurrentStationBoardAndCanPause() async throws {
+        let model = DeparturesModel(transitAPI: DemoTransitAPI())
+
+        model.start(for: "demo:chatelet")
+        try await Task.sleep(for: .milliseconds(80))
+
+        guard case .ready(let response, let stale) = model.state else {
+            Issue.record("Expected the departures model to publish a board")
+            return
+        }
+        #expect(response.groups.isEmpty == false)
+        #expect(!stale)
+
+        model.stopPolling()
+    }
+}
+
 struct LocationPermissionTests {
     @Test
     func notDeterminedNeverUsesARealCoordinate() {
