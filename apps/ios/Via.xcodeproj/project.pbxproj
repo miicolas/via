@@ -74,6 +74,7 @@
 		A10000000000000000000041 /* AuthenticationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* AuthenticationClient.swift */; };
 		A10000000000000000000042 /* NavigoClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* NavigoClient.swift */; };
 		A10000000000000000000043 /* unavailable-feature-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* unavailable-feature-view.swift */; };
+		A10000000000000000000044 /* NaturalJourneyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000043 /* NaturalJourneyModels.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -163,6 +164,7 @@
 		B10000000000000000000040 /* AuthenticationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationClient.swift; sourceTree = "<group>"; };
 		B10000000000000000000041 /* NavigoClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigoClient.swift; sourceTree = "<group>"; };
 		B10000000000000000000042 /* unavailable-feature-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = unavailable-feature-view.swift; sourceTree = "<group>"; };
+		B10000000000000000000043 /* NaturalJourneyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaturalJourneyModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -228,6 +230,7 @@
 				B1000000000000000000002A /* ChatModels.swift */,
 				B1000000000000000000001F /* JourneyModels.swift */,
 				B10000000000000000000020 /* JourneyPresentation.swift */,
+				B10000000000000000000043 /* NaturalJourneyModels.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -560,6 +563,7 @@
 				A1000000000000000000000B /* DepartureRows.swift in Sources */,
 				A1000000000000000000001F /* JourneyModels.swift in Sources */,
 				A10000000000000000000020 /* JourneyPresentation.swift in Sources */,
+				A10000000000000000000044 /* NaturalJourneyModels.swift in Sources */,
 				A1000000000000000000000C /* TransitAPI.swift in Sources */,
 				A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */,
 				A1000000000000000000000E /* ClientIdentityStore.swift in Sources */,
