@@ -7,7 +7,7 @@ struct TransitMapView: View {
 
     var body: some View {
         Map(position: $position) {
-            ForEach(model.mapRoutes) { route in
+            ForEach(model.networkModel.routes) { route in
                 ForEach(route.segments) { segment in
                     MapPolyline(coordinates: segment.coordinates.map(\.clCoordinate))
                         .stroke(
@@ -59,7 +59,7 @@ struct TransitMapView: View {
 
     private func routes(for station: NetworkStation) -> [RouteBadge] {
         station.routeIds.compactMap { id in
-            model.mapRoutes.first(where: { $0.id == id }).map {
+            model.networkModel.routes.first(where: { $0.id == id }).map {
                 RouteBadge(
                     id: $0.id,
                     shortName: $0.shortName,

@@ -6,15 +6,19 @@ struct RootView: View {
     @AppStorage("via.onboarding.completed.v1") private var onboardingCompleted = false
     @AppStorage("via.anonymous-access.v1") private var anonymousAccessGranted = false
     @State private var router = AppRouter()
+    @State private var networkModel: TransitNetworkModel
     @State private var mapModel: MapFeatureModel
     @State private var chatModel: ChatFeatureModel
 
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
+        let networkModel = TransitNetworkModel(transitAPI: dependencies.transitAPI)
+        _networkModel = State(initialValue: networkModel)
         _mapModel = State(
             initialValue: MapFeatureModel(
                 transitAPI: dependencies.transitAPI,
-                locationProvider: dependencies.locationProvider
+                locationProvider: dependencies.locationProvider,
+                networkModel: networkModel
             )
         )
         _chatModel = State(
@@ -47,6 +51,7 @@ struct RootView: View {
 
     private var shell: some View {
         AppShellView(
+            networkModel: networkModel,
             mapModel: mapModel,
             chatModel: chatModel,
             transitAPI: dependencies.transitAPI,

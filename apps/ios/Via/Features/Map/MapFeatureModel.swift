@@ -2,12 +2,6 @@ import CoreLocation
 import Foundation
 import Observation
 
-enum NetworkState: Equatable, Sendable {
-    case loading
-    case ready
-    case failed
-}
-
 enum SearchState: Equatable, Sendable {
     case idle
     case loading(previous: [SearchResult])
@@ -44,11 +38,10 @@ final class MapFeatureModel {
     let locationProvider: any LocationProviding
     let recentSearchStore: any RecentSearchStore
     let clock: any ViaClock
+    let networkModel: TransitNetworkModel
     let naturalJourneyModel: NaturalJourneyModel
 
     var flow = MapFlowState()
-    var railMap: RailMap?
-    var networkState: NetworkState = .loading
     var searchState: SearchState = .idle
     var departuresState: DeparturesState = .idle
     var journeyState: JourneyState = .idle
@@ -61,7 +54,6 @@ final class MapFeatureModel {
     private var loadedTiles: [String: StationsInArea] = [:]
     private var inFlightTiles = Set<String>()
     private var didStart = false
-    private var networkTask: Task<Void, Never>?
     private var searchTask: Task<Void, Never>?
     private var viewportTask: Task<Void, Never>?
     private var departureTask: Task<Void, Never>?
@@ -72,16 +64,22 @@ final class MapFeatureModel {
         transitAPI: any TransitAPI,
         locationProvider: any LocationProviding,
         recentSearchStore: any RecentSearchStore = UserDefaultsRecentSearchStore(),
-        clock: any ViaClock = SystemViaClock()
+        clock: any ViaClock = SystemViaClock(),
+        networkModel: TransitNetworkModel? = nil
     ) {
         self.transitAPI = transitAPI
         self.locationProvider = locationProvider
         self.recentSearchStore = recentSearchStore
         self.clock = clock
+        let sharedNetworkModel = networkModel ?? TransitNetworkModel(transitAPI: transitAPI)
+        self.networkModel = sharedNetworkModel
         self.naturalJourneyModel = NaturalJourneyModel(transitAPI: transitAPI)
         recentSearches = recentSearchStore.load()
         locationProvider.onUpdate = { [weak self] update in
             self?.handleLocationUpdate(update)
+        }
+        sharedNetworkModel.onReady = { [weak self] in
+            self?.resolvePendingStation()
         }
         naturalJourneyModel.onStateChange = { [weak self] state in
             self?.handleNaturalJourneyStateChange(state)
@@ -103,7 +101,7 @@ final class MapFeatureModel {
     }
 
     var mapStations: [NetworkStation] {
-        var byID = Dictionary(uniqueKeysWithValues: railMap?.stations.map { ($0.id, $0) } ?? [])
+        var byID = Dictionary(uniqueKeysWithValues: networkModel.stations.map { ($0.id, $0) })
         for station in loadedTiles.values.flatMap(\.stations) {
             guard let existing = byID[station.id] else {
                 byID[station.id] = station
@@ -119,10 +117,6 @@ final class MapFeatureModel {
             )
         }
         return Array(byID.values)
-    }
-
-    var mapRoutes: [NetworkRoute] {
-        railMap?.routes.sortedForDisplay ?? []
     }
 
     var nearbyStations: [NetworkStation] {
@@ -181,23 +175,7 @@ final class MapFeatureModel {
     }
 
     func loadNetwork() {
-        networkTask?.cancel()
-        networkState = .loading
-        networkTask = Task { [weak self] in
-            guard let self else { return }
-            do {
-                let network = try await transitAPI.loadRailMap()
-                guard !Task.isCancelled else { return }
-                railMap = network
-                networkState = network.routes.isEmpty ? .failed : .ready
-                resolvePendingStation()
-            } catch is CancellationError {
-                return
-            } catch {
-                guard !Task.isCancelled else { return }
-                networkState = .failed
-            }
-        }
+        networkModel.loadNetwork()
     }
 
     func setSearchFocused(_ focused: Bool) {
@@ -299,6 +277,7 @@ final class MapFeatureModel {
         } else {
             pendingStationID = id
             start()
+            networkModel.loadNetwork()
         }
     }
 

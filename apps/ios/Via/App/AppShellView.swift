@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AppShellView: View {
+    let networkModel: TransitNetworkModel
     let mapModel: MapFeatureModel
     let chatModel: ChatFeatureModel
     let transitAPI: any TransitAPI
@@ -35,7 +36,7 @@ struct AppShellView: View {
             .tag(0)
 
             LinesView(
-                transitAPI: transitAPI,
+                model: networkModel,
                 requestedRouteID: requestedLineID
             )
                 .tabItem { Label("Lignes", systemImage: "tram") }

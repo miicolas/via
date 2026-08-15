@@ -50,3 +50,26 @@ struct LinePresentationTests {
         ))
     }
 }
+
+@MainActor
+struct TransitNetworkModelTests {
+    @Test
+    func repeatedConsumersShareOneLoadedCatalog() async throws {
+        let model = TransitNetworkModel(transitAPI: DemoTransitAPI())
+        var readyCount = 0
+        model.onReady = { readyCount += 1 }
+
+        model.loadNetwork()
+        model.loadNetwork()
+        try await Task.sleep(for: .milliseconds(600))
+
+        #expect(model.state == .ready)
+        #expect(model.routes.map(\.shortName) == ["1", "4"])
+        #expect(model.stations.count == 4)
+        #expect(readyCount == 1)
+
+        model.loadNetwork()
+        try await Task.sleep(for: .milliseconds(220))
+        #expect(readyCount == 1)
+    }
+}

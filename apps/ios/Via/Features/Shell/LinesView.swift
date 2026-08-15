@@ -1,20 +1,16 @@
 import SwiftUI
 
 struct LinesView: View {
-    let transitAPI: any TransitAPI
+    let model: TransitNetworkModel
     let requestedRouteID: String?
 
-    @State private var routes: [NetworkRoute] = []
-    @State private var stations: [NetworkStation] = []
     @State private var selectedRoute: NetworkRoute?
-    @State private var isLoading = true
-    @State private var errorMessage: String?
 
     init(
-        transitAPI: any TransitAPI,
+        model: TransitNetworkModel,
         requestedRouteID: String? = nil
     ) {
-        self.transitAPI = transitAPI
+        self.model = model
         self.requestedRouteID = requestedRouteID
     }
 
@@ -31,25 +27,29 @@ struct LinesView: View {
                             .foregroundStyle(ViaTheme.body)
                     }
 
-                    if isLoading {
+                    if model.state == .loading {
                         ProgressView("Chargement du réseau…")
                             .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if let errorMessage {
+                    } else if model.state == .failed {
                         VStack(alignment: .leading, spacing: 10) {
-                            Label(errorMessage, systemImage: "wifi.exclamationmark")
+                            Label("Le réseau est indisponible.", systemImage: "wifi.exclamationmark")
                                 .foregroundStyle(ViaTheme.critical)
-                            ViaButton("Réessayer", systemImage: "arrow.clockwise", action: load)
+                            ViaButton(
+                                "Réessayer",
+                                systemImage: "arrow.clockwise",
+                                action: model.reloadNetwork
+                            )
                         }
                     } else {
-                        Text("\(routes.count) lignes · \(stations.count) stations")
+                        Text("\(model.routes.count) lignes · \(model.stations.count) stations")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(ViaTheme.primary)
 
                         LazyVStack(spacing: 10) {
-                            ForEach(routes) { route in
+                            ForEach(model.routes) { route in
                                 LineRowView(
                                     route: route,
-                                    stationCount: stationsOnRoute(route, from: stations).count,
+                                    stationCount: stationsOnRoute(route, from: model.stations).count,
                                     action: { selectedRoute = route }
                                 )
                             }
@@ -61,15 +61,19 @@ struct LinesView: View {
             .background(ViaTheme.ground)
             .navigationTitle("Lignes")
             .navigationBarTitleDisplayMode(.inline)
-            .task { await load() }
+            .task { model.loadNetwork() }
             .onChange(of: requestedRouteID) { _, _ in
+                openRequestedRouteIfAvailable()
+            }
+            .onChange(of: model.state) { _, state in
+                guard state == .ready else { return }
                 openRequestedRouteIfAvailable()
             }
             .sheet(item: $selectedRoute) { route in
                 NavigationStack {
                     LineDetailView(
                         route: route,
-                        stations: stationsOnRoute(route, from: stations)
+                        stations: stationsOnRoute(route, from: model.stations)
                     )
                 }
                 .presentationDetents([.medium, .large])
@@ -78,27 +82,9 @@ struct LinesView: View {
         }
     }
 
-    private func load() {
-        Task { await load() }
-    }
-
-    private func load() async {
-        isLoading = true
-        errorMessage = nil
-        do {
-            let map = try await transitAPI.loadRailMap()
-            routes = map.routes.sortedForDisplay
-            stations = map.stations
-            openRequestedRouteIfAvailable()
-        } catch {
-            errorMessage = "Le réseau est indisponible."
-        }
-        isLoading = false
-    }
-
     private func openRequestedRouteIfAvailable() {
         guard let requestedRouteID,
-              let route = routes.first(where: { $0.id == requestedRouteID })
+              let route = model.routes.first(where: { $0.id == requestedRouteID })
         else { return }
 
         selectedRoute = route

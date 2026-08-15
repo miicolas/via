@@ -82,14 +82,14 @@ struct MapSheetView: View {
                         .foregroundStyle(ViaTheme.muted)
                 }
                 Spacer()
-                if case .ready = model.networkState {
+                if case .ready = model.networkModel.state {
                     Label("En direct", systemImage: "circle.fill")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(ViaTheme.primary)
                 }
             }
 
-            switch model.networkState {
+            switch model.networkModel.state {
             case .loading:
                 ProgressView("Chargement du réseau…")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,7 +128,7 @@ struct MapSheetView: View {
                 .foregroundStyle(ViaTheme.ink)
             ScrollView(.horizontal) {
                 HStack(spacing: 10) {
-                    ForEach(model.mapRoutes) { route in
+                    ForEach(model.networkModel.routes) { route in
                         LineBadgeView(
                             route: RouteBadge(
                                 id: route.id,
@@ -165,7 +165,7 @@ struct MapSheetView: View {
 
     private func stationRoutes(for station: NetworkStation, model: MapFeatureModel) -> [RouteBadge] {
         station.routeIds.compactMap { id in
-            model.mapRoutes.first(where: { $0.id == id }).map {
+            model.networkModel.routes.first(where: { $0.id == id }).map {
                 RouteBadge(
                     id: $0.id,
                     shortName: $0.shortName,

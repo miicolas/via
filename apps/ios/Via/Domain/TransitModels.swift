@@ -55,6 +55,12 @@ struct RailMap: Codable, Hashable, Sendable {
     let stations: [NetworkStation]
 }
 
+enum NetworkState: Equatable, Sendable {
+    case loading
+    case ready
+    case failed
+}
+
 struct TileBounds: Codable, Hashable, Sendable {
     let minLatitude: Double
     let maxLatitude: Double
