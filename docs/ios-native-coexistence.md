@@ -107,6 +107,13 @@ log stream --level debug --predicate 'subsystem == "dev.via.app"'
 Une recherche utilisateur, un identifiant de station, une coordonnée, un
 token ou l’identifiant Keychain ne doit pas être ajouté à `ViaLogger`.
 
+Le client iOS 26 s’abonne aussi à `MXMetricManager` pendant toute la durée de
+l’application. Il compte les rapports MetricKit reçus dans la catégorie
+`metrics`, sans sérialiser leur contenu, leurs coordonnées, leurs messages ou
+un identifiant utilisateur. Les budgets réels restent à mesurer sur appareil
+et TestFlight ; cette souscription prépare cette mesure sans créer un second
+pipeline de télémétrie propriétaire.
+
 ## Critères de cutover
 
 Le remplacement du bundle public est autorisé seulement lorsque tous les

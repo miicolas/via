@@ -34,4 +34,12 @@ struct ViaLogger: Sendable {
             "request failed operation=\(operation, privacy: .public) path=\(path, privacy: .public) error=\(error.logLabel, privacy: .public)"
         )
     }
+
+    func metricReportsReceived(count: Int) {
+        logger.info("metric reports received count=\(count, privacy: .public)")
+    }
+
+    func diagnosticReportsReceived(count: Int) {
+        logger.info("diagnostic reports received count=\(count, privacy: .public)")
+    }
 }
