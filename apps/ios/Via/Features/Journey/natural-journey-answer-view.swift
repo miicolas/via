@@ -11,7 +11,7 @@ struct NaturalJourneyAnswerView: View {
             Text(response.answer)
                 .font(.body)
                 .foregroundStyle(ViaTheme.body)
-            Text("Depuis (response.interpretation.originLabel) vers (response.interpretation.destination.name)")
+            Text("Depuis \(response.interpretation.originLabel) vers \(response.interpretation.destination.name)")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(ViaTheme.ink)
             if let preferenceNotice = response.preferenceNotice {
