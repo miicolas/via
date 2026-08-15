@@ -2,6 +2,18 @@ import SwiftUI
 
 struct JourneyScreen: View {
     let model: MapFeatureModel
+    let onRetry: () -> Void
+    let onCancel: () -> Void
+
+    init(
+        model: MapFeatureModel,
+        onRetry: (() -> Void)? = nil,
+        onCancel: (() -> Void)? = nil
+    ) {
+        self.model = model
+        self.onRetry = onRetry ?? { model.retryJourney() }
+        self.onCancel = onCancel ?? { model.cancelJourney() }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -11,14 +23,14 @@ struct JourneyScreen: View {
                     journey: journey,
                     destination: request.destination,
                     onBack: model.closeJourneyDetail,
-                    onCancel: model.cancelJourney
+                    onCancel: onCancel
                 )
             } else {
                 JourneyResultsView(
                     state: model.journeyState,
                     onSelect: model.selectJourney,
-                    onRetry: model.retryJourney,
-                    onCancel: model.cancelJourney
+                    onRetry: onRetry,
+                    onCancel: onCancel
                 )
             }
         }

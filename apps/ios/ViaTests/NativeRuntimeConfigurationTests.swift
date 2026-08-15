@@ -7,7 +7,13 @@ struct NativeRuntimeConfigurationTests {
     func testDebugArgumentsEnableDeterministicDemoAndDisableFlags() {
         let configuration = NativeRuntimeConfiguration.make(
             environment: ["VIA_API_URL": "https://staging.example.com"],
-            arguments: ["Via", "--via-demo", "--via-disable-chat", "--via-diagnostics"],
+            arguments: [
+                "Via",
+                "--via-demo",
+                "--via-disable-chat",
+                "--via-disable-natural-journeys",
+                "--via-diagnostics",
+            ],
             allowLocalOverrides: true
         )
 
@@ -15,6 +21,7 @@ struct NativeRuntimeConfigurationTests {
         #expect(configuration.featureFlags.usesDemoData)
         #expect(!configuration.featureFlags.chatEnabled)
         #expect(configuration.featureFlags.classicJourneysEnabled)
+        #expect(!configuration.featureFlags.naturalJourneysEnabled)
         #expect(configuration.featureFlags.verboseLoggingEnabled)
     }
 
@@ -24,6 +31,7 @@ struct NativeRuntimeConfigurationTests {
             environment: [
                 "VIA_FEATURE_CHAT": "off",
                 "VIA_FEATURE_CLASSIC_JOURNEYS": "0",
+                "VIA_FEATURE_NATURAL_JOURNEYS": "0",
                 "VIA_DEMO_DATA": "yes",
                 "VIA_DIAGNOSTICS": "true",
             ],
@@ -33,6 +41,7 @@ struct NativeRuntimeConfigurationTests {
 
         #expect(!flags.chatEnabled)
         #expect(!flags.classicJourneysEnabled)
+        #expect(!flags.naturalJourneysEnabled)
         #expect(flags.usesDemoData)
         #expect(flags.verboseLoggingEnabled)
     }

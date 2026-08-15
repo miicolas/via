@@ -52,57 +52,8 @@ struct SearchResultsView: View {
                 .foregroundStyle(ViaTheme.muted)
         } else {
             ForEach(results) { result in
-                ViaButton(action: { onSelect(result) }) {
-                    HStack(spacing: 12) {
-                        Image(systemName: resultSymbol(for: result))
-                            .foregroundStyle(ViaTheme.primary)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(result.name)
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(ViaTheme.ink)
-                            resultContext(result)
-                        }
-                        Spacer(minLength: 8)
-                        Image(systemName: "arrow.up.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(ViaTheme.muted)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("via.searchResult.\(result.id)")
+                SearchResultRowView(result: result, action: { onSelect(result) })
             }
-        }
-    }
-
-    private func resultSymbol(for result: SearchResult) -> String {
-        switch result {
-        case .station: "tram.fill"
-        case .address: "mappin.and.ellipse"
-        }
-    }
-
-    @ViewBuilder
-    private func resultContext(_ result: SearchResult) -> some View {
-        switch result {
-        case .station(let station):
-            HStack(spacing: 4) {
-                ForEach(station.routes) { route in
-                    LineBadgeView(route: route)
-                        .scaleEffect(0.64)
-                        .frame(width: 22, height: 22)
-                }
-                if let distanceMeters = station.distanceMeters {
-                    Text(distanceMeters.formatted(.number.precision(.fractionLength(0))) + " m")
-                        .font(.caption)
-                        .foregroundStyle(ViaTheme.muted)
-                }
-            }
-        case .address(let address):
-            Text(address.context)
-                .font(.caption)
-                .foregroundStyle(ViaTheme.muted)
         }
     }
 }

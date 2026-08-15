@@ -3,17 +3,20 @@ import Foundation
 struct NativeFeatureFlags: Equatable, Sendable {
     let chatEnabled: Bool
     let classicJourneysEnabled: Bool
+    let naturalJourneysEnabled: Bool
     let usesDemoData: Bool
     let verboseLoggingEnabled: Bool
 
     init(
         chatEnabled: Bool = true,
         classicJourneysEnabled: Bool = true,
+        naturalJourneysEnabled: Bool = true,
         usesDemoData: Bool = false,
         verboseLoggingEnabled: Bool = false
     ) {
         self.chatEnabled = chatEnabled
         self.classicJourneysEnabled = classicJourneysEnabled
+        self.naturalJourneysEnabled = naturalJourneysEnabled
         self.usesDemoData = usesDemoData
         self.verboseLoggingEnabled = verboseLoggingEnabled
     }
@@ -32,6 +35,8 @@ struct NativeFeatureFlags: Equatable, Sendable {
                 ?? !arguments.contains("--via-disable-chat"),
             classicJourneysEnabled: environment.boolean(named: "VIA_FEATURE_CLASSIC_JOURNEYS")
                 ?? !arguments.contains("--via-disable-classic-journeys"),
+            naturalJourneysEnabled: environment.boolean(named: "VIA_FEATURE_NATURAL_JOURNEYS")
+                ?? !arguments.contains("--via-disable-natural-journeys"),
             usesDemoData: environment.boolean(named: "VIA_DEMO_DATA")
                 ?? arguments.contains("--via-demo"),
             verboseLoggingEnabled: environment.boolean(named: "VIA_DIAGNOSTICS")

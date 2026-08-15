@@ -79,6 +79,21 @@ struct MapFlowTests {
         #expect(collapsed.overviewDetentIndex == 0)
         #expect(expanded.overviewDetentIndex == 8)
     }
+
+    @Test
+    func naturalJourneyEventsUseTheDedicatedClarificationAndResultsScreens() {
+        var state = transitionMapFlow(MapFlowState(), event: .naturalJourneySubmitted)
+        #expect(state.screen == .planning)
+
+        state = transitionMapFlow(state, event: .naturalJourneyNeedsClarification)
+        #expect(state.screen == .clarification)
+
+        state = transitionMapFlow(state, event: .naturalJourneyReady)
+        #expect(state.screen == .results)
+
+        state = transitionMapFlow(state, event: .naturalJourneyCancelled)
+        #expect(state.screen == .overview)
+    }
 }
 
 struct LocationPermissionTests {

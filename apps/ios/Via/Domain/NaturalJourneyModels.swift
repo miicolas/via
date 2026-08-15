@@ -157,6 +157,30 @@ enum NaturalJourneyFailure: Equatable, Sendable {
         case dateOutOfRange = "date_out_of_range"
         case location
     }
+
+    var message: String {
+        switch self {
+        case .unsupported(let message, _), .unavailable(_, let message), .rateLimited(let message):
+            message
+        }
+    }
+}
+
+enum NaturalJourneyChoice: Hashable, Sendable {
+    case place(target: NaturalJourneyClarificationField.Target, result: SearchResult)
+    case time(NaturalJourneyDatetimeRepresents)
+}
+
+enum NaturalJourneyState: Equatable, Sendable {
+    case idle
+    case interpreting
+    case needsClarification(NaturalJourneyNeedsClarification)
+    case ready(NaturalJourneyReady)
+    case failed(NaturalJourneyFailure)
+
+    var isActive: Bool {
+        self != .idle
+    }
 }
 
 enum NaturalJourneyResponse: Decodable, Equatable, Sendable {

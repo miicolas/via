@@ -51,6 +51,29 @@ final class ViaUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Détail du trajet"].waitForExistence(timeout: 10))
     }
 
+    func testNaturalJourneyClarificationResolvesIntoSharedJourneyResults() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--via-demo"]
+        app.launch()
+
+        let input = app.textFields["via.naturalJourneyInput"]
+        XCTAssertTrue(input.waitForExistence(timeout: 10))
+        input.tap()
+        input.typeText("Comment aller au musee ?")
+
+        let submit = app.buttons["via.submitNaturalJourney"]
+        XCTAssertTrue(submit.waitForExistence(timeout: 10))
+        submit.tap()
+
+        XCTAssertTrue(app.staticTexts["Une précision"].waitForExistence(timeout: 10))
+        let candidate = app.buttons["via.searchResult.demo:chatelet"]
+        XCTAssertTrue(candidate.waitForExistence(timeout: 10))
+        candidate.tap()
+
+        XCTAssertTrue(app.staticTexts["Trajet compris"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["via.journey.demo:walk:demo:chatelet"].waitForExistence(timeout: 10))
+    }
+
     func testLinesOpenNativeLineDetail() {
         let app = XCUIApplication()
         app.launchArguments = ["--via-demo"]

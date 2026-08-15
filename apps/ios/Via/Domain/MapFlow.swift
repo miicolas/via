@@ -29,6 +29,11 @@ enum MapFlowEvent: Equatable, Sendable {
     case journeyDetailOpened(index: Int)
     case journeyDetailClosed
     case journeyCancelled
+    case naturalJourneySubmitted
+    case naturalJourneyNeedsClarification
+    case naturalJourneyReady
+    case naturalJourneyFailed
+    case naturalJourneyCancelled
 }
 
 @discardableResult
@@ -92,6 +97,22 @@ func transitionMapFlow(
         next.selectedJourneyIndex = nil
 
     case .journeyCancelled:
+        next.screen = .overview
+        next.selectedJourneyIndex = nil
+
+    case .naturalJourneySubmitted:
+        next.screen = .planning
+        next.selectedJourneyIndex = nil
+
+    case .naturalJourneyNeedsClarification, .naturalJourneyFailed:
+        next.screen = .clarification
+        next.selectedJourneyIndex = nil
+
+    case .naturalJourneyReady:
+        next.screen = .results
+        next.selectedJourneyIndex = nil
+
+    case .naturalJourneyCancelled:
         next.screen = .overview
         next.selectedJourneyIndex = nil
     }

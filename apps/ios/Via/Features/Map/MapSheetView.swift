@@ -36,7 +36,9 @@ struct MapSheetView: View {
                     onOpenSettings: openLocationSettings
                 )
 
-                if [.planning, .results, .detail].contains(model.flow.screen) {
+                if model.naturalJourneyState.isActive {
+                    NaturalJourneyScreen(model: model)
+                } else if [.planning, .clarification, .results, .detail].contains(model.flow.screen) {
                     JourneyScreen(model: model)
                 } else if let station = model.selectedStation {
                     StationDetailsView(
@@ -95,6 +97,9 @@ struct MapSheetView: View {
                     ViaButton("Réessayer", systemImage: "arrow.clockwise", action: model.loadNetwork)
                 }
             case .ready:
+                if featureFlags.naturalJourneysEnabled {
+                    NaturalJourneyComposerView(onSubmit: model.submitNaturalJourney)
+                }
                 if featureFlags.chatEnabled {
                     ViaButton("Parler à Via", systemImage: "sparkles", action: onOpenChat)
                         .accessibilityIdentifier("via.openChat")

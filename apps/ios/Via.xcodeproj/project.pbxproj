@@ -75,6 +75,13 @@
 		A10000000000000000000042 /* NavigoClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* NavigoClient.swift */; };
 		A10000000000000000000043 /* unavailable-feature-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* unavailable-feature-view.swift */; };
 		A10000000000000000000044 /* NaturalJourneyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000043 /* NaturalJourneyModels.swift */; };
+		A10000000000000000000045 /* search-result-row-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000044 /* search-result-row-view.swift */; };
+		A10000000000000000000046 /* natural-journey-composer-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000045 /* natural-journey-composer-view.swift */; };
+		A10000000000000000000047 /* natural-journey-header-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000046 /* natural-journey-header-view.swift */; };
+		A10000000000000000000048 /* natural-journey-clarification-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000047 /* natural-journey-clarification-view.swift */; };
+		A10000000000000000000049 /* natural-journey-answer-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000048 /* natural-journey-answer-view.swift */; };
+		A1000000000000000000004A /* natural-journey-failure-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000049 /* natural-journey-failure-view.swift */; };
+		A1000000000000000000004B /* natural-journey-screen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004A /* natural-journey-screen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -165,6 +172,13 @@
 		B10000000000000000000041 /* NavigoClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigoClient.swift; sourceTree = "<group>"; };
 		B10000000000000000000042 /* unavailable-feature-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = unavailable-feature-view.swift; sourceTree = "<group>"; };
 		B10000000000000000000043 /* NaturalJourneyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaturalJourneyModels.swift; sourceTree = "<group>"; };
+		B10000000000000000000044 /* search-result-row-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = search-result-row-view.swift; sourceTree = "<group>"; };
+		B10000000000000000000045 /* natural-journey-composer-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-composer-view.swift; sourceTree = "<group>"; };
+		B10000000000000000000046 /* natural-journey-header-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-header-view.swift; sourceTree = "<group>"; };
+		B10000000000000000000047 /* natural-journey-clarification-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-clarification-view.swift; sourceTree = "<group>"; };
+		B10000000000000000000048 /* natural-journey-answer-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-answer-view.swift; sourceTree = "<group>"; };
+		B10000000000000000000049 /* natural-journey-failure-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-failure-view.swift; sourceTree = "<group>"; };
+		B1000000000000000000004A /* natural-journey-screen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-screen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -272,6 +286,7 @@
 			isa = PBXGroup;
 			children = (
 				B10000000000000000000014 /* SearchResultsView.swift */,
+				B10000000000000000000044 /* search-result-row-view.swift */,
 			);
 			path = Search;
 			sourceTree = "<group>";
@@ -292,6 +307,12 @@
 				B10000000000000000000023 /* JourneyOptionRow.swift */,
 				B10000000000000000000024 /* JourneyDetailView.swift */,
 				B10000000000000000000025 /* JourneySectionRow.swift */,
+				B10000000000000000000045 /* natural-journey-composer-view.swift */,
+				B10000000000000000000046 /* natural-journey-header-view.swift */,
+				B10000000000000000000047 /* natural-journey-clarification-view.swift */,
+				B10000000000000000000048 /* natural-journey-answer-view.swift */,
+				B10000000000000000000049 /* natural-journey-failure-view.swift */,
+				B1000000000000000000004A /* natural-journey-screen.swift */,
 			);
 			path = Journey;
 			sourceTree = "<group>";
@@ -608,6 +629,13 @@
 				A1000000000000000000003F /* location-permission-view.swift in Sources */,
 				A10000000000000000000040 /* location-permission-card-view.swift in Sources */,
 				A10000000000000000000043 /* unavailable-feature-view.swift in Sources */,
+				A10000000000000000000045 /* search-result-row-view.swift in Sources */,
+				A10000000000000000000046 /* natural-journey-composer-view.swift in Sources */,
+				A10000000000000000000047 /* natural-journey-header-view.swift in Sources */,
+				A10000000000000000000048 /* natural-journey-clarification-view.swift in Sources */,
+				A10000000000000000000049 /* natural-journey-answer-view.swift in Sources */,
+				A1000000000000000000004A /* natural-journey-failure-view.swift in Sources */,
+				A1000000000000000000004B /* natural-journey-screen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

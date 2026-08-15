@@ -11,7 +11,7 @@ struct ViaLogger: Sendable {
 
     func featureFlags(_ flags: NativeFeatureFlags) {
         logger.info(
-            "native flags chat=\(flags.chatEnabled, privacy: .public) journeys=\(flags.classicJourneysEnabled, privacy: .public) demo=\(flags.usesDemoData, privacy: .public)"
+            "native flags chat=\(flags.chatEnabled, privacy: .public) classic_journeys=\(flags.classicJourneysEnabled, privacy: .public) natural_journeys=\(flags.naturalJourneysEnabled, privacy: .public) demo=\(flags.usesDemoData, privacy: .public)"
         )
     }
 

@@ -49,6 +49,7 @@ final class MapFeatureModel {
     var searchState: SearchState = .idle
     var departuresState: DeparturesState = .idle
     var journeyState: JourneyState = .idle
+    var naturalJourneyState: NaturalJourneyState = .idle
     var locationState: LocationState = .notDetermined
     var cameraTarget: GeoCoordinate?
     var searchQuery = ""
@@ -62,6 +63,8 @@ final class MapFeatureModel {
     private var viewportTask: Task<Void, Never>?
     private var departureTask: Task<Void, Never>?
     private var journeyTask: Task<Void, Never>?
+    private var naturalJourneyTask: Task<Void, Never>?
+    private var naturalJourneyRequest: NaturalJourneyRequest?
     private var pendingStationID: String?
 
     init(transitAPI: any TransitAPI, locationProvider: any LocationProviding) {
@@ -122,6 +125,13 @@ final class MapFeatureModel {
             return coordinate
         }
         return Self.paris
+    }
+
+    private var currentLocationCoordinate: GeoCoordinate? {
+        if case .ready(let coordinate) = locationState {
+            return coordinate
+        }
+        return nil
     }
 
     func distanceMeters(to coordinate: GeoCoordinate) -> Double {
@@ -236,6 +246,7 @@ final class MapFeatureModel {
     }
 
     func selectStation(_ station: NetworkStation) {
+        resetNaturalJourneyState()
         journeyTask?.cancel()
         journeyTask = nil
         journeyState = .idle
@@ -261,6 +272,7 @@ final class MapFeatureModel {
     }
 
     func closeSelectedStation() {
+        resetNaturalJourneyState()
         departureTask?.cancel()
         departureTask = nil
         journeyTask?.cancel()
@@ -274,6 +286,7 @@ final class MapFeatureModel {
     func planSelectedStation() {
         guard let station = selectedStation else { return }
 
+        resetNaturalJourneyState()
         let request = JourneyRequest(
             origin: currentCoordinate,
             destination: JourneyDestination(station: station)
@@ -296,6 +309,68 @@ final class MapFeatureModel {
                 flow = transitionMapFlow(flow, event: .journeyResultsReady)
             }
         }
+    }
+
+    func submitNaturalJourney(_ query: String) {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        runNaturalJourney(
+            .submit(query: trimmed, currentLocation: currentLocationCoordinate)
+        )
+    }
+
+    func resolveNaturalJourney(_ choice: NaturalJourneyChoice) {
+        guard case .needsClarification(let clarification) = naturalJourneyState else { return }
+
+        switch choice {
+        case .place(let target, let result):
+            switch target {
+            case .origin:
+                runNaturalJourney(
+                    .resolve(
+                        draft: clarification.draft,
+                        currentLocation: currentLocationCoordinate,
+                        origin: result,
+                        destination: nil,
+                        datetimeRepresents: nil
+                    )
+                )
+            case .destination:
+                runNaturalJourney(
+                    .resolve(
+                        draft: clarification.draft,
+                        currentLocation: currentLocationCoordinate,
+                        origin: nil,
+                        destination: result,
+                        datetimeRepresents: nil
+                    )
+                )
+            case .time:
+                return
+            }
+        case .time(let value):
+            runNaturalJourney(
+                .resolve(
+                    draft: clarification.draft,
+                    currentLocation: currentLocationCoordinate,
+                    origin: nil,
+                    destination: nil,
+                    datetimeRepresents: value
+                )
+            )
+        }
+    }
+
+    func retryNaturalJourney() {
+        guard let naturalJourneyRequest else { return }
+        runNaturalJourney(naturalJourneyRequest)
+    }
+
+    func cancelNaturalJourney() {
+        resetNaturalJourneyState()
+        journeyState = .idle
+        flow = transitionMapFlow(flow, event: .naturalJourneyCancelled)
     }
 
     func selectJourney(at index: Int) {
@@ -376,6 +451,60 @@ final class MapFeatureModel {
                 continue
             }
         }
+    }
+
+    private func runNaturalJourney(_ request: NaturalJourneyRequest) {
+        naturalJourneyTask?.cancel()
+        naturalJourneyRequest = request
+        naturalJourneyState = .interpreting
+        journeyState = .idle
+        flow = transitionMapFlow(flow, event: .naturalJourneySubmitted)
+        naturalJourneyTask = Task { [weak self] in
+            guard let self else { return }
+
+            do {
+                let response = try await transitAPI.submitNaturalJourney(request)
+                guard !Task.isCancelled, naturalJourneyRequest == request else { return }
+                applyNaturalJourneyResponse(response)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled, naturalJourneyRequest == request else { return }
+                naturalJourneyState = .failed(
+                    .unavailable(
+                        reason: .ai,
+                        message: "La recherche en langage naturel est indisponible. La recherche classique reste accessible."
+                    )
+                )
+                flow = transitionMapFlow(flow, event: .naturalJourneyFailed)
+            }
+        }
+    }
+
+    private func applyNaturalJourneyResponse(_ response: NaturalJourneyResponse) {
+        switch response {
+        case .ready(let ready):
+            let request = JourneyRequest(
+                origin: currentCoordinate,
+                destination: ready.interpretation.destination
+            )
+            journeyState = .ready(request: request, response: ready.journeys)
+            naturalJourneyState = .ready(ready)
+            flow = transitionMapFlow(flow, event: .naturalJourneyReady)
+        case .needsClarification(let clarification):
+            naturalJourneyState = .needsClarification(clarification)
+            flow = transitionMapFlow(flow, event: .naturalJourneyNeedsClarification)
+        case .failure(let failure):
+            naturalJourneyState = .failed(failure)
+            flow = transitionMapFlow(flow, event: .naturalJourneyFailed)
+        }
+    }
+
+    private func resetNaturalJourneyState() {
+        naturalJourneyTask?.cancel()
+        naturalJourneyTask = nil
+        naturalJourneyRequest = nil
+        naturalJourneyState = .idle
     }
 
     private func refreshLocationState() {

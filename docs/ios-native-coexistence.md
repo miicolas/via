@@ -41,6 +41,7 @@ de démonstration ni masquer silencieusement une tranche native.
 | `--via-demo` ou `VIA_DEMO_DATA=1` | Adapters déterministes pour les smoke tests |
 | `--via-disable-chat` ou `VIA_FEATURE_CHAT=0` | Masque l’entrée chat |
 | `--via-disable-classic-journeys` ou `VIA_FEATURE_CLASSIC_JOURNEYS=0` | Masque la planification classique |
+| `--via-disable-natural-journeys` ou `VIA_FEATURE_NATURAL_JOURNEYS=0` | Masque la planification en langage naturel |
 | `--via-diagnostics` ou `VIA_DIAGNOSTICS=1` | Active les logs réseau détaillés |
 | `VIA_API_URL=https://...` | Change l’origine API après validation HTTP(S) |
 
