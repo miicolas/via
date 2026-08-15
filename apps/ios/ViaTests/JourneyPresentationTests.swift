@@ -165,6 +165,27 @@ struct RecentSearchTests {
 }
 
 struct NaturalJourneyModelTests {
+    @MainActor
+    @Test
+    func featureModelOwnsRequestLifecycleAndPublishesDomainState() async throws {
+        let model = NaturalJourneyModel(transitAPI: DemoTransitAPI())
+        var states: [NaturalJourneyState] = []
+        model.onStateChange = { states.append($0) }
+
+        model.submit(
+            "Comment aller à Châtelet ?",
+            currentLocation: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        )
+        try await Task.sleep(for: .milliseconds(600))
+
+        #expect(states.first == .interpreting)
+        guard case .ready(let ready) = model.state else {
+            Issue.record("Expected the feature model to publish a ready state")
+            return
+        }
+        #expect(ready.interpretation.destination.name == "Châtelet")
+    }
+
     @Test
     func demoAdapterResolvesARecognizedDestination() async throws {
         let response = try await DemoTransitAPI().submitNaturalJourney(

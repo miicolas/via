@@ -87,6 +87,7 @@
 		A1000000000000000000004E /* RecentSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004D /* RecentSearchStore.swift */; };
 		A1000000000000000000004F /* recent-searches-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004E /* recent-searches-view.swift */; };
 		A10000000000000000000050 /* ViaClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004F /* ViaClock.swift */; };
+		A10000000000000000000051 /* NaturalJourneyModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000050 /* NaturalJourneyModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -189,6 +190,7 @@
 		B1000000000000000000004D /* RecentSearchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchStore.swift; sourceTree = "<group>"; };
 		B1000000000000000000004E /* recent-searches-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = recent-searches-view.swift; sourceTree = "<group>"; };
 		B1000000000000000000004F /* ViaClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViaClock.swift; sourceTree = "<group>"; };
+		B10000000000000000000050 /* NaturalJourneyModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NaturalJourneyModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -316,6 +318,7 @@
 		D1000000000000000000000F /* Journey */ = {
 			isa = PBXGroup;
 			children = (
+				B10000000000000000000050 /* NaturalJourneyModel.swift */,
 				B10000000000000000000021 /* JourneyScreen.swift */,
 				B10000000000000000000022 /* JourneyResultsView.swift */,
 				B10000000000000000000023 /* JourneyOptionRow.swift */,
@@ -600,6 +603,7 @@
 				A1000000000000000000001F /* JourneyModels.swift in Sources */,
 				A10000000000000000000020 /* JourneyPresentation.swift in Sources */,
 				A10000000000000000000044 /* NaturalJourneyModels.swift in Sources */,
+				A10000000000000000000051 /* NaturalJourneyModel.swift in Sources */,
 				A1000000000000000000004D /* RecentSearches.swift in Sources */,
 				A1000000000000000000000C /* TransitAPI.swift in Sources */,
 				A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */,

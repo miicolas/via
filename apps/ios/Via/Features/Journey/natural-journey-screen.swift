@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct NaturalJourneyScreen: View {
-    let model: MapFeatureModel
+    let model: NaturalJourneyModel
+    let journeyModel: MapFeatureModel
 
     var body: some View {
-        switch model.naturalJourneyState {
+        switch model.state {
         case .idle:
             EmptyView()
         case .interpreting:
@@ -12,7 +13,7 @@ struct NaturalJourneyScreen: View {
                 NaturalJourneyHeaderView(
                     title: "Via prépare votre trajet",
                     subtitle: "Interprétation de votre demande",
-                    onCancel: model.cancelNaturalJourney
+                    onCancel: journeyModel.cancelNaturalJourney
                 )
                 ProgressView("Recherche en cours…")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -22,27 +23,27 @@ struct NaturalJourneyScreen: View {
                 NaturalJourneyHeaderView(
                     title: "Précisons le trajet",
                     subtitle: "Une réponse rapide et Via recalcule.",
-                    onCancel: model.cancelNaturalJourney
+                    onCancel: journeyModel.cancelNaturalJourney
                 )
                 NaturalJourneyClarificationView(
                     clarification: clarification,
-                    onResolve: model.resolveNaturalJourney
+                    onResolve: journeyModel.resolveNaturalJourney
                 )
             }
         case .ready(let response):
-            if model.flow.screen == .detail {
+            if journeyModel.flow.screen == .detail {
                 JourneyScreen(
-                    model: model,
-                    onRetry: model.retryNaturalJourney,
-                    onCancel: model.cancelNaturalJourney
+                    model: journeyModel,
+                    onRetry: journeyModel.retryNaturalJourney,
+                    onCancel: journeyModel.cancelNaturalJourney
                 )
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     NaturalJourneyAnswerView(response: response)
                     JourneyScreen(
-                        model: model,
-                        onRetry: model.retryNaturalJourney,
-                        onCancel: model.cancelNaturalJourney
+                        model: journeyModel,
+                        onRetry: journeyModel.retryNaturalJourney,
+                        onCancel: journeyModel.cancelNaturalJourney
                     )
                 }
             }
@@ -51,12 +52,12 @@ struct NaturalJourneyScreen: View {
                 NaturalJourneyHeaderView(
                     title: "Trajet naturel",
                     subtitle: "La recherche classique reste disponible.",
-                    onCancel: model.cancelNaturalJourney
+                    onCancel: journeyModel.cancelNaturalJourney
                 )
                 NaturalJourneyFailureView(
                     failure: failure,
-                    onRetry: model.retryNaturalJourney,
-                    onCancel: model.cancelNaturalJourney
+                    onRetry: journeyModel.retryNaturalJourney,
+                    onCancel: journeyModel.cancelNaturalJourney
                 )
             }
         }

@@ -36,8 +36,11 @@ struct MapSheetView: View {
                     onOpenSettings: openLocationSettings
                 )
 
-                if model.naturalJourneyState.isActive {
-                    NaturalJourneyScreen(model: model)
+                if model.naturalJourneyModel.state.isActive {
+                    NaturalJourneyScreen(
+                        model: model.naturalJourneyModel,
+                        journeyModel: model
+                    )
                 } else if [.planning, .clarification, .results, .detail].contains(model.flow.screen) {
                     JourneyScreen(model: model)
                 } else if let station = model.selectedStation {
