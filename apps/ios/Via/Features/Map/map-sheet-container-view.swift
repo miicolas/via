@@ -6,6 +6,7 @@ struct MapSheetContainerView: View {
     let maxHeight: CGFloat
     let onOpenChat: () -> Void
     let onDragEnded: (CGFloat) -> Void
+    @Environment(\.accessibilityReduceTransparency) private var accessibilityReduceTransparency
 
     var body: some View {
         VStack(spacing: 8) {
@@ -33,7 +34,11 @@ struct MapSheetContainerView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
-        .background(.regularMaterial)
+        .background(
+            accessibilityReduceTransparency
+                ? AnyShapeStyle(ViaTheme.ground)
+                : AnyShapeStyle(.regularMaterial)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .padding(.horizontal, 8)
     }

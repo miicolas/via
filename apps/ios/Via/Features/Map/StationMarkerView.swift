@@ -4,6 +4,7 @@ struct StationMarkerView: View {
     let station: NetworkStation
     let routes: [RouteBadge]
     let isSelected: Bool
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
     var body: some View {
         ZStack {
@@ -22,7 +23,7 @@ struct StationMarkerView: View {
                     .foregroundStyle(.white)
             }
         }
-        .animation(.snappy, value: isSelected)
+        .animation(accessibilityReduceMotion ? nil : .snappy, value: isSelected)
         .accessibilityLabel(station.name)
     }
 

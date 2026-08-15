@@ -150,6 +150,10 @@ Le défilement automatique du chat respecte également le réglage système
 « Réduire les animations » : il rejoint le dernier message sans transition
 animée lorsque `accessibilityReduceMotion` est actif.
 
+Le même réglage désactive l'animation de sélection des marqueurs de station ;
+`accessibilityReduceTransparency` remplace le matériau translucide de la sheet
+par une surface Via opaque.
+
 ## Critères de cutover
 
 Le remplacement du bundle public est autorisé seulement lorsque tous les
