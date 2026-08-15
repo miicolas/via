@@ -5,6 +5,7 @@ struct ChatScreen: View {
     let onOpenItinerary: (ChatItinerary) -> Void
 
     @State private var draft = ""
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
     init(model: ChatFeatureModel, onOpenItinerary: @escaping (ChatItinerary) -> Void = { _ in }) {
         self.model = model
@@ -55,8 +56,12 @@ struct ChatScreen: View {
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: model.messages.count) { _, _ in
                     if let lastID = model.messages.last?.id {
-                        withAnimation(.snappy) {
+                        if accessibilityReduceMotion {
                             proxy.scrollTo(lastID, anchor: .bottom)
+                        } else {
+                            withAnimation(.snappy) {
+                                proxy.scrollTo(lastID, anchor: .bottom)
+                            }
                         }
                     }
                 }

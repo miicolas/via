@@ -146,6 +146,10 @@ Le handle de la sheet expose aussi une valeur et une action ajustable à
 VoiceOver : les gestes d'incrémentation et de décrémentation changent la
 hauteur du panneau via la même transition que le drag tactile.
 
+Le défilement automatique du chat respecte également le réglage système
+« Réduire les animations » : il rejoint le dernier message sans transition
+animée lorsque `accessibilityReduceMotion` est actif.
+
 ## Critères de cutover
 
 Le remplacement du bundle public est autorisé seulement lorsque tous les
