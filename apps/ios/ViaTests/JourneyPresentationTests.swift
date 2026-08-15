@@ -319,3 +319,35 @@ struct NaturalJourneyModelTests {
         #expect(clarification.draft.intent.destinationQuery == "Châtelet")
     }
 }
+
+@MainActor
+struct JourneyModelTests {
+    @Test
+    func planAndRetryStayInsideTheJourneyModel() async throws {
+        let model = JourneyModel(transitAPI: DemoTransitAPI())
+        var states: [JourneyState] = []
+        model.onStateChange = { states.append($0) }
+        let destination = JourneyDestination(
+            kind: .station,
+            id: "demo:chatelet",
+            name: "Châtelet",
+            coordinate: GeoCoordinate(latitude: 48.8584, longitude: 2.3470)
+        )
+
+        model.plan(
+            to: destination,
+            from: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        )
+        try await Task.sleep(for: .milliseconds(500))
+
+        #expect(states.first?.request?.destination.id == "demo:chatelet")
+        guard case .ready(_, let response) = model.state else {
+            Issue.record("Expected the journey model to publish a ready state")
+            return
+        }
+        #expect(response.journeys.isEmpty == false)
+        #expect(model.retry())
+        model.cancel()
+        #expect(model.state == .idle)
+    }
+}

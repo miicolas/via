@@ -120,8 +120,8 @@ struct MapFeatureModelSearchTests {
 
         #expect(model.recentSearches == [recentSearchSnapshot(address)])
         #expect(store.entries == model.recentSearches)
-        #expect(model.journeyState.request?.destination.kind == .address)
-        #expect(model.journeyState.request?.destination.name == "Louvre")
+        #expect(model.journeyModel.state.request?.destination.kind == .address)
+        #expect(model.journeyModel.state.request?.destination.name == "Louvre")
     }
 }
 

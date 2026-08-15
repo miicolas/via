@@ -91,6 +91,7 @@
 		A10000000000000000000052 /* TransitNetworkModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000051 /* TransitNetworkModel.swift */; };
 		A10000000000000000000053 /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000052 /* SearchModel.swift */; };
 		A10000000000000000000054 /* DeparturesModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000053 /* DeparturesModel.swift */; };
+		A10000000000000000000055 /* JourneyModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000054 /* JourneyModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -197,6 +198,7 @@
 		B10000000000000000000051 /* TransitNetworkModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransitNetworkModel.swift; sourceTree = "<group>"; };
 		B10000000000000000000052 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
 		B10000000000000000000053 /* DeparturesModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeparturesModel.swift; sourceTree = "<group>"; };
+		B10000000000000000000054 /* JourneyModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -326,6 +328,7 @@
 		D1000000000000000000000F /* Journey */ = {
 			isa = PBXGroup;
 			children = (
+				B10000000000000000000054 /* JourneyModel.swift */,
 				B10000000000000000000050 /* NaturalJourneyModel.swift */,
 				B10000000000000000000021 /* JourneyScreen.swift */,
 				B10000000000000000000022 /* JourneyResultsView.swift */,
@@ -624,6 +627,7 @@
 				A10000000000000000000052 /* TransitNetworkModel.swift in Sources */,
 				A10000000000000000000053 /* SearchModel.swift in Sources */,
 				A10000000000000000000054 /* DeparturesModel.swift in Sources */,
+				A10000000000000000000055 /* JourneyModel.swift in Sources */,
 				A1000000000000000000004D /* RecentSearches.swift in Sources */,
 				A1000000000000000000000C /* TransitAPI.swift in Sources */,
 				A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */,

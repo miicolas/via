@@ -18,7 +18,7 @@ struct JourneyScreen: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             if model.flow.screen == .detail, let journey = model.selectedJourney,
-               let request = model.journeyState.request {
+               let request = model.journeyModel.state.request {
                 JourneyDetailView(
                     journey: journey,
                     destination: request.destination,
@@ -28,7 +28,7 @@ struct JourneyScreen: View {
                 )
             } else {
                 JourneyResultsView(
-                    state: model.journeyState,
+                    state: model.journeyModel.state,
                     onSelect: model.selectJourney,
                     onRetry: onRetry,
                     onCancel: onCancel

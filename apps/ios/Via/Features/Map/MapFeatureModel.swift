@@ -15,9 +15,9 @@ final class MapFeatureModel {
     let naturalJourneyModel: NaturalJourneyModel
     let searchModel: SearchModel
     let departuresModel: DeparturesModel
+    let journeyModel: JourneyModel
 
     var flow = MapFlowState()
-    var journeyState: JourneyState = .idle
     var recentSearches: [SearchResult]
     var locationState: LocationState = .notDetermined
     var cameraTarget: GeoCoordinate?
@@ -27,7 +27,6 @@ final class MapFeatureModel {
     private var inFlightTiles = Set<String>()
     private var didStart = false
     private var viewportTask: Task<Void, Never>?
-    private var journeyTask: Task<Void, Never>?
     private var pendingStationID: String?
 
     init(
@@ -50,6 +49,7 @@ final class MapFeatureModel {
             clock: clock
         )
         self.departuresModel = DeparturesModel(transitAPI: transitAPI, clock: clock)
+        self.journeyModel = JourneyModel(transitAPI: transitAPI)
         recentSearches = recentSearchStore.load()
         locationProvider.onUpdate = { [weak self] update in
             self?.handleLocationUpdate(update)
@@ -60,6 +60,9 @@ final class MapFeatureModel {
         naturalJourneyModel.onStateChange = { [weak self] state in
             self?.handleNaturalJourneyStateChange(state)
         }
+        journeyModel.onStateChange = { [weak self] state in
+            self?.handleJourneyStateChange(state)
+        }
     }
 
     var selectedStation: NetworkStation? {
@@ -69,7 +72,7 @@ final class MapFeatureModel {
     }
 
     var selectedJourney: Journey? {
-        guard let response = journeyState.response,
+        guard let response = journeyModel.state.response,
               let index = flow.selectedJourneyIndex,
               response.journeys.indices.contains(index)
         else { return nil }
@@ -211,9 +214,7 @@ final class MapFeatureModel {
 
     func selectStation(_ station: NetworkStation) {
         naturalJourneyModel.cancel()
-        journeyTask?.cancel()
-        journeyTask = nil
-        journeyState = .idle
+        journeyModel.cancel()
         selectedStationOverride = station
         flow = transitionMapFlow(
             flow,
@@ -239,9 +240,7 @@ final class MapFeatureModel {
     func closeSelectedStation() {
         naturalJourneyModel.cancel()
         departuresModel.reset()
-        journeyTask?.cancel()
-        journeyTask = nil
-        journeyState = .idle
+        journeyModel.cancel()
         selectedStationOverride = nil
         flow = transitionMapFlow(flow, event: .stationDeselected)
     }
@@ -254,53 +253,32 @@ final class MapFeatureModel {
 
     private func planJourney(to destination: JourneyDestination) {
         naturalJourneyModel.cancel()
-        let request = JourneyRequest(
-            origin: currentCoordinate,
-            destination: destination
-        )
-        journeyTask?.cancel()
-        journeyState = .planning(request: request)
-        flow = transitionMapFlow(flow, event: .journeyPlanningStarted)
-        journeyTask = Task { [weak self] in
-            guard let self else { return }
-            do {
-                let response = try await transitAPI.planJourneys(request)
-                guard !Task.isCancelled, journeyState.request?.key == request.key else { return }
-                journeyState = .ready(request: request, response: response)
-                flow = transitionMapFlow(flow, event: .journeyResultsReady)
-            } catch is CancellationError {
-                return
-            } catch {
-                guard !Task.isCancelled, journeyState.request?.key == request.key else { return }
-                journeyState = .failed(request: request)
-                flow = transitionMapFlow(flow, event: .journeyResultsReady)
-            }
-        }
+        journeyModel.plan(to: destination, from: currentCoordinate)
     }
 
     func submitNaturalJourney(_ query: String) {
-        journeyState = .idle
+        journeyModel.cancel()
         naturalJourneyModel.submit(query, currentLocation: currentLocationCoordinate)
     }
 
     func resolveNaturalJourney(_ choice: NaturalJourneyChoice) {
         guard naturalJourneyModel.resolve(choice, currentLocation: currentLocationCoordinate) else { return }
-        journeyState = .idle
+        journeyModel.cancel()
     }
 
     func retryNaturalJourney() {
         guard naturalJourneyModel.retry() else { return }
-        journeyState = .idle
+        journeyModel.cancel()
     }
 
     func cancelNaturalJourney() {
         naturalJourneyModel.cancel()
-        journeyState = .idle
+        journeyModel.cancel()
         flow = transitionMapFlow(flow, event: .naturalJourneyCancelled)
     }
 
     func selectJourney(at index: Int) {
-        guard let response = journeyState.response, response.journeys.indices.contains(index) else { return }
+        guard let response = journeyModel.state.response, response.journeys.indices.contains(index) else { return }
         flow = transitionMapFlow(flow, event: .journeyDetailOpened(index: index))
     }
 
@@ -309,14 +287,14 @@ final class MapFeatureModel {
     }
 
     func cancelJourney() {
-        journeyTask?.cancel()
-        journeyTask = nil
-        journeyState = .idle
+        journeyModel.cancel()
         flow = transitionMapFlow(flow, event: .journeyCancelled)
     }
 
     func retryJourney() {
-        planSelectedStation()
+        if !journeyModel.retry() {
+            planSelectedStation()
+        }
     }
 
     func reportViewport(_ region: ViewportRegion) {
@@ -386,7 +364,7 @@ final class MapFeatureModel {
         case .idle:
             break
         case .interpreting:
-            journeyState = .idle
+            journeyModel.cancel()
             flow = transitionMapFlow(flow, event: .naturalJourneySubmitted)
         case .needsClarification:
             flow = transitionMapFlow(flow, event: .naturalJourneyNeedsClarification)
@@ -396,10 +374,24 @@ final class MapFeatureModel {
                 origin: currentCoordinate,
                 destination: ready.interpretation.destination
             )
-            journeyState = .ready(request: request, response: ready.journeys)
-            flow = transitionMapFlow(flow, event: .naturalJourneyReady)
+            journeyModel.adopt(request: request, response: ready.journeys)
         case .failed:
             flow = transitionMapFlow(flow, event: .naturalJourneyFailed)
+        }
+    }
+
+    private func handleJourneyStateChange(_ state: JourneyState) {
+        switch state {
+        case .idle:
+            break
+        case .planning:
+            flow = transitionMapFlow(flow, event: .journeyPlanningStarted)
+        case .ready, .failed:
+            if naturalJourneyModel.state.isActive {
+                flow = transitionMapFlow(flow, event: .naturalJourneyReady)
+            } else {
+                flow = transitionMapFlow(flow, event: .journeyResultsReady)
+            }
         }
     }
 
