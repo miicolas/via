@@ -61,3 +61,33 @@ private extension ChatStreamEvent {
         return text == expected
     }
 }
+
+@MainActor
+struct ChatFeatureModelTests {
+    @Test
+    func cancellingAStreamReturnsTheModelToIdle() async throws {
+        let model = ChatFeatureModel(
+            client: BlockingChatClient(),
+            locationProvider: DemoLocationProvider()
+        )
+
+        model.send("Comment aller à Châtelet ?")
+        #expect(model.isStreaming)
+
+        model.cancel()
+        try await Task.sleep(for: .milliseconds(20))
+
+        #expect(!model.isStreaming)
+        #expect(model.status == .idle)
+    }
+}
+
+private struct BlockingChatClient: ChatClient {
+    func stream(
+        messages: [ChatMessage],
+        location: GeoCoordinate?,
+        onEvent: @escaping @Sendable (ChatStreamEvent) async -> Void
+    ) async throws {
+        try await Task.sleep(for: .seconds(60))
+    }
+}

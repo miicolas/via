@@ -130,6 +130,11 @@ arrière-plan. Les coordonnées déjà reçues restent disponibles pour afficher
 un état cohérent, mais aucun suivi continu n'est maintenu quand l'utilisateur
 n'utilise plus la carte.
 
+La fermeture de la sheet de chat annule également le stream en cours. La
+session réseau ne reste donc pas attachée à une vue disparue, que l'utilisateur
+ferme la sheet avec le bouton d'arrêt, le geste système ou l'ouverture du
+détail d'itinéraire.
+
 ## Critères de cutover
 
 Le remplacement du bundle public est autorisé seulement lorsque tous les

@@ -76,5 +76,8 @@ struct ChatScreen: View {
             .navigationTitle("Via")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .onDisappear {
+            model.cancel()
+        }
     }
 }
