@@ -2,6 +2,7 @@ import Foundation
 
 enum RecentSearchStorage {
     static let key = "via.recent-searches.v1"
+    static let expoMigrationKey = "via.recent-searches.expo-imported.v1"
     static let version = 1
     static let maximumCount = 5
 }

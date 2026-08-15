@@ -164,6 +164,74 @@ struct RecentSearchTests {
     }
 }
 
+struct RecentSearchMigrationTests {
+    @Test
+    func importsExpoEntriesOnceIntoTheNativeStore() {
+        let suiteName = "via.tests.recent-search-migration.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let entry = SearchResult.station(
+            StationSearchResult(
+                id: "station-1",
+                name: "Châtelet",
+                coordinate: GeoCoordinate(latitude: 48.8584, longitude: 2.3470),
+                routes: [],
+                distanceMeters: 42
+            )
+        )
+        let current = InMemoryRecentSearchStore()
+        let legacy = StubLegacyRecentSearchImporter(entries: [entry])
+        let store = MigratingRecentSearchStore(current: current, legacy: legacy, defaults: defaults)
+
+        #expect(store.load() == [entry])
+        #expect(store.load() == [entry])
+        #expect(current.entries == [entry])
+        #expect(legacy.loadCount == 1)
+        #expect(defaults.bool(forKey: RecentSearchStorage.expoMigrationKey))
+    }
+
+    @Test
+    func preservesNativeEntriesAndSkipsLegacyImport() {
+        let suiteName = "via.tests.recent-search-migration.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let entry = SearchResult.station(
+            StationSearchResult(
+                id: "station-native",
+                name: "République",
+                coordinate: GeoCoordinate(latitude: 48.8675, longitude: 2.3630),
+                routes: [],
+                distanceMeters: nil
+            )
+        )
+        let legacy = StubLegacyRecentSearchImporter(entries: [])
+        let store = MigratingRecentSearchStore(
+            current: InMemoryRecentSearchStore(entries: [entry]),
+            legacy: legacy,
+            defaults: defaults
+        )
+
+        #expect(store.load() == [entry])
+        #expect(legacy.loadCount == 0)
+    }
+}
+
+private final class StubLegacyRecentSearchImporter: LegacyRecentSearchImporting {
+    let entries: [SearchResult]
+    private(set) var loadCount = 0
+
+    init(entries: [SearchResult]) {
+        self.entries = entries
+    }
+
+    func load() -> [SearchResult] {
+        loadCount += 1
+        return entries
+    }
+}
+
 struct NaturalJourneyModelTests {
     @MainActor
     @Test

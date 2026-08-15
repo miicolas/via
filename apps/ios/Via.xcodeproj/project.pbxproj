@@ -92,6 +92,8 @@
 		A10000000000000000000053 /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000052 /* SearchModel.swift */; };
 		A10000000000000000000054 /* DeparturesModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000053 /* DeparturesModel.swift */; };
 		A10000000000000000000055 /* JourneyModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000054 /* JourneyModel.swift */; };
+		A10000000000000000000056 /* RecentSearchMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000055 /* RecentSearchMigration.swift */; };
+		A10000000000000000000058 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B10000000000000000000057 /* libsqlite3.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -199,6 +201,8 @@
 		B10000000000000000000052 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
 		B10000000000000000000053 /* DeparturesModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeparturesModel.swift; sourceTree = "<group>"; };
 		B10000000000000000000054 /* JourneyModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JourneyModel.swift; sourceTree = "<group>"; };
+		B10000000000000000000055 /* RecentSearchMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchMigration.swift; sourceTree = "<group>"; };
+		B10000000000000000000057 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = wrapper.library; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -207,6 +211,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000036 /* ViaAPIContract in Frameworks */,
+				A10000000000000000000058 /* libsqlite3.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -282,6 +287,7 @@
 				B1000000000000000000002B /* ChatClient.swift */,
 				B10000000000000000000037 /* ViaLogger.swift */,
 				B1000000000000000000004D /* RecentSearchStore.swift */,
+				B10000000000000000000055 /* RecentSearchMigration.swift */,
 				B1000000000000000000004F /* ViaClock.swift */,
 			);
 			path = Infrastructure;
@@ -628,6 +634,7 @@
 				A10000000000000000000053 /* SearchModel.swift in Sources */,
 				A10000000000000000000054 /* DeparturesModel.swift in Sources */,
 				A10000000000000000000055 /* JourneyModel.swift in Sources */,
+				A10000000000000000000056 /* RecentSearchMigration.swift in Sources */,
 				A1000000000000000000004D /* RecentSearches.swift in Sources */,
 				A1000000000000000000000C /* TransitAPI.swift in Sources */,
 				A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */,

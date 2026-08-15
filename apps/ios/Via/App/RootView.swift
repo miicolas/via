@@ -18,6 +18,7 @@ struct RootView: View {
             initialValue: MapFeatureModel(
                 transitAPI: dependencies.transitAPI,
                 locationProvider: dependencies.locationProvider,
+                recentSearchStore: dependencies.recentSearchStore,
                 networkModel: networkModel
             )
         )

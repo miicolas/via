@@ -5,6 +5,7 @@ struct AppDependencies {
     let transitAPI: any TransitAPI
     let locationProvider: any LocationProviding
     let chatClient: any ChatClient
+    let recentSearchStore: any RecentSearchStore
     let authenticationClient: any AuthenticationClient
     let navigoClient: any NavigoClient
     let featureFlags: NativeFeatureFlags
@@ -44,6 +45,7 @@ struct AppDependencies {
                 ? DemoLocationProvider()
                 : LocationClient(),
             chatClient: chatClient,
+            recentSearchStore: MigratingRecentSearchStore(),
             authenticationClient: UnavailableAuthenticationClient(),
             navigoClient: UnavailableNavigoClient(),
             featureFlags: featureFlags

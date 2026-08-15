@@ -46,10 +46,16 @@ Navigo ne doit être stocké ou envoyé par le client natif.
 
 Les recherches récentes natives sont stockées sous la clé versionnée
 `via.recent-searches.v1` avec `UserDefaults`, dédupliquées et limitées à cinq
-entrées. L’import du stockage SQLite `expo-sqlite/localStorage` n’est pas
-encore activé dans le nouveau bundle : avant le cutover App Store, il faudra
-soit ajouter un importeur idempotent testé sur un conteneur Expo réel, soit
-valider explicitement la remise à zéro de cette commodité.
+entrées. Lors du premier lancement du bundle de production `dev.via.app`,
+`MigratingRecentSearchStore` lit en lecture seule l’ancienne base
+`Documents/SQLite/ExpoSQLiteStorage` d’Expo, selon le stockage SQLite documenté
+par [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/sqlite/), et importe la même valeur
+`via.recent-searches.v1`, puis pose le marqueur
+`via.recent-searches.expo-imported.v1`. La migration est idempotente, ignore une
+base absente ou invalide et ne remplace jamais des recherches déjà présentes
+dans le stockage natif. Le bundle interne `dev.via.app.native` ne partage pas ce
+conteneur : la validation finale doit donc inclure une mise à jour réelle du
+bundle App Store, pas seulement une installation côte à côte.
 
 ## Bascule locale et garde-fous
 
