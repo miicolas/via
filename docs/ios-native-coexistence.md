@@ -141,6 +141,10 @@ de police ; les appels `Font.custom(_:size:relativeTo:)` conservent la mise à
 l'échelle Dynamic Type. Les fichiers de police et leurs licences OFL sont
 versionnés dans `apps/ios/Via/Fonts`.
 
+Le handle de la sheet expose aussi une valeur et une action ajustable à
+VoiceOver : les gestes d'incrémentation et de décrémentation changent la
+hauteur du panneau via la même transition que le drag tactile.
+
 ## Critères de cutover
 
 Le remplacement du bundle public est autorisé seulement lorsque tous les

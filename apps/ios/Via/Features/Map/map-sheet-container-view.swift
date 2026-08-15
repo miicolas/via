@@ -13,6 +13,10 @@ struct MapSheetContainerView: View {
                 .fill(ViaTheme.muted.opacity(0.45))
                 .frame(width: 36, height: 5)
                 .accessibilityLabel("Ajuster la hauteur du panneau")
+                .accessibilityValue(detentLabel)
+                .accessibilityAdjustableAction { direction in
+                    onDragEnded(direction == .increment ? -40 : 40)
+                }
                 .gesture(
                     DragGesture(minimumDistance: 20)
                         .onEnded { value in
@@ -32,5 +36,13 @@ struct MapSheetContainerView: View {
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .padding(.horizontal, 8)
+    }
+
+    private var detentLabel: String {
+        switch model.flow.overviewDetentIndex {
+        case 0: "Réduit"
+        case 1: "Intermédiaire"
+        default: "Développé"
+        }
     }
 }
