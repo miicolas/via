@@ -57,6 +57,15 @@ dans le stockage natif. Le bundle interne `dev.via.app.native` ne partage pas ce
 conteneur : la validation finale doit donc inclure une mise à jour réelle du
 bundle App Store, pas seulement une installation côte à côte.
 
+L'identité anonyme `via.anonymous-client-id` suit la même règle de continuité.
+`ClientIdentityStore` lit d'abord la clé native du service `dev.via.app` ; si
+elle n'existe pas encore, il relit les formes utilisées par Expo SecureStore
+(`app:no-auth`, `app:auth`, puis `app`) avec le nom de clé encodé dans les
+attributs Keychain `account` et `generic`, avant de recopier la valeur dans le
+service natif. L'ancienne entrée Expo n'est pas supprimée : un retour arrière
+reste possible. Cette lecture ne peut être validée que lors d'une mise à jour
+du bundle de production `dev.via.app`, pas avec `dev.via.app.native`.
+
 ## Bascule locale et garde-fous
 
 Les overrides ci-dessous sont volontairement disponibles uniquement dans la

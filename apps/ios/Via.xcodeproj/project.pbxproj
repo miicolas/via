@@ -95,6 +95,7 @@
 		A10000000000000000000056 /* RecentSearchMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000055 /* RecentSearchMigration.swift */; };
 		A10000000000000000000058 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = B10000000000000000000057 /* libsqlite3.tbd */; };
 		A10000000000000000000059 /* PerformanceMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000058 /* PerformanceMetrics.swift */; };
+		A1000000000000000000005A /* ClientIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000059 /* ClientIdentityTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -205,6 +206,7 @@
 		B10000000000000000000055 /* RecentSearchMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchMigration.swift; sourceTree = "<group>"; };
 		B10000000000000000000057 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = wrapper.library; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		B10000000000000000000058 /* PerformanceMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMetrics.swift; sourceTree = "<group>"; };
+		B10000000000000000000059 /* ClientIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientIdentityTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -425,6 +427,7 @@
 				B10000000000000000000035 /* ChatStreamParserTests.swift */,
 				B10000000000000000000038 /* NativeRuntimeConfigurationTests.swift */,
 				B1000000000000000000003C /* LinePresentationTests.swift */,
+				B10000000000000000000059 /* ClientIdentityTests.swift */,
 			);
 			path = ViaTests;
 			sourceTree = "<group>";
@@ -709,6 +712,7 @@
 				A10000000000000000000035 /* ChatStreamParserTests.swift in Sources */,
 				A10000000000000000000039 /* NativeRuntimeConfigurationTests.swift in Sources */,
 				A1000000000000000000003D /* LinePresentationTests.swift in Sources */,
+				A1000000000000000000005A /* ClientIdentityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
