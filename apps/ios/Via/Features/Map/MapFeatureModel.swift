@@ -42,6 +42,7 @@ final class MapFeatureModel {
 
     let transitAPI: any TransitAPI
     let locationProvider: any LocationProviding
+    let recentSearchStore: any RecentSearchStore
 
     var flow = MapFlowState()
     var railMap: RailMap?
@@ -50,6 +51,7 @@ final class MapFeatureModel {
     var departuresState: DeparturesState = .idle
     var journeyState: JourneyState = .idle
     var naturalJourneyState: NaturalJourneyState = .idle
+    var recentSearches: [SearchResult]
     var locationState: LocationState = .notDetermined
     var cameraTarget: GeoCoordinate?
     var searchQuery = ""
@@ -67,9 +69,15 @@ final class MapFeatureModel {
     private var naturalJourneyRequest: NaturalJourneyRequest?
     private var pendingStationID: String?
 
-    init(transitAPI: any TransitAPI, locationProvider: any LocationProviding) {
+    init(
+        transitAPI: any TransitAPI,
+        locationProvider: any LocationProviding,
+        recentSearchStore: any RecentSearchStore = UserDefaultsRecentSearchStore()
+    ) {
         self.transitAPI = transitAPI
         self.locationProvider = locationProvider
+        self.recentSearchStore = recentSearchStore
+        recentSearches = recentSearchStore.load()
         locationProvider.onUpdate = { [weak self] update in
             self?.handleLocationUpdate(update)
         }
@@ -235,6 +243,7 @@ final class MapFeatureModel {
     }
 
     func selectSearchResult(_ result: SearchResult) {
+        rememberRecentSearch(result)
         guard case .station(let stationResult) = result else { return }
         let station = NetworkStation(
             id: stationResult.id,
@@ -243,6 +252,17 @@ final class MapFeatureModel {
             routeIds: stationResult.routes.map(\.id)
         )
         selectStation(station)
+    }
+
+    func removeRecentSearch(_ result: SearchResult) {
+        let key = recentSearchKey(result)
+        recentSearches.removeAll { recentSearchKey($0) == key }
+        recentSearchStore.save(recentSearches)
+    }
+
+    func clearRecentSearches() {
+        recentSearches = []
+        recentSearchStore.save([])
     }
 
     func selectStation(_ station: NetworkStation) {
@@ -484,6 +504,7 @@ final class MapFeatureModel {
     private func applyNaturalJourneyResponse(_ response: NaturalJourneyResponse) {
         switch response {
         case .ready(let ready):
+            rememberRecentSearch(ready.interpretation.destinationResult)
             let request = JourneyRequest(
                 origin: currentCoordinate,
                 destination: ready.interpretation.destination
@@ -505,6 +526,11 @@ final class MapFeatureModel {
         naturalJourneyTask = nil
         naturalJourneyRequest = nil
         naturalJourneyState = .idle
+    }
+
+    private func rememberRecentSearch(_ result: SearchResult) {
+        recentSearches = rememberRecentSearches(recentSearches, result: result)
+        recentSearchStore.save(recentSearches)
     }
 
     private func refreshLocationState() {

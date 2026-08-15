@@ -83,6 +83,8 @@
 		A1000000000000000000004A /* natural-journey-failure-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000049 /* natural-journey-failure-view.swift */; };
 		A1000000000000000000004B /* natural-journey-screen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004A /* natural-journey-screen.swift */; };
 		A1000000000000000000004C /* apple-maps-directions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004B /* apple-maps-directions.swift */; };
+		A1000000000000000000004D /* RecentSearches.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004C /* RecentSearches.swift */; };
+		A1000000000000000000004E /* RecentSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004D /* RecentSearchStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -181,6 +183,8 @@
 		B10000000000000000000049 /* natural-journey-failure-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-failure-view.swift; sourceTree = "<group>"; };
 		B1000000000000000000004A /* natural-journey-screen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = natural-journey-screen.swift; sourceTree = "<group>"; };
 		B1000000000000000000004B /* apple-maps-directions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = apple-maps-directions.swift; sourceTree = "<group>"; };
+		B1000000000000000000004C /* RecentSearches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearches.swift; sourceTree = "<group>"; };
+		B1000000000000000000004D /* RecentSearchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -247,6 +251,7 @@
 				B1000000000000000000001F /* JourneyModels.swift */,
 				B10000000000000000000020 /* JourneyPresentation.swift */,
 				B10000000000000000000043 /* NaturalJourneyModels.swift */,
+				B1000000000000000000004C /* RecentSearches.swift */,
 			);
 			path = Domain;
 			sourceTree = "<group>";
@@ -262,6 +267,7 @@
 				B10000000000000000000041 /* NavigoClient.swift */,
 				B1000000000000000000002B /* ChatClient.swift */,
 				B10000000000000000000037 /* ViaLogger.swift */,
+				B1000000000000000000004D /* RecentSearchStore.swift */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -588,9 +594,11 @@
 				A1000000000000000000001F /* JourneyModels.swift in Sources */,
 				A10000000000000000000020 /* JourneyPresentation.swift in Sources */,
 				A10000000000000000000044 /* NaturalJourneyModels.swift in Sources */,
+				A1000000000000000000004D /* RecentSearches.swift in Sources */,
 				A1000000000000000000000C /* TransitAPI.swift in Sources */,
 				A1000000000000000000000D /* OpenAPITransitAPI.swift in Sources */,
 				A1000000000000000000000E /* ClientIdentityStore.swift in Sources */,
+				A1000000000000000000004E /* RecentSearchStore.swift in Sources */,
 				A1000000000000000000000F /* LocationClient.swift in Sources */,
 				A10000000000000000000041 /* AuthenticationClient.swift in Sources */,
 				A10000000000000000000042 /* NavigoClient.swift in Sources */,

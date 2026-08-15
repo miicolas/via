@@ -108,6 +108,62 @@ struct AppleMapsDirectionsTests {
     }
 }
 
+struct RecentSearchTests {
+    @Test
+    func remembersWhitelistedEntriesMostRecentlyUsedFirst() throws {
+        let first = SearchResult.station(
+            StationSearchResult(
+                id: "station-1",
+                name: "Châtelet",
+                coordinate: GeoCoordinate(latitude: 48.8584, longitude: 2.3470),
+                routes: [],
+                distanceMeters: 42
+            )
+        )
+        let second = SearchResult.address(
+            AddressSearchResult(
+                id: "address-1",
+                name: "Louvre",
+                context: "Paris",
+                coordinate: GeoCoordinate(latitude: 48.8607, longitude: 2.3376),
+                distanceMeters: 128
+            )
+        )
+
+        let entries = rememberRecentSearches(
+            rememberRecentSearches([], result: first),
+            result: second
+        )
+        let refreshed = rememberRecentSearches(entries, result: first)
+
+        #expect(refreshed.map(recentSearchKey) == ["station:station-1", "address:address-1"])
+        #expect(refreshed.first?.coordinate == first.coordinate)
+        if case .station(let station) = refreshed.first {
+            #expect(station.distanceMeters == nil)
+        } else {
+            Issue.record("Expected a station snapshot")
+        }
+    }
+
+    @Test
+    func versionedStorageRoundTripsAndRejectsUnknownVersions() throws {
+        let entry = SearchResult.station(
+            StationSearchResult(
+                id: "station-1",
+                name: "Châtelet",
+                coordinate: GeoCoordinate(latitude: 48.8584, longitude: 2.3470),
+                routes: [],
+                distanceMeters: nil
+            )
+        )
+        let data = try #require(serializeRecentSearches([entry]))
+
+        #expect(parseRecentSearches(data) == [entry])
+        #expect(parseRecentSearches(Data(#"{"version":99,"entries":[]}"#.utf8)).isEmpty)
+        #expect(parseRecentSearches(Data("not-json".utf8)).isEmpty)
+    }
+}
+
 struct NaturalJourneyModelTests {
     @Test
     func demoAdapterResolvesARecognizedDestination() async throws {
