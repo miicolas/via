@@ -43,6 +43,7 @@ final class MapFeatureModel {
     let transitAPI: any TransitAPI
     let locationProvider: any LocationProviding
     let recentSearchStore: any RecentSearchStore
+    let clock: any ViaClock
 
     var flow = MapFlowState()
     var railMap: RailMap?
@@ -72,11 +73,13 @@ final class MapFeatureModel {
     init(
         transitAPI: any TransitAPI,
         locationProvider: any LocationProviding,
-        recentSearchStore: any RecentSearchStore = UserDefaultsRecentSearchStore()
+        recentSearchStore: any RecentSearchStore = UserDefaultsRecentSearchStore(),
+        clock: any ViaClock = SystemViaClock()
     ) {
         self.transitAPI = transitAPI
         self.locationProvider = locationProvider
         self.recentSearchStore = recentSearchStore
+        self.clock = clock
         recentSearches = recentSearchStore.load()
         locationProvider.onUpdate = { [weak self] update in
             self?.handleLocationUpdate(update)
@@ -222,9 +225,10 @@ final class MapFeatureModel {
         let previous = searchState.results
         searchState = .loading(previous: previous)
         searchTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                try await Task.sleep(nanoseconds: 600_000_000)
-                guard let self, !Task.isCancelled else { return }
+                try await self.clock.sleep(for: .milliseconds(600))
+                guard !Task.isCancelled else { return }
                 let response = try await transitAPI.search(query: trimmed, near: locationProvider.coordinate)
                 guard !Task.isCancelled, searchQuery.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else {
                     return
@@ -236,7 +240,7 @@ final class MapFeatureModel {
             } catch is CancellationError {
                 return
             } catch {
-                guard let self, !Task.isCancelled else { return }
+                guard !Task.isCancelled else { return }
                 self.searchState = .failed(previous: previous)
             }
         }
@@ -426,10 +430,11 @@ final class MapFeatureModel {
         guard region.longitudeDelta <= 0.024 else { return }
         viewportTask?.cancel()
         viewportTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                try await Task.sleep(nanoseconds: 250_000_000)
-                guard let self, !Task.isCancelled else { return }
-                await loadTiles(keys: ViewportTiles.keys(for: region))
+                try await self.clock.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled else { return }
+                await self.loadTiles(keys: ViewportTiles.keys(for: region))
             } catch is CancellationError {
                 return
             } catch {
@@ -595,7 +600,7 @@ final class MapFeatureModel {
                 }
 
                 do {
-                    try await Task.sleep(nanoseconds: 60_000_000_000)
+                    try await clock.sleep(for: .seconds(60))
                 } catch {
                     return
                 }
