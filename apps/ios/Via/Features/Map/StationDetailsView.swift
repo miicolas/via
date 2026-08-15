@@ -13,7 +13,7 @@ struct StationDetailsView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(station.name)
-                        .font(.title2.weight(.bold))
+                        .font(ViaFont.title2)
                         .foregroundStyle(ViaTheme.ink)
                         .accessibilityIdentifier("via.stationDetail.\(station.id)")
                     HStack(spacing: 6) {
@@ -35,7 +35,7 @@ struct StationDetailsView: View {
             Divider()
 
             Text("Prochains passages")
-                .font(.headline)
+                .font(ViaFont.headline)
                 .foregroundStyle(ViaTheme.ink)
 
             DepartureBoardView(state: departuresState)

@@ -12,7 +12,7 @@ struct SearchResultRowView: View {
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(result.name)
-                        .font(.body.weight(.semibold))
+                        .font(ViaFont.bodySemibold)
                         .foregroundStyle(ViaTheme.ink)
 
                     switch result {
@@ -25,13 +25,13 @@ struct SearchResultRowView: View {
                             }
                             if let distanceMeters = station.distanceMeters {
                                 Text(distanceMeters.formatted(.number.precision(.fractionLength(0))) + " m")
-                                    .font(.caption)
+                                    .font(ViaFont.caption)
                                     .foregroundStyle(ViaTheme.muted)
                             }
                         }
                     case .address(let address):
                         Text(address.context)
-                            .font(.caption)
+                            .font(ViaFont.caption)
                             .foregroundStyle(ViaTheme.muted)
                     }
                 }

@@ -16,7 +16,7 @@ struct StationRowView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(station.name)
-                        .font(.body.weight(.semibold))
+                        .font(ViaFont.bodySemibold)
                         .foregroundStyle(ViaTheme.ink)
 
                     HStack(spacing: 5) {
@@ -25,9 +25,9 @@ struct StationRowView: View {
                                 .scaleEffect(0.72)
                                 .frame(width: 24, height: 24)
                         }
-                        if let distanceMeters {
-                            Text(distanceMeters.formatted(.number.precision(.fractionLength(0))) + " m")
-                                .font(.caption)
+                            if let distanceMeters {
+                                Text(distanceMeters.formatted(.number.precision(.fractionLength(0))) + " m")
+                                .font(ViaFont.caption)
                                 .foregroundStyle(ViaTheme.muted)
                         }
                     }

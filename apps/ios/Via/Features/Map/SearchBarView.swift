@@ -11,7 +11,7 @@ struct SearchBarView: View {
                 .foregroundStyle(ViaTheme.muted)
 
             TextField("Rechercher une station ou une adresse", text: $query)
-                .font(.body)
+                .font(ViaFont.body)
                 .focused($isFocused)
                 .accessibilityIdentifier("via.searchField")
                 .textInputAutocapitalization(.words)

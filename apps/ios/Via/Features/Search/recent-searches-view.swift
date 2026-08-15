@@ -9,11 +9,11 @@ struct RecentSearchesView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Recherches récentes")
-                    .font(.headline)
+                    .font(ViaFont.headline)
                     .foregroundStyle(ViaTheme.ink)
                 Spacer()
                 Text("5 max.")
-                    .font(.caption)
+                    .font(ViaFont.caption)
                     .foregroundStyle(ViaTheme.muted)
             }
 

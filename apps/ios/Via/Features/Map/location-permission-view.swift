@@ -30,11 +30,11 @@ struct LocationPermissionView: View {
             )
         case .manual:
             Label("Mode manuel · recherchez une station ou une adresse", systemImage: "magnifyingglass")
-                .font(.subheadline.weight(.medium))
+                .font(ViaFont.subheadlineMedium)
                 .foregroundStyle(ViaTheme.body)
         case .loading:
             Label("Recherche de votre position…", systemImage: "location.circle")
-                .font(.subheadline.weight(.medium))
+                .font(ViaFont.subheadlineMedium)
                 .foregroundStyle(ViaTheme.body)
         case .ready:
             EmptyView()

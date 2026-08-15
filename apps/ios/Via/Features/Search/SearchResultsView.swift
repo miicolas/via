@@ -25,7 +25,7 @@ struct SearchResultsView: View {
                 resultList(results)
                 if banUnavailable {
                     Label("Les adresses sont momentanément indisponibles.", systemImage: "info.circle")
-                        .font(.caption)
+                        .font(ViaFont.caption)
                         .foregroundStyle(ViaTheme.muted)
                 }
 
@@ -48,7 +48,7 @@ struct SearchResultsView: View {
     private func resultList(_ results: [SearchResult]) -> some View {
         if results.isEmpty {
             Text("Aucun résultat")
-                .font(.subheadline)
+                .font(ViaFont.subheadline)
                 .foregroundStyle(ViaTheme.muted)
         } else {
             ForEach(results) { result in

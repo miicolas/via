@@ -75,16 +75,16 @@ struct MapSheetView: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Où allez-vous ?")
-                        .font(.title3.weight(.bold))
+                        .font(ViaFont.title3)
                         .foregroundStyle(ViaTheme.ink)
                     Text("Paris et Île-de-France")
-                        .font(.subheadline)
+                        .font(ViaFont.subheadline)
                         .foregroundStyle(ViaTheme.muted)
                 }
                 Spacer()
                 if case .ready = model.networkModel.state {
                     Label("En direct", systemImage: "circle.fill")
-                        .font(.caption.weight(.semibold))
+                        .font(ViaFont.captionSemibold)
                         .foregroundStyle(ViaTheme.primary)
                 }
             }
@@ -124,7 +124,7 @@ struct MapSheetView: View {
     private func linePicker(model: MapFeatureModel) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Lignes affichées")
-                .font(.headline)
+                .font(ViaFont.headline)
                 .foregroundStyle(ViaTheme.ink)
             ScrollView(.horizontal) {
                 HStack(spacing: 10) {
@@ -149,7 +149,7 @@ struct MapSheetView: View {
     private func nearbyStations(model: MapFeatureModel) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Stations à proximité")
-                .font(.headline)
+                .font(ViaFont.headline)
                 .foregroundStyle(ViaTheme.ink)
 
             ForEach(model.nearbyStations) { station in

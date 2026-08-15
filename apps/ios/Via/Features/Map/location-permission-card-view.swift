@@ -12,10 +12,10 @@ struct LocationPermissionCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: "location")
-                .font(.headline)
+                .font(ViaFont.headline)
                 .foregroundStyle(ViaTheme.ink)
             Text(message)
-                .font(.subheadline)
+                .font(ViaFont.subheadline)
                 .foregroundStyle(ViaTheme.body)
             HStack(spacing: 10) {
                 ViaButton(primaryTitle, systemImage: primarySystemImage, action: primaryAction)
