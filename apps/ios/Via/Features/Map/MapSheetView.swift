@@ -97,6 +97,13 @@ struct MapSheetView: View {
                     ViaButton("Réessayer", systemImage: "arrow.clockwise", action: model.loadNetwork)
                 }
             case .ready:
+                if !model.recentSearches.isEmpty {
+                    RecentSearchesView(
+                        entries: model.recentSearches,
+                        onSelect: model.selectSearchResult,
+                        onRemove: model.removeRecentSearch
+                    )
+                }
                 if featureFlags.naturalJourneysEnabled {
                     NaturalJourneyComposerView(onSubmit: model.submitNaturalJourney)
                 }

@@ -85,6 +85,7 @@
 		A1000000000000000000004C /* apple-maps-directions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004B /* apple-maps-directions.swift */; };
 		A1000000000000000000004D /* RecentSearches.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004C /* RecentSearches.swift */; };
 		A1000000000000000000004E /* RecentSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004D /* RecentSearchStore.swift */; };
+		A1000000000000000000004F /* recent-searches-view.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004E /* recent-searches-view.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -185,6 +186,7 @@
 		B1000000000000000000004B /* apple-maps-directions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = apple-maps-directions.swift; sourceTree = "<group>"; };
 		B1000000000000000000004C /* RecentSearches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearches.swift; sourceTree = "<group>"; };
 		B1000000000000000000004D /* RecentSearchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchStore.swift; sourceTree = "<group>"; };
+		B1000000000000000000004E /* recent-searches-view.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = recent-searches-view.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -295,6 +297,7 @@
 			children = (
 				B10000000000000000000014 /* SearchResultsView.swift */,
 				B10000000000000000000044 /* search-result-row-view.swift */,
+				B1000000000000000000004E /* recent-searches-view.swift */,
 			);
 			path = Search;
 			sourceTree = "<group>";
@@ -641,6 +644,7 @@
 				A10000000000000000000040 /* location-permission-card-view.swift in Sources */,
 				A10000000000000000000043 /* unavailable-feature-view.swift in Sources */,
 				A10000000000000000000045 /* search-result-row-view.swift in Sources */,
+				A1000000000000000000004F /* recent-searches-view.swift in Sources */,
 				A10000000000000000000046 /* natural-journey-composer-view.swift in Sources */,
 				A10000000000000000000047 /* natural-journey-header-view.swift in Sources */,
 				A10000000000000000000048 /* natural-journey-clarification-view.swift in Sources */,
