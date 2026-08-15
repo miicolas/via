@@ -6,17 +6,17 @@ struct NaturalJourneyAnswerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Trajet compris", systemImage: "checkmark.circle.fill")
-                .font(.headline)
+                .font(ViaFont.headline)
                 .foregroundStyle(ViaTheme.primary)
             Text(response.answer)
-                .font(.body)
+                .font(ViaFont.body)
                 .foregroundStyle(ViaTheme.body)
             Text("Depuis \(response.interpretation.originLabel) vers \(response.interpretation.destination.name)")
-                .font(.subheadline.weight(.semibold))
+                .font(ViaFont.subheadlineSemibold)
                 .foregroundStyle(ViaTheme.ink)
             if let preferenceNotice = response.preferenceNotice {
                 Text(preferenceNotice)
-                    .font(.caption)
+                    .font(ViaFont.caption)
                     .foregroundStyle(ViaTheme.muted)
             }
         }

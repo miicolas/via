@@ -30,11 +30,11 @@ struct JourneyResultsView: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Itinéraire")
-                    .font(.title3.weight(.bold))
+                    .font(ViaFont.title3)
                     .foregroundStyle(ViaTheme.ink)
                 if let destination = state.request?.destination {
                     Text("Vers \(destination.name)")
-                        .font(.subheadline)
+                        .font(ViaFont.subheadline)
                         .foregroundStyle(ViaTheme.muted)
                 }
             }

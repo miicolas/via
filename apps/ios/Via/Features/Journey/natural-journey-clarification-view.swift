@@ -7,13 +7,13 @@ struct NaturalJourneyClarificationView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             Label("Une précision", systemImage: "questionmark.circle")
-                .font(.headline)
+                .font(ViaFont.headline)
                 .foregroundStyle(ViaTheme.primary)
 
             ForEach(clarification.fields) { field in
                 VStack(alignment: .leading, spacing: 10) {
                     Text(field.question)
-                        .font(.headline)
+                        .font(ViaFont.headline)
                         .foregroundStyle(ViaTheme.ink)
 
                     if field.target != .time {
@@ -40,7 +40,7 @@ struct NaturalJourneyClarificationView: View {
                         )
                     } else if field.candidates.isEmpty {
                         Text("Précisez ce lieu dans la recherche.")
-                            .font(.subheadline)
+                            .font(ViaFont.subheadline)
                             .foregroundStyle(ViaTheme.muted)
                     }
                 }

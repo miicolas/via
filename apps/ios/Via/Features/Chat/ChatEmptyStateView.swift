@@ -10,11 +10,11 @@ struct ChatEmptyStateView: View {
                 .foregroundStyle(ViaTheme.primary)
 
             Text("Parlez à Via")
-                .font(.title2.weight(.bold))
+                .font(ViaFont.title2)
                 .foregroundStyle(ViaTheme.ink)
 
             Text("Demandez un itinéraire en langage naturel, avec votre position comme point de départ.")
-                .font(.subheadline)
+                .font(ViaFont.subheadline)
                 .foregroundStyle(ViaTheme.body)
 
             ViaButton("Aller à Châtelet", systemImage: "arrow.triangle.turn.up.right.diamond") {

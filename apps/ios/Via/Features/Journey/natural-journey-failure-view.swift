@@ -8,10 +8,10 @@ struct NaturalJourneyFailureView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Le trajet naturel est indisponible", systemImage: "wifi.exclamationmark")
-                .font(.headline)
+                .font(ViaFont.headline)
                 .foregroundStyle(ViaTheme.critical)
             Text(failure.message)
-                .font(.subheadline)
+                .font(ViaFont.subheadline)
                 .foregroundStyle(ViaTheme.body)
             HStack(spacing: 10) {
                 ViaButton("Réessayer", systemImage: "arrow.clockwise", action: onRetry)

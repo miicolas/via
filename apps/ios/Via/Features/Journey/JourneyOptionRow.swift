@@ -10,11 +10,11 @@ struct JourneyOptionRow: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(journeyMinutes(journey.durationSeconds)) min")
-                        .font(.title3.weight(.bold).monospacedDigit())
+                        .font(ViaFont.title3Digit)
                         .foregroundStyle(ViaTheme.ink)
                     Spacer()
                     Text(journeyTimeLabel(journey.arrivalAt) ?? "")
-                        .font(.subheadline.monospacedDigit())
+                        .font(ViaFont.subheadlineDigit)
                         .foregroundStyle(ViaTheme.body)
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.bold))
@@ -30,11 +30,11 @@ struct JourneyOptionRow: View {
 
                 HStack(spacing: 8) {
                     Text(isRecommended ? "Recommandé" : qualifierLabel(journey.qualifier))
-                        .font(.caption.weight(.semibold))
+                        .font(ViaFont.captionSemibold)
                         .foregroundStyle(isRecommended ? ViaTheme.primary : ViaTheme.muted)
                     if journey.transferCount > 0 {
                         Text("· \(journey.transferCount) correspondance\(journey.transferCount > 1 ? "s" : "")")
-                            .font(.caption)
+                            .font(ViaFont.caption)
                             .foregroundStyle(ViaTheme.muted)
                     }
                 }

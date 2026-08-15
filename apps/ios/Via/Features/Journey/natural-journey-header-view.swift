@@ -9,10 +9,10 @@ struct NaturalJourneyHeaderView: View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.title3.weight(.bold))
+                    .font(ViaFont.title3)
                     .foregroundStyle(ViaTheme.ink)
                 Text(subtitle)
-                    .font(.subheadline)
+                    .font(ViaFont.subheadline)
                     .foregroundStyle(ViaTheme.muted)
             }
             Spacer()

@@ -8,21 +8,21 @@ struct ChatItineraryCardView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label("Itinéraire trouvé", systemImage: "map")
-                    .font(.headline)
+                    .font(ViaFont.headline)
                     .foregroundStyle(ViaTheme.ink)
                 Spacer()
                 Text(itinerary.destination.name)
-                    .font(.caption.weight(.semibold))
+                    .font(ViaFont.captionSemibold)
                     .foregroundStyle(ViaTheme.primary)
             }
 
             if let journey = itinerary.response.journeys.first {
                 HStack(spacing: 14) {
                     Text(journeyMinutes(journey))
-                        .font(.title3.weight(.bold))
+                        .font(ViaFont.title3)
                         .foregroundStyle(ViaTheme.ink)
                     Text(journey.transferCount == 0 ? "direct" : "\(journey.transferCount) correspondance(s)")
-                        .font(.subheadline)
+                        .font(ViaFont.subheadline)
                         .foregroundStyle(ViaTheme.body)
                 }
             }

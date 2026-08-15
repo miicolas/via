@@ -23,19 +23,19 @@ struct JourneySectionRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title)
-                        .font(.subheadline.weight(.semibold))
+                        .font(ViaFont.subheadlineSemibold)
                         .foregroundStyle(ViaTheme.ink)
                     Spacer()
                     Text("\(journeyMinutes(section.durationSeconds)) min")
-                        .font(.caption.monospacedDigit())
+                        .font(ViaFont.caption.monospacedDigit())
                         .foregroundStyle(ViaTheme.muted)
                 }
                 Text("\(section.from.name) → \(section.to.name)")
-                    .font(.caption)
+                    .font(ViaFont.caption)
                     .foregroundStyle(ViaTheme.body)
                 if let direction = section.direction {
                     Text(direction)
-                        .font(.caption)
+                        .font(ViaFont.caption)
                         .foregroundStyle(ViaTheme.muted)
                 }
             }

@@ -38,14 +38,14 @@ struct ChatScreen: View {
 
                         if model.isStreaming {
                             ProgressView("Via réfléchit…")
-                                .font(.caption)
+                                .font(ViaFont.caption)
                                 .foregroundStyle(ViaTheme.muted)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
                         if let errorMessage = model.errorMessage {
                             Text(errorMessage)
-                                .font(.footnote)
+                                .font(ViaFont.footnote)
                                 .foregroundStyle(ViaTheme.critical)
                         }
                     }

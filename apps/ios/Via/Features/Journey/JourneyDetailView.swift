@@ -20,10 +20,10 @@ struct JourneyDetailView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Détail du trajet")
-                        .font(.headline)
+                        .font(ViaFont.headline)
                         .foregroundStyle(ViaTheme.ink)
                     Text("Vers \(destination.name)")
-                        .font(.caption)
+                        .font(ViaFont.caption)
                         .foregroundStyle(ViaTheme.muted)
                 }
                 Spacer()
@@ -38,10 +38,10 @@ struct JourneyDetailView: View {
 
             HStack(alignment: .firstTextBaseline) {
                 Text("\(journeyMinutes(journey.durationSeconds)) min")
-                    .font(.title.weight(.bold).monospacedDigit())
+                    .font(ViaFont.titleDigit)
                     .foregroundStyle(ViaTheme.ink)
                 Text("· arrivée \(journeyTimeLabel(journey.arrivalAt) ?? "—")")
-                    .font(.subheadline)
+                    .font(ViaFont.subheadline)
                     .foregroundStyle(ViaTheme.body)
                 Spacer()
             }

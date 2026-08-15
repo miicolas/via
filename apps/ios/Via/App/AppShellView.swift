@@ -76,7 +76,7 @@ struct AppShellView: View {
                 } else {
                     VStack(alignment: .leading, spacing: 16) {
                         Label("Aucun trajet disponible", systemImage: "tram.circle")
-                            .font(.headline)
+                            .font(ViaFont.headline)
                         Text("Via n’a pas trouvé de trajet vers \(itinerary.destination.name).")
                             .foregroundStyle(ViaTheme.body)
                         ViaButton(action: { presentedSheet = nil }) {

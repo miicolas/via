@@ -14,10 +14,10 @@ struct NaturalJourneyComposerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Décrire un trajet", systemImage: "sparkles")
-                .font(.headline)
+                .font(ViaFont.headline)
                 .foregroundStyle(ViaTheme.ink)
             Text("Écrivez votre demande comme vous la diriez à Via.")
-                .font(.subheadline)
+                .font(ViaFont.subheadline)
                 .foregroundStyle(ViaTheme.muted)
 
             TextField("Ex. Comment aller à Châtelet ?", text: $query, axis: .vertical)

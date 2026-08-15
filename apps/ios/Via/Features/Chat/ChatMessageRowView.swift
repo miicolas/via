@@ -8,7 +8,7 @@ struct ChatMessageRowView: View {
             if message.role == .user { Spacer(minLength: 36) }
 
             Text(message.text)
-                .font(.body)
+                .font(ViaFont.body)
                 .foregroundStyle(message.role == .user ? Color.white : ViaTheme.ink)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 11)
