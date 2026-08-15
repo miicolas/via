@@ -18,6 +18,7 @@ enum ViaFont {
     static let bodySemibold = Font.custom("Inter-SemiBold", size: 15, relativeTo: .body)
     static let button = Font.custom("Inter-SemiBold", size: 15, relativeTo: .body)
     static let caption = Font.custom("Inter-Regular", size: 13, relativeTo: .caption)
+    static let caption2 = Font.custom("Inter-Regular", size: 11, relativeTo: .caption2)
     static let captionStrong = Font.custom("Archivo-ExtraBold", size: 13, relativeTo: .caption)
     static let captionSemibold = Font.custom("Inter-SemiBold", size: 13, relativeTo: .caption)
     static let footnote = Font.custom("Inter-Regular", size: 13, relativeTo: .footnote)
@@ -30,8 +31,10 @@ enum ViaFont {
     static let subheadline = Font.custom("Inter-Regular", size: 15, relativeTo: .subheadline)
     static let subheadlineMedium = Font.custom("Inter-Medium", size: 15, relativeTo: .subheadline)
     static let subheadlineSemibold = Font.custom("Inter-SemiBold", size: 15, relativeTo: .subheadline)
+    static let subheadlineDigit = subheadline.monospacedDigit()
     static let display = Font.custom("Archivo-Black", size: 42, relativeTo: .largeTitle)
     static let displayDigit = display.monospacedDigit()
+    static let titleDigit = title.monospacedDigit()
     static let title3Digit = title3.monospacedDigit()
 }
 

@@ -12,10 +12,10 @@ struct LineRowView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(route.mode == .metro ? "Métro \(route.shortName)" : route.shortName)
-                        .font(.headline)
+                        .font(ViaFont.headline)
                         .foregroundStyle(ViaTheme.ink)
                     Text("\(stationCount) stations · réseau Via")
-                        .font(.caption)
+                        .font(ViaFont.caption)
                         .foregroundStyle(ViaTheme.muted)
                 }
 

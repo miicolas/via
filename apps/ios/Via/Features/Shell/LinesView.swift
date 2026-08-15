@@ -20,10 +20,10 @@ struct LinesView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Lignes")
-                            .font(.largeTitle.weight(.bold))
+                            .font(ViaFont.largeTitle)
                             .foregroundStyle(ViaTheme.ink)
                         Text("Le réseau ferré francilien, au même endroit.")
-                            .font(.subheadline)
+                            .font(ViaFont.subheadline)
                             .foregroundStyle(ViaTheme.body)
                     }
 
@@ -42,7 +42,7 @@ struct LinesView: View {
                         }
                     } else {
                         Text("\(model.routes.count) lignes · \(model.stations.count) stations")
-                            .font(.subheadline.weight(.semibold))
+                            .font(ViaFont.subheadlineSemibold)
                             .foregroundStyle(ViaTheme.primary)
 
                         LazyVStack(spacing: 10) {

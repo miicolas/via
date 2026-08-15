@@ -27,16 +27,16 @@ struct LineDetailView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(route.mode == .metro ? "Métro \(route.shortName)" : route.shortName)
-                        .font(.title2.weight(.bold))
+                        .font(ViaFont.title2)
                         .foregroundStyle(ViaTheme.ink)
                     Text("\(stations.count) stations desservies")
-                        .font(.subheadline)
+                        .font(ViaFont.subheadline)
                         .foregroundStyle(ViaTheme.body)
                 }
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Stations")
-                        .font(.headline)
+                        .font(ViaFont.headline)
                         .foregroundStyle(ViaTheme.ink)
                         .padding(.bottom, 8)
 

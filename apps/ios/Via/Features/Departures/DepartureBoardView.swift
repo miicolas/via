@@ -25,19 +25,19 @@ struct DepartureBoardView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Label(sourceLabel(response.source), systemImage: sourceIcon(response.source))
-                        .font(.caption.weight(.semibold))
+                        .font(ViaFont.captionSemibold)
                         .foregroundStyle(stale ? ViaTheme.muted : ViaTheme.primary)
                     Spacer()
                     if stale {
                         Text("Dernière réponse conservée")
-                            .font(.caption2)
+                            .font(ViaFont.caption2)
                             .foregroundStyle(ViaTheme.muted)
                     }
                 }
 
                 if rows.isEmpty {
                     Text("Aucun passage annoncé prochainement.")
-                        .font(.subheadline)
+                        .font(ViaFont.subheadline)
                         .foregroundStyle(ViaTheme.muted)
                 } else {
                     ForEach(rows) { row in
@@ -45,23 +45,23 @@ struct DepartureBoardView: View {
                             HStack(spacing: 8) {
                                 LineBadgeView(route: row.route)
                                 Text("Ligne \(row.route.shortName)")
-                                    .font(.subheadline.weight(.semibold))
+                                    .font(ViaFont.subheadlineSemibold)
                                     .foregroundStyle(ViaTheme.ink)
                             }
 
                             ForEach(row.directions) { direction in
                                 HStack(alignment: .firstTextBaseline) {
                                     Text(direction.destination)
-                                        .font(.subheadline)
+                                        .font(ViaFont.subheadline)
                                         .foregroundStyle(ViaTheme.body)
                                     Spacer()
                                     if let wait = direction.wait {
                                         Text("\(wait.primaryMinutes) min")
-                                            .font(.headline.monospacedDigit())
+                                            .font(ViaFont.headline.monospacedDigit())
                                             .foregroundStyle(ViaTheme.ink)
                                         if let followingLabel = wait.followingLabel {
                                             Text(followingLabel)
-                                                .font(.caption)
+                                                .font(ViaFont.caption)
                                                 .foregroundStyle(ViaTheme.muted)
                                         }
                                     }

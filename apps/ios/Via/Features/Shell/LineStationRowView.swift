@@ -24,12 +24,12 @@ struct LineStationRowView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(station.name)
-                    .font(.body.weight(.semibold))
+                    .font(ViaFont.bodySemibold)
                     .foregroundStyle(ViaTheme.ink)
 
                 if station.routeIds.count > 1 {
                     Text("Correspondance")
-                        .font(.caption)
+                        .font(ViaFont.caption)
                         .foregroundStyle(ViaTheme.muted)
                 }
             }
