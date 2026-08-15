@@ -33,6 +33,8 @@ export * from './journeys/schema';
 export * from './journeys/type';
 export * from './natural-journeys/schema';
 export * from './natural-journeys/type';
+export * from './native-chat/schema';
+export * from './native-chat/type';
 export * from './network/schema';
 export * from './network/type';
 export * from './search/schema';

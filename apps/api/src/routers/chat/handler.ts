@@ -1,4 +1,12 @@
-import type { Coordinate, JourneyDestination, JourneysResponse } from '@via/contract';
+import {
+  nativeChatEventSchema,
+  nativeChatRequestSchema,
+  type Coordinate,
+  type JourneyDestination,
+  type JourneysResponse,
+  type NativeChatDestination,
+  type NativeChatEvent,
+} from '@via/contract';
 import { createOpenAI } from '@ai-sdk/openai';
 import {
   convertToModelMessages,
@@ -48,14 +56,6 @@ export type ChatItineraryData = {
   response: JourneysResponse;
 };
 
-export type NativeChatDestination = {
-  kind: ChatDestination['kind'];
-  id: string;
-  name: string;
-  context?: string;
-  coordinate: Coordinate;
-};
-
 export function toNativeChatDestination(destination: ChatDestination): NativeChatDestination {
   return {
     kind: destination.kind,
@@ -74,19 +74,6 @@ const chatBodySchema = z.object({
   location: z
     .object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180) })
     .optional(),
-});
-
-const nativeChatBodySchema = z.object({
-  messages: z
-    .array(
-      z.object({
-        role: z.enum(['user', 'assistant']),
-        content: z.string().trim().min(1).max(20_000),
-      })
-    )
-    .min(1)
-    .max(40),
-  location: chatBodySchema.shape.location,
 });
 
 /**
@@ -171,7 +158,7 @@ export function createNativeChatHandler({
       return Response.json({ error: 'chat_unavailable' }, { status: 503 });
     }
 
-    const parsed = nativeChatBodySchema.safeParse(await request.json().catch(() => null));
+    const parsed = nativeChatRequestSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) {
       return Response.json({ error: 'invalid_body' }, { status: 400 });
     }
@@ -206,21 +193,24 @@ export function createNativeChatHandler({
           });
 
           for await (const text of result.textStream) {
-            controller.enqueue(encoder.encode(JSON.stringify({ type: 'text_delta', text }) + '\n'));
+            controller.enqueue(
+              encodeNativeChatEvent({ type: 'text_delta', text }, encoder)
+            );
           }
 
           if (itinerary) {
             controller.enqueue(
-              encoder.encode(
-                JSON.stringify({
+              encodeNativeChatEvent(
+                {
                   type: 'itinerary',
                   destination: toNativeChatDestination(itinerary.destination),
                   journeys: itinerary.response,
-                }) + '\n'
+                },
+                encoder
               )
             );
           }
-          controller.enqueue(encoder.encode('{"type":"finished"}\n'));
+          controller.enqueue(encodeNativeChatEvent({ type: 'finished' }, encoder));
           controller.close();
         })().catch((error) => controller.error(error));
       },
@@ -235,6 +225,10 @@ export function createNativeChatHandler({
       },
     });
   };
+}
+
+function encodeNativeChatEvent(event: NativeChatEvent, encoder: TextEncoder) {
+  return encoder.encode(`${JSON.stringify(nativeChatEventSchema.parse(event))}\n`);
 }
 
 function systemPrompt(location: Coordinate | undefined, now: Date) {

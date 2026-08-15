@@ -12,10 +12,11 @@ réécrit les fichiers de l’autre.
 | Expo | `/rpc` et `POST /ai/chat` | Client public de référence et hotfix |
 | iOS natif | `/api` et `POST /ai/chat/v1` | OpenAPI généré, NDJSON chat |
 
-Le flux NDJSON natif est versionné par `/v1`. Ses événements sont
-`text_delta { text }`, `itinerary { destination, journeys }` et
-`finished`; une destination utilise la forme domaine Swift
-`{ kind, id, name, context?, coordinate: { latitude, longitude } }`.
+Le flux NDJSON natif est versionné par `/v1`. Son schéma partagé côté serveur
+est [`packages/contract/src/native-chat/schema.ts`](../packages/contract/src/native-chat/schema.ts).
+Ses événements sont `text_delta { text }`, `itinerary { destination, journeys }`
+et `finished`; une destination utilise la forme domaine Swift `{ kind, id,
+name, context?, coordinate: { latitude, longitude } }`.
 
 Les deux clients restent servis par le même backend. Les requêtes natives
 portent les headers `x-via-client-platform: ios-native`,
