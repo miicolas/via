@@ -2,24 +2,22 @@ import SwiftUI
 
 struct StationDeparturesView: View {
     let station: StationMapItem
-    let favoriteStations: any FavoriteStationRepository
+    let account: AccountModel
     let onClose: () -> Void
 
     @State private var viewModel: DeparturesViewModel
-    @State private var isFavorite: Bool
     @Environment(\.scenePhase) private var scenePhase
 
     init(
         station: StationMapItem,
         viewModel: DeparturesViewModel,
-        favoriteStations: any FavoriteStationRepository,
+        account: AccountModel,
         onClose: @escaping () -> Void
     ) {
         self.station = station
-        self.favoriteStations = favoriteStations
+        self.account = account
         self.onClose = onClose
         _viewModel = State(initialValue: viewModel)
-        _isFavorite = State(initialValue: favoriteStations.isFavorite(stationID: station.id))
     }
 
     var body: some View {
@@ -40,10 +38,14 @@ struct StationDeparturesView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
-                        isFavorite ? "Retirer des favoris" : "Ajouter aux favoris",
-                        systemImage: isFavorite ? "star.fill" : "star"
+                        account.isFavorite(stationID: station.id)
+                            ? "Retirer des favoris"
+                            : "Ajouter aux favoris",
+                        systemImage: account.isFavorite(stationID: station.id)
+                            ? "star.fill"
+                            : "star"
                     ) {
-                        isFavorite = favoriteStations.toggle(
+                        account.toggleFavorite(
                             stationID: station.id,
                             name: station.name
                         )
@@ -66,7 +68,7 @@ struct StationDeparturesView: View {
         .onChange(of: scenePhase, initial: true) { _, phase in
             viewModel.setSceneActive(phase == .active)
         }
-        .sensoryFeedback(.selection, trigger: isFavorite)
+        .sensoryFeedback(.selection, trigger: account.isFavorite(stationID: station.id))
     }
 
     @ViewBuilder
@@ -121,7 +123,7 @@ struct StationDeparturesView: View {
             stationID: station.id,
             repository: InMemoryDeparturesRepository(board: board)
         ),
-        favoriteStations: AppDependencies.preview.favoriteStations,
+        account: AppDependencies.preview.account,
         onClose: {}
     )
 }

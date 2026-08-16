@@ -3,8 +3,7 @@ import SwiftUI
 struct MapPresentationSheet: View {
     @Binding var state: MapPresentationState
     let authViewModel: AuthSessionViewModel
-    let favoriteStations: any FavoriteStationRepository
-    let transportPreferences: any TransportPreferencesRepository
+    let account: AccountModel
     let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
 
     var body: some View {
@@ -21,15 +20,14 @@ struct MapPresentationSheet: View {
             MapSearchSheet(
                 text: $state.searchText,
                 authViewModel: authViewModel,
-                favoriteStations: favoriteStations,
-                transportPreferences: transportPreferences
+                account: account
             )
 
             if let station = state.destination.station {
                 StationDeparturesView(
                     station: station,
                     viewModel: makeDeparturesViewModel(station.id),
-                    favoriteStations: favoriteStations,
+                    account: account,
                     onClose: { state.showSearch() }
                 )
                 .id(station.id)
@@ -66,8 +64,7 @@ struct MapPresentationSheet: View {
             MapPresentationSheet(
                 state: $state,
                 authViewModel: .preview,
-                favoriteStations: AppDependencies.preview.favoriteStations,
-                transportPreferences: AppDependencies.preview.transportPreferences,
+                account: AppDependencies.preview.account,
                 makeDeparturesViewModel: {
                     DeparturesViewModel(
                         stationID: $0,

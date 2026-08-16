@@ -3,11 +3,9 @@ import Foundation
 @MainActor
 struct AppDependencies {
     let authSession: AuthSessionViewModel
-    let favoriteStations: any FavoriteStationRepository
-    let transportPreferences: any TransportPreferencesRepository
+    let account: AccountModel
     let network: any NetworkRepository
     let search: any SearchRepository
-    let recentSearches: any RecentSearchRepository
     let departures: any DeparturesRepository
     let journeys: any JourneyRepository
     let naturalJourneys: any NaturalJourneyRepository
@@ -26,27 +24,22 @@ struct AppDependencies {
         )
         let accountRemote = LiveAccountRemote(transport: transport)
         let accountStore = AccountLocalStore()
-        let accountSync = AccountSyncCoordinator(store: accountStore, remote: accountRemote)
-        let account = SyncedAccountRepository(store: accountStore, sync: accountSync)
+        let account = AccountModel(store: accountStore, remote: accountRemote)
         let search = LiveSearchRepository(transport: transport)
         let journeys = PreferenceAwareJourneyRepository(
             base: LiveJourneyRepository(transport: transport),
-            preferences: account
+            account: account
         )
         return AppDependencies(
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
-                accountRemote: accountRemote,
                 vault: vault,
-                accountStore: accountStore,
-                accountSync: accountSync,
+                account: account,
                 lifecycleEvents: lifecycle.stream
             ),
-            favoriteStations: account,
-            transportPreferences: account,
+            account: account,
             network: LiveNetworkRepository(transport: transport),
             search: search,
-            recentSearches: account,
             departures: LiveDeparturesRepository(transport: transport),
             journeys: journeys,
             naturalJourneys: LiveNaturalJourneyRepository(transport: transport),
@@ -64,21 +57,20 @@ struct AppDependencies {
         let accountRemote = InMemoryAccountRemote()
         let defaults = UserDefaults(suiteName: "dev.via.preview")!
         let accountStore = AccountLocalStore(defaults: defaults)
-        let accountSync = AccountSyncCoordinator(store: accountStore, remote: accountRemote)
-        let account = SyncedAccountRepository(store: accountStore, sync: accountSync)
+        let account = AccountModel(
+            store: accountStore,
+            remote: accountRemote,
+            synchronizationEnabled: false
+        )
         return AppDependencies(
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: baseURL),
-                accountRemote: accountRemote,
                 vault: vault,
-                accountStore: accountStore,
-                accountSync: accountSync
+                account: account
             ),
-            favoriteStations: account,
-            transportPreferences: account,
+            account: account,
             network: InMemoryNetworkRepository(),
             search: InMemorySearchRepository(),
-            recentSearches: InMemoryRecentSearchRepository(),
             departures: InMemoryDeparturesRepository(),
             journeys: InMemoryJourneyRepository(),
             naturalJourneys: InMemoryNaturalJourneyRepository(),
@@ -88,7 +80,7 @@ struct AppDependencies {
     }
 
     func makeNetworkViewModel() -> NetworkViewModel { NetworkViewModel(repository: network) }
-    func makeSearchViewModel() -> SearchViewModel { SearchViewModel(repository: search, recents: recentSearches) }
+    func makeSearchViewModel() -> SearchViewModel { SearchViewModel(repository: search, account: account) }
     func makeDeparturesViewModel(stationID: StationID) -> DeparturesViewModel {
         DeparturesViewModel(stationID: stationID, repository: departures)
     }

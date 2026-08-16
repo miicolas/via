@@ -17,14 +17,14 @@ final class SearchViewModel {
     private(set) var state: State
 
     @ObservationIgnored private let repository: any SearchRepository
-    @ObservationIgnored private let recents: any RecentSearchRepository
+    @ObservationIgnored private let account: AccountModel
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var location: GeoCoordinate?
 
-    init(repository: any SearchRepository, recents: any RecentSearchRepository) {
+    init(repository: any SearchRepository, account: AccountModel) {
         self.repository = repository
-        self.recents = recents
-        state = .idle(recent: recents.load())
+        self.account = account
+        state = .idle(recent: account.recentSearches)
     }
 
     func updateLocation(_ location: GeoCoordinate?) {
@@ -33,13 +33,11 @@ final class SearchViewModel {
     }
 
     func select(_ result: SearchResult) {
-        let search = RecentSearch(result: result)
-        let history = [search] + recents.load().filter { $0.id != search.id }
-        recents.store(Array(history.prefix(5)))
+        account.recordRecentSearch(result)
     }
 
     func clearRecents() {
-        recents.clear()
+        account.clearRecentSearches()
         if query.isEmpty { state = .idle(recent: []) }
     }
 
@@ -49,7 +47,7 @@ final class SearchViewModel {
         task?.cancel()
         let sanitized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !sanitized.isEmpty else {
-            state = .idle(recent: recents.load())
+            state = .idle(recent: account.recentSearches)
             return
         }
         let previous = state.response

@@ -25,8 +25,7 @@ struct ViaApp: App {
                 RootView(
                     networkViewModel: networkViewModel,
                     authViewModel: dependencies.authSession,
-                    favoriteStations: dependencies.favoriteStations,
-                    transportPreferences: dependencies.transportPreferences,
+                    account: dependencies.account,
                     makeDeparturesViewModel: {
                         dependencies.makeDeparturesViewModel(stationID: $0)
                     }

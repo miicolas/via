@@ -3,12 +3,9 @@ import SwiftUI
 
 struct AccountView: View {
     @Bindable var authViewModel: AuthSessionViewModel
-    let favoriteStations: any FavoriteStationRepository
-    let transportPreferences: any TransportPreferencesRepository
+    let account: AccountModel
 
     @Environment(\.dismiss) private var dismiss
-    @State private var favorites: [FavoriteStation] = []
-    @State private var preferences: TransportPreferences = .empty
     @State private var deletionConfirmationPresented = false
     @State private var deletionAuthorizationRequested = false
 
@@ -32,25 +29,15 @@ struct AccountView: View {
                 }
 
                 Section("Synchronisation") {
-                    LabeledContent("État") {
-                        Label(
-                            authViewModel.connectivity == .offline ? "Hors connexion" : "Synchronisé",
-                            systemImage: authViewModel.connectivity == .offline
-                                ? "wifi.slash"
-                                : "checkmark.icloud.fill"
-                        )
-                        .foregroundStyle(
-                            authViewModel.connectivity == .offline ? Color.orange : Color.green
-                        )
-                    }
+                    synchronizationContent
                 }
 
                 Section("Stations favorites") {
-                    if favorites.isEmpty {
+                    if account.favorites.isEmpty {
                         Text("Ajoute une station depuis sa fiche pour la retrouver ici.")
                             .foregroundStyle(.secondary)
                     } else {
-                        ForEach(favorites) { favorite in
+                        ForEach(account.favorites) { favorite in
                             Label(favorite.name, systemImage: "star.fill")
                         }
                         .onDelete(perform: removeFavorites)
@@ -133,34 +120,51 @@ struct AccountView: View {
             .sensoryFeedback(.error, trigger: authViewModel.errorMessage) { _, newMessage in
                 newMessage != nil
             }
-            .onAppear {
-                favorites = favoriteStations.favorites()
-                preferences = transportPreferences.load()
+        }
+    }
+
+    @ViewBuilder
+    private var synchronizationContent: some View {
+        switch account.syncState {
+        case .local:
+            Label("Données locales", systemImage: "internaldrive")
+                .foregroundStyle(.secondary)
+        case .syncing:
+            HStack {
+                ProgressView()
+                Text("Synchronisation…")
+            }
+        case .synced:
+            Label("Synchronisé", systemImage: "checkmark.icloud.fill")
+                .foregroundStyle(.green)
+        case .pendingOffline:
+            Label("En attente de connexion", systemImage: "wifi.slash")
+                .foregroundStyle(.orange)
+            Button("Réessayer", systemImage: "arrow.clockwise") {
+                account.retrySynchronization()
+            }
+        case .failed:
+            Label("Échec de synchronisation", systemImage: "exclamationmark.icloud")
+                .foregroundStyle(.red)
+            Button("Réessayer", systemImage: "arrow.clockwise") {
+                account.retrySynchronization()
             }
         }
     }
 
     private func preferredBinding(for mode: TransitMode) -> Binding<Bool> {
         Binding(
-            get: { preferences.preferredModes.contains(mode) },
+            get: { account.transportPreferences.preferredModes.contains(mode) },
             set: { isPreferred in
-                if isPreferred {
-                    preferences.preferredModes.insert(mode)
-                    preferences.excludedModes.remove(mode)
-                } else {
-                    preferences.preferredModes.remove(mode)
-                }
-                preferences.updatedAt = .now
-                transportPreferences.store(preferences)
+                account.setPreferred(mode, enabled: isPreferred)
             }
         )
     }
 
     private func removeFavorites(at offsets: IndexSet) {
-        let removed = offsets.map { favorites[$0] }
-        favorites.remove(atOffsets: offsets)
+        let removed = offsets.map { account.favorites[$0] }
         for favorite in removed {
-            favoriteStations.remove(stationID: favorite.stationID)
+            account.removeFavorite(stationID: favorite.stationID)
         }
     }
 }
@@ -168,7 +172,6 @@ struct AccountView: View {
 #Preview {
     AccountView(
         authViewModel: .preview,
-        favoriteStations: AppDependencies.preview.favoriteStations,
-        transportPreferences: AppDependencies.preview.transportPreferences
+        account: AppDependencies.preview.account
     )
 }

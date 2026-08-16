@@ -10,10 +10,8 @@ final class AuthSessionViewModel {
     private(set) var errorMessage: String?
 
     @ObservationIgnored private let client: any AuthenticationClient
-    @ObservationIgnored private let accountRemote: any AccountRemote
     @ObservationIgnored private let vault: any AuthSessionVault
-    @ObservationIgnored private let accountStore: AccountLocalStore
-    @ObservationIgnored private let accountSync: AccountSyncCoordinator
+    @ObservationIgnored private let account: AccountModel
     @ObservationIgnored private var signInNonce: String?
     @ObservationIgnored private var deletionNonce: String?
     @ObservationIgnored private var didRestore = false
@@ -22,17 +20,13 @@ final class AuthSessionViewModel {
 
     init(
         client: any AuthenticationClient,
-        accountRemote: any AccountRemote,
         vault: any AuthSessionVault,
-        accountStore: AccountLocalStore,
-        accountSync: AccountSyncCoordinator,
+        account: AccountModel,
         lifecycleEvents: AsyncStream<AuthLifecycleEvent> = AsyncStream { _ in }
     ) {
         self.client = client
-        self.accountRemote = accountRemote
         self.vault = vault
-        self.accountStore = accountStore
-        self.accountSync = accountSync
+        self.account = account
         lifecycleTask = Task { [weak self] in
             for await event in lifecycleEvents {
                 guard let self else { return }
@@ -59,7 +53,7 @@ final class AuthSessionViewModel {
                 state = .signedOut
                 return
             }
-            accountStore.activate(userID: session.user.id)
+            account.activate(userID: session.user.id)
             state = .authenticated(session, .offline)
             await revalidate()
         } catch {
@@ -116,10 +110,10 @@ final class AuthSessionViewModel {
                 )
                 let session = try await client.signIn(with: credentials)
                 try await vault.save(session)
-                accountStore.activate(userID: session.user.id)
+                account.activate(userID: session.user.id)
                 state = .authenticated(session, .online)
                 errorMessage = nil
-                await accountSync.synchronize()
+                account.resumeSynchronization()
             } catch {
                 state = .signedOut
                 errorMessage = message(for: error)
@@ -174,7 +168,7 @@ final class AuthSessionViewModel {
             try await vault.save(refreshed)
             state = .authenticated(refreshed, .online)
             errorMessage = nil
-            await accountSync.synchronize()
+            account.resumeSynchronization()
         } catch AuthenticationClientError.unauthorized {
             await clearConfirmedSession(message: "Ta session a expiré. Reconnecte-toi avec Apple.")
         } catch is CancellationError {
@@ -200,7 +194,7 @@ final class AuthSessionViewModel {
         let storedSession = (try? await vault.load()) ?? displayedSession
         try? await client.signOut(bearerToken: storedSession.bearerToken)
         try? await vault.clear()
-        accountStore.deactivate()
+        account.deactivate()
         state = .signedOut
         errorMessage = nil
     }
@@ -255,13 +249,12 @@ final class AuthSessionViewModel {
             isDeletingAccount = true
             defer { isDeletingAccount = false }
             do {
-                try await accountRemote.delete(using: AccountDeletionProof(
+                try await account.delete(using: AccountDeletionProof(
                     identityToken: identityToken,
                     authorizationCode: authorizationCode,
                     nonce: nonce
                 ))
                 try await vault.clear()
-                accountStore.erase(userID: storedSession.user.id)
                 state = .signedOut
                 errorMessage = nil
             } catch {
@@ -272,7 +265,7 @@ final class AuthSessionViewModel {
 
     private func clearConfirmedSession(message: String) async {
         try? await vault.clear()
-        accountStore.deactivate()
+        account.deactivate()
         state = .signedOut
         errorMessage = message
     }

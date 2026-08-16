@@ -1,17 +1,17 @@
 import Foundation
 
-final class PreferenceAwareJourneyRepository: JourneyRepository, @unchecked Sendable {
+final class PreferenceAwareJourneyRepository: JourneyRepository, Sendable {
     private let base: any JourneyRepository
-    private let preferences: any TransportPreferencesRepository
+    private let account: AccountModel
 
-    init(base: any JourneyRepository, preferences: any TransportPreferencesRepository) {
+    init(base: any JourneyRepository, account: AccountModel) {
         self.base = base
-        self.preferences = preferences
+        self.account = account
     }
 
     func plan(_ request: JourneyRequest) async throws -> JourneyResult {
         var request = request
-        let stored = preferences.load()
+        let stored = await account.transportPreferences
         if request.preferredModes.isEmpty {
             request.preferredModes = stored.preferredModes
         }

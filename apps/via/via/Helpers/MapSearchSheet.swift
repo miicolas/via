@@ -3,8 +3,7 @@ import SwiftUI
 struct MapSearchSheet: View {
     @Binding var text: String
     let authViewModel: AuthSessionViewModel
-    let favoriteStations: any FavoriteStationRepository
-    let transportPreferences: any TransportPreferencesRepository
+    let account: AccountModel
     @State private var isAccountPresented = false
 
     var body: some View {
@@ -26,8 +25,7 @@ struct MapSearchSheet: View {
                 .sheet(isPresented: $isAccountPresented) {
                     AccountView(
                         authViewModel: authViewModel,
-                        favoriteStations: favoriteStations,
-                        transportPreferences: transportPreferences
+                        account: account
                     )
                 }
         }
@@ -42,8 +40,7 @@ struct MapSearchSheet: View {
         MapSearchSheet(
             text: $text,
             authViewModel: .preview,
-            favoriteStations: AppDependencies.preview.favoriteStations,
-            transportPreferences: AppDependencies.preview.transportPreferences
+            account: AppDependencies.preview.account
         )
     }
 }

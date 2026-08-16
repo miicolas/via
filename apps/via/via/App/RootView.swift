@@ -14,21 +14,18 @@ struct RootView: View {
     @State private var presentation = MapPresentationState()
     @State private var networkViewModel: NetworkViewModel
     private let authViewModel: AuthSessionViewModel
-    private let favoriteStations: any FavoriteStationRepository
-    private let transportPreferences: any TransportPreferencesRepository
+    private let account: AccountModel
     private let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
 
     init(
         networkViewModel: NetworkViewModel,
         authViewModel: AuthSessionViewModel,
-        favoriteStations: any FavoriteStationRepository,
-        transportPreferences: any TransportPreferencesRepository,
+        account: AccountModel,
         makeDeparturesViewModel: @escaping (StationID) -> DeparturesViewModel
     ) {
         _networkViewModel = State(initialValue: networkViewModel)
         self.authViewModel = authViewModel
-        self.favoriteStations = favoriteStations
-        self.transportPreferences = transportPreferences
+        self.account = account
         self.makeDeparturesViewModel = makeDeparturesViewModel
     }
     
@@ -41,8 +38,7 @@ struct RootView: View {
             MapPresentationSheet(
                 state: $presentation,
                 authViewModel: authViewModel,
-                favoriteStations: favoriteStations,
-                transportPreferences: transportPreferences,
+                account: account,
                 makeDeparturesViewModel: makeDeparturesViewModel
             )
         }
@@ -60,8 +56,7 @@ struct RootView: View {
     RootView(
         networkViewModel: NetworkViewModel(repository: InMemoryNetworkRepository.mapPreview),
         authViewModel: .preview,
-        favoriteStations: AppDependencies.preview.favoriteStations,
-        transportPreferences: AppDependencies.preview.transportPreferences,
+        account: AppDependencies.preview.account,
         makeDeparturesViewModel: {
             DeparturesViewModel(
                 stationID: $0,

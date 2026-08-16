@@ -47,8 +47,7 @@ struct SheetTabView<Selection: Hashable, Content: TabContent>: View where Conten
     RootView(
         networkViewModel: NetworkViewModel(repository: InMemoryNetworkRepository.mapPreview),
         authViewModel: .preview,
-        favoriteStations: AppDependencies.preview.favoriteStations,
-        transportPreferences: AppDependencies.preview.transportPreferences,
+        account: AppDependencies.preview.account,
         makeDeparturesViewModel: {
             DeparturesViewModel(
                 stationID: $0,
