@@ -58,19 +58,15 @@ struct MapPresentationSheet: View {
 
 #Preview {
     @Previewable @State var state = MapPresentationState()
+    let dependencies = AppDependencies.preview
 
     Color.blue
         .sheet(isPresented: .constant(true)) {
             MapPresentationSheet(
                 state: $state,
-                authViewModel: .preview,
-                account: AppDependencies.preview.account,
-                makeDeparturesViewModel: {
-                    DeparturesViewModel(
-                        stationID: $0,
-                        repository: InMemoryDeparturesRepository()
-                    )
-                }
+                authViewModel: dependencies.authSession,
+                account: dependencies.root.account,
+                makeDeparturesViewModel: dependencies.root.makeDeparturesViewModel
             )
         }
 }

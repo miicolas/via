@@ -34,13 +34,14 @@ struct MapSearchSheet: View {
 
 #Preview {
     @Previewable @State var text = ""
+    let dependencies = AppDependencies.preview
 
     ZStack {
         Color.blue
         MapSearchSheet(
             text: $text,
-            authViewModel: .preview,
-            account: AppDependencies.preview.account
+            authViewModel: dependencies.authSession,
+            account: dependencies.root.account
         )
     }
 }

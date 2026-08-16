@@ -44,15 +44,9 @@ struct SheetTabView<Selection: Hashable, Content: TabContent>: View where Conten
 }
 
 #Preview {
+    let dependencies = AppDependencies.preview
     RootView(
-        networkViewModel: NetworkViewModel(repository: InMemoryNetworkRepository.mapPreview),
-        authViewModel: .preview,
-        account: AppDependencies.preview.account,
-        makeDeparturesViewModel: {
-            DeparturesViewModel(
-                stationID: $0,
-                repository: InMemoryDeparturesRepository()
-            )
-        }
+        dependencies: dependencies.root,
+        authViewModel: dependencies.authSession
     )
 }

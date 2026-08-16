@@ -99,6 +99,7 @@ struct StationDeparturesView: View {
 }
 
 #Preview {
+    let dependencies = AppDependencies.preview
     let station = StationsArea.mapPreview.mapItems[0]
     let route = station.routes[0]
     let board = DepartureBoard(
@@ -123,7 +124,7 @@ struct StationDeparturesView: View {
             stationID: station.id,
             repository: InMemoryDeparturesRepository(board: board)
         ),
-        account: AppDependencies.preview.account,
+        account: dependencies.root.account,
         onClose: {}
     )
 }

@@ -1,16 +1,16 @@
 import Foundation
 
 @MainActor
+struct RootDependencies {
+    let networkMap: NetworkViewModel
+    let account: AccountModel
+    let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
+}
+
+@MainActor
 struct AppDependencies {
     let authSession: AuthSessionViewModel
-    let account: AccountModel
-    let network: any NetworkRepository
-    let search: any SearchRepository
-    let departures: any DeparturesRepository
-    let journeys: any JourneyRepository
-    let naturalJourneys: any NaturalJourneyRepository
-    let chat: any ChatRepository
-    let location: () -> any LocationAdapter
+    let root: RootDependencies
 
     static func live(configuration: AppConfiguration) throws -> AppDependencies {
         let vault = KeychainAuthSessionVault()
@@ -22,14 +22,11 @@ struct AppDependencies {
                 lifecycle.continuation.yield(.authenticatedRequestRejected)
             }
         )
-        let accountRemote = LiveAccountRemote(transport: transport)
-        let accountStore = AccountLocalStore()
-        let account = AccountModel(store: accountStore, remote: accountRemote)
-        let search = LiveSearchRepository(transport: transport)
-        let journeys = PreferenceAwareJourneyRepository(
-            base: LiveJourneyRepository(transport: transport),
-            account: account
+        let account = AccountModel(
+            store: AccountLocalStore(),
+            remote: LiveAccountRemote(transport: transport)
         )
+        let departures = LiveDeparturesRepository(transport: transport)
         return AppDependencies(
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
@@ -38,56 +35,55 @@ struct AppDependencies {
                 account: account,
                 lifecycleEvents: lifecycle.stream
             ),
-            account: account,
-            network: LiveNetworkRepository(transport: transport),
-            search: search,
-            departures: LiveDeparturesRepository(transport: transport),
-            journeys: journeys,
-            naturalJourneys: LiveNaturalJourneyRepository(transport: transport),
-            chat: FoundationModelsChatRepository(
-                search: { try await search.search(query: $0, near: $1) },
-                plan: { try await journeys.plan($0) }
-            ),
-            location: { CoreLocationAdapter() }
+            root: RootDependencies(
+                networkMap: NetworkViewModel(
+                    repository: LiveNetworkRepository(transport: transport)
+                ),
+                account: account,
+                makeDeparturesViewModel: { stationID in
+                    DeparturesViewModel(stationID: stationID, repository: departures)
+                }
+            )
         )
     }
 
     static var preview: AppDependencies {
-        let vault = InMemoryAuthSessionVault()
-        let baseURL = URL(string: "https://example.com/api")!
-        let accountRemote = InMemoryAccountRemote()
-        let defaults = UserDefaults(suiteName: "dev.via.preview")!
-        let accountStore = AccountLocalStore(defaults: defaults)
+        let session = StoredAuthSession(
+            bearerToken: "preview-token",
+            user: AuthUser(
+                id: "preview-user",
+                appleUserIdentifier: "preview-apple-user",
+                name: "Camille Martin",
+                email: "camille@example.com"
+            ),
+            expiresAt: .distantFuture,
+            lastValidatedAt: .now
+        )
+        let vault = InMemoryAuthSessionVault(session: session)
         let account = AccountModel(
-            store: accountStore,
-            remote: accountRemote,
+            store: AccountLocalStore(
+                defaults: UserDefaults(suiteName: "dev.via.preview")!
+            ),
+            remote: InMemoryAccountRemote(),
             synchronizationEnabled: false
         )
+        let departures = InMemoryDeparturesRepository()
         return AppDependencies(
             authSession: AuthSessionViewModel(
-                client: BetterAuthClient(baseURL: baseURL),
+                client: InMemoryAuthenticationClient(session: session),
                 vault: vault,
                 credentialStatusChecker: InMemoryAppleCredentialStatusChecker(),
                 account: account
             ),
-            account: account,
-            network: InMemoryNetworkRepository(),
-            search: InMemorySearchRepository(),
-            departures: InMemoryDeparturesRepository(),
-            journeys: InMemoryJourneyRepository(),
-            naturalJourneys: InMemoryNaturalJourneyRepository(),
-            chat: InMemoryChatRepository(),
-            location: { InMemoryLocationAdapter() }
+            root: RootDependencies(
+                networkMap: NetworkViewModel(
+                    repository: InMemoryNetworkRepository.mapPreview
+                ),
+                account: account,
+                makeDeparturesViewModel: { stationID in
+                    DeparturesViewModel(stationID: stationID, repository: departures)
+                }
+            )
         )
     }
-
-    func makeNetworkViewModel() -> NetworkViewModel { NetworkViewModel(repository: network) }
-    func makeSearchViewModel() -> SearchViewModel { SearchViewModel(repository: search, account: account) }
-    func makeDeparturesViewModel(stationID: StationID) -> DeparturesViewModel {
-        DeparturesViewModel(stationID: stationID, repository: departures)
-    }
-    func makeJourneyViewModel() -> JourneyViewModel { JourneyViewModel(repository: journeys) }
-    func makeNaturalJourneyViewModel() -> NaturalJourneyViewModel { NaturalJourneyViewModel(repository: naturalJourneys) }
-    func makeChatViewModel() -> ChatViewModel { ChatViewModel(repository: chat) }
-    func makeLocationViewModel() -> LocationViewModel { LocationViewModel(adapter: location()) }
 }

@@ -18,15 +18,13 @@ struct RootView: View {
     private let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
 
     init(
-        networkViewModel: NetworkViewModel,
-        authViewModel: AuthSessionViewModel,
-        account: AccountModel,
-        makeDeparturesViewModel: @escaping (StationID) -> DeparturesViewModel
+        dependencies: RootDependencies,
+        authViewModel: AuthSessionViewModel
     ) {
-        _networkViewModel = State(initialValue: networkViewModel)
+        _networkViewModel = State(initialValue: dependencies.networkMap)
         self.authViewModel = authViewModel
-        self.account = account
-        self.makeDeparturesViewModel = makeDeparturesViewModel
+        account = dependencies.account
+        makeDeparturesViewModel = dependencies.makeDeparturesViewModel
     }
     
     var body: some View {
@@ -53,15 +51,9 @@ struct RootView: View {
 }
 
 #Preview {
+    let dependencies = AppDependencies.preview
     RootView(
-        networkViewModel: NetworkViewModel(repository: InMemoryNetworkRepository.mapPreview),
-        authViewModel: .preview,
-        account: AppDependencies.preview.account,
-        makeDeparturesViewModel: {
-            DeparturesViewModel(
-                stationID: $0,
-                repository: InMemoryDeparturesRepository()
-            )
-        }
+        dependencies: dependencies.root,
+        authViewModel: dependencies.authSession
     )
 }

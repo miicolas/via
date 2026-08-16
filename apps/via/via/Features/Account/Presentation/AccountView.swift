@@ -172,8 +172,9 @@ struct AccountView: View {
 }
 
 #Preview {
+    let dependencies = AppDependencies.preview
     AccountView(
-        authViewModel: .preview,
-        account: AppDependencies.preview.account
+        authViewModel: dependencies.authSession,
+        account: dependencies.root.account
     )
 }
