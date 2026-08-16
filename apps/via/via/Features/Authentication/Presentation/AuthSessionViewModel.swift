@@ -10,7 +10,7 @@ final class AuthSessionViewModel {
     private(set) var errorMessage: String?
 
     @ObservationIgnored private let client: any AuthenticationClient
-    @ObservationIgnored private let apiClient: any ViaAPIClient
+    @ObservationIgnored private let accountRemote: any AccountRemote
     @ObservationIgnored private let vault: any AuthSessionVault
     @ObservationIgnored private let accountStore: AccountLocalStore
     @ObservationIgnored private let accountSync: AccountSyncCoordinator
@@ -18,19 +18,27 @@ final class AuthSessionViewModel {
     @ObservationIgnored private var deletionNonce: String?
     @ObservationIgnored private var didRestore = false
     @ObservationIgnored private var isRevalidating = false
+    @ObservationIgnored private var lifecycleTask: Task<Void, Never>?
 
     init(
         client: any AuthenticationClient,
-        apiClient: any ViaAPIClient,
+        accountRemote: any AccountRemote,
         vault: any AuthSessionVault,
         accountStore: AccountLocalStore,
-        accountSync: AccountSyncCoordinator
+        accountSync: AccountSyncCoordinator,
+        lifecycleEvents: AsyncStream<AuthLifecycleEvent> = AsyncStream { _ in }
     ) {
         self.client = client
-        self.apiClient = apiClient
+        self.accountRemote = accountRemote
         self.vault = vault
         self.accountStore = accountStore
         self.accountSync = accountSync
+        lifecycleTask = Task { [weak self] in
+            for await event in lifecycleEvents {
+                guard let self else { return }
+                await self.handle(event)
+            }
+        }
     }
 
     var session: StoredAuthSession? {
@@ -122,6 +130,17 @@ final class AuthSessionViewModel {
     func sceneBecameActive() async {
         guard session != nil else { return }
         await revalidate()
+    }
+
+    func handle(_ event: AuthLifecycleEvent) async {
+        switch event {
+        case .sceneBecameActive:
+            await sceneBecameActive()
+        case .authenticatedRequestRejected:
+            await authenticatedRequestWasRejected()
+        case .appleCredentialRevoked:
+            await appleCredentialWasRevoked()
+        }
     }
 
     func revalidate() async {
@@ -236,11 +255,11 @@ final class AuthSessionViewModel {
             isDeletingAccount = true
             defer { isDeletingAccount = false }
             do {
-                try await apiClient.deleteAccount(
+                try await accountRemote.delete(using: AccountDeletionProof(
                     identityToken: identityToken,
                     authorizationCode: authorizationCode,
                     nonce: nonce
-                )
+                ))
                 try await vault.clear()
                 accountStore.erase(userID: storedSession.user.id)
                 state = .signedOut

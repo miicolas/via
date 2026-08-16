@@ -7,18 +7,27 @@ protocol NetworkRepository: Sendable {
 }
 
 actor LiveNetworkRepository: NetworkRepository {
-    private let client: any ViaAPIClient
+    private let transport: ViaTransport
     private var cache: [ViewportTile: StationsArea] = [:]
     private var railMapTask: Task<TransitNetwork, Error>?
     private var lastAssembly: (tiles: Set<ViewportTile>, area: StationsArea)?
 
-    init(client: any ViaAPIClient) {
-        self.client = client
+    init(transport: ViaTransport) {
+        self.transport = transport
     }
 
     func railMap() async throws -> TransitNetwork {
         if let railMapTask { return try await railMapTask.value }
-        let task = Task { [client] in try await client.loadRailMap() }
+        let task = Task { [transport] in
+            try await transport.perform("rail_map") { client in
+                switch try await client.network_period_railMap(.init()) {
+                case .ok(let response):
+                    return try transport.convert(response.body.json, to: RailMapDTO.self).domain()
+                case .undocumented(let statusCode, _):
+                    throw ViaTransport.error(for: statusCode)
+                }
+            }
+        }
         railMapTask = task
         do {
             return try await task.value
@@ -34,7 +43,7 @@ actor LiveNetworkRepository: NetworkRepository {
         if missingTiles.isEmpty, let lastAssembly, lastAssembly.tiles == visibleTiles {
             return lastAssembly.area
         }
-        let client = client
+        let transport = transport
 
         let loaded = try await withThrowingTaskGroup(
             of: (ViewportTile, StationsArea?).self,
@@ -43,7 +52,28 @@ actor LiveNetworkRepository: NetworkRepository {
             for tile in missingTiles {
                 group.addTask {
                     do {
-                        return (tile, try await client.loadStations(in: tile.bounds))
+                        guard tile.bounds.isValid else {
+                            throw ViaError.invalidRequest("viewport")
+                        }
+                        let area = try await transport.perform("stations_in_area") { client in
+                            let bounds = tile.bounds
+                            let input = Operations.network_period_stationsInArea.Input(query: .init(
+                                minLatitude: bounds.minLatitude,
+                                maxLatitude: bounds.maxLatitude,
+                                minLongitude: bounds.minLongitude,
+                                maxLongitude: bounds.maxLongitude
+                            ))
+                            switch try await client.network_period_stationsInArea(input) {
+                            case .ok(let response):
+                                return try transport.convert(
+                                    response.body.json,
+                                    to: StationsAreaDTO.self
+                                ).domain()
+                            case .undocumented(let statusCode, _):
+                                throw ViaTransport.error(for: statusCode)
+                            }
+                        }
+                        return (tile, area)
                     } catch is CancellationError {
                         throw CancellationError()
                     } catch {

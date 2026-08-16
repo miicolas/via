@@ -37,6 +37,12 @@ enum AuthSessionState: Sendable, Hashable {
     case authenticated(StoredAuthSession, AuthConnectivity)
 }
 
+enum AuthLifecycleEvent: Sendable, Equatable {
+    case sceneBecameActive
+    case authenticatedRequestRejected
+    case appleCredentialRevoked
+}
+
 struct AppleSignInCredentials: Sendable {
     let appleUserIdentifier: String
     let identityToken: String

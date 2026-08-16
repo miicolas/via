@@ -92,6 +92,12 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
     }
 }
 
+struct AccountDeletionProof: Sendable, Hashable {
+    let identityToken: String
+    let authorizationCode: String
+    let nonce: String
+}
+
 struct AccountLocalSnapshot: Codable, Sendable, Hashable {
     /// Mirrors the server's `ACCOUNT_FAVORITE_LIMIT`; both sides trim to it.
     static let favoriteLimit = 50

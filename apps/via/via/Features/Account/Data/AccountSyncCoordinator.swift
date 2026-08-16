@@ -2,12 +2,12 @@ import Foundation
 
 actor AccountSyncCoordinator {
     private let store: AccountLocalStore
-    private let client: any ViaAPIClient
+    private let remote: any AccountRemote
     private var isSynchronizing = false
 
-    init(store: AccountLocalStore, client: any ViaAPIClient) {
+    init(store: AccountLocalStore, remote: any AccountRemote) {
         self.store = store
-        self.client = client
+        self.remote = remote
     }
 
     func synchronize() async {
@@ -17,7 +17,7 @@ actor AccountSyncCoordinator {
 
         while let pending = store.pendingSync(), !pending.operations.isEmpty {
             do {
-                let result = try await client.syncAccount(operations: pending.operations)
+                let result = try await remote.synchronize(pending.operations)
                 guard store.pendingSync()?.userID == pending.userID else { return }
                 store.apply(result)
             } catch {

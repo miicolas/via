@@ -16,34 +16,40 @@ struct AppDependencies {
 
     static func live(configuration: AppConfiguration) throws -> AppDependencies {
         let vault = KeychainAuthSessionVault()
-        let client = LiveViaAPIClient(
+        let lifecycle = AsyncStream.makeStream(of: AuthLifecycleEvent.self)
+        let transport = ViaTransport(
             baseURL: configuration.apiBaseURL,
-            authSessionVault: vault
+            authSessionVault: vault,
+            onUnauthorized: {
+                lifecycle.continuation.yield(.authenticatedRequestRejected)
+            }
         )
+        let accountRemote = LiveAccountRemote(transport: transport)
         let accountStore = AccountLocalStore()
-        let accountSync = AccountSyncCoordinator(store: accountStore, client: client)
+        let accountSync = AccountSyncCoordinator(store: accountStore, remote: accountRemote)
         let account = SyncedAccountRepository(store: accountStore, sync: accountSync)
-        let search = LiveSearchRepository(client: client)
+        let search = LiveSearchRepository(transport: transport)
         let journeys = PreferenceAwareJourneyRepository(
-            base: LiveJourneyRepository(client: client),
+            base: LiveJourneyRepository(transport: transport),
             preferences: account
         )
         return AppDependencies(
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
-                apiClient: client,
+                accountRemote: accountRemote,
                 vault: vault,
                 accountStore: accountStore,
-                accountSync: accountSync
+                accountSync: accountSync,
+                lifecycleEvents: lifecycle.stream
             ),
             favoriteStations: account,
             transportPreferences: account,
-            network: LiveNetworkRepository(client: client),
+            network: LiveNetworkRepository(transport: transport),
             search: search,
             recentSearches: account,
-            departures: LiveDeparturesRepository(client: client),
+            departures: LiveDeparturesRepository(transport: transport),
             journeys: journeys,
-            naturalJourneys: LiveNaturalJourneyRepository(client: client),
+            naturalJourneys: LiveNaturalJourneyRepository(transport: transport),
             chat: FoundationModelsChatRepository(
                 search: { try await search.search(query: $0, near: $1) },
                 plan: { try await journeys.plan($0) }
@@ -55,15 +61,15 @@ struct AppDependencies {
     static var preview: AppDependencies {
         let vault = InMemoryAuthSessionVault()
         let baseURL = URL(string: "https://example.com/api")!
-        let client = LiveViaAPIClient(baseURL: baseURL, authSessionVault: vault)
+        let accountRemote = InMemoryAccountRemote()
         let defaults = UserDefaults(suiteName: "dev.via.preview")!
         let accountStore = AccountLocalStore(defaults: defaults)
-        let accountSync = AccountSyncCoordinator(store: accountStore, client: client)
+        let accountSync = AccountSyncCoordinator(store: accountStore, remote: accountRemote)
         let account = SyncedAccountRepository(store: accountStore, sync: accountSync)
         return AppDependencies(
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: baseURL),
-                apiClient: client,
+                accountRemote: accountRemote,
                 vault: vault,
                 accountStore: accountStore,
                 accountSync: accountSync

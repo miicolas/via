@@ -5,8 +5,21 @@ protocol DeparturesRepository: Sendable {
 }
 
 struct LiveDeparturesRepository: DeparturesRepository {
-    let client: any ViaAPIClient
-    func board(stationID: StationID) async throws -> DepartureBoard { try await client.departures(stationID: stationID) }
+    let transport: ViaTransport
+
+    func board(stationID: StationID) async throws -> DepartureBoard {
+        try await transport.perform("departures") { client in
+            let input = Operations.departures_period_forStation.Input(
+                query: .init(stationId: stationID.rawValue)
+            )
+            switch try await client.departures_period_forStation(input) {
+            case .ok(let response):
+                return try transport.convert(response.body.json, to: DepartureBoardDTO.self).domain()
+            case .undocumented(let statusCode, _):
+                throw ViaTransport.error(for: statusCode)
+            }
+        }
+    }
 }
 
 struct InMemoryDeparturesRepository: DeparturesRepository {

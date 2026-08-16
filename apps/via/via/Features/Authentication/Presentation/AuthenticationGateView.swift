@@ -36,11 +36,6 @@ struct AuthenticationGateView<Content: View>: View {
             Task { await viewModel.sceneBecameActive() }
         }
         .onReceive(
-            NotificationCenter.default.publisher(for: .viaAuthenticatedRequestWasRejected)
-        ) { _ in
-            Task { await viewModel.authenticatedRequestWasRejected() }
-        }
-        .onReceive(
             NotificationCenter.default.publisher(
                 for: ASAuthorizationAppleIDProvider.credentialRevokedNotification
             )
