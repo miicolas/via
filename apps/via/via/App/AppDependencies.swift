@@ -34,6 +34,7 @@ struct AppDependencies {
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
                 vault: vault,
+                credentialStatusChecker: LiveAppleCredentialStatusChecker(),
                 account: account,
                 lifecycleEvents: lifecycle.stream
             ),
@@ -66,6 +67,7 @@ struct AppDependencies {
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: baseURL),
                 vault: vault,
+                credentialStatusChecker: InMemoryAppleCredentialStatusChecker(),
                 account: account
             ),
             account: account,

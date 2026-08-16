@@ -6,6 +6,7 @@ struct AccountView: View {
     let account: AccountModel
 
     @Environment(\.dismiss) private var dismiss
+    @State private var authorizationAdapter = AppleAuthorizationAdapter()
     @State private var deletionConfirmationPresented = false
     @State private var deletionAuthorizationRequested = false
 
@@ -75,9 +76,10 @@ struct AccountView: View {
 
                         SignInWithAppleButton(
                             .continue,
-                            onRequest: authViewModel.configureDeletionRequest,
+                            onRequest: authorizationAdapter.configureDeletionRequest,
                             onCompletion: { result in
-                                Task { await authViewModel.completeAccountDeletion(result) }
+                                let outcome = authorizationAdapter.deletionOutcome(from: result)
+                                Task { await authViewModel.completeAccountDeletion(outcome) }
                             }
                         )
                         .signInWithAppleButtonStyle(.black)

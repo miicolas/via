@@ -1,4 +1,3 @@
-import AuthenticationServices
 import Foundation
 import Observation
 
@@ -11,9 +10,8 @@ final class AuthSessionViewModel {
 
     @ObservationIgnored private let client: any AuthenticationClient
     @ObservationIgnored private let vault: any AuthSessionVault
+    @ObservationIgnored private let credentialStatusChecker: any AppleCredentialStatusChecking
     @ObservationIgnored private let account: AccountModel
-    @ObservationIgnored private var signInNonce: String?
-    @ObservationIgnored private var deletionNonce: String?
     @ObservationIgnored private var didRestore = false
     @ObservationIgnored private var isRevalidating = false
     @ObservationIgnored private var lifecycleTask: Task<Void, Never>?
@@ -21,11 +19,13 @@ final class AuthSessionViewModel {
     init(
         client: any AuthenticationClient,
         vault: any AuthSessionVault,
+        credentialStatusChecker: any AppleCredentialStatusChecking,
         account: AccountModel,
         lifecycleEvents: AsyncStream<AuthLifecycleEvent> = AsyncStream { _ in }
     ) {
         self.client = client
         self.vault = vault
+        self.credentialStatusChecker = credentialStatusChecker
         self.account = account
         lifecycleTask = Task { [weak self] in
             for await event in lifecycleEvents {
@@ -62,52 +62,19 @@ final class AuthSessionViewModel {
         }
     }
 
-    func configureSignInRequest(_ request: ASAuthorizationAppleIDRequest) {
-        configure(
-            request,
-            storingNonceIn: \.signInNonce,
-            failureMessage: "Impossible de préparer la connexion sécurisée."
-        )
-    }
-
-    func completeSignIn(_ result: Result<ASAuthorization, any Error>) async {
-        guard let nonce = signInNonce else {
+    func completeSignIn(_ outcome: AppleSignInOutcome) async {
+        switch outcome {
+        case .cancelled:
             state = .signedOut
-            errorMessage = "La tentative de connexion a expiré. Réessaie."
-            return
-        }
-        signInNonce = nil
+            errorMessage = nil
 
-        switch result {
-        case .failure(let error):
+        case .failed:
             state = .signedOut
-            if let authorizationError = error as? ASAuthorizationError,
-               authorizationError.code == .canceled {
-                return
-            }
             errorMessage = "Apple n’a pas pu terminer la connexion."
 
-        case .success(let authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
-                  let identityTokenData = credential.identityToken,
-                  let identityToken = String(data: identityTokenData, encoding: .utf8) else {
-                state = .signedOut
-                errorMessage = "Apple n’a pas fourni de jeton d’identité valide."
-                return
-            }
+        case .authorized(let credentials):
             state = .authenticating
             do {
-                let credentials = AppleSignInCredentials(
-                    appleUserIdentifier: credential.user,
-                    identityToken: identityToken,
-                    authorizationCode: credential.authorizationCode.flatMap {
-                        String(data: $0, encoding: .utf8)
-                    },
-                    nonce: nonce,
-                    givenName: credential.fullName?.givenName,
-                    familyName: credential.fullName?.familyName,
-                    email: credential.email
-                )
                 let session = try await client.signIn(with: credentials)
                 try await vault.save(session)
                 account.activate(userID: session.user.id)
@@ -144,7 +111,7 @@ final class AuthSessionViewModel {
         let storedSession = (try? await vault.load()) ?? displayedSession
 
         do {
-            let credentialState = try await appleCredentialState(
+            let credentialState = try await credentialStatusChecker.status(
                 for: storedSession.user.appleUserIdentifier
             )
             switch credentialState {
@@ -153,9 +120,7 @@ final class AuthSessionViewModel {
                     message: "Ton autorisation Apple a été révoquée. Reconnecte-toi."
                 )
                 return
-            case .authorized, .transferred:
-                break
-            @unknown default:
+            case .authorized, .transferred, .unknown:
                 break
             }
         } catch {
@@ -199,61 +164,20 @@ final class AuthSessionViewModel {
         errorMessage = nil
     }
 
-    func configureDeletionRequest(_ request: ASAuthorizationAppleIDRequest) {
-        configure(
-            request,
-            storingNonceIn: \.deletionNonce,
-            failureMessage: "Impossible de préparer la confirmation Apple."
-        )
-    }
-
-    private func configure(
-        _ request: ASAuthorizationAppleIDRequest,
-        storingNonceIn noncePath: ReferenceWritableKeyPath<AuthSessionViewModel, String?>,
-        failureMessage: String
-    ) {
-        do {
-            let nonce = try AppleSignInNonce.generate()
-            self[keyPath: noncePath] = nonce
-            request.requestedScopes = [.fullName, .email]
-            request.nonce = AppleSignInNonce.sha256(nonce)
+    func completeAccountDeletion(_ outcome: AppleDeletionOutcome) async {
+        guard session != nil else { return }
+        switch outcome {
+        case .cancelled:
             errorMessage = nil
-        } catch {
-            self[keyPath: noncePath] = nil
-            errorMessage = failureMessage
-        }
-    }
 
-    func completeAccountDeletion(_ result: Result<ASAuthorization, any Error>) async {
-        guard let storedSession = session, let nonce = deletionNonce else { return }
-        deletionNonce = nil
-
-        switch result {
-        case .failure(let error):
-            if let authorizationError = error as? ASAuthorizationError,
-               authorizationError.code == .canceled {
-                return
-            }
+        case .failed:
             errorMessage = "Apple n’a pas pu confirmer la suppression."
 
-        case .success(let authorization):
-            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
-                  let identityTokenData = credential.identityToken,
-                  let authorizationCodeData = credential.authorizationCode,
-                  let identityToken = String(data: identityTokenData, encoding: .utf8),
-                  let authorizationCode = String(data: authorizationCodeData, encoding: .utf8) else {
-                errorMessage = "Apple n’a pas fourni les éléments de révocation nécessaires."
-                return
-            }
-
+        case .authorized(let proof):
             isDeletingAccount = true
             defer { isDeletingAccount = false }
             do {
-                try await account.delete(using: AccountDeletionProof(
-                    identityToken: identityToken,
-                    authorizationCode: authorizationCode,
-                    nonce: nonce
-                ))
+                try await account.delete(using: proof)
                 try await vault.clear()
                 state = .signedOut
                 errorMessage = nil
@@ -268,20 +192,6 @@ final class AuthSessionViewModel {
         account.deactivate()
         state = .signedOut
         errorMessage = message
-    }
-
-    private func appleCredentialState(
-        for userID: String
-    ) async throws -> ASAuthorizationAppleIDProvider.CredentialState {
-        try await withCheckedThrowingContinuation { continuation in
-            ASAuthorizationAppleIDProvider().getCredentialState(forUserID: userID) { state, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                } else {
-                    continuation.resume(returning: state)
-                }
-            }
-        }
     }
 
     private func message(for error: any Error) -> String {

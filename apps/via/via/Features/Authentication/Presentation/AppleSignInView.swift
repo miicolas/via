@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AppleSignInView: View {
     @Bindable var viewModel: AuthSessionViewModel
+    @State private var authorizationAdapter = AppleAuthorizationAdapter()
 
     var body: some View {
         VStack(spacing: 28) {
@@ -23,9 +24,10 @@ struct AppleSignInView: View {
 
             SignInWithAppleButton(
                 .continue,
-                onRequest: viewModel.configureSignInRequest,
+                onRequest: authorizationAdapter.configureSignInRequest,
                 onCompletion: { result in
-                    Task { await viewModel.completeSignIn(result) }
+                    let outcome = authorizationAdapter.signInOutcome(from: result)
+                    Task { await viewModel.completeSignIn(outcome) }
                 }
             )
             .signInWithAppleButtonStyle(.black)

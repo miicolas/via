@@ -43,7 +43,7 @@ enum AuthLifecycleEvent: Sendable, Equatable {
     case appleCredentialRevoked
 }
 
-struct AppleSignInCredentials: Sendable {
+struct AppleSignInCredentials: Sendable, Equatable {
     let appleUserIdentifier: String
     let identityToken: String
     let authorizationCode: String?
@@ -51,6 +51,30 @@ struct AppleSignInCredentials: Sendable {
     let givenName: String?
     let familyName: String?
     let email: String?
+}
+
+enum AppleSignInOutcome: Sendable, Equatable {
+    case authorized(AppleSignInCredentials)
+    case cancelled
+    case failed
+}
+
+enum AppleDeletionOutcome: Sendable, Equatable {
+    case authorized(AccountDeletionProof)
+    case cancelled
+    case failed
+}
+
+enum AppleCredentialStatus: Sendable, Equatable {
+    case authorized
+    case revoked
+    case notFound
+    case transferred
+    case unknown
+}
+
+protocol AppleCredentialStatusChecking: Sendable {
+    func status(for appleUserIdentifier: String) async throws -> AppleCredentialStatus
 }
 
 enum AuthenticationClientError: Error, Sendable {
