@@ -1,3 +1,11 @@
+struct InMemoryNetworkRepository: NetworkRepository {
+    var network: TransitNetwork = .init(routes: [], stations: [])
+    var area: StationsArea = .init(stations: [], routes: [])
+
+    func railMap() async throws -> TransitNetwork { network }
+    func viewport(in bounds: GeoBounds) async throws -> StationsArea { area }
+}
+
 extension InMemoryNetworkRepository {
     static let mapPreview = InMemoryNetworkRepository(area: .mapPreview)
 }

@@ -1,11 +1,6 @@
 import Foundation
 import OSLog
 
-protocol NetworkRepository: Sendable {
-    func railMap() async throws -> TransitNetwork
-    func viewport(in bounds: GeoBounds) async throws -> StationsArea
-}
-
 actor LiveNetworkRepository: NetworkRepository {
     private let transport: ViaTransport
     private var cache: [ViewportTile: StationsArea] = [:]
@@ -108,12 +103,4 @@ actor LiveNetworkRepository: NetworkRepository {
         lastAssembly = (tiles: visibleTiles, area: area)
         return area
     }
-}
-
-struct InMemoryNetworkRepository: NetworkRepository {
-    var network: TransitNetwork = .init(routes: [], stations: [])
-    var area: StationsArea = .init(stations: [], routes: [])
-
-    func railMap() async throws -> TransitNetwork { network }
-    func viewport(in bounds: GeoBounds) async throws -> StationsArea { area }
 }
