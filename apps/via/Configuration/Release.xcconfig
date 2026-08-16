@@ -1,0 +1,5 @@
+#include "Shared.xcconfig"
+
+VIA_API_SCHEME = https:
+VIA_API_BASE_URL = $(VIA_API_SCHEME)$(VIA_URL_SLASH)$(VIA_URL_SLASH)production.invalid/api
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) RELEASE

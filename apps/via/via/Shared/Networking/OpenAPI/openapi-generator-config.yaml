@@ -1,0 +1,15 @@
+generate:
+  - types
+  - client
+accessModifier: internal
+additionalImports:
+  - Foundation
+filter:
+  operations:
+    - departures.forStation
+    - health
+    - journeys.plan
+    - naturalJourneys.submit
+    - network.railMap
+    - network.stationsInArea
+    - search.query
