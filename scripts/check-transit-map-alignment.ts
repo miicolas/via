@@ -5,6 +5,10 @@ import { type Coordinate, type RailMap, railMapSchema } from '@via/contract';
  * whatever the server is actually listening on instead of a hardcoded guess.
  */
 const apiUrl = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+const bearerToken = process.env.VIA_API_BEARER_TOKEN;
+if (!bearerToken) {
+  throw new Error('VIA_API_BEARER_TOKEN is required for the protected network endpoint');
+}
 
 /**
  * Calls the REST surface rather than the app's RPC mount, on purpose: this is
@@ -12,7 +16,9 @@ const apiUrl = process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 30
  * else exercises it. Parsing against the contract means a payload that drifted
  * fails here loudly instead of being measured as if it were fine.
  */
-const response = await fetch(`${apiUrl}/api/network/rail-map`);
+const response = await fetch(`${apiUrl}/api/network/rail-map`, {
+  headers: { authorization: `Bearer ${bearerToken}` },
+});
 if (!response.ok) throw new Error(`Rail map API returned ${response.status}`);
 
 const network: RailMap = railMapSchema.parse(await response.json());

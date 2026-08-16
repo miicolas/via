@@ -9,60 +9,64 @@ extension MKCoordinateRegion {
     )
 }
 
-// Tab item
-enum TabItem: String, Hashable {
-    case People = "People"
-    case Places = "Places"
-    case Me = "Me"
-    
-    var symbolImage: String {
-        switch self {
-        case .People:
-            return "person.crop.circle.badge.ellipsis"
-        case .Places:
-            return "map"
-        case .Me:
-            return "person.crop.circle"
-        }
-    }
-    
-    @ContentBuilder var tabLabel: some View {
-        Image(systemName: self.symbolImage)
-        Text(self.rawValue)
-    }
-    
-}
-
 struct RootView: View {
-    @State private var showTabView: Bool = true
-    @State private var activeTab: TabItem = .People
+    @State private var isMapSheetPresented = true
+    @State private var presentation = MapPresentationState()
+    @State private var networkViewModel: NetworkViewModel
+    private let authViewModel: AuthSessionViewModel
+    private let favoriteStations: any FavoriteStationRepository
+    private let transportPreferences: any TransportPreferencesRepository
+    private let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
+
+    init(
+        networkViewModel: NetworkViewModel,
+        authViewModel: AuthSessionViewModel,
+        favoriteStations: any FavoriteStationRepository,
+        transportPreferences: any TransportPreferencesRepository,
+        makeDeparturesViewModel: @escaping (StationID) -> DeparturesViewModel
+    ) {
+        _networkViewModel = State(initialValue: networkViewModel)
+        self.authViewModel = authViewModel
+        self.favoriteStations = favoriteStations
+        self.transportPreferences = transportPreferences
+        self.makeDeparturesViewModel = makeDeparturesViewModel
+    }
     
     var body: some View {
-        Map(initialPosition: .region(MKCoordinateRegion.paris)
-        ).sheet(isPresented: $showTabView) {
-            SheetTabView(selection: $activeTab) {
-                Tab("People", systemImage: TabItem.People.symbolImage, value: .People) {
-                    Text("People")
-                }
-                Tab("Places", systemImage: TabItem.Places.symbolImage, value: .Places) {
-                    Text("Places")
-                }
-                Tab("Me", systemImage: TabItem.Me.symbolImage, value: .Me) {
-                    Text("Me")
-                }
-                Tab("Me", systemImage: TabItem.Me.symbolImage, value: .Me) {
-                    Text("Me")
-                }
-                Tab("Me", systemImage: TabItem.Me.symbolImage, value: .Me) {
-                    Text("Me")
-                }
-                
-            }
+        NetworkMapView(
+            viewModel: networkViewModel,
+            selectedStation: mapSelection
+        )
+        .sheet(isPresented: $isMapSheetPresented) {
+            MapPresentationSheet(
+                state: $presentation,
+                authViewModel: authViewModel,
+                favoriteStations: favoriteStations,
+                transportPreferences: transportPreferences,
+                makeDeparturesViewModel: makeDeparturesViewModel
+            )
         }
-        
+    }
+
+    private var mapSelection: Binding<StationMapItem?> {
+        Binding(
+            get: { presentation.selectedStation },
+            set: { presentation.selectMapStation($0) }
+        )
     }
 }
 
 #Preview {
-    RootView()
+    RootView(
+        networkViewModel: NetworkViewModel(repository: InMemoryNetworkRepository.mapPreview),
+        authViewModel: .preview,
+        favoriteStations: AppDependencies.preview.favoriteStations,
+        transportPreferences: AppDependencies.preview.transportPreferences,
+        makeDeparturesViewModel: {
+            DeparturesViewModel(
+                stationID: $0,
+                repository: InMemoryDeparturesRepository()
+            )
+        }
+    )
 }

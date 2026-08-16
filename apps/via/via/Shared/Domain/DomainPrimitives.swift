@@ -42,14 +42,28 @@ struct GeoBounds: Codable, Sendable, Hashable {
     let maxLongitude: Double
 
     var isValid: Bool {
-        minLatitude < maxLatitude && minLongitude < maxLongitude
+        minLatitude.isFinite &&
+            maxLatitude.isFinite &&
+            minLongitude.isFinite &&
+            maxLongitude.isFinite &&
+            minLatitude < maxLatitude &&
+            minLongitude < maxLongitude
     }
 }
 
-enum TransitMode: String, Codable, CaseIterable, Sendable, Hashable {
+/// Cases are declared in presentation order; `Comparable` sorts by it.
+enum TransitMode: String, Codable, CaseIterable, Sendable, Hashable, Comparable {
     case metro
     case rer
+    case transilien
+    case tram
     case bus
+
+    static func < (lhs: TransitMode, rhs: TransitMode) -> Bool {
+        guard let lhsIndex = allCases.firstIndex(of: lhs),
+              let rhsIndex = allCases.firstIndex(of: rhs) else { return false }
+        return lhsIndex < rhsIndex
+    }
 }
 
 struct RouteBadge: Codable, Sendable, Hashable, Identifiable {

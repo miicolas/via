@@ -1,4 +1,10 @@
-import type { Coordinate, Journey, JourneyDestination, JourneySection } from '@via/contract';
+import type {
+  Coordinate,
+  Journey,
+  JourneyDestination,
+  JourneyMode,
+  JourneySection,
+} from '@via/contract';
 
 import { parisDay, previousDate, toInstant } from '../../../time/paris';
 
@@ -13,7 +19,7 @@ export type PlannerRoute = {
   id: string;
   shortName: string;
   longName: string;
-  mode: 'metro' | 'rer' | 'bus';
+  mode: JourneyMode;
   color: string;
   textColor: string;
 };

@@ -31,6 +31,7 @@ struct StationsArea: Sendable, Hashable {
 
 struct ViewportTile: Sendable, Hashable, Identifiable {
     static let sizeInDegrees = 0.025
+    static let maximumVisibleTileCount = 64
 
     let latitudeIndex: Int
     let longitudeIndex: Int
@@ -51,8 +52,22 @@ struct ViewportTile: Sendable, Hashable, Identifiable {
 
     static func covering(_ bounds: GeoBounds) -> Set<ViewportTile> {
         guard bounds.isValid else { return [] }
-        let latitudeRange = Int(floor(bounds.minLatitude / sizeInDegrees))...Int(floor(bounds.maxLatitude / sizeInDegrees))
-        let longitudeRange = Int(floor(bounds.minLongitude / sizeInDegrees))...Int(floor(bounds.maxLongitude / sizeInDegrees))
+        let minimumLatitudeIndex = Int(floor(bounds.minLatitude / sizeInDegrees))
+        let maximumLatitudeIndex = Int(floor(bounds.maxLatitude / sizeInDegrees))
+        let minimumLongitudeIndex = Int(floor(bounds.minLongitude / sizeInDegrees))
+        let maximumLongitudeIndex = Int(floor(bounds.maxLongitude / sizeInDegrees))
+        let latitudeCount = maximumLatitudeIndex - minimumLatitudeIndex + 1
+        let longitudeCount = maximumLongitudeIndex - minimumLongitudeIndex + 1
+
+        guard
+            latitudeCount > 0,
+            longitudeCount > 0,
+            latitudeCount <= maximumVisibleTileCount,
+            longitudeCount <= maximumVisibleTileCount / latitudeCount
+        else { return [] }
+
+        let latitudeRange = minimumLatitudeIndex...maximumLatitudeIndex
+        let longitudeRange = minimumLongitudeIndex...maximumLongitudeIndex
         return Set(latitudeRange.flatMap { latitude in
             longitudeRange.map { longitude in
                 ViewportTile(latitudeIndex: latitude, longitudeIndex: longitude)
@@ -60,4 +75,3 @@ struct ViewportTile: Sendable, Hashable, Identifiable {
         })
     }
 }
-

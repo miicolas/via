@@ -10,6 +10,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 import { lineStringWgs84, multiLineStringWgs84, pointWgs84 } from './columns';
@@ -235,6 +236,135 @@ export const transitTransfers = pgTable(
     primaryKey({ columns: [table.fromStopId, table.toStopId] }),
     index('transit_transfers_from_idx').on(table.fromStopId),
   ]
+);
+
+/**
+ * Better Auth owns these four tables. Their property names intentionally use
+ * Better Auth's camel-case model fields while PostgreSQL keeps snake-case
+ * column names. The adapter is configured with `usePlural: true`.
+ */
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  /**
+   * Transport preferences, declared to Better Auth as `user.additionalFields`
+   * in `apps/api/src/auth/auth.ts` — the two definitions must stay in sync.
+   * `preferencesUpdatedAt` is the last-writer-wins clock for the sync
+   * protocol; NULL means the user never set preferences.
+   */
+  preferredModes: text('preferred_modes').array().notNull().default(sql`'{}'::text[]`),
+  excludedModes: text('excluded_modes').array().notNull().default(sql`'{}'::text[]`),
+  preferencesUpdatedAt: timestamp('preferences_updated_at', { withTimezone: true }),
+});
+
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text('id').primaryKey(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+  },
+  (table) => [index('sessions_user_id_idx').on(table.userId)]
+);
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('accounts_user_id_idx').on(table.userId),
+    uniqueIndex('accounts_provider_account_uidx').on(table.providerId, table.accountId),
+  ]
+);
+
+export const verifications = pgTable(
+  'verifications',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('verifications_identifier_idx').on(table.identifier)]
+);
+
+/** Per-account data kept locally on iOS and reconciled through operation UUIDs. */
+export const accountFavoriteStations = pgTable(
+  'account_favorite_stations',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    stationId: text('station_id').notNull(),
+    name: text('name').notNull(),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.stationId] }),
+    index('account_favorite_stations_user_saved_idx').on(table.userId, table.savedAt),
+  ]
+);
+
+export const accountRecentSearches = pgTable(
+  'account_recent_searches',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    id: text('id').notNull(),
+    kind: text('kind').notNull(),
+    name: text('name').notNull(),
+    context: text('context'),
+    latitude: doublePrecision('latitude').notNull(),
+    longitude: doublePrecision('longitude').notNull(),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
+    index('account_recent_searches_user_saved_idx').on(table.userId, table.savedAt),
+  ]
+);
+
+export const accountSyncOperations = pgTable(
+  'account_sync_operations',
+  {
+    operationId: text('operation_id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    appliedAt: timestamp('applied_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('account_sync_operations_user_idx').on(table.userId)]
 );
 
 export type TransitRoute = typeof transitRoutes.$inferSelect;

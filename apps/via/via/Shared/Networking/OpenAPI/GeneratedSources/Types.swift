@@ -12,6 +12,20 @@ import struct Foundation.Date
 import Foundation
 /// A type that performs HTTP operations defined by the OpenAPI document.
 internal protocol APIProtocol: Sendable {
+    /// Supprimer le compte Via
+    ///
+    /// Réauthentifie avec Apple, révoque le jeton Apple puis supprime toutes les données du compte.
+    ///
+    /// - Remark: HTTP `POST /account/delete`.
+    /// - Remark: Generated from `#/paths//account/delete/post(account.delete)`.
+    func account_period_delete(_ input: Operations.account_period_delete.Input) async throws -> Operations.account_period_delete.Output
+    /// Synchroniser les données du compte
+    ///
+    /// Applique des opérations idempotentes puis renvoie les favoris, recherches et préférences canoniques.
+    ///
+    /// - Remark: HTTP `POST /account/sync`.
+    /// - Remark: Generated from `#/paths//account/sync/post(account.sync)`.
+    func account_period_sync(_ input: Operations.account_period_sync.Input) async throws -> Operations.account_period_sync.Output
     /// Prochains passages
     ///
     /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. `source` dit ce que les horodatages valent.
@@ -42,7 +56,7 @@ internal protocol APIProtocol: Sendable {
     func naturalJourneys_period_submit(_ input: Operations.naturalJourneys_period_submit.Input) async throws -> Operations.naturalJourneys_period_submit.Output
     /// Le réseau ferré visible
     ///
-    /// Lignes de métro et de RER avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.
+    /// Lignes de métro, RER, Transilien et tram avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.
     ///
     /// - Remark: HTTP `GET /network/rail-map`.
     /// - Remark: Generated from `#/paths//network/rail-map/get(network.railMap)`.
@@ -56,7 +70,7 @@ internal protocol APIProtocol: Sendable {
     func network_period_stationsInArea(_ input: Operations.network_period_stationsInArea.Input) async throws -> Operations.network_period_stationsInArea.Output
     /// Recherche unifiée
     ///
-    /// Arrêts de métro, RER et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
+    /// Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
     ///
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.
@@ -65,6 +79,36 @@ internal protocol APIProtocol: Sendable {
 
 /// Convenience overloads for operation inputs.
 extension APIProtocol {
+    /// Supprimer le compte Via
+    ///
+    /// Réauthentifie avec Apple, révoque le jeton Apple puis supprime toutes les données du compte.
+    ///
+    /// - Remark: HTTP `POST /account/delete`.
+    /// - Remark: Generated from `#/paths//account/delete/post(account.delete)`.
+    internal func account_period_delete(
+        headers: Operations.account_period_delete.Input.Headers = .init(),
+        body: Operations.account_period_delete.Input.Body
+    ) async throws -> Operations.account_period_delete.Output {
+        try await account_period_delete(Operations.account_period_delete.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Synchroniser les données du compte
+    ///
+    /// Applique des opérations idempotentes puis renvoie les favoris, recherches et préférences canoniques.
+    ///
+    /// - Remark: HTTP `POST /account/sync`.
+    /// - Remark: Generated from `#/paths//account/sync/post(account.sync)`.
+    internal func account_period_sync(
+        headers: Operations.account_period_sync.Input.Headers = .init(),
+        body: Operations.account_period_sync.Input.Body
+    ) async throws -> Operations.account_period_sync.Output {
+        try await account_period_sync(Operations.account_period_sync.Input(
+            headers: headers,
+            body: body
+        ))
+    }
     /// Prochains passages
     ///
     /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. `source` dit ce que les horodatages valent.
@@ -121,7 +165,7 @@ extension APIProtocol {
     }
     /// Le réseau ferré visible
     ///
-    /// Lignes de métro et de RER avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.
+    /// Lignes de métro, RER, Transilien et tram avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.
     ///
     /// - Remark: HTTP `GET /network/rail-map`.
     /// - Remark: Generated from `#/paths//network/rail-map/get(network.railMap)`.
@@ -145,7 +189,7 @@ extension APIProtocol {
     }
     /// Recherche unifiée
     ///
-    /// Arrêts de métro, RER et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
+    /// Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
     ///
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.
@@ -195,6 +239,737 @@ internal enum Components {
 
 /// API operations, with input and output types, generated from `#/paths` in the OpenAPI document.
 internal enum Operations {
+    /// Supprimer le compte Via
+    ///
+    /// Réauthentifie avec Apple, révoque le jeton Apple puis supprime toutes les données du compte.
+    ///
+    /// - Remark: HTTP `POST /account/delete`.
+    /// - Remark: Generated from `#/paths//account/delete/post(account.delete)`.
+    internal enum account_period_delete {
+        internal static let id: Swift.String = "account.delete"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/account/delete/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.account_period_delete.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.account_period_delete.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.account_period_delete.Input.Headers
+            /// - Remark: Generated from `#/paths/account/delete/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/account/delete/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/account/delete/POST/requestBody/json/identityToken`.
+                    internal var identityToken: Swift.String
+                    /// - Remark: Generated from `#/paths/account/delete/POST/requestBody/json/authorizationCode`.
+                    internal var authorizationCode: Swift.String
+                    /// - Remark: Generated from `#/paths/account/delete/POST/requestBody/json/nonce`.
+                    internal var nonce: Swift.String
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - identityToken:
+                    ///   - authorizationCode:
+                    ///   - nonce:
+                    internal init(
+                        identityToken: Swift.String,
+                        authorizationCode: Swift.String,
+                        nonce: Swift.String
+                    ) {
+                        self.identityToken = identityToken
+                        self.authorizationCode = authorizationCode
+                        self.nonce = nonce
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case identityToken
+                        case authorizationCode
+                        case nonce
+                    }
+                }
+                /// - Remark: Generated from `#/paths/account/delete/POST/requestBody/content/application\/json`.
+                case json(Operations.account_period_delete.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.account_period_delete.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.account_period_delete.Input.Headers = .init(),
+                body: Operations.account_period_delete.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/account/delete/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/account/delete/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/account/delete/POST/responses/200/content/json/deleted`.
+                        internal var deleted: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - deleted:
+                        internal init(deleted: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.deleted = deleted
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case deleted
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/account/delete/POST/responses/200/content/application\/json`.
+                    case json(Operations.account_period_delete.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.account_period_delete.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.account_period_delete.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.account_period_delete.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//account/delete/post(account.delete)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.account_period_delete.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.account_period_delete.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Synchroniser les données du compte
+    ///
+    /// Applique des opérations idempotentes puis renvoie les favoris, recherches et préférences canoniques.
+    ///
+    /// - Remark: HTTP `POST /account/sync`.
+    /// - Remark: Generated from `#/paths//account/sync/post(account.sync)`.
+    internal enum account_period_sync {
+        internal static let id: Swift.String = "account.sync"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/account/sync/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.account_period_sync.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.account_period_sync.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.account_period_sync.Input.Headers
+            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload`.
+                    internal struct operationsPayloadPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/operationId`.
+                        internal var operationId: Swift.String
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/kind`.
+                        internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case favorite_period_upsert = "favorite.upsert"
+                            case favorite_period_remove = "favorite.remove"
+                            case recent_period_upsert = "recent.upsert"
+                            case recent_period_clear = "recent.clear"
+                            case preferences_period_set = "preferences.set"
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/kind`.
+                        internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.kindPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/occurredAt`.
+                        internal var occurredAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station`.
+                        internal struct stationPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/stationId`.
+                            internal var stationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `stationPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - stationId:
+                            ///   - name:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            internal init(
+                                stationId: Swift.String,
+                                name: Swift.String,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.stationId = stationId
+                                self.name = name
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case stationId
+                                case name
+                                case savedAt
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station`.
+                        internal var station: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/stationId`.
+                        internal var stationId: Swift.String?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent`.
+                        internal struct recentPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case station = "station"
+                                case address = "address"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/kind`.
+                            internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload.kindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/context`.
+                            internal var context: Swift.String?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/coordinate`.
+                            internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload.coordinatePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// Creates a new `recentPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - kind:
+                            ///   - name:
+                            ///   - context:
+                            ///   - coordinate:
+                            ///   - savedAt:
+                            internal init(
+                                id: Swift.String,
+                                kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload.kindPayload,
+                                name: Swift.String,
+                                context: Swift.String? = nil,
+                                coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload.coordinatePayload,
+                                savedAt: Foundation.Date
+                            ) {
+                                self.id = id
+                                self.kind = kind
+                                self.name = name
+                                self.context = context
+                                self.coordinate = coordinate
+                                self.savedAt = savedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case kind
+                                case name
+                                case context
+                                case coordinate
+                                case savedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent`.
+                        internal var recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences`.
+                        internal struct preferencesPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/preferredModesPayload`.
+                            internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case metro = "metro"
+                                case rer = "rer"
+                                case transilien = "transilien"
+                                case tram = "tram"
+                                case bus = "bus"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/preferredModes`.
+                            internal typealias preferredModesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.preferredModesPayloadPayload]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/preferredModes`.
+                            internal var preferredModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.preferredModesPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/excludedModesPayload`.
+                            internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case metro = "metro"
+                                case rer = "rer"
+                                case transilien = "transilien"
+                                case tram = "tram"
+                                case bus = "bus"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/excludedModes`.
+                            internal typealias excludedModesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.excludedModesPayloadPayload]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/excludedModes`.
+                            internal var excludedModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.excludedModesPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `preferencesPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - preferredModes:
+                            ///   - excludedModes:
+                            ///   - updatedAt:
+                            internal init(
+                                preferredModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.preferredModesPayload,
+                                excludedModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.excludedModesPayload,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.preferredModes = preferredModes
+                                self.excludedModes = excludedModes
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case preferredModes
+                                case excludedModes
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences`.
+                        internal var preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload?
+                        /// Creates a new `operationsPayloadPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - operationId:
+                        ///   - kind:
+                        ///   - occurredAt:
+                        ///   - station:
+                        ///   - stationId:
+                        ///   - recent:
+                        ///   - preferences:
+                        internal init(
+                            operationId: Swift.String,
+                            kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.kindPayload,
+                            occurredAt: Foundation.Date,
+                            station: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload? = nil,
+                            stationId: Swift.String? = nil,
+                            recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload? = nil,
+                            preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload? = nil
+                        ) {
+                            self.operationId = operationId
+                            self.kind = kind
+                            self.occurredAt = occurredAt
+                            self.station = station
+                            self.stationId = stationId
+                            self.recent = recent
+                            self.preferences = preferences
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case operationId
+                            case kind
+                            case occurredAt
+                            case station
+                            case stationId
+                            case recent
+                            case preferences
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operations`.
+                    internal typealias operationsPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload]
+                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operations`.
+                    internal var operations: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayload
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - operations:
+                    internal init(operations: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayload) {
+                        self.operations = operations
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case operations
+                    }
+                }
+                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/content/application\/json`.
+                case json(Operations.account_period_sync.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.account_period_sync.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.account_period_sync.Input.Headers = .init(),
+                body: Operations.account_period_sync.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/appliedOperationIds`.
+                        internal var appliedOperationIds: [Swift.String]
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload`.
+                        internal struct favoritesPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/stationId`.
+                            internal var stationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `favoritesPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - stationId:
+                            ///   - name:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            internal init(
+                                stationId: Swift.String,
+                                name: Swift.String,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.stationId = stationId
+                                self.name = name
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case stationId
+                                case name
+                                case savedAt
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favorites`.
+                        internal typealias favoritesPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.favoritesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favorites`.
+                        internal var favorites: Operations.account_period_sync.Output.Ok.Body.jsonPayload.favoritesPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload`.
+                        internal struct recentsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case station = "station"
+                                case address = "address"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/kind`.
+                            internal var kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayloadPayload.kindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/context`.
+                            internal var context: Swift.String?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/coordinate`.
+                            internal var coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayloadPayload.coordinatePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recentsPayload/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// Creates a new `recentsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - kind:
+                            ///   - name:
+                            ///   - context:
+                            ///   - coordinate:
+                            ///   - savedAt:
+                            internal init(
+                                id: Swift.String,
+                                kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayloadPayload.kindPayload,
+                                name: Swift.String,
+                                context: Swift.String? = nil,
+                                coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayloadPayload.coordinatePayload,
+                                savedAt: Foundation.Date
+                            ) {
+                                self.id = id
+                                self.kind = kind
+                                self.name = name
+                                self.context = context
+                                self.coordinate = coordinate
+                                self.savedAt = savedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case kind
+                                case name
+                                case context
+                                case coordinate
+                                case savedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recents`.
+                        internal typealias recentsPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recents`.
+                        internal var recents: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences`.
+                        internal struct preferencesPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/preferredModesPayload`.
+                            internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case metro = "metro"
+                                case rer = "rer"
+                                case transilien = "transilien"
+                                case tram = "tram"
+                                case bus = "bus"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/preferredModes`.
+                            internal typealias preferredModesPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload.preferredModesPayloadPayload]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/preferredModes`.
+                            internal var preferredModes: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload.preferredModesPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/excludedModesPayload`.
+                            internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case metro = "metro"
+                                case rer = "rer"
+                                case transilien = "transilien"
+                                case tram = "tram"
+                                case bus = "bus"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/excludedModes`.
+                            internal typealias excludedModesPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload.excludedModesPayloadPayload]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/excludedModes`.
+                            internal var excludedModes: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload.excludedModesPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `preferencesPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - preferredModes:
+                            ///   - excludedModes:
+                            ///   - updatedAt:
+                            internal init(
+                                preferredModes: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload.preferredModesPayload,
+                                excludedModes: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload.excludedModesPayload,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.preferredModes = preferredModes
+                                self.excludedModes = excludedModes
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case preferredModes
+                                case excludedModes
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences`.
+                        internal var preferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/syncedAt`.
+                        internal var syncedAt: Foundation.Date
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - appliedOperationIds:
+                        ///   - favorites:
+                        ///   - recents:
+                        ///   - preferences:
+                        ///   - syncedAt:
+                        internal init(
+                            appliedOperationIds: [Swift.String],
+                            favorites: Operations.account_period_sync.Output.Ok.Body.jsonPayload.favoritesPayload,
+                            recents: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayload,
+                            preferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload,
+                            syncedAt: Foundation.Date
+                        ) {
+                            self.appliedOperationIds = appliedOperationIds
+                            self.favorites = favorites
+                            self.recents = recents
+                            self.preferences = preferences
+                            self.syncedAt = syncedAt
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case appliedOperationIds
+                            case favorites
+                            case recents
+                            case preferences
+                            case syncedAt
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/application\/json`.
+                    case json(Operations.account_period_sync.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.account_period_sync.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.account_period_sync.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.account_period_sync.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//account/sync/post(account.sync)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.account_period_sync.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.account_period_sync.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
     /// Prochains passages
     ///
     /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. `source` dit ce que les horodatages valent.
@@ -270,6 +1045,8 @@ internal enum Operations {
                                 internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case metro = "metro"
                                     case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
                                     case bus = "bus"
                                 }
                                 /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/route/mode`.
@@ -799,6 +1576,8 @@ internal enum Operations {
                 internal enum requiredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                     case metro = "metro"
                     case rer = "rer"
+                    case transilien = "transilien"
+                    case tram = "tram"
                     case bus = "bus"
                 }
                 /// - Remark: Generated from `#/paths/journeys/GET/query/requiredModes`.
@@ -809,6 +1588,8 @@ internal enum Operations {
                 internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                     case metro = "metro"
                     case rer = "rer"
+                    case transilien = "transilien"
+                    case tram = "tram"
                     case bus = "bus"
                 }
                 /// - Remark: Generated from `#/paths/journeys/GET/query/excludedModes`.
@@ -819,6 +1600,8 @@ internal enum Operations {
                 internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                     case metro = "metro"
                     case rer = "rer"
+                    case transilien = "transilien"
+                    case tram = "tram"
                     case bus = "bus"
                 }
                 /// - Remark: Generated from `#/paths/journeys/GET/query/preferredModes`.
@@ -1091,6 +1874,8 @@ internal enum Operations {
                                     internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                         case metro = "metro"
                                         case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
                                         case bus = "bus"
                                     }
                                     /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/route/mode`.
@@ -1611,6 +2396,8 @@ internal enum Operations {
                                 internal enum requiredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case metro = "metro"
                                     case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
                                     case bus = "bus"
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/value2/draft/intent/requiredModes`.
@@ -1621,6 +2408,8 @@ internal enum Operations {
                                 internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case metro = "metro"
                                     case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
                                     case bus = "bus"
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/value2/draft/intent/excludedModes`.
@@ -1631,6 +2420,8 @@ internal enum Operations {
                                 internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case metro = "metro"
                                     case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
                                     case bus = "bus"
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/value2/draft/intent/preferredModes`.
@@ -1717,6 +2508,8 @@ internal enum Operations {
                                         internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                             case metro = "metro"
                                             case rer = "rer"
+                                            case transilien = "transilien"
+                                            case tram = "tram"
                                             case bus = "bus"
                                         }
                                         /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/value2/draft/origin/value1/routesPayload/mode`.
@@ -1953,6 +2746,8 @@ internal enum Operations {
                                         internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                             case metro = "metro"
                                             case rer = "rer"
+                                            case transilien = "transilien"
+                                            case tram = "tram"
                                             case bus = "bus"
                                         }
                                         /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/value2/draft/destination/value1/routesPayload/mode`.
@@ -2237,6 +3032,8 @@ internal enum Operations {
                                     internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                         case metro = "metro"
                                         case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
                                         case bus = "bus"
                                     }
                                     /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/value2/origin/value1/routesPayload/mode`.
@@ -2473,6 +3270,8 @@ internal enum Operations {
                                     internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                         case metro = "metro"
                                         case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
                                         case bus = "bus"
                                     }
                                     /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/value2/destination/value1/routesPayload/mode`.
@@ -3001,6 +3800,8 @@ internal enum Operations {
                                             internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                                 case metro = "metro"
                                                 case rer = "rer"
+                                                case transilien = "transilien"
+                                                case tram = "tram"
                                                 case bus = "bus"
                                             }
                                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routesPayload/mode`.
@@ -3205,6 +4006,8 @@ internal enum Operations {
                                 internal enum requiredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case metro = "metro"
                                     case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
                                     case bus = "bus"
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/requiredModes`.
@@ -3215,6 +4018,8 @@ internal enum Operations {
                                 internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case metro = "metro"
                                     case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
                                     case bus = "bus"
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/excludedModes`.
@@ -3225,6 +4030,8 @@ internal enum Operations {
                                 internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case metro = "metro"
                                     case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
                                     case bus = "bus"
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/preferredModes`.
@@ -3479,6 +4286,8 @@ internal enum Operations {
                                             internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                                 case metro = "metro"
                                                 case rer = "rer"
+                                                case transilien = "transilien"
+                                                case tram = "tram"
                                                 case bus = "bus"
                                             }
                                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route/mode`.
@@ -3878,6 +4687,8 @@ internal enum Operations {
                                     internal enum requiredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                         case metro = "metro"
                                         case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
                                         case bus = "bus"
                                     }
                                     /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2/draft/intent/requiredModes`.
@@ -3888,6 +4699,8 @@ internal enum Operations {
                                     internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                         case metro = "metro"
                                         case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
                                         case bus = "bus"
                                     }
                                     /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2/draft/intent/excludedModes`.
@@ -3898,6 +4711,8 @@ internal enum Operations {
                                     internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                         case metro = "metro"
                                         case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
                                         case bus = "bus"
                                     }
                                     /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2/draft/intent/preferredModes`.
@@ -3984,6 +4799,8 @@ internal enum Operations {
                                             internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                                 case metro = "metro"
                                                 case rer = "rer"
+                                                case transilien = "transilien"
+                                                case tram = "tram"
                                                 case bus = "bus"
                                             }
                                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2/draft/origin/value1/routesPayload/mode`.
@@ -4220,6 +5037,8 @@ internal enum Operations {
                                             internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                                 case metro = "metro"
                                                 case rer = "rer"
+                                                case transilien = "transilien"
+                                                case tram = "tram"
                                                 case bus = "bus"
                                             }
                                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2/draft/destination/value1/routesPayload/mode`.
@@ -4491,6 +5310,8 @@ internal enum Operations {
                                             internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                                 case metro = "metro"
                                                 case rer = "rer"
+                                                case transilien = "transilien"
+                                                case tram = "tram"
                                                 case bus = "bus"
                                             }
                                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2/fieldsPayload/candidatesPayload/value1/routesPayload/mode`.
@@ -4977,7 +5798,7 @@ internal enum Operations {
     }
     /// Le réseau ferré visible
     ///
-    /// Lignes de métro et de RER avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.
+    /// Lignes de métro, RER, Transilien et tram avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.
     ///
     /// - Remark: HTTP `GET /network/rail-map`.
     /// - Remark: Generated from `#/paths//network/rail-map/get(network.railMap)`.
@@ -5020,6 +5841,8 @@ internal enum Operations {
                             internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                 case metro = "metro"
                                 case rer = "rer"
+                                case transilien = "transilien"
+                                case tram = "tram"
                                 case bus = "bus"
                             }
                             /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/routesPayload/mode`.
@@ -5417,6 +6240,8 @@ internal enum Operations {
                             internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                 case metro = "metro"
                                 case rer = "rer"
+                                case transilien = "transilien"
+                                case tram = "tram"
                                 case bus = "bus"
                             }
                             /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/routesPayload/mode`.
@@ -5556,7 +6381,7 @@ internal enum Operations {
     }
     /// Recherche unifiée
     ///
-    /// Arrêts de métro, RER et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
+    /// Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
     ///
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.
@@ -5669,6 +6494,8 @@ internal enum Operations {
                                     internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                         case metro = "metro"
                                         case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
                                         case bus = "bus"
                                     }
                                     /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1/routesPayload/mode`.

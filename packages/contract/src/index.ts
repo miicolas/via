@@ -1,3 +1,4 @@
+import { accountDeleteRelation, accountSyncRelation } from './account';
 import { departuresForStationRelation } from './departures';
 import { healthRelation } from './health';
 import { journeysPlanRelation } from './journeys';
@@ -6,6 +7,10 @@ import { railMapRelation, stationsInAreaRelation } from './network';
 import { searchQueryRelation } from './search';
 
 export const contract = {
+  account: {
+    delete: accountDeleteRelation,
+    sync: accountSyncRelation,
+  },
   departures: {
     forStation: departuresForStationRelation,
   },
@@ -25,6 +30,7 @@ export const contract = {
   },
 };
 
+export * from './account';
 export * from './departures/schema';
 export * from './departures/type';
 export * from './health/schema';

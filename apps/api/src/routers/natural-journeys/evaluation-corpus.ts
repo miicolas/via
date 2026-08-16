@@ -68,6 +68,14 @@ const templates = [
     expected: { origin: 'current_location', datetimeRepresents: 'departure', temporal: 'now', excludedModes: ['rer'] },
   },
   {
+    phrase: (destination: string) => `${destination} plutôt en tram`,
+    expected: { origin: 'current_location', datetimeRepresents: 'departure', temporal: 'now', preferredModes: ['tram'] },
+  },
+  {
+    phrase: (destination: string) => `${destination} uniquement en Transilien`,
+    expected: { origin: 'current_location', datetimeRepresents: 'departure', temporal: 'now', requiredModes: ['transilien'] },
+  },
+  {
     phrase: (destination: string) => `depuis Châtelet je veux être à ${destination} à 10h`,
     expected: { origin: 'Châtelet', datetimeRepresents: 'arrival', temporal: 'today-10:00' },
   },

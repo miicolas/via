@@ -19,12 +19,6 @@
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
       "computedHash": "e6394592ecf4b5aa5bc93f95a20d0a56314788bde2e1221f87296d3becb734a2"
     },
-    "creating-reanimated-animations": {
-      "source": "estevg/skills",
-      "sourceType": "github",
-      "skillPath": "plugins/creating-reanimated-animations/skills/creating-reanimated-animations/SKILL.md",
-      "computedHash": "5406c06d9f9462e0562d419db34d75eeb0ae1e42fe34660a4a425e04acbbae91"
-    },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
       "sourceType": "github",

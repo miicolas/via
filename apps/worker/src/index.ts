@@ -4,7 +4,6 @@ import { join } from 'node:path';
 
 import { client, db } from '@via/db';
 import {
-  RER_SHORT_NAMES,
   ROUTE_TYPE,
   networkMode,
   transitRoutePatterns,
@@ -20,9 +19,10 @@ import {
   type NetworkMode,
 } from '@via/db/schema';
 import { computeDrawnGeometry } from '@via/db/drawn-geometry';
+import { networkRouteCondition } from '@via/db/network-scope';
 import { projectStopsOntoPatterns } from '@via/db/projection';
 import { parse } from 'csv-parse';
-import { and, eq, inArray, or, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
@@ -104,7 +104,9 @@ async function importTransitNetwork(gtfsPath: string) {
       mode,
     });
   }
-  if (routes.length === 0) throw new Error('No metro, RER or bus route was found in routes.txt');
+  if (routes.length === 0) {
+    throw new Error('No metro, RER, Transilien, tram or bus route was found in routes.txt');
+  }
 
   const routeIds = new Set(routes.map((route) => route.id));
   const candidateByKey = new Map<string, PatternCandidate>();
@@ -196,8 +198,8 @@ async function importTransitNetwork(gtfsPath: string) {
   const importedAt = new Date();
   await db.transaction(async (tx) => {
     /**
-     * Replace exactly what this importer owns. Other rail (Transilien and TER)
-     * remains untouched if another importer adds it later.
+     * Replace exactly what this importer owns. TER, airport rail shuttles and
+     * guided special modes remain untouched if another importer adds them later.
      */
     await tx.delete(transitServiceDates);
     await tx.delete(transitShapes);
@@ -206,18 +208,7 @@ async function importTransitNetwork(gtfsPath: string) {
     await tx.delete(transitRoutePatterns);
     await tx.delete(transitTrips);
     await tx.delete(transitStopRoutes);
-    await tx
-      .delete(transitRoutes)
-      .where(
-        or(
-          eq(transitRoutes.routeType, ROUTE_TYPE.metro),
-          eq(transitRoutes.routeType, ROUTE_TYPE.bus),
-          and(
-            eq(transitRoutes.routeType, ROUTE_TYPE.rail),
-            inArray(transitRoutes.shortName, RER_SHORT_NAMES)
-          )
-        )
-      );
+    await tx.delete(transitRoutes).where(networkRouteCondition());
 
     /**
      * Stops are shared across modes, so they cannot be scoped by mode — only by
@@ -323,7 +314,10 @@ async function importTransitNetwork(gtfsPath: string) {
   const counts = Map.groupBy(routes, (route) => route.mode);
   console.log(
     `Imported ${counts.get('metro')?.length ?? 0} metro, ` +
-      `${counts.get('rer')?.length ?? 0} RER and ${counts.get('bus')?.length ?? 0} bus lines, ` +
+      `${counts.get('rer')?.length ?? 0} RER, ` +
+      `${counts.get('transilien')?.length ?? 0} Transilien, ` +
+      `${counts.get('tram')?.length ?? 0} tram and ` +
+      `${counts.get('bus')?.length ?? 0} bus lines, ` +
       `${patterns.length} representative patterns, ${journeyStops.size} shared stops.`
   );
 }

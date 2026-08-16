@@ -9,17 +9,6 @@
     ".env.example"
   ],
   "tasks": {
-    "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "env": [
-        "EXPO_PUBLIC_API_URL"
-      ],
-      "outputs": [
-        "dist/**"
-      ]
-    },
     "typecheck": {
       "dependsOn": [
         "^typecheck"
@@ -34,14 +23,6 @@
       ]
     },
     "dev": {
-      "persistent": true,
-      "cache": false
-    },
-    "ios": {
-      "persistent": true,
-      "cache": false
-    },
-    "android": {
       "persistent": true,
       "cache": false
     },

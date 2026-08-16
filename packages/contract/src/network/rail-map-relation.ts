@@ -8,7 +8,7 @@ export const railMapRelation = oc
     path: '/network/rail-map',
     summary: 'Le réseau ferré visible',
     description:
-      'Lignes de métro et de RER avec leurs polylignes et toutes leurs stations. ' +
+      'Lignes de métro, RER, Transilien et tram avec leurs polylignes et toutes leurs stations. ' +
       'La donnée ne change qu’à l’import GTFS — cache long. ' +
       'Les arrêts de bus se chargent par zone via `stationsInArea`.',
     tags: ['network'],

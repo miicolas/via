@@ -15,13 +15,20 @@ test('sends exact arrival time and modal constraints to IDFM', () => {
     limit: 4,
     requestedAt: '2026-10-25T09:30:00+01:00',
     datetimeRepresents: 'arrival',
-    requiredModes: ['bus'],
-    excludedModes: ['rer'],
+    requiredModes: ['bus', 'tram', 'transilien'],
+    excludedModes: ['rer', 'metro'],
   };
   const url = journeyUrl('https://example.test/journeys', input, new Date(input.requestedAt!));
 
   expect(url.searchParams.get('datetime')).toBe('20261025T093000');
   expect(url.searchParams.get('datetime_represents')).toBe('arrival');
-  expect(url.searchParams.getAll('allowed_id[]')).toEqual(['physical_mode:Bus']);
-  expect(url.searchParams.getAll('forbidden_uris[]')).toEqual(['physical_mode:RapidTransit']);
+  expect(url.searchParams.getAll('allowed_id[]')).toEqual([
+    'physical_mode:Bus',
+    'physical_mode:Tramway',
+    'physical_mode:LocalTrain',
+  ]);
+  expect(url.searchParams.getAll('forbidden_uris[]')).toEqual([
+    'physical_mode:RapidTransit',
+    'physical_mode:Metro',
+  ]);
 });

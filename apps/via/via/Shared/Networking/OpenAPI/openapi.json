@@ -2,15 +2,436 @@
   "info": {
     "title": "Via API",
     "version": "1.0.0",
-    "description": "Paris metro, RER and bus network for the Via app."
+    "description": "Paris metro, RER, Transilien, tram and bus network for the Via app."
   },
   "servers": [
     {
       "url": "/api"
     }
   ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
   "openapi": "3.1.1",
   "paths": {
+    "/account/delete": {
+      "post": {
+        "operationId": "account.delete",
+        "summary": "Supprimer le compte Via",
+        "description": "Réauthentifie avec Apple, révoque le jeton Apple puis supprime toutes les données du compte.",
+        "tags": [
+          "account"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "identityToken": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "authorizationCode": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "nonce": {
+                    "type": "string",
+                    "minLength": 16,
+                    "maxLength": 256
+                  }
+                },
+                "required": [
+                  "identityToken",
+                  "authorizationCode",
+                  "nonce"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/account/sync": {
+      "post": {
+        "operationId": "account.sync",
+        "summary": "Synchroniser les données du compte",
+        "description": "Applique des opérations idempotentes puis renvoie les favoris, recherches et préférences canoniques.",
+        "tags": [
+          "account"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "operations": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "operationId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "kind": {
+                          "enum": [
+                            "favorite.upsert",
+                            "favorite.remove",
+                            "recent.upsert",
+                            "recent.clear",
+                            "preferences.set"
+                          ],
+                          "type": "string"
+                        },
+                        "occurredAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "station": {
+                          "type": "object",
+                          "properties": {
+                            "stationId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            "savedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "stationId",
+                            "name",
+                            "savedAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "stationId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "recent": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "kind": {
+                              "enum": [
+                                "station",
+                                "address"
+                              ],
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            "context": {
+                              "type": "string",
+                              "maxLength": 500
+                            },
+                            "coordinate": {
+                              "type": "object",
+                              "properties": {
+                                "latitude": {
+                                  "type": "number"
+                                },
+                                "longitude": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "latitude",
+                                "longitude"
+                              ]
+                            },
+                            "savedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "kind",
+                            "name",
+                            "coordinate",
+                            "savedAt"
+                          ]
+                        },
+                        "preferences": {
+                          "type": "object",
+                          "properties": {
+                            "preferredModes": {
+                              "type": "array",
+                              "maxItems": 5,
+                              "items": {
+                                "enum": [
+                                  "metro",
+                                  "rer",
+                                  "transilien",
+                                  "tram",
+                                  "bus"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "excludedModes": {
+                              "type": "array",
+                              "maxItems": 5,
+                              "items": {
+                                "enum": [
+                                  "metro",
+                                  "rer",
+                                  "transilien",
+                                  "tram",
+                                  "bus"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "preferredModes",
+                            "excludedModes",
+                            "updatedAt"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "operationId",
+                        "kind",
+                        "occurredAt"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "operations"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "appliedOperationIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "format": "uuid"
+                      }
+                    },
+                    "favorites": {
+                      "type": "array",
+                      "maxItems": 50,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "stationId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "savedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "stationId",
+                          "name",
+                          "savedAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
+                    "recents": {
+                      "type": "array",
+                      "maxItems": 5,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "kind": {
+                            "enum": [
+                              "station",
+                              "address"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "context": {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          "coordinate": {
+                            "type": "object",
+                            "properties": {
+                              "latitude": {
+                                "type": "number"
+                              },
+                              "longitude": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "latitude",
+                              "longitude"
+                            ]
+                          },
+                          "savedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "coordinate",
+                          "savedAt"
+                        ]
+                      }
+                    },
+                    "preferences": {
+                      "type": "object",
+                      "properties": {
+                        "preferredModes": {
+                          "type": "array",
+                          "maxItems": 5,
+                          "items": {
+                            "enum": [
+                              "metro",
+                              "rer",
+                              "transilien",
+                              "tram",
+                              "bus"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "excludedModes": {
+                          "type": "array",
+                          "maxItems": 5,
+                          "items": {
+                            "enum": [
+                              "metro",
+                              "rer",
+                              "transilien",
+                              "tram",
+                              "bus"
+                            ],
+                            "type": "string"
+                          }
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "preferredModes",
+                        "excludedModes",
+                        "updatedAt"
+                      ]
+                    },
+                    "syncedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "appliedOperationIds",
+                    "favorites",
+                    "recents",
+                    "preferences",
+                    "syncedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/departures": {
       "get": {
         "operationId": "departures.forStation",
@@ -70,6 +491,8 @@
                                 "enum": [
                                   "metro",
                                   "rer",
+                                  "transilien",
+                                  "tram",
                                   "bus"
                                 ],
                                 "type": "string"
@@ -157,7 +580,8 @@
               }
             }
           }
-        }
+        },
+        "security": []
       }
     },
     "/journeys": {
@@ -332,6 +756,8 @@
                 "enum": [
                   "metro",
                   "rer",
+                  "transilien",
+                  "tram",
                   "bus"
                 ],
                 "type": "string"
@@ -353,6 +779,8 @@
                 "enum": [
                   "metro",
                   "rer",
+                  "transilien",
+                  "tram",
                   "bus"
                 ],
                 "type": "string"
@@ -374,6 +802,8 @@
                 "enum": [
                   "metro",
                   "rer",
+                  "transilien",
+                  "tram",
                   "bus"
                 ],
                 "type": "string"
@@ -583,6 +1013,8 @@
                                       "enum": [
                                         "metro",
                                         "rer",
+                                        "transilien",
+                                        "tram",
                                         "bus"
                                       ],
                                       "type": "string"
@@ -825,6 +1257,8 @@
                                   "enum": [
                                     "metro",
                                     "rer",
+                                    "transilien",
+                                    "tram",
                                     "bus"
                                   ],
                                   "type": "string"
@@ -837,6 +1271,8 @@
                                   "enum": [
                                     "metro",
                                     "rer",
+                                    "transilien",
+                                    "tram",
                                     "bus"
                                   ],
                                   "type": "string"
@@ -849,6 +1285,8 @@
                                   "enum": [
                                     "metro",
                                     "rer",
+                                    "transilien",
+                                    "tram",
                                     "bus"
                                   ],
                                   "type": "string"
@@ -910,6 +1348,8 @@
                                           "enum": [
                                             "metro",
                                             "rer",
+                                            "transilien",
+                                            "tram",
                                             "bus"
                                           ],
                                           "type": "string"
@@ -1030,6 +1470,8 @@
                                           "enum": [
                                             "metro",
                                             "rer",
+                                            "transilien",
+                                            "tram",
                                             "bus"
                                           ],
                                           "type": "string"
@@ -1170,6 +1612,8 @@
                                       "enum": [
                                         "metro",
                                         "rer",
+                                        "transilien",
+                                        "tram",
                                         "bus"
                                       ],
                                       "type": "string"
@@ -1290,6 +1734,8 @@
                                       "enum": [
                                         "metro",
                                         "rer",
+                                        "transilien",
+                                        "tram",
                                         "bus"
                                       ],
                                       "type": "string"
@@ -1541,6 +1987,8 @@
                                             "enum": [
                                               "metro",
                                               "rer",
+                                              "transilien",
+                                              "tram",
                                               "bus"
                                             ],
                                             "type": "string"
@@ -1634,6 +2082,8 @@
                                 "enum": [
                                   "metro",
                                   "rer",
+                                  "transilien",
+                                  "tram",
                                   "bus"
                                 ],
                                 "type": "string"
@@ -1645,6 +2095,8 @@
                                 "enum": [
                                   "metro",
                                   "rer",
+                                  "transilien",
+                                  "tram",
                                   "bus"
                                 ],
                                 "type": "string"
@@ -1656,6 +2108,8 @@
                                 "enum": [
                                   "metro",
                                   "rer",
+                                  "transilien",
+                                  "tram",
                                   "bus"
                                 ],
                                 "type": "string"
@@ -1866,6 +2320,8 @@
                                               "enum": [
                                                 "metro",
                                                 "rer",
+                                                "transilien",
+                                                "tram",
                                                 "bus"
                                               ],
                                               "type": "string"
@@ -2065,6 +2521,8 @@
                                     "enum": [
                                       "metro",
                                       "rer",
+                                      "transilien",
+                                      "tram",
                                       "bus"
                                     ],
                                     "type": "string"
@@ -2077,6 +2535,8 @@
                                     "enum": [
                                       "metro",
                                       "rer",
+                                      "transilien",
+                                      "tram",
                                       "bus"
                                     ],
                                     "type": "string"
@@ -2089,6 +2549,8 @@
                                     "enum": [
                                       "metro",
                                       "rer",
+                                      "transilien",
+                                      "tram",
                                       "bus"
                                     ],
                                     "type": "string"
@@ -2150,6 +2612,8 @@
                                             "enum": [
                                               "metro",
                                               "rer",
+                                              "transilien",
+                                              "tram",
                                               "bus"
                                             ],
                                             "type": "string"
@@ -2270,6 +2734,8 @@
                                             "enum": [
                                               "metro",
                                               "rer",
+                                              "transilien",
+                                              "tram",
                                               "bus"
                                             ],
                                             "type": "string"
@@ -2414,6 +2880,8 @@
                                                 "enum": [
                                                   "metro",
                                                   "rer",
+                                                  "transilien",
+                                                  "tram",
                                                   "bus"
                                                 ],
                                                 "type": "string"
@@ -2583,7 +3051,7 @@
       "get": {
         "operationId": "network.railMap",
         "summary": "Le réseau ferré visible",
-        "description": "Lignes de métro et de RER avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.",
+        "description": "Lignes de métro, RER, Transilien et tram avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.",
         "tags": [
           "network"
         ],
@@ -2610,6 +3078,8 @@
                             "enum": [
                               "metro",
                               "rer",
+                              "transilien",
+                              "tram",
                               "bus"
                             ],
                             "type": "string"
@@ -2839,6 +3309,8 @@
                             "enum": [
                               "metro",
                               "rer",
+                              "transilien",
+                              "tram",
                               "bus"
                             ],
                             "type": "string"
@@ -2875,7 +3347,7 @@
       "get": {
         "operationId": "search.query",
         "summary": "Recherche unifiée",
-        "description": "Arrêts de métro, RER et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.",
+        "description": "Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.",
         "tags": [
           "search"
         ],
@@ -2984,6 +3456,8 @@
                                       "enum": [
                                         "metro",
                                         "rer",
+                                        "transilien",
+                                        "tram",
                                         "bus"
                                       ],
                                       "type": "string"

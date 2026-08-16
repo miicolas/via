@@ -5,7 +5,7 @@ export function createNaturalJourneyHandler(service: NaturalJourneyService) {
   return implementer.naturalJourneys.submit.handler(async ({ input, context, signal }) => {
     context.resHeaders?.set('Cache-Control', 'private, no-store');
     return service.submit(input, {
-      identity: context.viaIdentity ?? 'anonymous',
+      identity: context.userId ?? 'anonymous',
       signal,
     });
   });

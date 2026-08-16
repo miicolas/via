@@ -1,0 +1,246 @@
+import Foundation
+
+final class AccountLocalStore: @unchecked Sendable {
+    private static let legacyRecentsKey = "via.recent-searches.v1"
+    private static let accountPrefix = "via.account-data.v1."
+    private static let pendingOperationLimit = 500
+
+    private let defaults: UserDefaults
+    private let lock = NSLock()
+    private var activeUserID: String?
+    /// The decoded snapshot for the last user touched, so reads on UI paths do
+    /// not re-decode the whole payload from UserDefaults each time.
+    private var cachedSnapshot: (userID: String, snapshot: AccountLocalSnapshot)?
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func activate(userID: String) {
+        locked {
+            activeUserID = userID
+            let key = Self.accountPrefix + userID
+            guard defaults.data(forKey: key) == nil else { return }
+
+            var snapshot = AccountLocalSnapshot()
+            if let legacy = defaults.data(forKey: Self.legacyRecentsKey),
+               let recents = try? JSONDecoder.via.decode([RecentSearch].self, from: legacy) {
+                snapshot.recents = Array(
+                    recents.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.recentLimit)
+                )
+                snapshot.pendingOperations = snapshot.recents.map(Self.recentUpsertOperation)
+                defaults.removeObject(forKey: Self.legacyRecentsKey)
+            }
+            save(snapshot, for: userID)
+        }
+    }
+
+    func deactivate() {
+        locked { activeUserID = nil }
+    }
+
+    func erase(userID: String) {
+        locked {
+            defaults.removeObject(forKey: Self.accountPrefix + userID)
+            if cachedSnapshot?.userID == userID { cachedSnapshot = nil }
+            if activeUserID == userID { activeUserID = nil }
+        }
+    }
+
+    func favorites() -> [FavoriteStation] {
+        locked { loadActive().favorites.sorted { $0.savedAt > $1.savedAt } }
+    }
+
+    func isFavorite(stationID: StationID) -> Bool {
+        locked { loadActive().favorites.contains { $0.stationID == stationID.rawValue } }
+    }
+
+    @discardableResult
+    func toggleFavorite(stationID: StationID, name: String, now: Date = .now) -> Bool {
+        locked {
+            guard let userID = activeUserID else { return false }
+            var snapshot = load(for: userID)
+            if let index = snapshot.favorites.firstIndex(where: { $0.stationID == stationID.rawValue }) {
+                snapshot.favorites.remove(at: index)
+                snapshot.pendingOperations.append(AccountSyncOperation(
+                    kind: .favoriteRemove,
+                    occurredAt: now,
+                    stationID: stationID.rawValue
+                ))
+                trimOperations(&snapshot)
+                save(snapshot, for: userID)
+                return false
+            }
+
+            let favorite = FavoriteStation(
+                stationID: stationID.rawValue,
+                name: name,
+                savedAt: now,
+                updatedAt: now
+            )
+            snapshot.favorites.insert(favorite, at: 0)
+            snapshot.pendingOperations.append(AccountSyncOperation(
+                kind: .favoriteUpsert,
+                occurredAt: now,
+                station: favorite
+            ))
+
+            if snapshot.favorites.count > AccountLocalSnapshot.favoriteLimit {
+                let removed = snapshot.favorites.removeLast()
+                snapshot.pendingOperations.append(AccountSyncOperation(
+                    kind: .favoriteRemove,
+                    occurredAt: now,
+                    stationID: removed.stationID
+                ))
+            }
+            trimOperations(&snapshot)
+            save(snapshot, for: userID)
+            return true
+        }
+    }
+
+    func removeFavorite(stationID: String, now: Date = .now) {
+        locked {
+            guard let userID = activeUserID else { return }
+            var snapshot = load(for: userID)
+            snapshot.favorites.removeAll { $0.stationID == stationID }
+            snapshot.pendingOperations.append(AccountSyncOperation(
+                kind: .favoriteRemove,
+                occurredAt: now,
+                stationID: stationID
+            ))
+            trimOperations(&snapshot)
+            save(snapshot, for: userID)
+        }
+    }
+
+    func recents() -> [RecentSearch] {
+        locked { loadActive().recents.sorted { $0.savedAt > $1.savedAt } }
+    }
+
+    func storeRecents(_ recents: [RecentSearch]) {
+        locked {
+            guard let userID = activeUserID else { return }
+            var snapshot = load(for: userID)
+            snapshot.recents = Array(
+                recents.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.recentLimit)
+            )
+            snapshot.pendingOperations.append(contentsOf: snapshot.recents.map(Self.recentUpsertOperation))
+            trimOperations(&snapshot)
+            save(snapshot, for: userID)
+        }
+    }
+
+    func clearRecents(now: Date = .now) {
+        locked {
+            guard let userID = activeUserID else { return }
+            var snapshot = load(for: userID)
+            snapshot.recents = []
+            snapshot.pendingOperations.append(AccountSyncOperation(
+                kind: .recentClear,
+                occurredAt: now
+            ))
+            trimOperations(&snapshot)
+            save(snapshot, for: userID)
+        }
+    }
+
+    func preferences() -> TransportPreferences {
+        locked { loadActive().preferences }
+    }
+
+    func setPreferences(_ preferences: TransportPreferences) {
+        locked {
+            guard let userID = activeUserID else { return }
+            var snapshot = load(for: userID)
+            snapshot.preferences = preferences
+            snapshot.pendingOperations.append(AccountSyncOperation(
+                kind: .preferencesSet,
+                occurredAt: preferences.updatedAt,
+                preferences: preferences
+            ))
+            trimOperations(&snapshot)
+            save(snapshot, for: userID)
+        }
+    }
+
+    func pendingSync() -> (userID: String, operations: [AccountSyncOperation])? {
+        locked {
+            guard let userID = activeUserID else { return nil }
+            return (userID, load(for: userID).pendingOperations)
+        }
+    }
+
+    func apply(_ result: AccountSyncResult) {
+        locked {
+            guard let userID = activeUserID else { return }
+            let acknowledged = Set(result.appliedOperationIDs)
+            let remaining = load(for: userID).pendingOperations.filter {
+                !acknowledged.contains($0.operationID)
+            }
+            var snapshot = AccountLocalSnapshot(
+                favorites: result.favorites,
+                recents: result.recents,
+                preferences: result.preferences,
+                pendingOperations: remaining
+            )
+            for operation in remaining { replay(operation, into: &snapshot) }
+            save(snapshot, for: userID)
+        }
+    }
+
+    private func loadActive() -> AccountLocalSnapshot {
+        guard let activeUserID else { return AccountLocalSnapshot() }
+        return load(for: activeUserID)
+    }
+
+    private func load(for userID: String) -> AccountLocalSnapshot {
+        if let cachedSnapshot, cachedSnapshot.userID == userID { return cachedSnapshot.snapshot }
+        let snapshot = defaults.data(forKey: Self.accountPrefix + userID)
+            .flatMap { try? JSONDecoder.via.decode(AccountLocalSnapshot.self, from: $0) }
+            ?? AccountLocalSnapshot()
+        cachedSnapshot = (userID, snapshot)
+        return snapshot
+    }
+
+    private func save(_ snapshot: AccountLocalSnapshot, for userID: String) {
+        cachedSnapshot = (userID, snapshot)
+        guard let data = try? JSONEncoder.via.encode(snapshot) else { return }
+        defaults.set(data, forKey: Self.accountPrefix + userID)
+    }
+
+    private func replay(_ operation: AccountSyncOperation, into snapshot: inout AccountLocalSnapshot) {
+        switch operation.kind {
+        case .favoriteUpsert:
+            guard let station = operation.station else { return }
+            snapshot.favorites.removeAll { $0.stationID == station.stationID }
+            snapshot.favorites.insert(station, at: 0)
+            snapshot.favorites = Array(snapshot.favorites.prefix(AccountLocalSnapshot.favoriteLimit))
+        case .favoriteRemove:
+            snapshot.favorites.removeAll { $0.stationID == operation.stationID }
+        case .recentUpsert:
+            guard let recent = operation.recent else { return }
+            snapshot.recents.removeAll { $0.id == recent.id }
+            snapshot.recents.insert(recent, at: 0)
+            snapshot.recents = Array(snapshot.recents.prefix(AccountLocalSnapshot.recentLimit))
+        case .recentClear:
+            snapshot.recents.removeAll { $0.savedAt <= operation.occurredAt }
+        case .preferencesSet:
+            if let preferences = operation.preferences { snapshot.preferences = preferences }
+        }
+    }
+
+    private static func recentUpsertOperation(_ recent: RecentSearch) -> AccountSyncOperation {
+        AccountSyncOperation(kind: .recentUpsert, occurredAt: recent.savedAt, recent: recent)
+    }
+
+    private func trimOperations(_ snapshot: inout AccountLocalSnapshot) {
+        snapshot.pendingOperations = Array(snapshot.pendingOperations.suffix(Self.pendingOperationLimit))
+    }
+
+    private func locked<Value>(_ work: () -> Value) -> Value {
+        lock.lock()
+        defer { lock.unlock() }
+        return work()
+    }
+}

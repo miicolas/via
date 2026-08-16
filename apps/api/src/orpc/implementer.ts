@@ -8,8 +8,8 @@ import { contract } from '@via/contract';
  * knowing it is being served over HTTP by Hono.
  */
 export type ApiContext = ResponseHeadersPluginContext & {
-  /** Anonymous stable app id, or the reverse-proxy address fallback. */
-  viaIdentity?: string;
+  /** Better Auth user id; absent only for the public health procedure. */
+  userId?: string;
 };
 
 /**

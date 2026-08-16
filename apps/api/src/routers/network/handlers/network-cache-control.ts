@@ -4,4 +4,4 @@
  * the repeat traffic the tiled `stationsInArea` calls generate: panning back
  * over a tile is a cache hit, not a request.
  */
-export const NETWORK_CACHE_CONTROL = 'public, max-age=86400, stale-while-revalidate=604800';
+export const NETWORK_CACHE_CONTROL = 'private, max-age=86400, stale-while-revalidate=604800';

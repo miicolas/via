@@ -16,11 +16,11 @@ import { theoreticalRowLoader } from '../theoretical/load-rows';
 import { nextTheoreticalDepartures } from '../theoretical/next-departures';
 
 /**
- * `public`: the payload is the same for every rider of the station, so the
- * platform edge may absorb bursts. 30 s stays well under the Redis TTL — the
- * governor upstream, not this header, is what protects the PRIM quota.
+ * The route is authenticated, so only the device cache may reuse the payload.
+ * 30 s stays well under the Redis TTL — the governor upstream, not this header,
+ * is what protects the PRIM quota.
  */
-const DEPARTURES_CACHE_CONTROL = 'public, max-age=30';
+const DEPARTURES_CACHE_CONTROL = 'private, max-age=30';
 
 export const getStationDepartures = implementer.departures.forStation.handler(
   async ({ input, context, signal }) => {

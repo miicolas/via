@@ -6,7 +6,9 @@ import OSLog
 @Observable
 final class NetworkViewModel {
     private(set) var state: Loadable<TransitNetwork> = .idle
-    private(set) var viewport: StationsArea?
+    private(set) var stationMapItems: [StationMapItem] = []
+    private(set) var routeLayout: TransitRouteLayout?
+    private(set) var routeLayoutRevision = 0
     var selectedRouteID: RouteID?
 
     @ObservationIgnored private let repository: any NetworkRepository
@@ -20,9 +22,24 @@ final class NetworkViewModel {
         let previous = state.value
         state = .loading(previous: previous)
         railTask = Task {
-            do { state = .loaded(try await repository.railMap()) }
+            do {
+                let network = try await repository.railMap()
+                let layout = await Task.detached(priority: .userInitiated) {
+                    TransitRouteLayout(routes: network.routes)
+                }.value
+                try Task.checkCancellation()
+                routeLayout = layout
+                routeLayoutRevision &+= 1
+                state = .loaded(network)
+                ViaLog.network.debug("Rail map loaded with \(network.routes.count, privacy: .public) routes")
+            }
             catch is CancellationError { }
-            catch { state = .failed(error.via, previous: previous) }
+            catch {
+                state = .failed(error.via, previous: previous)
+                ViaLog.network.error(
+                    "Rail map failed: \(String(describing: error), privacy: .private(mask: .hash))"
+                )
+            }
         }
     }
 
@@ -32,7 +49,7 @@ final class NetworkViewModel {
             do {
                 let area = try await repository.viewport(in: bounds)
                 try Task.checkCancellation()
-                viewport = area
+                stationMapItems = area.mapItems
             } catch is CancellationError { }
             catch {
                 ViaLog.network.error("Viewport failed: \(String(describing: error), privacy: .private(mask: .hash))")

@@ -5,7 +5,7 @@ import { transitRoutePatterns, transitRoutePatternStops, transitRoutes } from '.
 
 /**
  * Two tracks closer than this are the same piece of line drawn twice — the
- * outbound and return patterns of a métro line run on parallel tracks a few
+ * outbound and return patterns of a transit line run on parallel tracks a few
  * metres apart. Loops and branches sit far beyond it and survive as their own
  * strokes.
  */

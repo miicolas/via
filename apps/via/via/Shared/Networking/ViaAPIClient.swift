@@ -4,6 +4,8 @@ import OpenAPIRuntime
 import OpenAPIURLSession
 
 protocol ViaAPIClient: Sendable {
+    func syncAccount(operations: [AccountSyncOperation]) async throws -> AccountSyncResult
+    func deleteAccount(identityToken: String, authorizationCode: String, nonce: String) async throws
     func loadRailMap() async throws -> TransitNetwork
     func loadStations(in bounds: GeoBounds) async throws -> StationsArea
     func search(query: String, near coordinate: GeoCoordinate?, limit: Int) async throws -> SearchResponse
@@ -15,7 +17,7 @@ protocol ViaAPIClient: Sendable {
 final class LiveViaAPIClient: ViaAPIClient, @unchecked Sendable {
     private let client: Client
 
-    init(baseURL: URL, clientID: String) {
+    init(baseURL: URL, authSessionVault: any AuthSessionVault) {
         let configuration = URLSessionConfiguration.default
         configuration.urlCache = URLCache(
             memoryCapacity: 32 * 1_024 * 1_024,
@@ -25,18 +27,47 @@ final class LiveViaAPIClient: ViaAPIClient, @unchecked Sendable {
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 60
         configuration.waitsForConnectivity = true
-        configuration.httpAdditionalHeaders = [
-            "Accept": "application/json",
-            "x-via-client-id": clientID,
-        ]
+        configuration.httpAdditionalHeaders = ["Accept": "application/json"]
         let session = URLSession(configuration: configuration)
         let transport = URLSessionTransport(configuration: .init(session: session))
         client = Client(
             serverURL: baseURL,
             configuration: Configuration(dateTranscoder: .iso8601WithFractionalSeconds),
             transport: transport,
-            middlewares: [IdempotentGETRetryMiddleware()]
+            middlewares: [
+                BearerAuthenticationMiddleware(vault: authSessionVault),
+                IdempotentGETRetryMiddleware(),
+            ]
         )
+    }
+
+    func syncAccount(operations: [AccountSyncOperation]) async throws -> AccountSyncResult {
+        try await perform("account_sync") {
+            typealias Payload = Operations.account_period_sync.Input.Body.jsonPayload
+            let payload = try decode(AccountSyncRequest(operations: operations), as: Payload.self)
+            switch try await client.account_period_sync(.init(body: .json(payload))) {
+            case .ok(let response):
+                return try decode(response.body.json, as: AccountSyncResult.self)
+            case .undocumented(let statusCode, _):
+                throw Self.error(for: statusCode)
+            }
+        }
+    }
+
+    func deleteAccount(identityToken: String, authorizationCode: String, nonce: String) async throws {
+        try await perform("account_delete") {
+            let payload = Operations.account_period_delete.Input.Body.jsonPayload(
+                identityToken: identityToken,
+                authorizationCode: authorizationCode,
+                nonce: nonce
+            )
+            switch try await client.account_period_delete(.init(body: .json(payload))) {
+            case .ok:
+                return
+            case .undocumented(let statusCode, _):
+                throw Self.error(for: statusCode)
+            }
+        }
     }
 
     func loadRailMap() async throws -> TransitNetwork {
@@ -100,10 +131,10 @@ final class LiveViaAPIClient: ViaAPIClient, @unchecked Sendable {
     func journeys(_ request: JourneyRequest) async throws -> JourneyResult {
         try await perform("journeys") {
             typealias Query = Operations.journeys_period_plan.Input.Query
-            let encoder = JSONEncoder.via
-            let decoder = JSONDecoder.via
-            let destinationData = try encoder.encode(JourneyDestinationDTO(request.destination))
-            let destination = try decoder.decode(Query.destinationPayload.self, from: destinationData)
+            let destination = try decode(
+                JourneyDestinationDTO(request.destination),
+                as: Query.destinationPayload.self
+            )
             let input = Operations.journeys_period_plan.Input(query: Query(
                 origin: .init(latitude: request.origin.latitude, longitude: request.origin.longitude),
                 destination: destination,
@@ -126,8 +157,6 @@ final class LiveViaAPIClient: ViaAPIClient, @unchecked Sendable {
     func naturalJourney(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
         try await perform("natural_journey") {
             typealias Payload = Operations.naturalJourneys_period_submit.Input.Body.jsonPayload
-            let encoder = JSONEncoder.via
-            let decoder = JSONDecoder.via
             let dto: NaturalJourneyRequestDTO = switch request {
             case .submit(let query, let location):
                 .submit(query: query, location: location.map(CoordinateDTO.init))
@@ -140,7 +169,7 @@ final class LiveViaAPIClient: ViaAPIClient, @unchecked Sendable {
                     time: time?.rawValue
                 )
             }
-            let payload = try decoder.decode(Payload.self, from: encoder.encode(dto))
+            let payload = try decode(dto, as: Payload.self)
             let input = Operations.naturalJourneys_period_submit.Input(body: .json(payload))
             switch try await client.naturalJourneys_period_submit(input) {
             case .ok(let response):
@@ -165,6 +194,8 @@ final class LiveViaAPIClient: ViaAPIClient, @unchecked Sendable {
         }
     }
 
+    /// Bridges between domain models and generated payload types in either
+    /// direction via a JSON round-trip; both sides share the same wire shape.
     private func decode<Payload: Encodable, DTO: Decodable>(_ payload: Payload, as type: DTO.Type) throws -> DTO {
         try JSONDecoder.via.decode(type, from: JSONEncoder.via.encode(payload))
     }
@@ -193,6 +224,47 @@ final class LiveViaAPIClient: ViaAPIClient, @unchecked Sendable {
         case 503: .unavailable
         default: .server(statusCode: statusCode)
         }
+    }
+}
+
+private struct AccountSyncRequest: Encodable {
+    let operations: [AccountSyncOperation]
+}
+
+extension Notification.Name {
+    static let viaAuthenticatedRequestWasRejected = Notification.Name(
+        "dev.via.app.authenticated-request-was-rejected"
+    )
+}
+
+private struct BearerAuthenticationMiddleware: ClientMiddleware {
+    let vault: any AuthSessionVault
+
+    @concurrent
+    nonisolated func intercept(
+        _ request: HTTPTypes.HTTPRequest,
+        body: OpenAPIRuntime.HTTPBody?,
+        baseURL: URL,
+        operationID: String,
+        next: @concurrent @Sendable (HTTPTypes.HTTPRequest, OpenAPIRuntime.HTTPBody?, URL) async throws -> (HTTPTypes.HTTPResponse, OpenAPIRuntime.HTTPBody?)
+    ) async throws -> (HTTPTypes.HTTPResponse, OpenAPIRuntime.HTTPBody?) {
+        var request = request
+        if let session = try? await vault.load() {
+            request.headerFields[.authorization] = "Bearer \(session.bearerToken)"
+        }
+
+        let response = try await next(request, body, baseURL)
+        if let name = HTTPField.Name("set-auth-token"),
+           let bearer = response.0.headerFields[name],
+           !bearer.isEmpty {
+            try? await vault.updateBearer(bearer)
+        }
+        if response.0.status == .unauthorized {
+            await MainActor.run {
+                NotificationCenter.default.post(name: .viaAuthenticatedRequestWasRejected, object: nil)
+            }
+        }
+        return response
     }
 }
 

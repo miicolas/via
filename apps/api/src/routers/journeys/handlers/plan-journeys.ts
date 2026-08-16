@@ -8,7 +8,7 @@ export function createPlanJourneysHandler(planner: JourneyPlanner) {
   return implementer.journeys.plan.handler(async ({ input, context, signal }) => {
     context.resHeaders?.set('Cache-Control', JOURNEYS_CACHE_CONTROL);
     return planner.plan(input, {
-      identity: context.viaIdentity ?? 'anonymous',
+      identity: context.userId ?? 'anonymous',
       signal,
     });
   });

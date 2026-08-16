@@ -4,6 +4,7 @@ import OSLog
 @main
 struct ViaApp: App {
     private let dependencies: AppDependencies
+    private let networkViewModel: NetworkViewModel
     private let configurationError: String?
 
     init() {
@@ -15,11 +16,22 @@ struct ViaApp: App {
             configurationError = String(describing: error)
             ViaLog.app.fault("Invalid configuration: \(String(describing: error), privacy: .public)")
         }
+        networkViewModel = dependencies.makeNetworkViewModel()
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            AuthenticationGateView(viewModel: dependencies.authSession) {
+                RootView(
+                    networkViewModel: networkViewModel,
+                    authViewModel: dependencies.authSession,
+                    favoriteStations: dependencies.favoriteStations,
+                    transportPreferences: dependencies.transportPreferences,
+                    makeDeparturesViewModel: {
+                        dependencies.makeDeparturesViewModel(stationID: $0)
+                    }
+                )
+            }
         }
     }
 }

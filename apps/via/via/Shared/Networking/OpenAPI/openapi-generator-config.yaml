@@ -6,6 +6,8 @@ additionalImports:
   - Foundation
 filter:
   operations:
+    - account.delete
+    - account.sync
     - departures.forStation
     - health
     - journeys.plan

@@ -3,23 +3,8 @@
 # dependencies
 node_modules/
 
-# Expo
-.expo/
+# generated output
 dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-
-# Metro
-.metro-health-check*
 
 # debug
 npm-debug.*
@@ -43,9 +28,18 @@ example
 # turborepo
 .turbo/
 
-# generated native folders
-apps/*/ios
-apps/*/android
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.build/
+
+# signing material
+*.orig.*
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
 # App Store Connect build artifacts
 .asc/artifacts/

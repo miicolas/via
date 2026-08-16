@@ -1,4 +1,4 @@
-import type { JourneyInput } from '@via/contract';
+import type { JourneyInput, JourneyMode } from '@via/contract';
 
 import { fetchJsonOrNull } from '../../../http/fetch-json-or-null';
 import { compactParisDateTime } from '../../../time/paris';
@@ -55,8 +55,12 @@ export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Da
   return url;
 }
 
-function physicalModeUri(mode: 'metro' | 'rer' | 'bus') {
-  if (mode === 'bus') return 'physical_mode:Bus';
-  if (mode === 'rer') return 'physical_mode:RapidTransit';
-  return 'physical_mode:Metro';
+function physicalModeUri(mode: JourneyMode) {
+  switch (mode) {
+    case 'metro': return 'physical_mode:Metro';
+    case 'rer': return 'physical_mode:RapidTransit';
+    case 'transilien': return 'physical_mode:LocalTrain';
+    case 'tram': return 'physical_mode:Tramway';
+    case 'bus': return 'physical_mode:Bus';
+  }
 }

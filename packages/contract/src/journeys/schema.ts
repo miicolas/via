@@ -1,8 +1,8 @@
 import * as z from 'zod';
 
-import { coordinateSchema } from '../shared/schema';
+import { coordinateSchema, networkModeSchema } from '../shared/schema';
 
-export const journeyModeSchema = z.enum(['metro', 'rer', 'bus']);
+export const journeyModeSchema = networkModeSchema;
 export const journeyDatetimeRepresentsSchema = z.enum(['departure', 'arrival']);
 
 export const journeyDestinationSchema = z.discriminatedUnion('kind', [

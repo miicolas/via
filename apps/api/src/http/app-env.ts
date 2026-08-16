@@ -1,4 +1,5 @@
 import type { RequestIdVariables } from 'hono/request-id';
+import type { AuthSession } from '../auth/auth';
 
 /**
  * The shared Hono environment. Every router and every handler factory is
@@ -9,5 +10,7 @@ import type { RequestIdVariables } from 'hono/request-id';
  * client reads the schema `S`, so this is invisible to the app.
  */
 export type AppEnv = {
-  Variables: RequestIdVariables;
+  Variables: RequestIdVariables & {
+    authSession: AuthSession;
+  };
 };

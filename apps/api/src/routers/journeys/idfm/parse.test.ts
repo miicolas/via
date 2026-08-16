@@ -83,3 +83,43 @@ test('keeps the road geometry of a walking section, including multiple line part
     { latitude: 48.859559, longitude: 2.370737 },
   ]);
 });
+
+test('distinguishes tram and Transilien sections from Navitia commercial modes', () => {
+  const transitSection = (commercialMode: string, code: string, minute: number) => ({
+    type: 'public_transport',
+    duration: 300,
+    departure_date_time: `20260813T20${String(minute).padStart(2, '0')}00`,
+    arrival_date_time: `20260813T20${String(minute + 5).padStart(2, '0')}00`,
+    from: { name: 'Origine', coord: { lon: 2.3522, lat: 48.8566 } },
+    to: { name: 'Destination', coord: { lon: 2.370737, lat: 48.859559 } },
+    display_informations: {
+      code,
+      name: code,
+      commercial_mode: commercialMode,
+      color: '336699',
+      text_color: 'FFFFFF',
+    },
+  });
+  const journeys = parseIdfmJourneys(
+    {
+      journeys: [
+        {
+          departure_date_time: '20260813T200000',
+          arrival_date_time: '20260813T201000',
+          duration: 600,
+          sections: [
+            transitSection('Tramway', 'T1', 0),
+            transitSection('Train Transilien', 'J', 5),
+          ],
+        },
+      ],
+    },
+    input,
+    new Date('2026-08-13T20:00:00+02:00')
+  );
+
+  expect(journeys[0]?.sections.map((section) => section.route?.mode)).toEqual([
+    'tram',
+    'transilien',
+  ]);
+});

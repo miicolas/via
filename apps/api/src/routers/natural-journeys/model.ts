@@ -8,7 +8,7 @@ import { formatParisTime } from '../../time/paris';
 
 const INTERPRETATION_TIMEOUT_MS = 3_000;
 const ANSWER_TIMEOUT_MS = 1_000;
-export const NATURAL_JOURNEY_PROMPT_VERSION = '2026-08-14.3';
+export const NATURAL_JOURNEY_PROMPT_VERSION = '2026-08-16.1';
 
 export type NaturalModelMetrics = {
   model: string;
@@ -128,7 +128,7 @@ Résous aujourd'hui, demain, les jours de semaine, les dates explicites et les d
 Sans date explicite, choisis la prochaine occurrence future de l'heure demandée. Sans heure, utilise l'instant serveur.
 "avant", "pour être à", "arriver à" signifient arrival. "à partir de", "partir à", "après" signifient departure.
 Une heure seule associée à une destination signifie departure. N'utilise ambiguous que si la phrase demande explicitement de choisir entre un départ et une arrivée.
-"plutôt en bus/métro/RER" est preferred; "uniquement" ou "seulement" est required; "sans" ou "évite" est excluded.
+"plutôt en bus/métro/RER/Transilien/tram" est preferred; "uniquement" ou "seulement" est required; "sans" ou "évite" est excluded.
 N'invente pas de lieu. Garde les libellés de lieux assez complets pour que Via les géocode ensuite.
 Un nom de commune seul est déjà un lieu complet : conserve-le comme destination et ne lui invente ni rue ni numéro.
 Si l'origine n'est pas indiquée, utilise current_location. Si la destination manque, destinationQuery vaut null.
@@ -190,7 +190,7 @@ function validateAnswer(output: z.infer<typeof answerSchema>, facts: VerifiedAns
   if (claims.durationsSeconds.some((duration) => !allowedDurations.has(duration))) return false;
   if (claims.warnings.some((warning) => !allowedWarnings.has(warning))) return false;
   if (/perturb|interromp|incident|retard/i.test(answer) && claims.warnings.length === 0) return false;
-  const mentionedLines = [...answer.matchAll(/(?:ligne|métro|RER|bus)\s+([A-Z]?\d*[A-Z]?)/gi)]
+  const mentionedLines = [...answer.matchAll(/(?:ligne|métro|RER|Transilien|tram|bus)\s+([A-Z]?\d*[A-Z]?)/gi)]
     .map((match) => match[1])
     .filter(Boolean);
   if (mentionedLines.some((line) => !allowedLines.has(line!))) return false;

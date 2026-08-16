@@ -11,12 +11,23 @@
 		A10000000000000000000002 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000012 /* OpenAPIURLSession */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		C10000000000000000000004 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B2DADC5F3030B6E8007DFCA8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B2DADC663030B6E8007DFCA8;
+			remoteInfo = via;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		A10000000000000000000021 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000022 /* Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Staging.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000023 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		A10000000000000000000024 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		B2DADC673030B6E8007DFCA8 /* Via.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Via.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C10000000000000000000001 /* ViaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ViaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -38,6 +49,11 @@
 			path = via;
 			sourceTree = "<group>";
 		};
+		C10000000000000000000002 /* viaTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = viaTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -47,6 +63,13 @@
 			files = (
 				A10000000000000000000001 /* OpenAPIRuntime in Frameworks */,
 				A10000000000000000000002 /* OpenAPIURLSession in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,6 +93,7 @@
 				A10000000000000000000025 /* Configuration */,
 				B2DADC683030B6E8007DFCA8 /* Products */,
 				B2DADC693030B6E8007DFCA8 /* via */,
+				C10000000000000000000002 /* viaTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -77,6 +101,7 @@
 			isa = PBXGroup;
 			children = (
 				B2DADC673030B6E8007DFCA8 /* Via.app */,
+				C10000000000000000000001 /* ViaTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -109,6 +134,29 @@
 			productReference = B2DADC673030B6E8007DFCA8 /* Via.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C10000000000000000000005 /* ViaTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000000000000000000006 /* Build configuration list for PBXNativeTarget "ViaTests" */;
+			buildPhases = (
+				C10000000000000000000007 /* Sources */,
+				C10000000000000000000003 /* Frameworks */,
+				C10000000000000000000008 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C10000000000000000000009 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C10000000000000000000002 /* viaTests */,
+			);
+			name = ViaTests;
+			packageProductDependencies = (
+			);
+			productName = ViaTests;
+			productReference = C10000000000000000000001 /* ViaTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -121,6 +169,10 @@
 				TargetAttributes = {
 					B2DADC663030B6E8007DFCA8 = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					C10000000000000000000005 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = B2DADC663030B6E8007DFCA8;
 					};
 				};
 			};
@@ -143,12 +195,20 @@
 			projectRoot = "";
 			targets = (
 				B2DADC663030B6E8007DFCA8 /* via */,
+				C10000000000000000000005 /* ViaTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		B2DADC653030B6E8007DFCA8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000000000000000000008 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -188,7 +248,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C10000000000000000000009 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B2DADC663030B6E8007DFCA8 /* via */;
+			targetProxy = C10000000000000000000004 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A10000000000000000000041 /* Staging */ = {
@@ -214,6 +289,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = via/via.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = HZAYG4Q47N;
@@ -357,6 +433,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = via/via.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = HZAYG4Q47N;
@@ -391,6 +468,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = via/via.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = HZAYG4Q47N;
@@ -419,6 +497,69 @@
 			};
 			name = Release;
 		};
+		C10000000000000000000010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HZAYG4Q47N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Via.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Via";
+			};
+			name = Debug;
+		};
+		C10000000000000000000011 /* Staging */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HZAYG4Q47N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Via.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Via";
+			};
+			name = Staging;
+		};
+		C10000000000000000000012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HZAYG4Q47N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Via.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Via";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -438,6 +579,16 @@
 				B2DADC753030B6EC007DFCA8 /* Debug */,
 				A10000000000000000000042 /* Staging */,
 				B2DADC763030B6EC007DFCA8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C10000000000000000000006 /* Build configuration list for PBXNativeTarget "ViaTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10000000000000000000010 /* Debug */,
+				C10000000000000000000011 /* Staging */,
+				C10000000000000000000012 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

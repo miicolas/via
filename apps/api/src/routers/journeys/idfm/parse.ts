@@ -1,4 +1,10 @@
-import type { Coordinate, Journey, JourneyInput, JourneySection } from '@via/contract';
+import type {
+  Coordinate,
+  Journey,
+  JourneyInput,
+  JourneyMode,
+  JourneySection,
+} from '@via/contract';
 
 import { toInstant } from '../../../time/paris';
 
@@ -232,10 +238,12 @@ function qualifierOf(tags: string[], index: number): Journey['qualifier'] {
   return index === 0 || tags.includes('best') ? 'recommended' : 'comfort';
 }
 
-function modeOf(value: unknown): 'metro' | 'rer' | 'bus' {
-  const text = String(value ?? '').toLowerCase();
+function modeOf(value: unknown): JourneyMode {
+  const text = (textOf(value) ?? String(value ?? '')).toLowerCase().replaceAll(/[_\s-]/g, '');
   if (text.includes('bus')) return 'bus';
-  if (text.includes('rer') || text.includes('rail')) return 'rer';
+  if (text.includes('tram')) return 'tram';
+  if (text.includes('transilien') || text.includes('localtrain')) return 'transilien';
+  if (text.includes('rer') || text.includes('rapidtransit') || text === 'rail') return 'rer';
   return 'metro';
 }
 

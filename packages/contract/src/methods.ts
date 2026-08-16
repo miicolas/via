@@ -5,7 +5,11 @@
  * POST procedure fails the contract tests instead of silently going out as a
  * cacheable GET.
  */
-const POST_PROCEDURES = new Set(['naturalJourneys.submit']);
+const POST_PROCEDURES = new Set([
+  'account.delete',
+  'account.sync',
+  'naturalJourneys.submit',
+]);
 
 export function rpcMethod(path: readonly string[]): 'GET' | 'POST' {
   return POST_PROCEDURES.has(path.join('.')) ? 'POST' : 'GET';

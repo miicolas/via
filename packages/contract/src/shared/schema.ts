@@ -11,7 +11,7 @@ export const coordinateSchema = z.object({
   longitude: z.number(),
 });
 
-export const networkModeSchema = z.enum(['metro', 'rer', 'bus']);
+export const networkModeSchema = z.enum(['metro', 'rer', 'transilien', 'tram', 'bus']);
 
 /**
  * Exactly what it takes to draw a line badge, inlined into every response that

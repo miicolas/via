@@ -1,6 +1,6 @@
 # Exploitation de la recherche en langage naturel
 
-La fonctionnalité est contrôlée côté API. Aucune clé OpenAI ne doit être placée dans Expo, dans une variable `EXPO_PUBLIC_*` ou dans le dépôt.
+La fonctionnalité est contrôlée côté API. Aucune clé OpenAI ne doit être placée dans l’application iOS ou dans le dépôt.
 
 ## Configuration
 

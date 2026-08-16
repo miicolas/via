@@ -1,10 +1,10 @@
 # via
 
-Turborepo monorepo: an Expo app, a Hono API, and a PostGIS-backed Postgres.
+Monorepo with a native SwiftUI iOS app, a Hono API, and PostGIS-backed Postgres.
 
 ```
 apps/
-  mobile/     Expo SDK 57 app (expo-router), was the repo root
+  via/        SwiftUI iOS 26 app and generated OpenAPI client
   api/        Hono on Bun, serving an oRPC contract
   worker/     GTFS importer
 packages/
@@ -18,27 +18,23 @@ scripts/      one-off checks, typechecked like everything else
 ```bash
 bun install
 cp .env.example .env          # adjust ports if 5432/3000 are taken
-ln -s ../../.env apps/mobile/.env   # Expo only reads .env from its own project root
 bun run db:up                 # Postgres 18 + PostGIS 3.6 in Docker
 bun run db:migrate
-bun run dev                   # api + mobile via turbo
+bun run dev:api
 ```
 
-Run one side only: `bun run dev:api` / `bun run dev:mobile`.
-Native build: `bun run ios`.
-
-The symlink matters because `EXPO_PUBLIC_API_URL` is inlined at bundle time: without
-it, a bare `expo start` (instead of the `bun run` scripts, which pass `--env-file`)
-silently falls back to `http://localhost:3000` and the map fails to load.
+Open `apps/via/via.xcodeproj` in Xcode for development, or run `bun run ios` for a command-line simulator build. API base URLs live in `apps/via/Configuration/*.xcconfig`.
 
 ## Scripts
 
 | Script | What it does |
 | --- | --- |
-| `bun run dev` | every package's `dev` task, in parallel |
-| `bun run build` | `expo export` for mobile |
+| `bun run dev` / `dev:api` | starts the API in watch mode |
+| `bun run ios` | builds the native app for an iOS simulator |
 | `bun run typecheck` | `tsc --noEmit` across all packages |
 | `bun run test` | `bun test` across all packages |
+| `bun run generate:ios-api` | regenerates the OpenAPI document and Swift client |
+| `bun run check:openapi` | verifies generated API artifacts are current |
 | `bun run check:transit-alignment` | checks metro/RER stop alignment and that buses have no trace (needs the API running) |
 | `bun run db:up` / `db:down` / `db:reset` | Docker Postgres + Redis lifecycle (`db:reset` drops both volumes) |
 | `bun run db:generate` | diff the schema into a new SQL migration |
@@ -63,24 +59,9 @@ against the live database), the workflow here is `generate` → `migrate` only.
 
 ## API ↔ app
 
-`apps/api` exports its route table as `AppType`, and `apps/mobile/src/lib/api.ts`
-builds a typed client from it:
+`packages/contract` declares the paths, methods and payloads. The API implements them and `bun run generate:ios-api` produces the OpenAPI document plus the Swift client consumed behind `LiveViaAPIClient`.
 
-`packages/contract` declares the paths, methods and payloads. The API implements
-it, the app calls it, and neither depends on the other:
-
-```ts
-import { api } from '@/lib/api';
-
-const { routes, stations } = await api.network.map();   // fully typed
-```
-
-Point `EXPO_PUBLIC_API_URL` at your machine's LAN IP when running on a physical
-device — `localhost` only resolves on the iOS simulator.
-
-`bun run typecheck` at the root is what proves both sides still agree: adding a
-procedure to the contract without implementing it, or returning the wrong shape
-from a mapper, fails to compile.
+`bun run typecheck` proves the TypeScript contract and server agree. `bun run check:openapi` additionally proves that the versioned Swift-facing artifacts are current.
 
 ## API structure
 
@@ -110,14 +91,10 @@ mounts oRPC twice over the same procedures:
 
 | Mount | Protocol | Who calls it |
 | --- | --- | --- |
-| `/api` | REST at the contract's paths, described by `/api/openapi.json` | third parties, `check:transit-alignment` |
-| `/rpc` | oRPC | the app, through `createORPCClient` |
+| `/api` | REST at the contract's paths, described by `/api/openapi.json` | iOS app and third parties |
+| `/rpc` | oRPC | internal typed integrations |
 
-The app's client is configured to issue `GET`, so the network map stays
-cacheable by the platform HTTP cache and is gzip-compressed to roughly 800 kB;
-the default `POST` would silently give that up. Metro and RER carry normalized
-polylines. Bus routes carry their stops and metadata but no geometry, keeping
-the surface network from covering the map in strokes.
+The iOS client uses cacheable `GET` operations through `URLSession`. Metro and RER carry normalized polylines. Bus routes carry their stops and metadata but no geometry, keeping the surface network from covering the map in strokes.
 
 ## Realtime departures
 
@@ -145,9 +122,3 @@ polled once a minute over a service day would spend it all. So:
 `scripts/spike-prim-mapping.ts` is the one-off that validates our GTFS ids map
 onto the STIF refs PRIM expects (`STIF:StopArea:SP:{n}:`, `STIF:Line::{code}:`)
 and saves a real payload as a parser fixture.
-
-## Not wired up yet
-
-`apps/mobile` still has an `expo lint` script but ESLint isn't installed, so
-there's no `lint` task in `turbo.json`. Run `bunx expo lint` inside
-`apps/mobile` once to let Expo scaffold it, then add the task back.

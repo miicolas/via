@@ -11,10 +11,8 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:api": "turbo run dev --filter=@via/api",
-    "dev:mobile": "turbo run dev --filter=@via/mobile",
-    "ios": "turbo run ios --filter=@via/mobile",
+    "ios": "xcodebuild -project apps/via/via.xcodeproj -scheme via -configuration Debug -destination 'generic/platform=iOS Simulator' build",
     "deploy:testflight": "bash scripts/deploy-testflight.sh",
-    "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:up": "docker compose up -d --wait",
@@ -32,16 +30,7 @@
     "check:openapi": "bun scripts/generate-openapi.ts --check"
   },
   "devDependencies": {
-    "@types/react": "~19.2.4",
     "turbo": "^2.10.9",
     "typescript": "~6.0.3"
-  },
-  "patchedDependencies": {
-    "expo-modules-jsi@57.0.4": "patches/expo-modules-jsi@57.0.4.patch"
-  },
-  "dependencies": {
-    "expo": "^57.0.12",
-    "react": "19.2.3",
-    "react-native": "0.86.0"
   }
 }

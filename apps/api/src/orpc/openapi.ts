@@ -17,14 +17,30 @@ const generator = new OpenAPIGenerator({
 let document: Promise<object> | undefined;
 
 export function getOpenApiDocument(): Promise<object> {
-  document ??= generator.generate(contract, {
-    info: {
-      title: 'Via API',
-      version: '1.0.0',
-      description: 'Paris metro, RER and bus network for the Via app.',
-    },
-    servers: [{ url: '/api' }],
-  });
+  document ??= generator
+    .generate(contract, {
+      info: {
+        title: 'Via API',
+        version: '1.0.0',
+        description: 'Paris metro, RER, Transilien, tram and bus network for the Via app.',
+      },
+      servers: [{ url: '/api' }],
+      components: {
+        securitySchemes: {
+          bearerAuth: { type: 'http', scheme: 'bearer' },
+        },
+      },
+      // Document-level default; the public health operations opt out below.
+      security: [{ bearerAuth: [] }],
+    })
+    .then((generated) => {
+      for (const operation of Object.values(generated.paths?.['/health'] ?? {})) {
+        if (operation && typeof operation === 'object') {
+          (operation as { security?: Array<Record<string, string[]>> }).security = [];
+        }
+      }
+      return generated;
+    });
 
   return document;
 }

@@ -2,6 +2,7 @@ import { env } from '../env';
 import { implementer } from '../orpc/implementer';
 import { redis } from '../redis';
 import { createChatHandler } from './chat/handler';
+import { accountRouter } from './account/router';
 import { departuresRouter } from './departures/router';
 import { healthRouter } from './health/router';
 import { createGtfsJourneyPlanner } from './journeys/gtfs/loader';
@@ -78,6 +79,7 @@ export const chatHandler = createChatHandler({
 });
 
 export const apiRouter = implementer.router({
+  account: accountRouter,
   departures: departuresRouter,
   health: healthRouter,
   journeys: createJourneysRouter(journeyPlanner),

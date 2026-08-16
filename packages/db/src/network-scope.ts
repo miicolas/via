@@ -1,6 +1,9 @@
 import {
+  METRO_SHORT_NAMES,
   RER_SHORT_NAMES,
   ROUTE_TYPE,
+  TRAM_SHORT_NAMES,
+  TRANSILIEN_SHORT_NAMES,
   transitRoutes,
 } from './schema';
 import { and, eq, inArray, or } from 'drizzle-orm';
@@ -15,10 +18,20 @@ export function networkRouteCondition() {
 
 export function drawnRouteCondition() {
   return or(
-    eq(transitRoutes.routeType, ROUTE_TYPE.metro),
+    and(
+      eq(transitRoutes.routeType, ROUTE_TYPE.metro),
+      inArray(transitRoutes.shortName, [...METRO_SHORT_NAMES])
+    ),
+    and(
+      eq(transitRoutes.routeType, ROUTE_TYPE.tram),
+      inArray(transitRoutes.shortName, [...TRAM_SHORT_NAMES])
+    ),
     and(
       eq(transitRoutes.routeType, ROUTE_TYPE.rail),
-      inArray(transitRoutes.shortName, [...RER_SHORT_NAMES])
+      inArray(transitRoutes.shortName, [
+        ...RER_SHORT_NAMES,
+        ...TRANSILIEN_SHORT_NAMES,
+      ])
     )
   );
 }

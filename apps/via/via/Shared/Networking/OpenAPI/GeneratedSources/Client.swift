@@ -11,7 +11,7 @@ import struct Foundation.Date
 #endif
 import HTTPTypes
 import Foundation
-/// Paris metro, RER and bus network for the Via app.
+/// Paris metro, RER, Transilien, tram and bus network for the Via app.
 internal struct Client: APIProtocol {
     /// The underlying HTTP client.
     private let client: UniversalClient
@@ -38,6 +38,148 @@ internal struct Client: APIProtocol {
     }
     private var converter: Converter {
         client.converter
+    }
+    /// Supprimer le compte Via
+    ///
+    /// Réauthentifie avec Apple, révoque le jeton Apple puis supprime toutes les données du compte.
+    ///
+    /// - Remark: HTTP `POST /account/delete`.
+    /// - Remark: Generated from `#/paths//account/delete/post(account.delete)`.
+    internal func account_period_delete(_ input: Operations.account_period_delete.Input) async throws -> Operations.account_period_delete.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.account_period_delete.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/account/delete",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.account_period_delete.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.account_period_delete.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Synchroniser les données du compte
+    ///
+    /// Applique des opérations idempotentes puis renvoie les favoris, recherches et préférences canoniques.
+    ///
+    /// - Remark: HTTP `POST /account/sync`.
+    /// - Remark: Generated from `#/paths//account/sync/post(account.sync)`.
+    internal func account_period_sync(_ input: Operations.account_period_sync.Input) async throws -> Operations.account_period_sync.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.account_period_sync.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/account/sync",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.account_period_sync.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.account_period_sync.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
     }
     /// Prochains passages
     ///
@@ -361,7 +503,7 @@ internal struct Client: APIProtocol {
     }
     /// Le réseau ferré visible
     ///
-    /// Lignes de métro et de RER avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.
+    /// Lignes de métro, RER, Transilien et tram avec leurs polylignes et toutes leurs stations. La donnée ne change qu’à l’import GTFS — cache long. Les arrêts de bus se chargent par zone via `stationsInArea`.
     ///
     /// - Remark: HTTP `GET /network/rail-map`.
     /// - Remark: Generated from `#/paths//network/rail-map/get(network.railMap)`.
@@ -513,7 +655,7 @@ internal struct Client: APIProtocol {
     }
     /// Recherche unifiée
     ///
-    /// Arrêts de métro, RER et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
+    /// Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
     ///
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.

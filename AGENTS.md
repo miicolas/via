@@ -1,20 +1,19 @@
-# Expo HAS CHANGED
+# Native iOS application
 
-Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
+`apps/via` is the only mobile application. It is an iOS-only SwiftUI project targeting iOS 26 with Swift 6 strict concurrency. Use Apple’s versioned SwiftUI, MapKit, Foundation, and Observation documentation for platform APIs.
 
 ## Component structure
 
-- A source file owns one component function. Extract secondary UI behavior into its own kebab-case component file and configure that component through props so it can be reused.
+- A Swift source file owns one primary `View`. Extract secondary UI behavior into its own PascalCase view file and configure it through initializer values or bindings.
 
 ## Platform
 
-- The mobile app is iOS-only. Implement each platform feature once in an unsuffixed file with iOS and SwiftUI APIs; do not add Android/web branches, fallbacks, or platform-suffixed sibling files.
+- Implement each mobile feature once with iOS and SwiftUI APIs. Do not add Android, web, JavaScript mobile, or platform-suffixed sibling implementations.
 
 ## Buttons
 
-- Every button uses `@/components/button`, the repo's single SwiftUI Button interface.
-- Import `@expo/ui/swift-ui`'s Button only inside `button.tsx`; never implement a button with React Native `Pressable`.
-- Reserve `Pressable` for non-button semantics such as links, tabs, adjustable controls, gestures, and map annotations.
+- Use SwiftUI `Button` for button semantics and apply an appropriate native role and style.
+- Use gestures only for gesture semantics; map annotations should use MapKit selection where possible.
 
 ## Agent skills
 

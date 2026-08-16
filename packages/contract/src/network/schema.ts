@@ -31,9 +31,9 @@ export const networkStationSchema = z.object({
 });
 
 /**
- * The lines worth drawing — métro and RER — with every station they serve.
- * Small enough (~0.5 MB) to load once at startup; bus stops arrive separately,
- * viewport by viewport, through `stationsInArea`.
+ * The main rail network worth drawing — métro, RER, Transilien and tram —
+ * with every station it serves. Bus stops arrive separately, viewport by
+ * viewport, through `stationsInArea`.
  */
 export const railMapSchema = z.object({
   routes: z.array(networkRouteSchema),
