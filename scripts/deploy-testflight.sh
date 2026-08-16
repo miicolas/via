@@ -41,6 +41,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+bash scripts/validate-ios-app-icon.sh
+
 DEPLOY_APP_ID="${ASC_DEPLOY_APP_ID:-6801259695}"
 DEPLOY_BUNDLE_ID="${ASC_DEPLOY_BUNDLE_ID:-dev.via.app}"
 DEPLOY_VERSION="${ASC_DEPLOY_VERSION:-}"
@@ -180,6 +182,13 @@ asc xcode archive \
   --xcodebuild-flag="CURRENT_PROJECT_VERSION=$NEXT_BUILD_NUMBER" \
   --xcodebuild-flag=-allowProvisioningUpdates \
   --output json
+
+ARCHIVED_APP_PATH="$(find "$ARCHIVE_PATH/Products/Applications" -maxdepth 1 -type d -name '*.app' -print -quit)"
+if [ -z "$ARCHIVED_APP_PATH" ]; then
+  log "L’archive Xcode ne contient aucune application iOS."
+  exit 1
+fi
+bash scripts/validate-ios-app-icon.sh "$ARCHIVED_APP_PATH"
 
 log "Export de l’IPA"
 asc xcode export \
