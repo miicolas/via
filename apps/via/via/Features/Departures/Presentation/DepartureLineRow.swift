@@ -10,7 +10,7 @@ struct DepartureLineRow: View {
         let directions = departureDirectionSnapshots(groups: groups, now: now)
 
         VStack(alignment: .leading, spacing: 8) {
-            StationRouteBadgeView(route: route)
+            TransitRouteBadgeView(route: route, size: 30)
 
             Divider()
 

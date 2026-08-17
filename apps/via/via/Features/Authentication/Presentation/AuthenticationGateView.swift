@@ -10,7 +10,7 @@ struct AuthenticationGateView<Content: View>: View {
         Group {
             switch viewModel.state {
             case .loading:
-                ProgressView("Ouverture de Via…")
+                AuthenticationLoadingView()
 
             case .signedOut, .authenticating:
                 AppleSignInView(viewModel: viewModel)

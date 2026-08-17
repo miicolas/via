@@ -114,6 +114,7 @@
                             "favorite.upsert",
                             "favorite.remove",
                             "recent.upsert",
+                            "recent.remove",
                             "recent.clear",
                             "preferences.set"
                           ],
@@ -156,6 +157,11 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 300
+                        },
+                        "recentId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
                         },
                         "recent": {
                           "type": "object",
@@ -637,27 +643,19 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "coordinate": {
-                      "type": "object",
-                      "properties": {
-                        "latitude": {
-                          "type": "number"
-                        },
-                        "longitude": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "latitude",
-                        "longitude"
-                      ]
+                    "latitude": {
+                      "type": "number"
+                    },
+                    "longitude": {
+                      "type": "number"
                     }
                   },
                   "required": [
                     "kind",
                     "id",
                     "name",
-                    "coordinate"
+                    "latitude",
+                    "longitude"
                   ]
                 },
                 {
@@ -677,27 +675,19 @@
                     "context": {
                       "type": "string"
                     },
-                    "coordinate": {
-                      "type": "object",
-                      "properties": {
-                        "latitude": {
-                          "type": "number"
-                        },
-                        "longitude": {
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "latitude",
-                        "longitude"
-                      ]
+                    "latitude": {
+                      "type": "number"
+                    },
+                    "longitude": {
+                      "type": "number"
                     }
                   },
                   "required": [
                     "kind",
                     "id",
                     "name",
-                    "coordinate"
+                    "latitude",
+                    "longitude"
                   ]
                 }
               ]
@@ -750,21 +740,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "array",
-              "maxItems": 3,
-              "items": {
-                "enum": [
-                  "metro",
-                  "rer",
-                  "transilien",
-                  "tram",
-                  "bus"
-                ],
-                "type": "string"
-              }
+              "type": "string"
             },
-            "style": "deepObject",
-            "explode": true,
             "allowEmptyValue": true,
             "allowReserved": true
           },
@@ -773,21 +750,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "array",
-              "maxItems": 3,
-              "items": {
-                "enum": [
-                  "metro",
-                  "rer",
-                  "transilien",
-                  "tram",
-                  "bus"
-                ],
-                "type": "string"
-              }
+              "type": "string"
             },
-            "style": "deepObject",
-            "explode": true,
             "allowEmptyValue": true,
             "allowReserved": true
           },
@@ -796,21 +760,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "array",
-              "maxItems": 3,
-              "items": {
-                "enum": [
-                  "metro",
-                  "rer",
-                  "transilien",
-                  "tram",
-                  "bus"
-                ],
-                "type": "string"
-              }
+              "type": "string"
             },
-            "style": "deepObject",
-            "explode": true,
             "allowEmptyValue": true,
             "allowReserved": true
           }

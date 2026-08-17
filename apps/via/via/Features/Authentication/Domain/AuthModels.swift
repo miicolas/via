@@ -37,12 +37,6 @@ enum AuthSessionState: Sendable, Hashable {
     case authenticated(StoredAuthSession, AuthConnectivity)
 }
 
-enum AuthLifecycleEvent: Sendable, Equatable {
-    case sceneBecameActive
-    case authenticatedRequestRejected
-    case appleCredentialRevoked
-}
-
 struct AppleSignInCredentials: Sendable, Equatable {
     let appleUserIdentifier: String
     let identityToken: String
@@ -63,18 +57,6 @@ enum AppleDeletionOutcome: Sendable, Equatable {
     case authorized(AccountDeletionProof)
     case cancelled
     case failed
-}
-
-enum AppleCredentialStatus: Sendable, Equatable {
-    case authorized
-    case revoked
-    case notFound
-    case transferred
-    case unknown
-}
-
-protocol AppleCredentialStatusChecking: Sendable {
-    func status(for appleUserIdentifier: String) async throws -> AppleCredentialStatus
 }
 
 enum AuthenticationClientError: Error, Sendable {

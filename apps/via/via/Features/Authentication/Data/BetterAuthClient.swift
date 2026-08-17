@@ -15,7 +15,7 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
         if let session {
             self.session = session
         } else {
-            let configuration = URLSessionConfiguration.ephemeral
+            let configuration = URLSessionConfiguration.viaAPI(base: .ephemeral)
             configuration.timeoutIntervalForRequest = 12
             configuration.timeoutIntervalForResource = 20
             configuration.waitsForConnectivity = false

@@ -33,6 +33,7 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         case favoriteUpsert = "favorite.upsert"
         case favoriteRemove = "favorite.remove"
         case recentUpsert = "recent.upsert"
+        case recentRemove = "recent.remove"
         case recentClear = "recent.clear"
         case preferencesSet = "preferences.set"
     }
@@ -42,6 +43,7 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
     let occurredAt: Date
     let station: FavoriteStation?
     let stationID: String?
+    let recentID: String?
     let recent: RecentSearch?
     let preferences: TransportPreferences?
 
@@ -51,6 +53,7 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         occurredAt: Date,
         station: FavoriteStation? = nil,
         stationID: String? = nil,
+        recentID: String? = nil,
         recent: RecentSearch? = nil,
         preferences: TransportPreferences? = nil
     ) {
@@ -59,6 +62,7 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         self.occurredAt = occurredAt
         self.station = station
         self.stationID = stationID
+        self.recentID = recentID
         self.recent = recent
         self.preferences = preferences
     }
@@ -71,6 +75,7 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         case occurredAt
         case station
         case stationID = "stationId"
+        case recentID = "recentId"
         case recent
         case preferences
     }

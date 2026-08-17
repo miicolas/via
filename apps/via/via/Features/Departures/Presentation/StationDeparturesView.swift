@@ -31,6 +31,7 @@ struct StationDeparturesView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 18)
             }
+            .sheetTabVisibility()
             .textSelection(.enabled)
             .navigationTitle(station.name)
             .navigationBarTitleDisplayMode(.inline)
@@ -75,13 +76,16 @@ struct StationDeparturesView: View {
     private var departuresContent: some View {
         switch viewModel.state {
         case .idle:
-            DepartureLoadingView()
+            DepartureLoadingView(routeCount: station.routes.count)
 
         case .loading(let previous):
             if let previous {
-                DepartureBoardView(routes: station.routes, board: previous)
+                VStack(alignment: .leading, spacing: 12) {
+                    ViaLoadingStatus(label: "Actualisation des passages…")
+                    DepartureBoardView(routes: station.routes, board: previous)
+                }
             } else {
-                DepartureLoadingView()
+                DepartureLoadingView(routeCount: station.routes.count)
             }
 
         case .loaded(let board):

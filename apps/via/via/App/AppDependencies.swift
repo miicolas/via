@@ -3,6 +3,8 @@ import Foundation
 @MainActor
 struct RootDependencies {
     let networkMap: NetworkViewModel
+    let mapPresentation: MapPresentationModel
+    let naturalJourney: NaturalJourneyViewModel
     let account: AccountModel
     let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
 }
@@ -13,13 +15,13 @@ struct AppDependencies {
     let root: RootDependencies
 
     static func live(configuration: AppConfiguration) throws -> AppDependencies {
-        let vault = KeychainAuthSessionVault()
-        let lifecycle = AsyncStream.makeStream(of: AuthLifecycleEvent.self)
+        let vault = KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
+        let unauthorized = AsyncStream.makeStream(of: Void.self)
         let transport = ViaTransport(
             baseURL: configuration.apiBaseURL,
             authSessionVault: vault,
             onUnauthorized: {
-                lifecycle.continuation.yield(.authenticatedRequestRejected)
+                unauthorized.continuation.yield(())
             }
         )
         let account = AccountModel(
@@ -27,18 +29,30 @@ struct AppDependencies {
             remote: LiveAccountRemote(transport: transport)
         )
         let departures = LiveDeparturesRepository(transport: transport)
+        let search = LiveSearchRepository(transport: transport)
+        let journeys = PreferenceAwareJourneyRepository(
+            base: LiveJourneyRepository(transport: transport),
+            account: account
+        )
+        let naturalJourneys = LiveNaturalJourneyRepository(transport: transport)
         return AppDependencies(
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
                 vault: vault,
-                credentialStatusChecker: LiveAppleCredentialStatusChecker(),
                 account: account,
-                lifecycleEvents: lifecycle.stream
+                unauthorizedEvents: unauthorized.stream
             ),
             root: RootDependencies(
                 networkMap: NetworkViewModel(
                     repository: LiveNetworkRepository(transport: transport)
                 ),
+                mapPresentation: MapPresentationModel(
+                    searchRepository: search,
+                    journeyRepository: journeys,
+                    account: account,
+                    locationAdapter: CoreLocationAdapter()
+                ),
+                naturalJourney: NaturalJourneyViewModel(repository: naturalJourneys),
                 account: account,
                 makeDeparturesViewModel: { stationID in
                     DeparturesViewModel(stationID: stationID, repository: departures)
@@ -68,17 +82,31 @@ struct AppDependencies {
             synchronizationEnabled: false
         )
         let departures = InMemoryDeparturesRepository()
+        let search = InMemorySearchRepository(response: .mapPreview)
+        let journeys = InMemoryJourneyRepository(result: .mapPreview)
+        let naturalJourneys = InMemoryNaturalJourneyRepository(
+            result: .unsupported(
+                message: "Décris simplement le trajet que tu veux faire.",
+                examples: ["Je veux arriver à Bastille avant 19 h"]
+            )
+        )
         return AppDependencies(
             authSession: AuthSessionViewModel(
                 client: InMemoryAuthenticationClient(session: session),
                 vault: vault,
-                credentialStatusChecker: InMemoryAppleCredentialStatusChecker(),
                 account: account
             ),
             root: RootDependencies(
                 networkMap: NetworkViewModel(
                     repository: InMemoryNetworkRepository.mapPreview
                 ),
+                mapPresentation: MapPresentationModel(
+                    searchRepository: search,
+                    journeyRepository: journeys,
+                    account: account,
+                    locationAdapter: InMemoryLocationAdapter()
+                ),
+                naturalJourney: NaturalJourneyViewModel(repository: naturalJourneys),
                 account: account,
                 makeDeparturesViewModel: { stationID in
                     DeparturesViewModel(stationID: stationID, repository: departures)

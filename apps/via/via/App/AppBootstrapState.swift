@@ -7,7 +7,7 @@ enum AppBootstrapState {
 
     static func bootstrap(
         loadConfiguration: () throws -> AppConfiguration = { try .bundled() },
-        buildDependencies: (AppConfiguration) throws -> AppDependencies = AppDependencies.live
+        buildDependencies: @MainActor (AppConfiguration) throws -> AppDependencies = AppDependencies.live
     ) -> AppBootstrapState {
         do {
             let configuration = try loadConfiguration()

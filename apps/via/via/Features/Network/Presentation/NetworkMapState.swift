@@ -28,14 +28,6 @@ struct NetworkViewport: Sendable, Hashable {
             maxLongitude: min(180, center.longitude + longitudeRadius)
         )
     }
-
-    func contains(_ coordinate: GeoCoordinate) -> Bool {
-        let bounds = bounds
-        return coordinate.latitude >= bounds.minLatitude &&
-            coordinate.latitude <= bounds.maxLatitude &&
-            coordinate.longitude >= bounds.minLongitude &&
-            coordinate.longitude <= bounds.maxLongitude
-    }
 }
 
 struct NetworkLineStyle: Sendable, Equatable {

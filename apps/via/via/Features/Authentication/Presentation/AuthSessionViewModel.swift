@@ -10,7 +10,6 @@ final class AuthSessionViewModel {
 
     @ObservationIgnored private let client: any AuthenticationClient
     @ObservationIgnored private let vault: any AuthSessionVault
-    @ObservationIgnored private let credentialStatusChecker: any AppleCredentialStatusChecking
     @ObservationIgnored private let account: AccountModel
     @ObservationIgnored private var didRestore = false
     @ObservationIgnored private var isRevalidating = false
@@ -19,18 +18,16 @@ final class AuthSessionViewModel {
     init(
         client: any AuthenticationClient,
         vault: any AuthSessionVault,
-        credentialStatusChecker: any AppleCredentialStatusChecking,
         account: AccountModel,
-        lifecycleEvents: AsyncStream<AuthLifecycleEvent> = AsyncStream { _ in }
+        unauthorizedEvents: AsyncStream<Void> = AsyncStream { _ in }
     ) {
         self.client = client
         self.vault = vault
-        self.credentialStatusChecker = credentialStatusChecker
         self.account = account
         lifecycleTask = Task { [weak self] in
-            for await event in lifecycleEvents {
+            for await _ in unauthorizedEvents {
                 guard let self else { return }
-                await self.handle(event)
+                await self.authenticatedRequestWasRejected()
             }
         }
     }
@@ -55,6 +52,10 @@ final class AuthSessionViewModel {
             }
             account.activate(userID: session.user.id)
             state = .authenticated(session, .offline)
+            // The server session is authoritative when restoring the app. The
+            // local Apple credential state can be unavailable after a reinstall
+            // or when running a development bundle, so it must not log out a
+            // still-valid server session.
             await revalidate()
         } catch {
             state = .signedOut
@@ -80,7 +81,7 @@ final class AuthSessionViewModel {
                 account.activate(userID: session.user.id)
                 state = .authenticated(session, .online)
                 errorMessage = nil
-                account.resumeSynchronization()
+                account.synchronize()
             } catch {
                 state = .signedOut
                 errorMessage = message(for: error)
@@ -93,17 +94,10 @@ final class AuthSessionViewModel {
         await revalidate()
     }
 
-    func handle(_ event: AuthLifecycleEvent) async {
-        switch event {
-        case .sceneBecameActive:
-            await sceneBecameActive()
-        case .authenticatedRequestRejected:
-            await authenticatedRequestWasRejected()
-        case .appleCredentialRevoked:
-            await appleCredentialWasRevoked()
-        }
-    }
-
+    // The server session is authoritative; Apple credential revocation
+    // arrives out-of-band via credentialRevokedNotification, so revalidation
+    // never re-checks Apple's advisory local credential state (which can be
+    // stale in a simulator, after a reinstall, or mid sign-in flow).
     func revalidate() async {
         guard !isRevalidating, let displayedSession = session else { return }
         isRevalidating = true
@@ -111,29 +105,11 @@ final class AuthSessionViewModel {
         let storedSession = (try? await vault.load()) ?? displayedSession
 
         do {
-            let credentialState = try await credentialStatusChecker.status(
-                for: storedSession.user.appleUserIdentifier
-            )
-            switch credentialState {
-            case .revoked, .notFound:
-                await clearConfirmedSession(
-                    message: "Ton autorisation Apple a été révoquée. Reconnecte-toi."
-                )
-                return
-            case .authorized, .transferred, .unknown:
-                break
-            }
-        } catch {
-            // A failed Apple status lookup is not proof of revocation. The API
-            // validation below decides whether this is online or offline use.
-        }
-
-        do {
             let refreshed = try await client.validate(storedSession)
             try await vault.save(refreshed)
             state = .authenticated(refreshed, .online)
             errorMessage = nil
-            account.resumeSynchronization()
+            account.synchronize()
         } catch AuthenticationClientError.unauthorized {
             await clearConfirmedSession(message: "Ta session a expiré. Reconnecte-toi avec Apple.")
         } catch is CancellationError {

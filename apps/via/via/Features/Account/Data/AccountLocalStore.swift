@@ -47,12 +47,15 @@ final class AccountLocalStore: @unchecked Sendable {
         }
     }
 
-    func favorites() -> [FavoriteStation] {
-        locked { loadActive().favorites.sorted { $0.savedAt > $1.savedAt } }
-    }
-
-    func isFavorite(stationID: StationID) -> Bool {
-        locked { loadActive().favorites.contains { $0.stationID == stationID.rawValue } }
+    func currentSnapshot() -> AccountSnapshot {
+        locked {
+            let snapshot = loadActive()
+            return AccountSnapshot(
+                favorites: snapshot.favorites.sorted { $0.savedAt > $1.savedAt },
+                recentSearches: snapshot.recents.sorted { $0.savedAt > $1.savedAt },
+                transportPreferences: snapshot.preferences
+            )
+        }
     }
 
     @discardableResult
@@ -114,18 +117,29 @@ final class AccountLocalStore: @unchecked Sendable {
         }
     }
 
-    func recents() -> [RecentSearch] {
-        locked { loadActive().recents.sorted { $0.savedAt > $1.savedAt } }
-    }
-
-    func storeRecents(_ recents: [RecentSearch]) {
+    func upsertRecent(_ recent: RecentSearch) {
         locked {
             guard let userID = activeUserID else { return }
             var snapshot = load(for: userID)
-            snapshot.recents = Array(
-                recents.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.recentLimit)
-            )
-            snapshot.pendingOperations.append(contentsOf: snapshot.recents.map(Self.recentUpsertOperation))
+            snapshot.recents.removeAll { $0.id == recent.id }
+            snapshot.recents.insert(recent, at: 0)
+            snapshot.recents = Array(snapshot.recents.prefix(AccountLocalSnapshot.recentLimit))
+            snapshot.pendingOperations.append(Self.recentUpsertOperation(recent))
+            trimOperations(&snapshot)
+            save(snapshot, for: userID)
+        }
+    }
+
+    func removeRecent(id: String, now: Date = .now) {
+        locked {
+            guard let userID = activeUserID else { return }
+            var snapshot = load(for: userID)
+            snapshot.recents.removeAll { $0.id == id }
+            snapshot.pendingOperations.append(AccountSyncOperation(
+                kind: .recentRemove,
+                occurredAt: now,
+                recentID: id
+            ))
             trimOperations(&snapshot)
             save(snapshot, for: userID)
         }
@@ -143,10 +157,6 @@ final class AccountLocalStore: @unchecked Sendable {
             trimOperations(&snapshot)
             save(snapshot, for: userID)
         }
-    }
-
-    func preferences() -> TransportPreferences {
-        locked { loadActive().preferences }
     }
 
     func setPreferences(_ preferences: TransportPreferences) {
@@ -223,6 +233,8 @@ final class AccountLocalStore: @unchecked Sendable {
             snapshot.recents.removeAll { $0.id == recent.id }
             snapshot.recents.insert(recent, at: 0)
             snapshot.recents = Array(snapshot.recents.prefix(AccountLocalSnapshot.recentLimit))
+        case .recentRemove:
+            snapshot.recents.removeAll { $0.id == operation.recentID }
         case .recentClear:
             snapshot.recents.removeAll { $0.savedAt <= operation.occurredAt }
         case .preferencesSet:

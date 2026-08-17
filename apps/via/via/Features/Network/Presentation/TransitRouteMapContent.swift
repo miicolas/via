@@ -10,12 +10,7 @@ struct TransitRouteMapContent: MapContent {
         ForEach(routes) { route in
             ForEach(route.segments) { segment in
                 MapPolyline(
-                    coordinates: segment.coordinates.map { coordinate in
-                        CLLocationCoordinate2D(
-                            latitude: coordinate.latitude,
-                            longitude: coordinate.longitude
-                        )
-                    }
+                    coordinates: segment.coordinates.map(\.clLocationCoordinate)
                 )
                 .stroke(
                     Color(

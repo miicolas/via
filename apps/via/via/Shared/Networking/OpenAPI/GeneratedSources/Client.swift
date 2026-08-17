@@ -369,21 +369,21 @@ internal struct Client: APIProtocol {
                 )
                 try converter.setQueryItemAsURI(
                     in: &request,
-                    style: .deepObject,
+                    style: .form,
                     explode: true,
                     name: "requiredModes",
                     value: input.query.requiredModes
                 )
                 try converter.setQueryItemAsURI(
                     in: &request,
-                    style: .deepObject,
+                    style: .form,
                     explode: true,
                     name: "excludedModes",
                     value: input.query.excludedModes
                 )
                 try converter.setQueryItemAsURI(
                     in: &request,
-                    style: .deepObject,
+                    style: .form,
                     explode: true,
                     name: "preferredModes",
                     value: input.query.preferredModes

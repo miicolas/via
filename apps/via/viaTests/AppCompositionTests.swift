@@ -19,8 +19,9 @@ final class AppCompositionTests: XCTestCase {
         )
         XCTAssertEqual(
             storedPropertyNames(of: dependencies.root),
-            Set(["account", "makeDeparturesViewModel", "networkMap"])
+            Set(["account", "makeDeparturesViewModel", "mapPresentation", "networkMap"])
         )
+        XCTAssertTrue(dependencies.root.mapPresentation.state.isCompact)
 
         let departures = dependencies.root.makeDeparturesViewModel(
             StationID(rawValue: "station")

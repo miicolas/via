@@ -23,7 +23,7 @@ struct AccountAvatarView: View {
     }
 }
 
-#Preview {
+#Preview(traits: .sizeThatFitsLayout) {
     AccountAvatarView(user: AuthUser(
         id: "preview",
         appleUserIdentifier: "apple",

@@ -13,13 +13,15 @@ struct StationRoutesView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
-                AnnotationFlowLayout(
-                    spacing: 8,
-                    maximumLineWidth: 720,
-                    alignment: .leading
-                ) {
-                    ForEach(routes) { route in
-                        StationRouteBadgeView(route: route)
+                GlassEffectContainer(spacing: 8) {
+                    AnnotationFlowLayout(
+                        spacing: 8,
+                        maximumLineWidth: 720,
+                        alignment: .leading
+                    ) {
+                        ForEach(routes) { route in
+                            TransitRouteBadgeView(route: route, size: 30)
+                        }
                     }
                 }
             }

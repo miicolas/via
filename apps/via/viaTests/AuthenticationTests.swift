@@ -2,6 +2,31 @@ import XCTest
 @testable import Via
 
 final class AuthenticationTests: XCTestCase {
+    func testKeychainSessionVaultUsesDifferentNamespacePerAPIEnvironment() {
+        let local = KeychainAuthSessionVault.service(
+            for: URL(string: "http://localhost:3010/api")!
+        )
+        let production = KeychainAuthSessionVault.service(
+            for: URL(string: "https://usevia.up.railway.app/api")!
+        )
+
+        XCTAssertNotEqual(local, production)
+    }
+
+    @MainActor
+    func testKeychainSessionVaultPersistsAcrossInstances() async throws {
+        let baseURL = URL(string: "https://keychain-test-\(UUID().uuidString).example/api")!
+        let stored = session(token: "persisted")
+        let writer = KeychainAuthSessionVault(apiBaseURL: baseURL)
+        try await writer.save(stored)
+
+        let reader = KeychainAuthSessionVault(apiBaseURL: baseURL)
+        let reloaded = try await reader.load()
+        XCTAssertEqual(reloaded, stored)
+
+        try await reader.clear()
+    }
+
     func testNonceHashMatchesAppleRequestFormat() {
         XCTAssertEqual(
             AppleSignInNonce.sha256("abc"),
@@ -80,13 +105,33 @@ final class AuthenticationTests: XCTestCase {
     }
 
     @MainActor
+    func testFreshAppleSignInIsNotInvalidatedByForegroundCredentialRevalidation() async {
+        let fixture = makeFixture()
+
+        await fixture.viewModel.completeSignIn(.authorized(AppleSignInCredentials(
+            appleUserIdentifier: "apple",
+            identityToken: "identity",
+            authorizationCode: "authorization",
+            nonce: "nonce",
+            givenName: "Camille",
+            familyName: "Martin",
+            email: "user@example.com"
+        )))
+        await fixture.viewModel.sceneBecameActive()
+
+        guard case .authenticated = fixture.viewModel.state else {
+            XCTFail("A successful Apple sign-in must survive the foreground transition")
+            return
+        }
+        XCTAssertNil(fixture.viewModel.errorMessage)
+    }
+
+    @MainActor
     func testRevokedAppleCredentialClearsSessionAndAccount() async throws {
-        let fixture = makeFixture(
-            storedSession: session(),
-            credentialStatus: .revoked
-        )
+        let fixture = makeFixture(storedSession: session())
 
         await fixture.viewModel.restore()
+        await fixture.viewModel.appleCredentialWasRevoked()
 
         XCTAssertEqual(fixture.viewModel.state, .signedOut)
         XCTAssertEqual(fixture.account.state, .inactive)
@@ -99,7 +144,7 @@ final class AuthenticationTests: XCTestCase {
         let fixture = makeFixture(storedSession: session())
         await fixture.viewModel.restore()
 
-        fixture.lifecycleContinuation.yield(.authenticatedRequestRejected)
+        fixture.unauthorizedContinuation.yield(())
         await waitUntil { fixture.viewModel.state == .signedOut }
 
         XCTAssertEqual(fixture.account.state, .inactive)
@@ -159,7 +204,6 @@ final class AuthenticationTests: XCTestCase {
         storedSession: StoredAuthSession? = nil,
         validatedSession: StoredAuthSession? = nil,
         validationError: AuthenticationClientError? = nil,
-        credentialStatus: AppleCredentialStatus = .authorized,
         deletionError: ViaError? = nil
     ) -> AuthenticationFixture {
         let vault = InMemoryAuthSessionVault(session: storedSession)
@@ -177,21 +221,18 @@ final class AuthenticationTests: XCTestCase {
             remote: AuthenticationAccountRemote(deleteError: deletionError),
             synchronizationEnabled: false
         )
-        let lifecycle = AsyncStream.makeStream(of: AuthLifecycleEvent.self)
+        let unauthorized = AsyncStream.makeStream(of: Void.self)
         return AuthenticationFixture(
             viewModel: AuthSessionViewModel(
                 client: client,
                 vault: vault,
-                credentialStatusChecker: InMemoryAppleCredentialStatusChecker(
-                    value: credentialStatus
-                ),
                 account: account,
-                lifecycleEvents: lifecycle.stream
+                unauthorizedEvents: unauthorized.stream
             ),
             account: account,
             vault: vault,
             client: client,
-            lifecycleContinuation: lifecycle.continuation
+            unauthorizedContinuation: unauthorized.continuation
         )
     }
 
@@ -252,7 +293,7 @@ private struct AuthenticationFixture {
     let account: AccountModel
     let vault: InMemoryAuthSessionVault
     let client: AuthenticationClientStub
-    let lifecycleContinuation: AsyncStream<AuthLifecycleEvent>.Continuation
+    let unauthorizedContinuation: AsyncStream<Void>.Continuation
 }
 
 private actor AuthenticationClientStub: AuthenticationClient {

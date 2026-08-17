@@ -12,19 +12,26 @@ extension TransitMode {
         }
     }
 
-    /// The compact glyph badge views draw for this mode.
+    /// SF Symbol shown on journey segment chips next to the line name.
+    var chipSystemImage: String {
+        switch self {
+        case .metro: "tram.fill.tunnel"
+        case .rer, .transilien: "train.side.front.car"
+        case .tram: "tram.fill"
+        case .bus: "bus.fill"
+        }
+    }
+
+    /// The compact glyph badge views draw for this mode. Métro and RER keep
+    /// their lettered badges; the other modes reuse the chip symbol.
     @ViewBuilder var glyph: some View {
         switch self {
         case .metro:
             Text("M")
         case .rer:
             Text("RER")
-        case .transilien:
-            Image(systemName: "train.side.front.car")
-        case .tram:
-            Image(systemName: "tram.fill")
-        case .bus:
-            Image(systemName: "bus.fill")
+        case .transilien, .tram, .bus:
+            Image(systemName: chipSystemImage)
         }
     }
 }

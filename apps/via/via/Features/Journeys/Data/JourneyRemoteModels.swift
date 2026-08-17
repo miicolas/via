@@ -1,16 +1,19 @@
 import Foundation
 
-enum JourneyDestinationDTO: Codable {
+/// The nested destination shape carried by JSON response bodies (natural
+/// journeys). The GET /journeys query flattens it instead — deepObject
+/// serialization cannot express nesting; see `LiveJourneyRepository`.
+enum JourneyDestinationDTO: Decodable {
     case station(Station)
     case address(Address)
 
-    struct Station: Codable {
+    struct Station: Decodable {
         let id: String
         let name: String
         let coordinate: CoordinateDTO
     }
 
-    struct Address: Codable {
+    struct Address: Decodable {
         let id: String
         let name: String
         let context: String?
@@ -18,20 +21,6 @@ enum JourneyDestinationDTO: Codable {
     }
 
     private enum CodingKeys: String, CodingKey { case kind }
-
-    init(_ value: JourneyDestination) {
-        switch value {
-        case .station(let id, let name, let coordinate):
-            self = .station(.init(id: id.rawValue, name: name, coordinate: .init(coordinate)))
-        case .address(let id, let name, let context, let coordinate):
-            self = .address(.init(
-                id: id,
-                name: name,
-                context: context,
-                coordinate: .init(coordinate)
-            ))
-        }
-    }
 
     init(from decoder: Decoder) throws {
         let kind = try decoder.container(keyedBy: CodingKeys.self).decode(
@@ -48,20 +37,6 @@ enum JourneyDestinationDTO: Codable {
                 debugDescription: "Unknown destination: \(kind)"
             )
         }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        let kind: String
-        switch self {
-        case .station(let value):
-            kind = "station"
-            try value.encode(to: encoder)
-        case .address(let value):
-            kind = "address"
-            try value.encode(to: encoder)
-        }
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(kind, forKey: .kind)
     }
 
     var domain: JourneyDestination {

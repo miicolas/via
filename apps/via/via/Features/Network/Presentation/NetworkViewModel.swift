@@ -13,7 +13,6 @@ final class NetworkViewModel {
     @ObservationIgnored private var loadedStations: [StationMapItem] = []
     @ObservationIgnored private var viewportTask: Task<Void, Never>?
     @ObservationIgnored private var viewportRevision = 0
-    @ObservationIgnored private var hasLoadedSnapshot = false
 
     init(repository: any NetworkRepository) {
         self.repository = repository
@@ -27,7 +26,7 @@ final class NetworkViewModel {
             for: viewport,
             loading: phase == .ended
                 ? .loading
-                : (hasLoadedSnapshot ? .loaded : .idle)
+                : (routeLayout != nil ? .loaded : .idle)
         )
 
         guard phase == .ended else { return }
@@ -50,12 +49,9 @@ final class NetworkViewModel {
             }
             try Task.checkCancellation()
 
-            let stations: [StationMapItem]
+            var fetchedStations: [StationMapItem]?
             if viewport.showsStations {
-                let area = try await repository.viewport(in: viewport.bounds)
-                stations = area.mapItems
-            } else {
-                stations = loadedStations
+                fetchedStations = try await repository.viewport(in: viewport.bounds).mapItems
             }
             try Task.checkCancellation()
 
@@ -68,10 +64,9 @@ final class NetworkViewModel {
 
             routeLayout = layout
             positionedRoutes = routes
-            if viewport.showsStations {
-                loadedStations = stations
+            if let fetchedStations {
+                loadedStations = fetchedStations
             }
-            hasLoadedSnapshot = true
             publishSnapshot(for: viewport, loading: .loaded)
             ViaLog.network.debug(
                 "Map snapshot loaded with \(routes.count, privacy: .public) routes"
@@ -90,16 +85,22 @@ final class NetworkViewModel {
         for viewport: NetworkViewport,
         loading: NetworkMapLoadingState
     ) {
-        state = NetworkMapState(
+        let visibleStations: [StationMapItem]
+        if viewport.showsStations {
+            let bounds = viewport.bounds
+            visibleStations = loadedStations.filter { bounds.contains($0.coordinate) }
+        } else {
+            visibleStations = []
+        }
+        let refreshed = NetworkMapState(
             snapshot: NetworkMapSnapshot(
                 routes: positionedRoutes,
-                stations: viewport.showsStations
-                    ? loadedStations.filter { viewport.contains($0.coordinate) }
-                    : [],
+                stations: visibleStations,
                 lineStyle: viewport.lineStyle,
                 stationOpacity: viewport.stationOpacity
             ),
             loading: loading
         )
+        if state != refreshed { state = refreshed }
     }
 }

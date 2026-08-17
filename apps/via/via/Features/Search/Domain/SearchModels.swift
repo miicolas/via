@@ -16,14 +16,30 @@ struct AddressSearchResult: Sendable, Hashable, Identifiable {
     let distanceMeters: Double?
 }
 
+/// Single owner of the `"kind:rawID"` composite identifier persisted in
+/// recents and used across search, journeys, and the sync wire format.
+enum SearchResultID {
+    static func encode(kind: RecentSearch.Kind, rawID: String) -> String {
+        "\(kind.rawValue):\(rawID)"
+    }
+
+    static func decode(_ id: String, kind: RecentSearch.Kind) -> String {
+        let prefix = "\(kind.rawValue):"
+        guard id.hasPrefix(prefix) else { return id }
+        return String(id.dropFirst(prefix.count))
+    }
+}
+
 enum SearchResult: Sendable, Hashable, Identifiable {
     case station(StationSearchResult)
     case address(AddressSearchResult)
 
     var id: String {
         switch self {
-        case .station(let station): "station:\(station.id.rawValue)"
-        case .address(let address): "address:\(address.id)"
+        case .station(let station):
+            SearchResultID.encode(kind: .station, rawID: station.id.rawValue)
+        case .address(let address):
+            SearchResultID.encode(kind: .address, rawID: address.id)
         }
     }
 
@@ -38,6 +54,13 @@ enum SearchResult: Sendable, Hashable, Identifiable {
         switch self {
         case .station(let station): station.coordinate
         case .address(let address): address.coordinate
+        }
+    }
+
+    var kind: RecentSearch.Kind {
+        switch self {
+        case .station: .station
+        case .address: .address
         }
     }
 }
@@ -59,6 +82,22 @@ struct RecentSearch: Codable, Sendable, Hashable, Identifiable {
     let coordinate: GeoCoordinate
     let savedAt: Date
 
+    init(
+        id: String,
+        kind: Kind,
+        name: String,
+        context: String?,
+        coordinate: GeoCoordinate,
+        savedAt: Date
+    ) {
+        self.id = id
+        self.kind = kind
+        self.name = name
+        self.context = context
+        self.coordinate = coordinate
+        self.savedAt = savedAt
+    }
+
     init(result: SearchResult, savedAt: Date = .now) {
         id = result.id
         name = result.name
@@ -75,3 +114,31 @@ struct RecentSearch: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
+extension RecentSearch {
+    /// The raw identifier with the composite `"kind:"` prefix stripped;
+    /// tolerates legacy un-prefixed persisted values.
+    var resultIdentifier: String {
+        SearchResultID.decode(id, kind: kind)
+    }
+
+    var searchResult: SearchResult {
+        switch kind {
+        case .station:
+            .station(StationSearchResult(
+                id: StationID(rawValue: resultIdentifier),
+                name: name,
+                coordinate: coordinate,
+                routes: [],
+                distanceMeters: nil
+            ))
+        case .address:
+            .address(AddressSearchResult(
+                id: resultIdentifier,
+                name: name,
+                context: context ?? "",
+                coordinate: coordinate,
+                distanceMeters: nil
+            ))
+        }
+    }
+}

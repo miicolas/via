@@ -34,6 +34,12 @@ describe('account sync contract', () => {
             savedAt: common.occurredAt,
           },
         },
+        {
+          ...common,
+          operationId: crypto.randomUUID(),
+          kind: 'recent.remove',
+          recentId: 'address:1',
+        },
         { ...common, operationId: crypto.randomUUID(), kind: 'recent.clear' },
         {
           ...common,

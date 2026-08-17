@@ -99,6 +99,20 @@ export async function synchronizeAccount(
           break;
         }
 
+        case 'recent.remove':
+          if (operation.recentId) {
+            await transaction
+              .delete(accountRecentSearches)
+              .where(
+                and(
+                  eq(accountRecentSearches.userId, userId),
+                  eq(accountRecentSearches.id, operation.recentId),
+                  lte(accountRecentSearches.savedAt, new Date(operation.occurredAt))
+                )
+              );
+          }
+          break;
+
         case 'recent.clear':
           await transaction
             .delete(accountRecentSearches)

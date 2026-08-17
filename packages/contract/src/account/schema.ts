@@ -34,12 +34,14 @@ export const accountSyncOperationSchema = z
       'favorite.upsert',
       'favorite.remove',
       'recent.upsert',
+      'recent.remove',
       'recent.clear',
       'preferences.set',
     ]),
     occurredAt: z.iso.datetime({ offset: true }),
     station: favoriteStationSchema.optional(),
     stationId: z.string().min(1).max(300).optional(),
+    recentId: z.string().min(1).max(500).optional(),
     recent: accountRecentSearchSchema.optional(),
     preferences: transportPreferencesSchema.optional(),
   })
@@ -48,6 +50,7 @@ export const accountSyncOperationSchema = z
       (operation.kind === 'favorite.upsert' && operation.station !== undefined) ||
       (operation.kind === 'favorite.remove' && operation.stationId !== undefined) ||
       (operation.kind === 'recent.upsert' && operation.recent !== undefined) ||
+      (operation.kind === 'recent.remove' && operation.recentId !== undefined) ||
       operation.kind === 'recent.clear' ||
       (operation.kind === 'preferences.set' && operation.preferences !== undefined);
 

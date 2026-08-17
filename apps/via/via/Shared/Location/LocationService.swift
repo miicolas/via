@@ -1,6 +1,5 @@
 import CoreLocation
 import Foundation
-import Observation
 import OSLog
 
 enum LocationAuthorization: Sendable, Equatable {
@@ -32,7 +31,7 @@ protocol LocationAdapter: AnyObject {
 }
 
 @MainActor
-final class CoreLocationAdapter: NSObject, LocationAdapter, CLLocationManagerDelegate {
+final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLocationManagerDelegate {
     var onEvent: (@MainActor (LocationAdapterEvent) -> Void)?
     var authorization: LocationAuthorization { Self.map(manager.authorizationStatus) }
 
@@ -106,44 +105,5 @@ final class InMemoryLocationAdapter: LocationAdapter {
             return
         }
         onEvent?(.located(coordinate))
-    }
-}
-
-@MainActor
-@Observable
-final class LocationViewModel {
-    private(set) var state: LocationState
-    private let adapter: any LocationAdapter
-
-    init(adapter: any LocationAdapter) {
-        self.adapter = adapter
-        state = .idle(authorization: adapter.authorization)
-        adapter.onEvent = { [weak self] event in
-            self?.receive(event)
-        }
-    }
-
-    func requestLocation() {
-        switch adapter.authorization {
-        case .notDetermined:
-            adapter.requestAuthorization()
-        case .authorized:
-            state = .locating
-            adapter.requestLocation()
-        case .restricted, .denied:
-            state = .failed(adapter.authorization)
-        }
-    }
-
-    private func receive(_ event: LocationAdapterEvent) {
-        switch event {
-        case .authorizationChanged(let authorization):
-            state = .idle(authorization: authorization)
-            if authorization == .authorized { requestLocation() }
-        case .located(let coordinate):
-            state = .located(coordinate)
-        case .failed(let authorization):
-            state = .failed(authorization)
-        }
     }
 }

@@ -75,15 +75,19 @@ final class AccountModel {
     }
 
     func recordRecentSearch(_ result: SearchResult) {
-        let recent = RecentSearch(result: result, savedAt: now())
-        let history = [recent] + recentSearches.filter { $0.id != recent.id }
-        store.storeRecents(Array(history.prefix(AccountLocalSnapshot.recentLimit)))
+        store.upsertRecent(RecentSearch(result: result, savedAt: now()))
         refresh(syncState: syncState)
         scheduleSynchronization()
     }
 
     func clearRecentSearches() {
         store.clearRecents(now: now())
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func removeRecentSearch(id: String) {
+        store.removeRecent(id: id, now: now())
         refresh(syncState: syncState)
         scheduleSynchronization()
     }
@@ -102,11 +106,7 @@ final class AccountModel {
         scheduleSynchronization()
     }
 
-    func resumeSynchronization() {
-        scheduleSynchronization(fetchCanonical: true)
-    }
-
-    func retrySynchronization() {
+    func synchronize() {
         scheduleSynchronization(fetchCanonical: true)
     }
 
@@ -182,13 +182,7 @@ final class AccountModel {
             state = .inactive
             return
         }
-        state = .active(
-            AccountSnapshot(
-                favorites: store.favorites(),
-                recentSearches: store.recents(),
-                transportPreferences: store.preferences()
-            ),
-            syncState
-        )
+        let refreshed = AccountState.active(store.currentSnapshot(), syncState)
+        if state != refreshed { state = refreshed }
     }
 }

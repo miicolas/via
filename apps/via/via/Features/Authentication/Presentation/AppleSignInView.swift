@@ -35,7 +35,8 @@ struct AppleSignInView: View {
             .disabled(viewModel.state == .authenticating)
 
             if viewModel.state == .authenticating {
-                ProgressView("Connexion…")
+                ViaLoadingStatus(label: "Connexion…")
+                    .transition(.opacity)
             }
 
             if let errorMessage = viewModel.errorMessage {

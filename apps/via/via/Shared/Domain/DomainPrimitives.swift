@@ -49,6 +49,13 @@ struct GeoBounds: Codable, Sendable, Hashable {
             minLatitude < maxLatitude &&
             minLongitude < maxLongitude
     }
+
+    func contains(_ coordinate: GeoCoordinate) -> Bool {
+        coordinate.latitude >= minLatitude &&
+            coordinate.latitude <= maxLatitude &&
+            coordinate.longitude >= minLongitude &&
+            coordinate.longitude <= maxLongitude
+    }
 }
 
 /// Cases are declared in presentation order; `Comparable` sorts by it.

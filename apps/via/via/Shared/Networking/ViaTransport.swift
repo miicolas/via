@@ -11,7 +11,7 @@ struct ViaTransport: Sendable {
         authSessionVault: any AuthSessionVault,
         onUnauthorized: @escaping @Sendable () async -> Void = {}
     ) {
-        let configuration = URLSessionConfiguration.default
+        let configuration = URLSessionConfiguration.viaAPI(base: .default)
         configuration.urlCache = URLCache(
             memoryCapacity: 32 * 1_024 * 1_024,
             diskCapacity: 256 * 1_024 * 1_024

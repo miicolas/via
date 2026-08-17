@@ -47,16 +47,14 @@ struct RouteIntentDTO: Codable {
         case .currentLocation: .currentLocation
         case .place(let query): .place(query)
         }
-        self.init(
-            scope: value.scope.rawValue,
-            origin: origin,
-            destinationQuery: value.destinationQuery,
-            requestedAt: value.requestedAt,
-            datetimeRepresents: value.datetimeRepresents.rawValue,
-            requiredModes: value.requiredModes.map(\.rawValue).sorted(),
-            excludedModes: value.excludedModes.map(\.rawValue).sorted(),
-            preferredModes: value.preferredModes.map(\.rawValue).sorted()
-        )
+        scope = value.scope.rawValue
+        self.origin = origin
+        destinationQuery = value.destinationQuery
+        requestedAt = value.requestedAt
+        datetimeRepresents = value.datetimeRepresents.rawValue
+        requiredModes = value.requiredModes.map(\.rawValue).sorted()
+        excludedModes = value.excludedModes.map(\.rawValue).sorted()
+        preferredModes = value.preferredModes.map(\.rawValue).sorted()
     }
 
     func domain() throws -> RouteIntent {
@@ -87,11 +85,9 @@ struct NaturalJourneyDraftDTO: Codable {
     let destination: SearchResultDTO?
 
     init(_ value: NaturalJourneyDraft) {
-        self.init(
-            intent: .init(value.intent),
-            origin: value.origin.map(SearchResultDTO.init),
-            destination: value.destination.map(SearchResultDTO.init)
-        )
+        intent = .init(value.intent)
+        origin = value.origin.map(SearchResultDTO.init)
+        destination = value.destination.map(SearchResultDTO.init)
     }
 
     func domain() throws -> NaturalJourneyDraft {

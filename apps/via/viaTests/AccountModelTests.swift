@@ -53,9 +53,13 @@ final class AccountModelTests: XCTestCase {
         model.setPreferred(.metro, enabled: true)
 
         XCTAssertTrue(model.isFavorite(stationID: StationID(rawValue: "A")))
-        XCTAssertEqual(model.recentSearches.map(\.id), ["address"])
+        XCTAssertEqual(model.recentSearches.map(\.id), ["address:address"])
         XCTAssertEqual(model.transportPreferences.preferredModes, [.metro])
         XCTAssertEqual(model.syncState, .local)
+
+        model.removeRecentSearch(id: "address:address")
+
+        XCTAssertTrue(model.recentSearches.isEmpty)
     }
 
     @MainActor
@@ -94,7 +98,7 @@ final class AccountModelTests: XCTestCase {
         XCTAssertTrue(model.isFavorite(stationID: StationID(rawValue: "A")))
 
         await remote.setError(nil)
-        model.retrySynchronization()
+        model.synchronize()
         await waitUntil {
             if case .synced = model.syncState { return true }
             return false
@@ -244,6 +248,8 @@ private actor AccountRemoteStub: AccountRemote {
             guard let recent = operation.recent else { return }
             snapshot.recents.removeAll { $0.id == recent.id }
             snapshot.recents.insert(recent, at: 0)
+        case .recentRemove:
+            snapshot.recents.removeAll { $0.id == operation.recentID }
         case .recentClear:
             snapshot.recents.removeAll { $0.savedAt <= operation.occurredAt }
         case .preferencesSet:

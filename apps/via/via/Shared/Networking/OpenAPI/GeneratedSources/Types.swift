@@ -440,6 +440,7 @@ internal enum Operations {
                             case favorite_period_upsert = "favorite.upsert"
                             case favorite_period_remove = "favorite.remove"
                             case recent_period_upsert = "recent.upsert"
+                            case recent_period_remove = "recent.remove"
                             case recent_period_clear = "recent.clear"
                             case preferences_period_set = "preferences.set"
                         }
@@ -486,6 +487,8 @@ internal enum Operations {
                         internal var station: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload?
                         /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/stationId`.
                         internal var stationId: Swift.String?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recentId`.
+                        internal var recentId: Swift.String?
                         /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent`.
                         internal struct recentPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/id`.
@@ -622,6 +625,7 @@ internal enum Operations {
                         ///   - occurredAt:
                         ///   - station:
                         ///   - stationId:
+                        ///   - recentId:
                         ///   - recent:
                         ///   - preferences:
                         internal init(
@@ -630,6 +634,7 @@ internal enum Operations {
                             occurredAt: Foundation.Date,
                             station: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload? = nil,
                             stationId: Swift.String? = nil,
+                            recentId: Swift.String? = nil,
                             recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload? = nil,
                             preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload? = nil
                         ) {
@@ -638,6 +643,7 @@ internal enum Operations {
                             self.occurredAt = occurredAt
                             self.station = station
                             self.stationId = stationId
+                            self.recentId = recentId
                             self.recent = recent
                             self.preferences = preferences
                         }
@@ -647,6 +653,7 @@ internal enum Operations {
                             case occurredAt
                             case station
                             case stationId
+                            case recentId
                             case recent
                             case preferences
                         }
@@ -1402,54 +1409,37 @@ internal enum Operations {
                         internal var id: Swift.String
                         /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value1/name`.
                         internal var name: Swift.String
-                        /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value1/coordinate`.
-                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value1/coordinate/latitude`.
-                            internal var latitude: Swift.Double
-                            /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value1/coordinate/longitude`.
-                            internal var longitude: Swift.Double
-                            /// Creates a new `coordinatePayload`.
-                            ///
-                            /// - Parameters:
-                            ///   - latitude:
-                            ///   - longitude:
-                            internal init(
-                                latitude: Swift.Double,
-                                longitude: Swift.Double
-                            ) {
-                                self.latitude = latitude
-                                self.longitude = longitude
-                            }
-                            internal enum CodingKeys: String, CodingKey {
-                                case latitude
-                                case longitude
-                            }
-                        }
-                        /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value1/coordinate`.
-                        internal var coordinate: Operations.journeys_period_plan.Input.Query.destinationPayload.Value1Payload.coordinatePayload
+                        /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value1/latitude`.
+                        internal var latitude: Swift.Double
+                        /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value1/longitude`.
+                        internal var longitude: Swift.Double
                         /// Creates a new `Value1Payload`.
                         ///
                         /// - Parameters:
                         ///   - kind:
                         ///   - id:
                         ///   - name:
-                        ///   - coordinate:
+                        ///   - latitude:
+                        ///   - longitude:
                         internal init(
                             kind: OpenAPIRuntime.OpenAPIValueContainer,
                             id: Swift.String,
                             name: Swift.String,
-                            coordinate: Operations.journeys_period_plan.Input.Query.destinationPayload.Value1Payload.coordinatePayload
+                            latitude: Swift.Double,
+                            longitude: Swift.Double
                         ) {
                             self.kind = kind
                             self.id = id
                             self.name = name
-                            self.coordinate = coordinate
+                            self.latitude = latitude
+                            self.longitude = longitude
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case kind
                             case id
                             case name
-                            case coordinate
+                            case latitude
+                            case longitude
                         }
                     }
                     /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value1`.
@@ -1464,31 +1454,10 @@ internal enum Operations {
                         internal var name: Swift.String
                         /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value2/context`.
                         internal var context: Swift.String?
-                        /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value2/coordinate`.
-                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value2/coordinate/latitude`.
-                            internal var latitude: Swift.Double
-                            /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value2/coordinate/longitude`.
-                            internal var longitude: Swift.Double
-                            /// Creates a new `coordinatePayload`.
-                            ///
-                            /// - Parameters:
-                            ///   - latitude:
-                            ///   - longitude:
-                            internal init(
-                                latitude: Swift.Double,
-                                longitude: Swift.Double
-                            ) {
-                                self.latitude = latitude
-                                self.longitude = longitude
-                            }
-                            internal enum CodingKeys: String, CodingKey {
-                                case latitude
-                                case longitude
-                            }
-                        }
-                        /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value2/coordinate`.
-                        internal var coordinate: Operations.journeys_period_plan.Input.Query.destinationPayload.Value2Payload.coordinatePayload
+                        /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value2/latitude`.
+                        internal var latitude: Swift.Double
+                        /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value2/longitude`.
+                        internal var longitude: Swift.Double
                         /// Creates a new `Value2Payload`.
                         ///
                         /// - Parameters:
@@ -1496,26 +1465,30 @@ internal enum Operations {
                         ///   - id:
                         ///   - name:
                         ///   - context:
-                        ///   - coordinate:
+                        ///   - latitude:
+                        ///   - longitude:
                         internal init(
                             kind: OpenAPIRuntime.OpenAPIValueContainer,
                             id: Swift.String,
                             name: Swift.String,
                             context: Swift.String? = nil,
-                            coordinate: Operations.journeys_period_plan.Input.Query.destinationPayload.Value2Payload.coordinatePayload
+                            latitude: Swift.Double,
+                            longitude: Swift.Double
                         ) {
                             self.kind = kind
                             self.id = id
                             self.name = name
                             self.context = context
-                            self.coordinate = coordinate
+                            self.latitude = latitude
+                            self.longitude = longitude
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case kind
                             case id
                             case name
                             case context
-                            case coordinate
+                            case latitude
+                            case longitude
                         }
                     }
                     /// - Remark: Generated from `#/paths/journeys/GET/query/destination/value2`.
@@ -1572,42 +1545,12 @@ internal enum Operations {
                 }
                 /// - Remark: Generated from `#/paths/journeys/GET/query/datetimeRepresents`.
                 internal var datetimeRepresents: Operations.journeys_period_plan.Input.Query.datetimeRepresentsPayload?
-                /// - Remark: Generated from `#/paths/journeys/GET/query/requiredModesPayload`.
-                internal enum requiredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                    case metro = "metro"
-                    case rer = "rer"
-                    case transilien = "transilien"
-                    case tram = "tram"
-                    case bus = "bus"
-                }
                 /// - Remark: Generated from `#/paths/journeys/GET/query/requiredModes`.
-                internal typealias requiredModesPayload = [Operations.journeys_period_plan.Input.Query.requiredModesPayloadPayload]
-                /// - Remark: Generated from `#/paths/journeys/GET/query/requiredModes`.
-                internal var requiredModes: Operations.journeys_period_plan.Input.Query.requiredModesPayload?
-                /// - Remark: Generated from `#/paths/journeys/GET/query/excludedModesPayload`.
-                internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                    case metro = "metro"
-                    case rer = "rer"
-                    case transilien = "transilien"
-                    case tram = "tram"
-                    case bus = "bus"
-                }
+                internal var requiredModes: Swift.String?
                 /// - Remark: Generated from `#/paths/journeys/GET/query/excludedModes`.
-                internal typealias excludedModesPayload = [Operations.journeys_period_plan.Input.Query.excludedModesPayloadPayload]
-                /// - Remark: Generated from `#/paths/journeys/GET/query/excludedModes`.
-                internal var excludedModes: Operations.journeys_period_plan.Input.Query.excludedModesPayload?
-                /// - Remark: Generated from `#/paths/journeys/GET/query/preferredModesPayload`.
-                internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                    case metro = "metro"
-                    case rer = "rer"
-                    case transilien = "transilien"
-                    case tram = "tram"
-                    case bus = "bus"
-                }
+                internal var excludedModes: Swift.String?
                 /// - Remark: Generated from `#/paths/journeys/GET/query/preferredModes`.
-                internal typealias preferredModesPayload = [Operations.journeys_period_plan.Input.Query.preferredModesPayloadPayload]
-                /// - Remark: Generated from `#/paths/journeys/GET/query/preferredModes`.
-                internal var preferredModes: Operations.journeys_period_plan.Input.Query.preferredModesPayload?
+                internal var preferredModes: Swift.String?
                 /// Creates a new `Query`.
                 ///
                 /// - Parameters:
@@ -1625,9 +1568,9 @@ internal enum Operations {
                     limit: Swift.Int? = nil,
                     requestedAt: Foundation.Date? = nil,
                     datetimeRepresents: Operations.journeys_period_plan.Input.Query.datetimeRepresentsPayload? = nil,
-                    requiredModes: Operations.journeys_period_plan.Input.Query.requiredModesPayload? = nil,
-                    excludedModes: Operations.journeys_period_plan.Input.Query.excludedModesPayload? = nil,
-                    preferredModes: Operations.journeys_period_plan.Input.Query.preferredModesPayload? = nil
+                    requiredModes: Swift.String? = nil,
+                    excludedModes: Swift.String? = nil,
+                    preferredModes: Swift.String? = nil
                 ) {
                     self.origin = origin
                     self.destination = destination

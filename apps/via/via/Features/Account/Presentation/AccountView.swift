@@ -87,7 +87,7 @@ struct AccountView: View {
                         .disabled(authViewModel.isDeletingAccount)
 
                         if authViewModel.isDeletingAccount {
-                            ProgressView("Révocation et suppression…")
+                            ViaLoadingStatus(label: "Révocation et suppression…")
                         }
                     }
                 }
@@ -132,25 +132,24 @@ struct AccountView: View {
             Label("Données locales", systemImage: "internaldrive")
                 .foregroundStyle(.secondary)
         case .syncing:
-            HStack {
-                ProgressView()
-                Text("Synchronisation…")
-            }
+            ViaLoadingStatus(label: "Synchronisation…")
         case .synced:
             Label("Synchronisé", systemImage: "checkmark.icloud.fill")
                 .foregroundStyle(.green)
         case .pendingOffline:
             Label("En attente de connexion", systemImage: "wifi.slash")
                 .foregroundStyle(.orange)
-            Button("Réessayer", systemImage: "arrow.clockwise") {
-                account.retrySynchronization()
-            }
+            retryButton
         case .failed:
             Label("Échec de synchronisation", systemImage: "exclamationmark.icloud")
                 .foregroundStyle(.red)
-            Button("Réessayer", systemImage: "arrow.clockwise") {
-                account.retrySynchronization()
-            }
+            retryButton
+        }
+    }
+
+    private var retryButton: some View {
+        Button("Réessayer", systemImage: "arrow.clockwise") {
+            account.synchronize()
         }
     }
 

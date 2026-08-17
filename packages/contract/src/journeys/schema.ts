@@ -21,16 +21,55 @@ export const journeyDestinationSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
+/**
+ * GET /journeys carries its input in the query string, and deepObject
+ * serialization only supports one level of primitives — swift-openapi-runtime
+ * refuses nested objects before the request is even sent. So the wire shape
+ * flattens `coordinate` into `latitude`/`longitude` and parses back into
+ * {@link journeyDestinationSchema} server-side; handlers never see the flat form.
+ * Query values arrive as strings, hence the explicit coercion.
+ */
+export const journeyDestinationWireSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('station'),
+    id: z.string().min(1),
+    name: z.string().min(1),
+    latitude: z.coerce.number(),
+    longitude: z.coerce.number(),
+  }),
+  z.object({
+    kind: z.literal('address'),
+    id: z.string().min(1),
+    name: z.string().min(1),
+    context: z.string().optional(),
+    latitude: z.coerce.number(),
+    longitude: z.coerce.number(),
+  }),
+]);
+
+const journeyDestinationParamSchema = journeyDestinationWireSchema
+  .transform(({ latitude, longitude, ...place }) => ({
+    ...place,
+    coordinate: { latitude, longitude },
+  }))
+  .pipe(journeyDestinationSchema);
+
+/** Same constraint as the destination: arrays don't survive deepObject either, so modes ride as CSV. */
+const journeyModeListParamSchema = z
+  .string()
+  .transform((raw) => raw.split(',').filter((mode) => mode.length > 0))
+  .pipe(z.array(journeyModeSchema).max(3));
+
 export const journeyInputSchema = z.object({
   origin: coordinateSchema,
-  destination: journeyDestinationSchema,
+  destination: journeyDestinationParamSchema,
   limit: z.int().min(1).max(6).default(4),
   /** Omitted by the classic flow, which keeps its current "leave now" behavior. */
   requestedAt: z.iso.datetime({ offset: true }).optional(),
   datetimeRepresents: journeyDatetimeRepresentsSchema.optional(),
-  requiredModes: z.array(journeyModeSchema).max(3).optional(),
-  excludedModes: z.array(journeyModeSchema).max(3).optional(),
-  preferredModes: z.array(journeyModeSchema).max(3).optional(),
+  requiredModes: journeyModeListParamSchema.optional(),
+  excludedModes: journeyModeListParamSchema.optional(),
+  preferredModes: journeyModeListParamSchema.optional(),
 });
 
 export const journeyQualifierSchema = z.enum([
