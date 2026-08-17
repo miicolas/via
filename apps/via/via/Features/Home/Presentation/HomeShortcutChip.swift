@@ -15,7 +15,7 @@ struct HomeShortcutChip: View {
                     .font(.title3)
                     .foregroundStyle(isPlaceholder ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
                     .frame(width: 56, height: 56)
-                    .background(.quaternary, in: Circle())
+                    .glassEffect(.regular.interactive(), in: .circle)
 
                 VStack(spacing: 1) {
                     Text(title)

@@ -2,6 +2,7 @@ import Foundation
 
 @MainActor
 struct RootDependencies {
+    let onboarding: OnboardingModel
     let networkMap: NetworkViewModel
     let mapPresentation: MapPresentationModel
     let account: AccountModel
@@ -13,6 +14,7 @@ struct RootDependencies {
 @MainActor
 struct AppDependencies {
     let authSession: AuthSessionViewModel
+    let onboarding: OnboardingModel
     let root: RootDependencies
 
     static func live(configuration: AppConfiguration) throws -> AppDependencies {
@@ -29,6 +31,7 @@ struct AppDependencies {
             store: AccountLocalStore(),
             remote: LiveAccountRemote(transport: transport)
         )
+        let onboarding = OnboardingModel()
         let departures = LiveDeparturesRepository(transport: transport)
         let search = LiveSearchRepository(transport: transport)
         let network = LiveNetworkRepository(transport: transport)
@@ -60,7 +63,9 @@ struct AppDependencies {
                 account: account,
                 unauthorizedEvents: unauthorized.stream
             ),
+            onboarding: onboarding,
             root: RootDependencies(
+                onboarding: onboarding,
                 networkMap: NetworkViewModel(repository: network),
                 mapPresentation: MapPresentationModel(
                     searchRepository: search,
@@ -105,6 +110,12 @@ final class PreviewDependencies {
         ),
         remote: InMemoryAccountRemote(),
         synchronizationEnabled: false
+    )
+
+    lazy var onboarding = OnboardingModel(
+        store: OnboardingStore(
+            defaults: UserDefaults(suiteName: "dev.via.preview.onboarding")!
+        )
     )
 
     lazy var authSession = AuthSessionViewModel(

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MapPresentationState: Equatable {
-    static let collapsedDetent = PresentationDetent.height(75)
+    static let collapsedDetent = PresentationDetent.height(95)
     static let searchDetent = PresentationDetent.fraction(0.45)
     static let expandedDetent = PresentationDetent.fraction(0.97)
 

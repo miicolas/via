@@ -28,7 +28,7 @@ struct JourneyResultsExpandedView: View {
             .searchable(
                 text: activeSearchText,
                 isPresented: isSearchPresented,
-                placement: .navigationBarDrawer(displayMode: .always),
+                placement: .toolbarPrincipal,
                 prompt: resultSearchPrompt
             )
             .onSubmit(of: .search) {

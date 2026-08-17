@@ -18,48 +18,50 @@ struct HomeShortcutChipsView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(alignment: .top, spacing: 10) {
-                roleChip(home, role: .home, title: "Maison", systemImage: "house.fill")
-                roleChip(work, role: .work, title: "Travail", systemImage: "briefcase.fill")
+            GlassEffectContainer {
+                LazyHStack(alignment: .top, spacing: 10) {
+                    roleChip(home, role: .home, title: "Maison", systemImage: "house.fill")
+                    roleChip(work, role: .work, title: "Travail", systemImage: "briefcase.fill")
 
-                ForEach(favoritePlaces) { place in
-                    HomeShortcutChip(
-                        title: place.name,
-                        systemImage: "star.fill"
-                    ) {
-                        onSelectPlace(place)
-                    }
-                    .contextMenu {
-                        Button("Retirer des favoris", systemImage: "star.slash", role: .destructive) {
-                            onRemovePlace(place)
+                    ForEach(favoritePlaces) { place in
+                        HomeShortcutChip(
+                            title: place.name,
+                            systemImage: "star.fill"
+                        ) {
+                            onSelectPlace(place)
+                        }
+                        .contextMenu {
+                            Button("Retirer des favoris", systemImage: "star.slash", role: .destructive) {
+                                onRemovePlace(place)
+                            }
                         }
                     }
-                }
 
-                ForEach(favoriteStations) { favorite in
-                    HomeShortcutChip(
-                        title: favorite.name,
-                        systemImage: "tram.fill"
-                    ) {
-                        onSelectFavoriteStation(favorite)
-                    }
-                    .contextMenu {
-                        Button("Retirer des favoris", systemImage: "star.slash", role: .destructive) {
-                            onRemoveFavoriteStation(favorite)
+                    ForEach(favoriteStations) { favorite in
+                        HomeShortcutChip(
+                            title: favorite.name,
+                            systemImage: "tram.fill"
+                        ) {
+                            onSelectFavoriteStation(favorite)
+                        }
+                        .contextMenu {
+                            Button("Retirer des favoris", systemImage: "star.slash", role: .destructive) {
+                                onRemoveFavoriteStation(favorite)
+                            }
                         }
                     }
-                }
 
-                HomeShortcutChip(
-                    title: "Favori",
-                    systemImage: "plus",
-                    isPlaceholder: true
-                ) {
-                    onAddPlace(.favorite)
+                    HomeShortcutChip(
+                        title: "Favori",
+                        systemImage: "plus",
+                        isPlaceholder: true
+                    ) {
+                        onAddPlace(.favorite)
+                    }
                 }
+                .padding(.vertical, 1)
+                .scrollTargetLayout()
             }
-            .padding(.vertical, 1)
-            .scrollTargetLayout()
         }
         .contentMargins(.horizontal, horizontalInset, for: .scrollContent)
         .scrollTargetBehavior(.viewAligned)

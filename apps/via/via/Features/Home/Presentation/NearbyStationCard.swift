@@ -35,15 +35,7 @@ struct NearbyStationCard: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(
-                .quaternary.opacity(0.45),
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.06), lineWidth: 0.5)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .viaGlassCard(isInteractive: true)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Départs de \(station.name)")

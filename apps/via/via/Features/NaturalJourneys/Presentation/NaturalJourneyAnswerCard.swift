@@ -4,7 +4,22 @@ struct NaturalJourneyAnswerCard: View {
     let journey: Journey
     let result: NaturalJourneyResult
     let isOriginalAnswer: Bool
+    let buttonAccessibilityIdentifier: String?
     let onGo: () -> Void
+
+    init(
+        journey: Journey,
+        result: NaturalJourneyResult,
+        isOriginalAnswer: Bool,
+        buttonAccessibilityIdentifier: String? = nil,
+        onGo: @escaping () -> Void
+    ) {
+        self.journey = journey
+        self.result = result
+        self.isOriginalAnswer = isOriginalAnswer
+        self.buttonAccessibilityIdentifier = buttonAccessibilityIdentifier
+        self.onGo = onGo
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -101,6 +116,15 @@ struct NaturalJourneyAnswerCard: View {
 
     @ViewBuilder
     private var actionButtons: some View {
+        if let buttonAccessibilityIdentifier {
+            goButton
+                .accessibilityIdentifier(buttonAccessibilityIdentifier)
+        } else {
+            goButton
+        }
+    }
+
+    private var goButton: some View {
         Button("Y aller", systemImage: "location.fill", action: onGo)
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)

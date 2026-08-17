@@ -4,6 +4,7 @@ struct MapSearchSheet: View {
     let model: MapPresentationModel
     let authViewModel: AuthSessionViewModel
     let account: AccountModel
+    let onboarding: OnboardingModel
     let nearbyStations: NearbyStationsViewModel
     let makeSavedPlacePicker: () -> SavedPlacePickerViewModel
 
@@ -13,6 +14,8 @@ struct MapSearchSheet: View {
     var body: some View {
         NavigationStack {
             content
+                // Keep the first row clear of the sheet's drag indicator.
+                .padding(.top, 16)
                 .sheetContentVisibility()
                 .searchable(
                     text: searchText,
@@ -39,6 +42,7 @@ struct MapSearchSheet: View {
                     AccountView(
                         authViewModel: authViewModel,
                         account: account,
+                        onboarding: onboarding,
                         makeSavedPlacePicker: makeSavedPlacePicker
                     )
                 }
@@ -52,12 +56,6 @@ struct MapSearchSheet: View {
                     model.send(.preparePlanner)
                 }
         }
-        .scaleEffect(
-            x: model.state.isCompact ? 1.1 : 1,
-            y: 1,
-            anchor: .center
-        )
-        .offset(y: model.state.isCompact ? 11 : 0)
     }
 
     private var isSearchPresented: Binding<Bool> {
@@ -151,14 +149,32 @@ struct MapSearchSheet: View {
     }
 }
 
-#Preview {
-    let dependencies = PreviewDependencies()
+#Preview("Recherche classique") {
+    @Previewable @State var query = "Châtelet"
+    @Previewable @State var isSearching = true
 
-    MapSearchSheet(
-        model: dependencies.mapPresentation,
-        authViewModel: dependencies.authSession,
-        account: dependencies.account,
-        nearbyStations: dependencies.nearbyStations,
-        makeSavedPlacePicker: dependencies.makeSavedPlacePicker
-    )
+    NavigationStack {
+        PlaceSuggestionsView(
+            search: .loaded(.mapPreview),
+            recentSearches: [],
+            activeField: .destination,
+            location: .located(.init(latitude: 48.8566, longitude: 2.3522)),
+            naturalJourneyQuery: "",
+            onSubmitNaturalJourney: { _ in },
+            onSelectResult: { _ in },
+            onSelectRecent: { _ in },
+            onRemoveRecent: { _ in },
+            onUseCurrentLocation: {},
+            onRetry: {}
+        )
+        .searchable(
+            text: $query,
+            isPresented: $isSearching,
+            prompt: "Où aller et pour quand ?"
+        )
+        .toolbarVisibility(.hidden, for: .navigationBar)
+        .toolbar {
+            DefaultToolbarItem(kind: .search, placement: .bottomBar)
+        }
+    }
 }

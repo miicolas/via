@@ -11,12 +11,16 @@ struct ViaApp: App {
     var body: some Scene {
         WindowGroup {
             switch bootstrapState {
+            case .preview:
+                Color.clear
             case .ready(let dependencies):
-                AuthenticationGateView(viewModel: dependencies.authSession) {
-                    RootView(
-                        dependencies: dependencies.root,
-                        authViewModel: dependencies.authSession
-                    )
+                OnboardingGateView(model: dependencies.onboarding) {
+                    AuthenticationGateView(viewModel: dependencies.authSession) {
+                        RootView(
+                            dependencies: dependencies.root,
+                            authViewModel: dependencies.authSession
+                        )
+                    }
                 }
             case .failed(let error):
                 ConfigurationErrorView(error: error)

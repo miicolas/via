@@ -14,12 +14,16 @@ struct NearbyStationsSection: View {
                 if viewModel.entries.isEmpty {
                     NearbyStationsPlaceholder()
                 } else {
-                    ForEach(viewModel.entries) { entry in
-                        NearbyStationCard(
-                            station: entry.station,
-                            departures: entry.departures
-                        ) {
-                            onOpenStation(entry.station)
+                    GlassEffectContainer {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(viewModel.entries) { entry in
+                                NearbyStationCard(
+                                    station: entry.station,
+                                    departures: entry.departures
+                                ) {
+                                    onOpenStation(entry.station)
+                                }
+                            }
                         }
                     }
                 }
@@ -43,9 +47,6 @@ private struct NearbyStationsPlaceholder: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 16)
-        .background(
-            .quaternary.opacity(0.45),
-            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-        )
+        .viaGlassCard()
     }
 }

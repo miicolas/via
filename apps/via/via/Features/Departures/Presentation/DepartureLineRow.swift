@@ -37,13 +37,6 @@ struct DepartureLineRow: View {
             }
         }
         .padding(16)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.primary.opacity(0.045))
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
-        }
+        .viaGlassCard()
     }
 }

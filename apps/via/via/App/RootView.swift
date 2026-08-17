@@ -60,6 +60,7 @@ struct RootView: View {
                 model: presentation,
                 authViewModel: authViewModel,
                 account: dependencies.account,
+                onboarding: dependencies.onboarding,
                 makeDeparturesViewModel: dependencies.makeDeparturesViewModel,
                 nearbyStations: dependencies.nearbyStations,
                 makeSavedPlacePicker: dependencies.makeSavedPlacePicker,

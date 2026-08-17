@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Shared renderer for a `PlaceSearchState`: result rows, loading skeletons,
-/// degraded-address banner, empty and failure states. Callers supply only
-/// their idle content.
 struct PlaceSearchResultsList<IdleContent: View>: View {
     let search: PlaceSearchState
     let onSelect: (SearchResult) -> Void
@@ -69,5 +66,50 @@ struct PlaceSearchResultsList<IdleContent: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 14)
+    }
+}
+
+#Preview("Résultats") {
+    ScrollView {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            PlaceSearchResultsList(
+                search: .loaded(.mapPreview),
+                onSelect: { _ in },
+                onRetry: {}
+            ) {
+                EmptyView()
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+}
+
+#Preview("Chargement") {
+    ScrollView {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            PlaceSearchResultsList(
+                search: .loading(previous: nil),
+                onSelect: { _ in },
+                onRetry: {}
+            ) {
+                EmptyView()
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+}
+
+#Preview("Aucun résultat") {
+    ScrollView {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            PlaceSearchResultsList(
+                search: .empty(addressSource: .ok),
+                onSelect: { _ in },
+                onRetry: {}
+            ) {
+                EmptyView()
+            }
+        }
+        .padding(.horizontal, 16)
     }
 }

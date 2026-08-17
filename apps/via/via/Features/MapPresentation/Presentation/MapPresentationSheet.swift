@@ -4,6 +4,7 @@ struct MapPresentationSheet: View {
     let model: MapPresentationModel
     let authViewModel: AuthSessionViewModel
     let account: AccountModel
+    let onboarding: OnboardingModel
     let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
     let nearbyStations: NearbyStationsViewModel
     let makeSavedPlacePicker: () -> SavedPlacePickerViewModel
@@ -48,6 +49,7 @@ struct MapPresentationSheet: View {
                 model: model,
                 authViewModel: authViewModel,
                 account: account,
+                onboarding: onboarding,
                 nearbyStations: nearbyStations,
                 makeSavedPlacePicker: makeSavedPlacePicker
             )
@@ -86,6 +88,7 @@ struct MapPresentationSheet: View {
         model: dependencies.mapPresentation,
         authViewModel: dependencies.authSession,
         account: dependencies.account,
+        onboarding: dependencies.onboarding,
         makeDeparturesViewModel: { stationID in
             dependencies.makeDeparturesViewModel(for: stationID)
         },

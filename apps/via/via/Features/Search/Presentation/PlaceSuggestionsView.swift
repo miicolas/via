@@ -72,3 +72,51 @@ struct PlaceSuggestionsView: View {
         return query.isEmpty ? nil : query
     }
 }
+
+#Preview("Résultats") {
+    PlaceSuggestionsView(
+        search: .loaded(.mapPreview),
+        recentSearches: [],
+        activeField: .destination,
+        location: .located(.init(latitude: 48.8566, longitude: 2.3522)),
+        naturalJourneyQuery: "",
+        onSubmitNaturalJourney: { _ in },
+        onSelectResult: { _ in },
+        onSelectRecent: { _ in },
+        onRemoveRecent: { _ in },
+        onUseCurrentLocation: {},
+        onRetry: {}
+    )
+}
+
+#Preview("Chargement") {
+    PlaceSuggestionsView(
+        search: .loading(previous: nil),
+        recentSearches: [],
+        activeField: .destination,
+        location: .located(.init(latitude: 48.8566, longitude: 2.3522)),
+        naturalJourneyQuery: "",
+        onSubmitNaturalJourney: { _ in },
+        onSelectResult: { _ in },
+        onSelectRecent: { _ in },
+        onRemoveRecent: { _ in },
+        onUseCurrentLocation: {},
+        onRetry: {}
+    )
+}
+
+#Preview("Aucun résultat") {
+    PlaceSuggestionsView(
+        search: .empty(addressSource: .ok),
+        recentSearches: [],
+        activeField: .destination,
+        location: .located(.init(latitude: 48.8566, longitude: 2.3522)),
+        naturalJourneyQuery: "",
+        onSubmitNaturalJourney: { _ in },
+        onSelectResult: { _ in },
+        onSelectRecent: { _ in },
+        onRemoveRecent: { _ in },
+        onUseCurrentLocation: {},
+        onRetry: {}
+    )
+}

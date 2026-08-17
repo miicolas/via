@@ -28,14 +28,16 @@ struct DepartureBoardView: View {
             } else {
                 let groupsByRouteID = Dictionary(grouping: board.groups) { $0.route.id }
                 TimelineView(.periodic(from: .now, by: 30)) { context in
-                    LazyVStack(spacing: 12) {
-                        ForEach(routes) { route in
-                            DepartureLineRow(
-                                route: route,
-                                groups: groupsByRouteID[route.id] ?? [],
-                                source: board.source,
-                                now: context.date
-                            )
+                    GlassEffectContainer {
+                        LazyVStack(spacing: 12) {
+                            ForEach(routes) { route in
+                                DepartureLineRow(
+                                    route: route,
+                                    groups: groupsByRouteID[route.id] ?? [],
+                                    source: board.source,
+                                    now: context.date
+                                )
+                            }
                         }
                     }
                 }

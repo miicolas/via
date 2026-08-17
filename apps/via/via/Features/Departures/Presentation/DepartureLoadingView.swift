@@ -61,10 +61,6 @@ struct DepartureLoadingView: View {
             }
         }
         .padding(16)
-        .background(.background, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
-        }
+        .viaGlassCard()
     }
 }

@@ -15,7 +15,7 @@ final class AppCompositionTests: XCTestCase {
         XCTAssertEqual(dependencies.root.networkMap.state, .idle)
         XCTAssertEqual(
             storedPropertyNames(of: dependencies),
-            Set(["authSession", "root"])
+            Set(["authSession", "onboarding", "root"])
         )
         XCTAssertEqual(
             storedPropertyNames(of: dependencies.root),
@@ -26,8 +26,10 @@ final class AppCompositionTests: XCTestCase {
                 "mapPresentation",
                 "nearbyStations",
                 "networkMap",
+                "onboarding",
             ])
         )
+        XCTAssertTrue(dependencies.onboarding === dependencies.root.onboarding)
         XCTAssertTrue(dependencies.root.mapPresentation.state.isCompact)
 
         let departures = dependencies.root.makeDeparturesViewModel(
@@ -82,6 +84,31 @@ final class AppCompositionTests: XCTestCase {
             return
         }
         XCTAssertEqual(message, "missing URL")
+    }
+
+    @MainActor
+    func testPreviewHostSkipsProductionBootstrap() {
+        var didLoadConfiguration = false
+        var didBuildDependencies = false
+
+        let state = AppBootstrapState.bootstrap(
+            environment: ["XCODE_RUNNING_FOR_PLAYGROUNDS": "1"],
+            loadConfiguration: {
+                didLoadConfiguration = true
+                throw ViaError.invalidConfiguration("should not load")
+            },
+            buildDependencies: { configuration in
+                didBuildDependencies = true
+                return try AppDependencies.live(configuration: configuration)
+            }
+        )
+
+        XCTAssertFalse(didLoadConfiguration)
+        XCTAssertFalse(didBuildDependencies)
+        guard case .preview = state else {
+            XCTFail("Preview hosts must not start the production dependency graph")
+            return
+        }
     }
 
     @MainActor

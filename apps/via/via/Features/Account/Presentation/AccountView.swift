@@ -4,12 +4,14 @@ import SwiftUI
 struct AccountView: View {
     @Bindable var authViewModel: AuthSessionViewModel
     let account: AccountModel
+    let onboarding: OnboardingModel
     let makeSavedPlacePicker: () -> SavedPlacePickerViewModel
 
     @Environment(\.dismiss) private var dismiss
     @State private var authorizationAdapter = AppleAuthorizationAdapter()
     @State private var deletionConfirmationPresented = false
     @State private var deletionAuthorizationRequested = false
+    @State private var onboardingResetConfirmationPresented = false
     @State private var editedPlaceRole: SavedPlace.Role?
 
     var body: some View {
@@ -55,6 +57,12 @@ struct AccountView: View {
                 Section("Transports préférés") {
                     ForEach(TransitMode.allCases, id: \.self) { mode in
                         Toggle(mode.displayName, isOn: preferredBinding(for: mode))
+                    }
+                }
+
+                Section("Via") {
+                    Button("Revoir l’onboarding", systemImage: "sparkles") {
+                        onboardingResetConfirmationPresented = true
                     }
                 }
 
@@ -122,6 +130,18 @@ struct AccountView: View {
                 }
             } message: {
                 Text("Les favoris, recherches, préférences et sessions seront supprimés après révocation Apple.")
+            }
+            .alert(
+                "Revoir l’onboarding ?",
+                isPresented: $onboardingResetConfirmationPresented
+            ) {
+                Button("Annuler", role: .cancel) {}
+                Button("Revoir") {
+                    onboarding.reset()
+                    dismiss()
+                }
+            } message: {
+                Text("L’introduction s’affichera dès la fermeture de cet écran.")
             }
             .savedPlacePickerSheet(
                 role: $editedPlaceRole,
@@ -215,6 +235,7 @@ struct AccountView: View {
     AccountView(
         authViewModel: dependencies.authSession,
         account: dependencies.account,
+        onboarding: dependencies.onboarding,
         makeSavedPlacePicker: dependencies.makeSavedPlacePicker
     )
 }
