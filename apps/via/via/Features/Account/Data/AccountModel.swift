@@ -37,6 +37,7 @@ final class AccountModel {
 
     var favorites: [FavoriteStation] { snapshot.favorites }
     var recentSearches: [RecentSearch] { snapshot.recentSearches }
+    var places: [SavedPlace] { snapshot.places }
     var transportPreferences: TransportPreferences { snapshot.transportPreferences }
 
     func activate(userID: String) {
@@ -57,8 +58,13 @@ final class AccountModel {
     }
 
     @discardableResult
-    func toggleFavorite(stationID: StationID, name: String) -> Bool {
-        let isFavorite = store.toggleFavorite(stationID: stationID, name: name, now: now())
+    func toggleFavorite(stationID: StationID, name: String, coordinate: GeoCoordinate? = nil) -> Bool {
+        let isFavorite = store.toggleFavorite(
+            stationID: stationID,
+            name: name,
+            coordinate: coordinate,
+            now: now()
+        )
         refresh(syncState: syncState)
         scheduleSynchronization()
         return isFavorite
@@ -72,6 +78,22 @@ final class AccountModel {
 
     func isFavorite(stationID: StationID) -> Bool {
         snapshot.favorites.contains { $0.stationID == stationID.rawValue }
+    }
+
+    func place(for role: SavedPlace.Role) -> SavedPlace? {
+        snapshot.places.first { $0.role == role }
+    }
+
+    func setPlace(_ result: SearchResult, role: SavedPlace.Role) {
+        store.savePlace(SavedPlace(result: result, role: role, savedAt: now()))
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func removePlace(id: String) {
+        store.removePlace(id: id, now: now())
+        refresh(syncState: syncState)
+        scheduleSynchronization()
     }
 
     func recordRecentSearch(_ result: SearchResult) {

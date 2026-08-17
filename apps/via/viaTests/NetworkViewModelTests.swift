@@ -42,6 +42,30 @@ final class NetworkViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testRoutesArePublishedWhileStationsAreStillLoading() async {
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: area(stationID: "near", latitude: 48.85)
+        )
+        await repository.suspendNextViewport()
+        let model = NetworkViewModel(repository: repository)
+
+        model.viewportChanged(to: viewport(), phase: .ended)
+
+        await waitUntil {
+            model.state.loading == .loading && model.state.snapshot.routes.count == 2
+        }
+        XCTAssertTrue(model.state.snapshot.stations.isEmpty)
+
+        await repository.resumeSuspendedViewport()
+        await waitUntil { model.state.loading == .loaded }
+        XCTAssertEqual(
+            model.state.snapshot.stations.map(\.id),
+            [StationID(rawValue: "near")]
+        )
+    }
+
+    @MainActor
     func testContinuousChangeOnlyUpdatesStyleAndFiltersExistingStations() async {
         let repository = NetworkRepositorySpy(
             network: network(),

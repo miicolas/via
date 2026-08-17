@@ -5,6 +5,8 @@ struct MapPresentationSheet: View {
     let authViewModel: AuthSessionViewModel
     let account: AccountModel
     let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
+    let nearbyStations: NearbyStationsViewModel
+    let makeSavedPlacePicker: () -> SavedPlacePickerViewModel
     let isLargeScreen: Bool
 
     var body: some View {
@@ -45,7 +47,9 @@ struct MapPresentationSheet: View {
             MapSearchSheet(
                 model: model,
                 authViewModel: authViewModel,
-                account: account
+                account: account,
+                nearbyStations: nearbyStations,
+                makeSavedPlacePicker: makeSavedPlacePicker
             )
 
         case .station(let station):
@@ -76,16 +80,17 @@ struct MapPresentationSheet: View {
 }
 
 #Preview {
-    let dependencies = AppDependencies.preview
+    let dependencies = PreviewDependencies()
 
-    Color.blue
-        .sheet(isPresented: .constant(true)) {
-            MapPresentationSheet(
-                model: dependencies.root.mapPresentation,
-                authViewModel: dependencies.authSession,
-                account: dependencies.root.account,
-                makeDeparturesViewModel: dependencies.root.makeDeparturesViewModel,
-                isLargeScreen: false
-            )
-        }
+    MapPresentationSheet(
+        model: dependencies.mapPresentation,
+        authViewModel: dependencies.authSession,
+        account: dependencies.account,
+        makeDeparturesViewModel: { stationID in
+            dependencies.makeDeparturesViewModel(for: stationID)
+        },
+        nearbyStations: dependencies.nearbyStations,
+        makeSavedPlacePicker: dependencies.makeSavedPlacePicker,
+        isLargeScreen: false
+    )
 }

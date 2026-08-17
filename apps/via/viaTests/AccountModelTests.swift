@@ -63,6 +63,74 @@ final class AccountModelTests: XCTestCase {
     }
 
     @MainActor
+    func testSavedPlacesReplaceTheirRoleAndSurviveRelaunch() {
+        let date = Date(timeIntervalSince1970: 100)
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false,
+            now: { date }
+        )
+        model.activate(userID: "user")
+
+        model.setPlace(addressResult(id: "first-home"), role: .home)
+        model.setPlace(addressResult(id: "work"), role: .work)
+        model.setPlace(addressResult(id: "second-home"), role: .home)
+
+        XCTAssertEqual(model.place(for: .home)?.id, "address:second-home")
+        XCTAssertEqual(model.place(for: .work)?.id, "address:work")
+        XCTAssertEqual(model.places.count, 2)
+
+        let relaunched = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        relaunched.activate(userID: "user")
+        XCTAssertEqual(relaunched.place(for: .home)?.id, "address:second-home")
+
+        relaunched.removePlace(id: "address:second-home")
+        XCTAssertNil(relaunched.place(for: .home))
+        XCTAssertEqual(relaunched.place(for: .work)?.id, "address:work")
+    }
+
+    @MainActor
+    func testSavedPlaceMutationDuringSynchronizationSurvivesCanonicalMerge() async throws {
+        let remote = AccountRemoteStub()
+        await remote.suspendNextSynchronization()
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: remote
+        )
+        model.activate(userID: "user")
+        await waitUntil { model.syncState == .syncing }
+
+        model.setPlace(addressResult(id: "home"), role: .home)
+        await remote.resumeSynchronization()
+        await waitUntil {
+            if case .synced = model.syncState { return true }
+            return false
+        }
+
+        XCTAssertEqual(model.place(for: .home)?.id, "address:home")
+    }
+
+    @MainActor
+    func testFavoriteKeepsItsCoordinate() {
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        model.activate(userID: "user")
+        let coordinate = GeoCoordinate(latitude: 48.88, longitude: 2.15)
+
+        model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Chatou", coordinate: coordinate)
+
+        XCTAssertEqual(model.favorites.first?.coordinate, coordinate)
+    }
+
+    @MainActor
     func testMutationDuringSynchronizationSurvivesCanonicalMerge() async throws {
         let remote = AccountRemoteStub()
         await remote.suspendNextSynchronization()
@@ -226,6 +294,7 @@ private actor AccountRemoteStub: AccountRemote {
             appliedOperationIDs: operations.map(\.operationID),
             favorites: snapshot.favorites,
             recents: snapshot.recents,
+            places: snapshot.places,
             preferences: snapshot.preferences,
             syncedAt: .now
         )
@@ -256,6 +325,15 @@ private actor AccountRemoteStub: AccountRemote {
             if let preferences = operation.preferences {
                 snapshot.preferences = preferences
             }
+        case .placeUpsert:
+            guard let place = operation.place else { return }
+            snapshot.places.removeAll { $0.id == place.id }
+            if place.role != .favorite {
+                snapshot.places.removeAll { $0.role == place.role }
+            }
+            snapshot.places.insert(place, at: 0)
+        case .placeRemove:
+            snapshot.places.removeAll { $0.id == operation.placeID }
         }
     }
 }

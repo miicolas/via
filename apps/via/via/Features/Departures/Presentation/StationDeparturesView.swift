@@ -48,7 +48,8 @@ struct StationDeparturesView: View {
                     ) {
                         account.toggleFavorite(
                             stationID: station.id,
-                            name: station.name
+                            name: station.name,
+                            coordinate: station.coordinate
                         )
                     }
                     .labelStyle(.iconOnly)
@@ -103,7 +104,7 @@ struct StationDeparturesView: View {
 }
 
 #Preview {
-    let dependencies = AppDependencies.preview
+    let dependencies = PreviewDependencies()
     let station = StationsArea.mapPreview.mapItems[0]
     let route = station.routes[0]
     let board = DepartureBoard(
@@ -128,7 +129,7 @@ struct StationDeparturesView: View {
             stationID: station.id,
             repository: InMemoryDeparturesRepository(board: board)
         ),
-        account: dependencies.root.account,
+        account: dependencies.account,
         onClose: {}
     )
 }

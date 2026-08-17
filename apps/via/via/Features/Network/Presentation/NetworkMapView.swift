@@ -98,9 +98,7 @@ struct NetworkMapView: View {
                     )
                 }
 
-                if showsInitialSkeleton {
-                    NetworkMapLoadingSkeleton()
-                } else if case .loading = viewModel.state.loading {
+                if case .loading = viewModel.state.loading {
                     NetworkRefreshPill()
                         .padding(.top, 16)
                         .allowsHitTesting(false)
@@ -111,18 +109,6 @@ struct NetworkMapView: View {
 
     private var mapSelection: Binding<StationMapItem?> {
         stationSelectionEnabled ? $selectedStation : .constant(nil)
-    }
-
-    private var showsInitialSkeleton: Bool {
-        guard viewModel.state.snapshot.routes.isEmpty,
-              viewModel.state.snapshot.stations.isEmpty else { return false }
-
-        return switch viewModel.state.loading {
-        case .idle, .loading:
-            true
-        case .loaded, .failed:
-            false
-        }
     }
 }
 

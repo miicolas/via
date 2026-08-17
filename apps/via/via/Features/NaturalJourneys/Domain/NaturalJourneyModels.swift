@@ -57,16 +57,27 @@ struct NaturalJourneyClarification: Sendable, Hashable, Identifiable {
     var id: Target { target }
 }
 
+enum NaturalJourneyAnswerSource: Sendable, Hashable {
+    case onDevice
+    case server
+    case deterministic
+}
+
+enum NaturalJourneyUnavailableGuidance: Sendable, Hashable {
+    case enableAppleIntelligence
+    case modelDownloading
+}
+
 enum NaturalJourneyResult: Sendable, Hashable {
     case ready(
         answer: String,
+        answerSource: NaturalJourneyAnswerSource,
         preferenceNotice: String?,
         interpretation: NaturalJourneyInterpretation,
         journeys: JourneyResult
     )
     case needsClarification(draft: NaturalJourneyDraft, fields: [NaturalJourneyClarification])
     case unsupported(message: String, examples: [String])
-    case unavailable(message: String)
+    case unavailable(message: String, guidance: NaturalJourneyUnavailableGuidance?)
     case rateLimited(message: String)
 }
-

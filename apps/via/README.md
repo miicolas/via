@@ -11,7 +11,7 @@ Les points d’entrée prêts à consommer sont :
 - `NetworkViewModel` : carte ferrée, sélection de ligne et stations par tuiles ;
 - `MapPresentationModel` : recherche classique et naturelle, géolocalisation, récents, planification et navigation de la feuille carte ;
 - `DeparturesViewModel` : départs et polling suspendable ;
-- `ChatViewModel` : conversation locale avec Apple Foundation Models, disponibilité exhaustive et itinéraire atomique ;
+- `NaturalIntentParsing` : compréhension locale Foundation Models, utilisée en priorité par la recherche en langage naturel ;
 - `LocationAdapter` : seam de localisation orchestré par `MapPresentationModel`.
 
 ## Contrat API
@@ -21,8 +21,10 @@ bun run generate:ios-api
 bun run check:openapi
 ```
 
-La commande part du contrat TypeScript, produit les snapshots OpenAPI versionnés, puis régénère `GeneratedSources`. Le chat ne fait pas partie du contrat réseau iOS : Foundation Models génère la conversation sur l’appareil et appelle les modules de recherche et de trajet comme tools.
+La commande part du contrat TypeScript, produit les snapshots OpenAPI versionnés, puis régénère `GeneratedSources`.
 
-Le chat exige qu’Apple Intelligence et son modèle français soient disponibles. `ChatViewModel.State.unavailable` expose la raison directement à la future View ; les autres fonctionnalités restent disponibles sans Apple Intelligence.
+La recherche en langage naturel utilise Foundation Models sur l’appareil pour interpréter la demande et rédiger une réponse vérifiée. Le géocodage et le calcul d’itinéraire restent servis par `/api/search` et `/api/journeys`. Si le modèle local est indisponible ou échoue, l’app bascule silencieusement vers `/api/natural-journeys`.
+
+Les raisons liées à Apple Intelligence ne sont présentées que si le chemin local et le chemin serveur échouent tous les deux. La recherche classique reste disponible indépendamment.
 
 Les URL se règlent dans `Configuration/*.xcconfig`. Une archive Release échoue tant que l’URL de production utilise le domaine `.invalid`.

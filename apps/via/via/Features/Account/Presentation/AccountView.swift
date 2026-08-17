@@ -4,11 +4,13 @@ import SwiftUI
 struct AccountView: View {
     @Bindable var authViewModel: AuthSessionViewModel
     let account: AccountModel
+    let makeSavedPlacePicker: () -> SavedPlacePickerViewModel
 
     @Environment(\.dismiss) private var dismiss
     @State private var authorizationAdapter = AppleAuthorizationAdapter()
     @State private var deletionConfirmationPresented = false
     @State private var deletionAuthorizationRequested = false
+    @State private var editedPlaceRole: SavedPlace.Role?
 
     var body: some View {
         NavigationStack {
@@ -31,6 +33,11 @@ struct AccountView: View {
 
                 Section("Synchronisation") {
                     synchronizationContent
+                }
+
+                Section("Lieux") {
+                    placeRow(role: .home, title: "Maison", systemImage: "house.fill")
+                    placeRow(role: .work, title: "Travail", systemImage: "briefcase.fill")
                 }
 
                 Section("Stations favorites") {
@@ -116,6 +123,12 @@ struct AccountView: View {
             } message: {
                 Text("Les favoris, recherches, préférences et sessions seront supprimés après révocation Apple.")
             }
+            .savedPlacePickerSheet(
+                role: $editedPlaceRole,
+                anchor: nil,
+                account: account,
+                makeViewModel: makeSavedPlacePicker
+            )
             .sensoryFeedback(.warning, trigger: deletionAuthorizationRequested) { _, isRequested in
                 isRequested
             }
@@ -162,6 +175,33 @@ struct AccountView: View {
         )
     }
 
+    private func placeRow(
+        role: SavedPlace.Role,
+        title: String,
+        systemImage: String
+    ) -> some View {
+        let place = account.place(for: role)
+        return Button {
+            editedPlaceRole = role
+        } label: {
+            HStack {
+                Label(title, systemImage: systemImage)
+                Spacer()
+                Text(place?.name ?? "Ajouter")
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .tint(.primary)
+        .swipeActions(edge: .trailing) {
+            if let place {
+                Button("Supprimer", systemImage: "trash", role: .destructive) {
+                    account.removePlace(id: place.id)
+                }
+            }
+        }
+    }
+
     private func removeFavorites(at offsets: IndexSet) {
         let removed = offsets.map { account.favorites[$0] }
         for favorite in removed {
@@ -171,9 +211,10 @@ struct AccountView: View {
 }
 
 #Preview {
-    let dependencies = AppDependencies.preview
+    let dependencies = PreviewDependencies()
     AccountView(
         authViewModel: dependencies.authSession,
-        account: dependencies.root.account
+        account: dependencies.account,
+        makeSavedPlacePicker: dependencies.makeSavedPlacePicker
     )
 }

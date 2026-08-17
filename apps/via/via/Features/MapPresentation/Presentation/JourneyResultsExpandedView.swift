@@ -14,6 +14,14 @@ struct JourneyResultsExpandedView: View {
                 naturalJourney: model.state.naturalJourney,
                 naturalJourneyPrimaryJourneyID: model.state.naturalJourneyPrimaryJourneyID,
                 onRetryNatural: { model.send(.retryNaturalJourney) },
+                onResolveNatural: { draft, origin, destination, datetimeRepresents in
+                    model.send(.resolveNaturalJourney(
+                        draft: draft,
+                        origin: origin,
+                        destination: destination,
+                        datetimeRepresents: datetimeRepresents
+                    ))
+                },
                 onGo: onCollapse
             )
             .sheetContentVisibility()
@@ -75,7 +83,7 @@ struct JourneyResultsExpandedView: View {
 
 #Preview {
     JourneyResultsExpandedView(
-        model: AppDependencies.preview.root.mapPresentation,
+        model: PreviewDependencies().mapPresentation,
         onCollapse: {}
     )
 }

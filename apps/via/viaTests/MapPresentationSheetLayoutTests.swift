@@ -44,7 +44,7 @@ final class MapPresentationSheetLayoutTests: XCTestCase {
 
     func testNaturalJourneyErrorUsesContentSizedDetent() {
         let detent = MapPresentationSheetLayout.journeyDetent(
-            for: .loaded(.unavailable(message: "Indisponible")),
+            for: .loaded(.unavailable(message: "Indisponible", guidance: nil)),
             isLargeScreen: false
         )
 

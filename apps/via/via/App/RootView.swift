@@ -16,8 +16,7 @@ struct RootView: View {
     @State private var mapPosition = MapCameraPosition.region(.paris)
     @State private var isLargeScreen = false
     private let authViewModel: AuthSessionViewModel
-    private let account: AccountModel
-    private let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
+    private let dependencies: RootDependencies
 
     init(
         dependencies: RootDependencies,
@@ -26,8 +25,7 @@ struct RootView: View {
         _networkViewModel = State(initialValue: dependencies.networkMap)
         _presentation = State(initialValue: dependencies.mapPresentation)
         self.authViewModel = authViewModel
-        account = dependencies.account
-        makeDeparturesViewModel = dependencies.makeDeparturesViewModel
+        self.dependencies = dependencies
     }
     
     var body: some View {
@@ -61,8 +59,10 @@ struct RootView: View {
             MapPresentationSheet(
                 model: presentation,
                 authViewModel: authViewModel,
-                account: account,
-                makeDeparturesViewModel: makeDeparturesViewModel,
+                account: dependencies.account,
+                makeDeparturesViewModel: dependencies.makeDeparturesViewModel,
+                nearbyStations: dependencies.nearbyStations,
+                makeSavedPlacePicker: dependencies.makeSavedPlacePicker,
                 isLargeScreen: isLargeScreen
             )
         }
@@ -93,12 +93,4 @@ struct RootView: View {
         }
         isLargeScreen = newValue
     }
-}
-
-#Preview {
-    let dependencies = AppDependencies.preview
-    RootView(
-        dependencies: dependencies.root,
-        authViewModel: dependencies.authSession
-    )
 }

@@ -6,6 +6,8 @@ struct RootDependencies {
     let mapPresentation: MapPresentationModel
     let account: AccountModel
     let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
+    let nearbyStations: NearbyStationsViewModel
+    let makeSavedPlacePicker: () -> SavedPlacePickerViewModel
 }
 
 @MainActor
@@ -29,11 +31,28 @@ struct AppDependencies {
         )
         let departures = LiveDeparturesRepository(transport: transport)
         let search = LiveSearchRepository(transport: transport)
+        let network = LiveNetworkRepository(transport: transport)
+        let makeDeparturesViewModel: @MainActor (StationID) -> DeparturesViewModel = { stationID in
+            DeparturesViewModel(stationID: stationID, repository: departures)
+        }
+        let baseJourneys = LiveJourneyRepository(transport: transport)
         let journeys = PreferenceAwareJourneyRepository(
-            base: LiveJourneyRepository(transport: transport),
+            base: baseJourneys,
             account: account
         )
-        let naturalJourneys = LiveNaturalJourneyRepository(transport: transport)
+        let naturalIntentParser = FoundationModelsIntentParser()
+        let onDeviceNaturalJourneys = OnDeviceNaturalJourneyService(
+            parser: naturalIntentParser,
+            places: OnDevicePlaceResolver { query, coordinate in
+                try await search.search(query: query, near: coordinate)
+            },
+            journeys: baseJourneys
+        )
+        let naturalJourneys = HybridNaturalJourneyRepository(
+            parser: naturalIntentParser,
+            onDevice: onDeviceNaturalJourneys,
+            remote: LiveNaturalJourneyRepository(transport: transport)
+        )
         return AppDependencies(
             authSession: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
@@ -42,9 +61,7 @@ struct AppDependencies {
                 unauthorizedEvents: unauthorized.stream
             ),
             root: RootDependencies(
-                networkMap: NetworkViewModel(
-                    repository: LiveNetworkRepository(transport: transport)
-                ),
+                networkMap: NetworkViewModel(repository: network),
                 mapPresentation: MapPresentationModel(
                     searchRepository: search,
                     journeyRepository: journeys,
@@ -53,64 +70,79 @@ struct AppDependencies {
                     locationAdapter: CoreLocationAdapter()
                 ),
                 account: account,
-                makeDeparturesViewModel: { stationID in
-                    DeparturesViewModel(stationID: stationID, repository: departures)
+                makeDeparturesViewModel: makeDeparturesViewModel,
+                nearbyStations: NearbyStationsViewModel(
+                    network: network,
+                    makeDeparturesViewModel: makeDeparturesViewModel
+                ),
+                makeSavedPlacePicker: {
+                    SavedPlacePickerViewModel(repository: search)
                 }
             )
         )
     }
+}
 
-    static var preview: AppDependencies {
-        let session = StoredAuthSession(
-            bearerToken: "preview-token",
-            user: AuthUser(
-                id: "preview-user",
-                appleUserIdentifier: "preview-apple-user",
-                name: "Camille Martin",
-                email: "camille@example.com"
-            ),
-            expiresAt: .distantFuture,
-            lastValidatedAt: .now
-        )
-        let vault = InMemoryAuthSessionVault(session: session)
-        let account = AccountModel(
-            store: AccountLocalStore(
-                defaults: UserDefaults(suiteName: "dev.via.preview")!
-            ),
-            remote: InMemoryAccountRemote(),
-            synchronizationEnabled: false
-        )
-        let departures = InMemoryDeparturesRepository()
-        let search = InMemorySearchRepository(response: .mapPreview)
-        let journeys = InMemoryJourneyRepository(result: .mapPreview)
-        let naturalJourneys = InMemoryNaturalJourneyRepository(
+/// Builds only the in-memory dependencies requested by an individual preview.
+/// Lazy properties keep a small view from initializing unrelated feature graphs.
+@MainActor
+final class PreviewDependencies {
+    private let session = StoredAuthSession(
+        bearerToken: "preview-token",
+        user: AuthUser(
+            id: "preview-user",
+            appleUserIdentifier: "preview-apple-user",
+            name: "Camille Martin",
+            email: "camille@example.com"
+        ),
+        expiresAt: .distantFuture,
+        lastValidatedAt: .now
+    )
+
+    lazy var account = AccountModel(
+        store: AccountLocalStore(
+            defaults: UserDefaults(suiteName: "dev.via.preview")!
+        ),
+        remote: InMemoryAccountRemote(),
+        synchronizationEnabled: false
+    )
+
+    lazy var authSession = AuthSessionViewModel(
+        client: InMemoryAuthenticationClient(session: session),
+        vault: InMemoryAuthSessionVault(session: session),
+        account: account
+    )
+
+    lazy var mapPresentation = MapPresentationModel(
+        searchRepository: InMemorySearchRepository(response: .mapPreview),
+        journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+        naturalJourneyRepository: InMemoryNaturalJourneyRepository(
             result: .unsupported(
                 message: "Décris simplement le trajet que tu veux faire.",
                 examples: ["Je veux arriver à Bastille avant 19 h"]
             )
+        ),
+        account: account,
+        locationAdapter: InMemoryLocationAdapter()
+    )
+
+    lazy var nearbyStations = NearbyStationsViewModel(
+        network: InMemoryNetworkRepository.mapPreview,
+        makeDeparturesViewModel: { [self] stationID in
+            makeDeparturesViewModel(for: stationID)
+        }
+    )
+
+    func makeDeparturesViewModel(for stationID: StationID) -> DeparturesViewModel {
+        DeparturesViewModel(
+            stationID: stationID,
+            repository: InMemoryDeparturesRepository()
         )
-        return AppDependencies(
-            authSession: AuthSessionViewModel(
-                client: InMemoryAuthenticationClient(session: session),
-                vault: vault,
-                account: account
-            ),
-            root: RootDependencies(
-                networkMap: NetworkViewModel(
-                    repository: InMemoryNetworkRepository.mapPreview
-                ),
-                mapPresentation: MapPresentationModel(
-                    searchRepository: search,
-                    journeyRepository: journeys,
-                    naturalJourneyRepository: naturalJourneys,
-                    account: account,
-                    locationAdapter: InMemoryLocationAdapter()
-                ),
-                account: account,
-                makeDeparturesViewModel: { stationID in
-                    DeparturesViewModel(stationID: stationID, repository: departures)
-                }
-            )
+    }
+
+    func makeSavedPlacePicker() -> SavedPlacePickerViewModel {
+        SavedPlacePickerViewModel(
+            repository: InMemorySearchRepository(response: .mapPreview)
         )
     }
 }

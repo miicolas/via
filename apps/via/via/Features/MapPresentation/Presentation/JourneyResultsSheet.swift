@@ -62,11 +62,8 @@ struct JourneyResultsSheet: View {
 }
 
 #Preview {
-    Color.blue
-        .sheet(isPresented: .constant(true)) {
-            JourneyResultsSheet(
-                model: AppDependencies.preview.root.mapPresentation,
-                isLargeScreen: false
-            )
-        }
+    JourneyResultsSheet(
+        model: PreviewDependencies().mapPresentation,
+        isLargeScreen: false
+    )
 }

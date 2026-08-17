@@ -55,7 +55,7 @@ struct NaturalJourneyAnswerCard: View {
     }
 
     private var displayedAnswer: String {
-        if isOriginalAnswer, case .ready(let answer, _, _, _) = result {
+        if isOriginalAnswer, case .ready(let answer, _, _, _, _) = result {
             return answer
         }
 
@@ -69,7 +69,7 @@ struct NaturalJourneyAnswerCard: View {
     }
 
     private var timingSummary: String {
-        guard case .ready(_, _, let interpretation, _) = result else {
+        guard case .ready(_, _, _, let interpretation, _) = result else {
             return "Arrivée à \(formatted(journey.arrivalAt))"
         }
 
@@ -85,13 +85,13 @@ struct NaturalJourneyAnswerCard: View {
     }
 
     private var timingColor: Color {
-        guard case .ready(_, _, let interpretation, _) = result,
+        guard case .ready(_, _, _, let interpretation, _) = result,
               interpretation.datetimeRepresents == .arrival else { return .viaAIAccent }
         return journey.arrivalAt <= interpretation.requestedAt ? .viaAIAccent : .orange
     }
 
     private var preferenceNotice: String? {
-        guard case .ready(_, let notice, _, _) = result else { return nil }
+        guard case .ready(_, _, let notice, _, _) = result else { return nil }
         return notice
     }
 
@@ -105,13 +105,6 @@ struct NaturalJourneyAnswerCard: View {
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
             .tint(Color.viaAIAccent)
-
-        Button("Répondre", systemImage: "message") {}
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .tint(Color.viaAIAccent)
-            .disabled(true)
-            .accessibilityHint("Le suivi de conversation sera disponible prochainement")
     }
 }
 
@@ -121,6 +114,7 @@ struct NaturalJourneyAnswerCard: View {
         journey: JourneyResult.mapPreview.journeys[0],
         result: .ready(
             answer: "Prends le RER A puis la ligne 1 jusqu’à La Défense.",
+            answerSource: .onDevice,
             preferenceNotice: "Cet itinéraire respecte l’heure demandée.",
             interpretation: NaturalJourneyInterpretation(
                 originLabel: "Ta position",

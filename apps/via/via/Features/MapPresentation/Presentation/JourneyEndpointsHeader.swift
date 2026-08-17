@@ -1,12 +1,11 @@
 import SwiftUI
 
 struct JourneyEndpointsHeader: View {
-    let model: MapPresentationModel
+    let destinationName: String
+    let onEdit: () -> Void
 
     var body: some View {
-        Button {
-            model.send(.focus(.destination))
-        } label: {
+        Button(action: onEdit) {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
@@ -31,16 +30,14 @@ struct JourneyEndpointsHeader: View {
             .contentShape(.capsule)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Modifier la destination, (destinationName)")
-    }
-
-    private var destinationName: String {
-        let query = model.state.draft.destinationQuery
-        return query.isEmpty ? "Où aller ?" : query
+        .accessibilityLabel("Modifier la destination, \(destinationName)")
     }
 }
 
 #Preview(traits: .sizeThatFitsLayout) {
-    JourneyEndpointsHeader(model: AppDependencies.preview.root.mapPresentation)
+    JourneyEndpointsHeader(
+        destinationName: "Saint-Lazare",
+        onEdit: {}
+    )
         .padding()
 }

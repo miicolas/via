@@ -51,6 +51,27 @@ describe('account sync contract', () => {
             updatedAt: common.occurredAt,
           },
         },
+        {
+          ...common,
+          operationId: crypto.randomUUID(),
+          kind: 'place.upsert',
+          place: {
+            id: 'address:2',
+            kind: 'address',
+            name: '12 rue de la Paix',
+            context: 'Paris',
+            coordinate: { latitude: 48.869, longitude: 2.331 },
+            role: 'home',
+            savedAt: common.occurredAt,
+            updatedAt: common.occurredAt,
+          },
+        },
+        {
+          ...common,
+          operationId: crypto.randomUUID(),
+          kind: 'place.remove',
+          placeId: 'address:2',
+        },
       ],
     });
 
@@ -60,6 +81,14 @@ describe('account sync contract', () => {
   test('rejects an operation whose payload is absent', () => {
     const result = accountSyncInputSchema.safeParse({
       operations: [{ ...common, kind: 'favorite.upsert' }],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  test('rejects a place operation whose payload is absent', () => {
+    const result = accountSyncInputSchema.safeParse({
+      operations: [{ ...common, kind: 'place.upsert' }],
     });
 
     expect(result.success).toBe(false);

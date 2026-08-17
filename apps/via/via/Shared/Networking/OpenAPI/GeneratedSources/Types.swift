@@ -443,6 +443,8 @@ internal enum Operations {
                             case recent_period_remove = "recent.remove"
                             case recent_period_clear = "recent.clear"
                             case preferences_period_set = "preferences.set"
+                            case place_period_upsert = "place.upsert"
+                            case place_period_remove = "place.remove"
                         }
                         /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/kind`.
                         internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.kindPayload
@@ -454,6 +456,31 @@ internal enum Operations {
                             internal var stationId: Swift.String
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/name`.
                             internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/coordinate`.
+                            internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload.coordinatePayload?
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/savedAt`.
                             internal var savedAt: Foundation.Date
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/updatedAt`.
@@ -463,22 +490,26 @@ internal enum Operations {
                             /// - Parameters:
                             ///   - stationId:
                             ///   - name:
+                            ///   - coordinate:
                             ///   - savedAt:
                             ///   - updatedAt:
                             internal init(
                                 stationId: Swift.String,
                                 name: Swift.String,
+                                coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload.coordinatePayload? = nil,
                                 savedAt: Foundation.Date,
                                 updatedAt: Foundation.Date
                             ) {
                                 self.stationId = stationId
                                 self.name = name
+                                self.coordinate = coordinate
                                 self.savedAt = savedAt
                                 self.updatedAt = updatedAt
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case stationId
                                 case name
+                                case coordinate
                                 case savedAt
                                 case updatedAt
                             }
@@ -617,6 +648,103 @@ internal enum Operations {
                         }
                         /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences`.
                         internal var preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place`.
+                        internal struct placePayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case station = "station"
+                                case address = "address"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/kind`.
+                            internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.kindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/context`.
+                            internal var context: Swift.String?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/coordinate`.
+                            internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.coordinatePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/role`.
+                            internal enum rolePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case home = "home"
+                                case work = "work"
+                                case favorite = "favorite"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/role`.
+                            internal var role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.rolePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `placePayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - kind:
+                            ///   - name:
+                            ///   - context:
+                            ///   - coordinate:
+                            ///   - role:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            internal init(
+                                id: Swift.String,
+                                kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.kindPayload,
+                                name: Swift.String,
+                                context: Swift.String? = nil,
+                                coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.coordinatePayload,
+                                role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.rolePayload,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.id = id
+                                self.kind = kind
+                                self.name = name
+                                self.context = context
+                                self.coordinate = coordinate
+                                self.role = role
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case kind
+                                case name
+                                case context
+                                case coordinate
+                                case role
+                                case savedAt
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place`.
+                        internal var place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/placeId`.
+                        internal var placeId: Swift.String?
                         /// Creates a new `operationsPayloadPayload`.
                         ///
                         /// - Parameters:
@@ -628,6 +756,8 @@ internal enum Operations {
                         ///   - recentId:
                         ///   - recent:
                         ///   - preferences:
+                        ///   - place:
+                        ///   - placeId:
                         internal init(
                             operationId: Swift.String,
                             kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.kindPayload,
@@ -636,7 +766,9 @@ internal enum Operations {
                             stationId: Swift.String? = nil,
                             recentId: Swift.String? = nil,
                             recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload? = nil,
-                            preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload? = nil
+                            preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload? = nil,
+                            place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload? = nil,
+                            placeId: Swift.String? = nil
                         ) {
                             self.operationId = operationId
                             self.kind = kind
@@ -646,6 +778,8 @@ internal enum Operations {
                             self.recentId = recentId
                             self.recent = recent
                             self.preferences = preferences
+                            self.place = place
+                            self.placeId = placeId
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case operationId
@@ -656,6 +790,8 @@ internal enum Operations {
                             case recentId
                             case recent
                             case preferences
+                            case place
+                            case placeId
                         }
                     }
                     /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operations`.
@@ -704,6 +840,31 @@ internal enum Operations {
                             internal var stationId: Swift.String
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/name`.
                             internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/coordinate`.
+                            internal var coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.favoritesPayloadPayload.coordinatePayload?
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/savedAt`.
                             internal var savedAt: Foundation.Date
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/favoritesPayload/updatedAt`.
@@ -713,22 +874,26 @@ internal enum Operations {
                             /// - Parameters:
                             ///   - stationId:
                             ///   - name:
+                            ///   - coordinate:
                             ///   - savedAt:
                             ///   - updatedAt:
                             internal init(
                                 stationId: Swift.String,
                                 name: Swift.String,
+                                coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.favoritesPayloadPayload.coordinatePayload? = nil,
                                 savedAt: Foundation.Date,
                                 updatedAt: Foundation.Date
                             ) {
                                 self.stationId = stationId
                                 self.name = name
+                                self.coordinate = coordinate
                                 self.savedAt = savedAt
                                 self.updatedAt = updatedAt
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case stationId
                                 case name
+                                case coordinate
                                 case savedAt
                                 case updatedAt
                             }
@@ -816,6 +981,103 @@ internal enum Operations {
                         internal typealias recentsPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayloadPayload]
                         /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/recents`.
                         internal var recents: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload`.
+                        internal struct placesPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case station = "station"
+                                case address = "address"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/kind`.
+                            internal var kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.kindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/context`.
+                            internal var context: Swift.String?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/coordinate`.
+                            internal var coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.coordinatePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/role`.
+                            internal enum rolePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case home = "home"
+                                case work = "work"
+                                case favorite = "favorite"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/role`.
+                            internal var role: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.rolePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `placesPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - kind:
+                            ///   - name:
+                            ///   - context:
+                            ///   - coordinate:
+                            ///   - role:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            internal init(
+                                id: Swift.String,
+                                kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.kindPayload,
+                                name: Swift.String,
+                                context: Swift.String? = nil,
+                                coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.coordinatePayload,
+                                role: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.rolePayload,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.id = id
+                                self.kind = kind
+                                self.name = name
+                                self.context = context
+                                self.coordinate = coordinate
+                                self.role = role
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case kind
+                                case name
+                                case context
+                                case coordinate
+                                case role
+                                case savedAt
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/places`.
+                        internal typealias placesPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/places`.
+                        internal var places: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayload
                         /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences`.
                         internal struct preferencesPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/preferredModesPayload`.
@@ -875,18 +1137,21 @@ internal enum Operations {
                         ///   - appliedOperationIds:
                         ///   - favorites:
                         ///   - recents:
+                        ///   - places:
                         ///   - preferences:
                         ///   - syncedAt:
                         internal init(
                             appliedOperationIds: [Swift.String],
                             favorites: Operations.account_period_sync.Output.Ok.Body.jsonPayload.favoritesPayload,
                             recents: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayload,
+                            places: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayload,
                             preferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload,
                             syncedAt: Foundation.Date
                         ) {
                             self.appliedOperationIds = appliedOperationIds
                             self.favorites = favorites
                             self.recents = recents
+                            self.places = places
                             self.preferences = preferences
                             self.syncedAt = syncedAt
                         }
@@ -894,6 +1159,7 @@ internal enum Operations {
                             case appliedOperationIds
                             case favorites
                             case recents
+                            case places
                             case preferences
                             case syncedAt
                         }

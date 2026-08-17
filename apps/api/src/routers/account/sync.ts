@@ -1,7 +1,8 @@
-import { and, desc, eq, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import {
   accountFavoriteStations,
+  accountPlaces,
   accountRecentSearches,
   accountSyncOperations,
   db,
@@ -11,6 +12,7 @@ import {
 } from '@via/db';
 import {
   ACCOUNT_FAVORITE_LIMIT,
+  ACCOUNT_PLACE_FAVORITE_LIMIT,
   ACCOUNT_RECENT_LIMIT,
   type AccountSyncInput,
   type AccountSyncResponse,
@@ -34,12 +36,14 @@ export async function synchronizeAccount(
         case 'favorite.upsert': {
           if (!operation.station) break;
           const station = operation.station;
+          // A favorite without a coordinate must not erase a stored one.
           await transaction
             .insert(accountFavoriteStations)
             .values({
               userId,
               stationId: station.stationId,
               name: station.name,
+              ...(station.coordinate ?? {}),
               savedAt: new Date(station.savedAt),
               updatedAt: new Date(station.updatedAt),
             })
@@ -47,6 +51,7 @@ export async function synchronizeAccount(
               target: [accountFavoriteStations.userId, accountFavoriteStations.stationId],
               set: {
                 name: station.name,
+                ...(station.coordinate ?? {}),
                 savedAt: new Date(station.savedAt),
                 updatedAt: new Date(station.updatedAt),
               },
@@ -124,6 +129,68 @@ export async function synchronizeAccount(
             );
           break;
 
+        case 'place.upsert': {
+          if (!operation.place) break;
+          const place = operation.place;
+          if (place.role !== 'favorite') {
+            // Home and work are unique per user: reassigning the role evicts
+            // the previous holder, last writer wins on `updatedAt`.
+            await transaction
+              .delete(accountPlaces)
+              .where(
+                and(
+                  eq(accountPlaces.userId, userId),
+                  eq(accountPlaces.role, place.role),
+                  ne(accountPlaces.id, place.id),
+                  lte(accountPlaces.updatedAt, new Date(place.updatedAt))
+                )
+              );
+          }
+          await transaction
+            .insert(accountPlaces)
+            .values({
+              userId,
+              id: place.id,
+              role: place.role,
+              kind: place.kind,
+              name: place.name,
+              context: place.context ?? null,
+              latitude: place.coordinate.latitude,
+              longitude: place.coordinate.longitude,
+              savedAt: new Date(place.savedAt),
+              updatedAt: new Date(place.updatedAt),
+            })
+            .onConflictDoUpdate({
+              target: [accountPlaces.userId, accountPlaces.id],
+              set: {
+                role: place.role,
+                kind: place.kind,
+                name: place.name,
+                context: place.context ?? null,
+                latitude: place.coordinate.latitude,
+                longitude: place.coordinate.longitude,
+                savedAt: new Date(place.savedAt),
+                updatedAt: new Date(place.updatedAt),
+              },
+              setWhere: lte(accountPlaces.updatedAt, new Date(place.updatedAt)),
+            });
+          break;
+        }
+
+        case 'place.remove':
+          if (operation.placeId) {
+            await transaction
+              .delete(accountPlaces)
+              .where(
+                and(
+                  eq(accountPlaces.userId, userId),
+                  eq(accountPlaces.id, operation.placeId),
+                  lte(accountPlaces.updatedAt, new Date(operation.occurredAt))
+                )
+              );
+          }
+          break;
+
         case 'preferences.set': {
           if (!operation.preferences) break;
           const preferences = operation.preferences;
@@ -164,9 +231,20 @@ export async function synchronizeAccount(
       userIdColumn: accountRecentSearches.userId,
       limit: ACCOUNT_RECENT_LIMIT,
     });
+    if (input.operations.some((operation) => operation.kind === 'place.upsert')) {
+      // Home and work never get trimmed; only surplus favorite places do.
+      await trimOldest(transaction, userId, {
+        table: accountPlaces,
+        idColumn: accountPlaces.id,
+        savedAtColumn: accountPlaces.savedAt,
+        userIdColumn: accountPlaces.userId,
+        limit: ACCOUNT_PLACE_FAVORITE_LIMIT,
+        condition: sql`${accountPlaces.role} = 'favorite'`,
+      });
+    }
   });
 
-  const [favorites, recents, preferences] = await Promise.all([
+  const [favorites, recents, places, preferences] = await Promise.all([
     db
       .select()
       .from(accountFavoriteStations)
@@ -177,6 +255,11 @@ export async function synchronizeAccount(
       .from(accountRecentSearches)
       .where(eq(accountRecentSearches.userId, userId))
       .orderBy(desc(accountRecentSearches.savedAt)),
+    db
+      .select()
+      .from(accountPlaces)
+      .where(eq(accountPlaces.userId, userId))
+      .orderBy(desc(accountPlaces.savedAt)),
     db
       .select({
         preferredModes: users.preferredModes,
@@ -195,6 +278,10 @@ export async function synchronizeAccount(
     favorites: favorites.map((favorite) => ({
       stationId: favorite.stationId,
       name: favorite.name,
+      coordinate:
+        favorite.latitude !== null && favorite.longitude !== null
+          ? { latitude: favorite.latitude, longitude: favorite.longitude }
+          : undefined,
       savedAt: favorite.savedAt.toISOString(),
       updatedAt: favorite.updatedAt.toISOString(),
     })),
@@ -205,6 +292,16 @@ export async function synchronizeAccount(
       context: recent.context ?? undefined,
       coordinate: { latitude: recent.latitude, longitude: recent.longitude },
       savedAt: recent.savedAt.toISOString(),
+    })),
+    places: places.map((place) => ({
+      id: place.id,
+      kind: place.kind,
+      name: place.name,
+      context: place.context ?? undefined,
+      coordinate: { latitude: place.latitude, longitude: place.longitude },
+      role: place.role,
+      savedAt: place.savedAt.toISOString(),
+      updatedAt: place.updatedAt.toISOString(),
     })),
     preferences: {
       preferredModes: parseModes(storedPreferences?.preferredModes),
@@ -221,7 +318,10 @@ function parseModes(values: string[] | undefined) {
   );
 }
 
-/** Keeps only the `limit` most recently saved rows for this user. */
+/**
+ * Keeps only the `limit` most recently saved rows for this user, optionally
+ * restricted to the rows matching `condition`.
+ */
 async function trimOldest(
   transaction: Parameters<Parameters<typeof db.transaction>[0]>[0],
   userId: string,
@@ -231,14 +331,18 @@ async function trimOldest(
     savedAtColumn: PgColumn;
     userIdColumn: PgColumn;
     limit: number;
+    condition?: ReturnType<typeof sql>;
   }
 ) {
+  const condition = scope.condition ?? sql`TRUE`;
   await transaction.execute(sql`
     DELETE FROM ${scope.table}
     WHERE ${scope.userIdColumn} = ${userId}
+      AND ${condition}
       AND ${scope.idColumn} NOT IN (
         SELECT ${scope.idColumn} FROM ${scope.table}
         WHERE ${scope.userIdColumn} = ${userId}
+          AND ${condition}
         ORDER BY ${scope.savedAtColumn} DESC
         LIMIT ${scope.limit}
       )

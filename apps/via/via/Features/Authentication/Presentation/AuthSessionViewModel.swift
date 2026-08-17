@@ -183,5 +183,5 @@ final class AuthSessionViewModel {
 }
 
 extension AuthSessionViewModel {
-    static var preview: AuthSessionViewModel { AppDependencies.preview.authSession }
+    static var preview: AuthSessionViewModel { PreviewDependencies().authSession }
 }

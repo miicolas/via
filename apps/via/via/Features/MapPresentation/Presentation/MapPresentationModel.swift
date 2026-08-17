@@ -10,8 +10,17 @@ enum MapPresentationEvent {
     case queryChanged(MapPlaceField, String)
     case naturalJourneyQueryChanged(String)
     case submitNaturalJourney(String)
+    case resolveNaturalJourney(
+        draft: NaturalJourneyDraft,
+        origin: SearchResult?,
+        destination: SearchResult?,
+        datetimeRepresents: JourneyDatetimeRepresents?
+    )
     case selectResult(SearchResult)
     case selectRecent(RecentSearch)
+    case selectSavedPlace(SavedPlace)
+    case selectFavorite(FavoriteStation)
+    case openStation(StationMapItem)
     case removeRecent(RecentSearch)
     case useCurrentLocation
     case clearRecents
@@ -86,11 +95,24 @@ final class MapPresentationModel {
             state.naturalJourneyQuery = query
         case .submitNaturalJourney(let query):
             submitNaturalJourney(query)
+        case .resolveNaturalJourney(let draft, let origin, let destination, let datetimeRepresents):
+            resolveNaturalJourney(
+                draft: draft,
+                origin: origin,
+                destination: destination,
+                datetimeRepresents: datetimeRepresents
+            )
         case .selectResult(let result):
-            select(JourneyPlaceSelection(result), recentResult: result)
+            select(JourneyPlaceSelection(result), recording: result)
         case .selectRecent(let recent):
             let result = recent.searchResult
-            select(JourneyPlaceSelection(result), recentResult: result)
+            select(JourneyPlaceSelection(result), recording: result)
+        case .selectSavedPlace(let place):
+            select(JourneyPlaceSelection(place.searchResult), recording: nil)
+        case .selectFavorite(let favorite):
+            selectFavorite(favorite)
+        case .openStation(let station):
+            openStation(station)
         case .removeRecent(let recent):
             removeRecentSearch(recent)
         case .useCurrentLocation:
@@ -172,9 +194,12 @@ final class MapPresentationModel {
         scheduleSearch()
     }
 
+    /// Selects a place for the focused field; `recording` is persisted as a
+    /// recent search — saved places and favorites pass `nil` to stay out of
+    /// the recents list.
     private func select(
         _ place: JourneyPlaceSelection,
-        recentResult: SearchResult
+        recording: SearchResult?
     ) {
         let field: MapPlaceField
         if let activeField = state.activeField {
@@ -193,7 +218,7 @@ final class MapPresentationModel {
             state.search = .idle
             state.screen = .planner(.editing(.destination))
         case .destination:
-            account.recordRecentSearch(recentResult)
+            if let recording { account.recordRecentSearch(recording) }
             state.search = .idle
             if state.draft.origin == nil, case .located(let coordinate) = state.location {
                 state.draft.setPlace(.currentLocation(coordinate), for: .origin)
@@ -226,6 +251,32 @@ final class MapPresentationModel {
 
     private func removeRecentSearch(_ recent: RecentSearch) {
         account.removeRecentSearch(id: recent.id)
+    }
+
+    private func selectFavorite(_ favorite: FavoriteStation) {
+        if let coordinate = favorite.coordinate {
+            select(
+                .station(
+                    id: StationID(rawValue: favorite.stationID),
+                    name: favorite.name,
+                    coordinate: coordinate,
+                    routes: []
+                ),
+                recording: nil
+            )
+        } else {
+            // Favorite saved before coordinates were stored: fall back to a
+            // prefilled destination search so the user can confirm the match.
+            focus(.destination)
+            updateQuery(favorite.name, for: .destination)
+        }
+    }
+
+    /// Opens the station sheet from the home content; unlike map annotations
+    /// this entry point is not gated by `stationSelectionEnabled`.
+    private func openStation(_ station: StationMapItem) {
+        if case .station(let current) = state.screen, current == station { return }
+        showStation(station)
     }
 
     private func newSearch() {
@@ -266,6 +317,10 @@ final class MapPresentationModel {
             return
         }
         guard state.stationSelectionEnabled, let station else { return }
+        showStation(station)
+    }
+
+    private func showStation(_ station: StationMapItem) {
         state.screen = .station(station)
         state.selectedDetent = .medium
     }
@@ -404,6 +459,23 @@ final class MapPresentationModel {
         performNaturalJourney(lastNaturalJourneyRequest)
     }
 
+    private func resolveNaturalJourney(
+        draft: NaturalJourneyDraft,
+        origin: SearchResult?,
+        destination: SearchResult?,
+        datetimeRepresents: JourneyDatetimeRepresents?
+    ) {
+        let request = NaturalJourneyRequest.resolve(
+            draft: draft,
+            currentLocation: currentLocation,
+            origin: origin,
+            destination: destination,
+            datetimeRepresents: datetimeRepresents
+        )
+        lastNaturalJourneyRequest = request
+        performNaturalJourney(request)
+    }
+
     private func performNaturalJourney(_ request: NaturalJourneyRequest) {
         cancelSearch()
         cancelJourney()
@@ -440,6 +512,7 @@ final class MapPresentationModel {
         guard case .ready(
             _,
             _,
+            _,
             let interpretation,
             let journeys
         ) = result else {
@@ -451,7 +524,8 @@ final class MapPresentationModel {
         guard let primary = journeys.journeys.first,
               let origin = primary.sections.first?.from.coordinate else {
             state.naturalJourney = .loaded(.unavailable(
-                message: "Je n’ai pas trouvé d’itinéraire vérifiable."
+                message: "Je n’ai pas trouvé d’itinéraire vérifiable.",
+                guidance: nil
             ))
             clearPublishedJourneyResult()
             state.screen = .planner(.results)
@@ -579,6 +653,7 @@ final class MapPresentationModel {
 
     private func requireManualOriginIfNeeded() {
         guard state.draft.origin == nil else { return }
+        guard state.activeField != nil || state.draft.destination != nil else { return }
         state.screen = .planner(.editing(.destination))
         state.selectedDetent = .large
         state.search = .idle

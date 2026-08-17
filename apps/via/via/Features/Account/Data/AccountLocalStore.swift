@@ -53,13 +53,19 @@ final class AccountLocalStore: @unchecked Sendable {
             return AccountSnapshot(
                 favorites: snapshot.favorites.sorted { $0.savedAt > $1.savedAt },
                 recentSearches: snapshot.recents.sorted { $0.savedAt > $1.savedAt },
+                places: snapshot.places.sorted { $0.savedAt > $1.savedAt },
                 transportPreferences: snapshot.preferences
             )
         }
     }
 
     @discardableResult
-    func toggleFavorite(stationID: StationID, name: String, now: Date = .now) -> Bool {
+    func toggleFavorite(
+        stationID: StationID,
+        name: String,
+        coordinate: GeoCoordinate? = nil,
+        now: Date = .now
+    ) -> Bool {
         locked {
             guard let userID = activeUserID else { return false }
             var snapshot = load(for: userID)
@@ -78,6 +84,7 @@ final class AccountLocalStore: @unchecked Sendable {
             let favorite = FavoriteStation(
                 stationID: stationID.rawValue,
                 name: name,
+                coordinate: coordinate,
                 savedAt: now,
                 updatedAt: now
             )
@@ -159,6 +166,39 @@ final class AccountLocalStore: @unchecked Sendable {
         }
     }
 
+    func savePlace(_ place: SavedPlace) {
+        locked {
+            guard let userID = activeUserID else { return }
+            var snapshot = load(for: userID)
+            // The replay reducer is the single owner of place-op semantics so
+            // local saves and post-sync replays cannot drift apart.
+            let operation = AccountSyncOperation(
+                kind: .placeUpsert,
+                occurredAt: place.updatedAt,
+                place: place
+            )
+            replay(operation, into: &snapshot)
+            snapshot.pendingOperations.append(operation)
+            trimOperations(&snapshot)
+            save(snapshot, for: userID)
+        }
+    }
+
+    func removePlace(id: String, now: Date = .now) {
+        locked {
+            guard let userID = activeUserID else { return }
+            var snapshot = load(for: userID)
+            snapshot.places.removeAll { $0.id == id }
+            snapshot.pendingOperations.append(AccountSyncOperation(
+                kind: .placeRemove,
+                occurredAt: now,
+                placeID: id
+            ))
+            trimOperations(&snapshot)
+            save(snapshot, for: userID)
+        }
+    }
+
     func setPreferences(_ preferences: TransportPreferences) {
         locked {
             guard let userID = activeUserID else { return }
@@ -191,6 +231,7 @@ final class AccountLocalStore: @unchecked Sendable {
             var snapshot = AccountLocalSnapshot(
                 favorites: result.favorites,
                 recents: result.recents,
+                places: result.places,
                 preferences: result.preferences,
                 pendingOperations: remaining
             )
@@ -239,7 +280,31 @@ final class AccountLocalStore: @unchecked Sendable {
             snapshot.recents.removeAll { $0.savedAt <= operation.occurredAt }
         case .preferencesSet:
             if let preferences = operation.preferences { snapshot.preferences = preferences }
+        case .placeUpsert:
+            guard let place = operation.place else { return }
+            snapshot.places.removeAll { $0.id == place.id }
+            if place.role != .favorite {
+                // Home and work are unique: last writer evicts the previous holder.
+                snapshot.places.removeAll { $0.role == place.role && $0.updatedAt <= place.updatedAt }
+            }
+            snapshot.places.insert(place, at: 0)
+            trimFavoritePlaces(&snapshot)
+        case .placeRemove:
+            snapshot.places.removeAll { $0.id == operation.placeID }
         }
+    }
+
+    /// Favorites get trimmed to the shared limit; home and work never do.
+    private func trimFavoritePlaces(_ snapshot: inout AccountLocalSnapshot) {
+        let surplus = Set(
+            snapshot.places
+                .filter { $0.role == .favorite }
+                .sorted { $0.savedAt > $1.savedAt }
+                .dropFirst(AccountLocalSnapshot.favoritePlaceLimit)
+                .map(\.id)
+        )
+        guard !surplus.isEmpty else { return }
+        snapshot.places.removeAll { surplus.contains($0.id) }
     }
 
     private static func recentUpsertOperation(_ recent: RecentSearch) -> AccountSyncOperation {

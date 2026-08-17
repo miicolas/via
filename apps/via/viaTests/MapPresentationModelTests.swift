@@ -157,6 +157,83 @@ final class MapPresentationModelTests: XCTestCase {
     }
 
     @MainActor
+    func testSavedPlaceTapPlansJourneyWithoutRecordingARecent() async throws {
+        let coordinate = GeoCoordinate(latitude: 48.85, longitude: 2.35)
+        let journeys = JourneyRepositoryRecorder(result: .mapPreview)
+        let account = makeAccount()
+        let model = makeModel(
+            journeys: journeys,
+            account: account,
+            location: InMemoryLocationAdapter(
+                authorization: .authorized,
+                coordinate: coordinate
+            )
+        )
+        model.send(.preparePlanner)
+        account.setPlace(address(id: "maison", name: "Maison"), role: .home)
+        let home = try XCTUnwrap(account.place(for: .home))
+
+        model.send(.selectSavedPlace(home))
+        await waitUntil { await journeys.requestCount == 1 }
+
+        XCTAssertEqual(model.state.plannerStage, .results)
+        XCTAssertEqual(model.state.draft.origin, .currentLocation(coordinate))
+        XCTAssertTrue(account.recentSearches.isEmpty)
+    }
+
+    @MainActor
+    func testFavoriteWithCoordinatePlansJourneyAndWithoutFallsBackToSearch() async {
+        let coordinate = GeoCoordinate(latitude: 48.85, longitude: 2.35)
+        let journeys = JourneyRepositoryRecorder(result: .mapPreview)
+        let model = makeModel(
+            journeys: journeys,
+            location: InMemoryLocationAdapter(
+                authorization: .authorized,
+                coordinate: coordinate
+            )
+        )
+        model.send(.preparePlanner)
+
+        let favorite = FavoriteStation(
+            stationID: "chatou",
+            name: "Chatou - Croissy",
+            coordinate: GeoCoordinate(latitude: 48.88, longitude: 2.15),
+            savedAt: .now,
+            updatedAt: .now
+        )
+        model.send(.selectFavorite(favorite))
+        await waitUntil { await journeys.requestCount == 1 }
+        XCTAssertEqual(model.state.plannerStage, .results)
+
+        let legacy = FavoriteStation(
+            stationID: "vesinet",
+            name: "Le Vésinet",
+            savedAt: .now,
+            updatedAt: .now
+        )
+        model.send(.selectFavorite(legacy))
+        XCTAssertEqual(model.state.activeField, .destination)
+        XCTAssertEqual(model.state.draft.query(for: .destination), "Le Vésinet")
+    }
+
+    @MainActor
+    func testOpenStationShowsTheStationSheetFromHome() {
+        let model = makeModel()
+        model.send(.preparePlanner)
+
+        let station = StationMapItem(
+            id: StationID(rawValue: "chatou"),
+            name: "Chatou - Croissy",
+            coordinate: GeoCoordinate(latitude: 48.88, longitude: 2.15),
+            routes: []
+        )
+        model.send(.openStation(station))
+
+        XCTAssertEqual(model.state.selectedStation, station)
+        XCTAssertEqual(model.state.selectedDetent, .medium)
+    }
+
+    @MainActor
     func testSubmittingSearchTextPlansNaturalJourneyAndFeedsSharedResults() async {
         let coordinate = JourneyResult.mapPreview.journeys[0].sections[0].from.coordinate
         let destination = SearchResponse.mapPreview.results[1]
@@ -288,6 +365,169 @@ final class MapPresentationModelTests: XCTestCase {
         XCTAssertEqual(model.state.naturalJourney.value, clarification)
         XCTAssertNil(model.state.journeyResult)
         XCTAssertNil(model.state.mapPresentation)
+    }
+
+    @MainActor
+    func testResolvingNaturalPlaceClarificationSubmitsExactDraftAndCandidate() async {
+        let coordinate = GeoCoordinate(latitude: 48.85, longitude: 2.35)
+        let destination = address(id: "nation", name: "Nation")
+        let draft = NaturalJourneyDraft(
+            intent: RouteIntent(
+                scope: .journey,
+                origin: .currentLocation,
+                destinationQuery: "Nation",
+                requestedAt: Date(timeIntervalSince1970: 1_787_000_400),
+                datetimeRepresents: .departure,
+                requiredModes: [],
+                excludedModes: [],
+                preferredModes: []
+            ),
+            origin: nil,
+            destination: nil
+        )
+        let clarification = NaturalJourneyResult.needsClarification(
+            draft: draft,
+            fields: [.init(
+                target: .destination,
+                question: "Quelle destination ?",
+                candidates: [destination]
+            )]
+        )
+        let repository = NaturalJourneyRepositoryRecorder(results: [
+            clarification,
+            naturalReady(destination: destination),
+        ])
+        let model = makeModel(
+            naturalJourneys: repository,
+            location: InMemoryLocationAdapter(
+                authorization: .authorized,
+                coordinate: coordinate
+            )
+        )
+        model.send(.openPlanner)
+        model.send(.submitNaturalJourney("Nation à 11 h"))
+        await waitUntil { model.state.naturalJourney.value == clarification }
+
+        model.send(.resolveNaturalJourney(
+            draft: draft,
+            origin: nil,
+            destination: destination,
+            datetimeRepresents: nil
+        ))
+        await waitUntil { await repository.requests.count == 2 }
+
+        let requests = await repository.requests
+        XCTAssertEqual(
+            requests[1],
+            .resolve(
+                draft: draft,
+                currentLocation: coordinate,
+                origin: nil,
+                destination: destination,
+                datetimeRepresents: nil
+            )
+        )
+        XCTAssertEqual(model.state.journeyResult, .mapPreview)
+    }
+
+    @MainActor
+    func testResolvingNaturalTimeClarificationSubmitsSelectedMeaning() async {
+        let draft = NaturalJourneyDraft(
+            intent: RouteIntent(
+                scope: .journey,
+                origin: .currentLocation,
+                destinationQuery: "Nation",
+                requestedAt: Date(timeIntervalSince1970: 1_787_000_400),
+                datetimeRepresents: .ambiguous,
+                requiredModes: [],
+                excludedModes: [],
+                preferredModes: []
+            ),
+            origin: nil,
+            destination: address(id: "nation", name: "Nation")
+        )
+        let clarification = NaturalJourneyResult.needsClarification(
+            draft: draft,
+            fields: [.init(target: .time, question: "Départ ou arrivée ?", candidates: [])]
+        )
+        let repository = NaturalJourneyRepositoryRecorder(results: [
+            clarification,
+            .unsupported(message: "resolved", examples: []),
+        ])
+        let model = makeModel(naturalJourneys: repository)
+        model.send(.openPlanner)
+        model.send(.submitNaturalJourney("Nation à 11 h"))
+        await waitUntil { model.state.naturalJourney.value == clarification }
+
+        model.send(.resolveNaturalJourney(
+            draft: draft,
+            origin: nil,
+            destination: nil,
+            datetimeRepresents: .arrival
+        ))
+        await waitUntil { await repository.requests.count == 2 }
+
+        let requests = await repository.requests
+        guard case .resolve(_, _, _, _, let meaning) = requests[1] else {
+            XCTFail("Expected a clarification resolution request")
+            return
+        }
+        XCTAssertEqual(meaning, .arrival)
+    }
+
+    @MainActor
+    func testNewNaturalSubmitCancelsAnOlderClarificationResolution() async {
+        let destination = address(id: "resolved", name: "Réponse tardive")
+        let replacement = address(id: "replacement", name: "Nouvelle réponse")
+        let repository = NaturalResolutionRaceRepository(
+            clarification: .needsClarification(
+                draft: NaturalJourneyDraft(
+                    intent: RouteIntent(
+                        scope: .journey,
+                        origin: .currentLocation,
+                        destinationQuery: "Réponse tardive",
+                        requestedAt: .now,
+                        datetimeRepresents: .departure,
+                        requiredModes: [],
+                        excludedModes: [],
+                        preferredModes: []
+                    ),
+                    origin: nil,
+                    destination: nil
+                ),
+                fields: [.init(
+                    target: .destination,
+                    question: "Quelle destination ?",
+                    candidates: [destination]
+                )]
+            ),
+            resolved: naturalReady(destination: destination),
+            replacement: naturalReady(destination: replacement)
+        )
+        let model = makeModel(naturalJourneys: repository)
+        model.send(.openPlanner)
+        model.send(.submitNaturalJourney("initial"))
+        await waitUntil {
+            guard case .loaded(.needsClarification) = model.state.naturalJourney else { return false }
+            return true
+        }
+        guard case .needsClarification(let draft, _) = model.state.naturalJourney.value else {
+            XCTFail("Expected clarification")
+            return
+        }
+
+        model.send(.resolveNaturalJourney(
+            draft: draft,
+            origin: nil,
+            destination: destination,
+            datetimeRepresents: nil
+        ))
+        await Task.yield()
+        model.send(.submitNaturalJourney("replacement"))
+
+        await waitUntil { model.state.displayedRequest?.destination.name == "Nouvelle réponse" }
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(model.state.displayedRequest?.destination.name, "Nouvelle réponse")
     }
 
     @MainActor
@@ -698,6 +938,7 @@ final class MapPresentationModelTests: XCTestCase {
     private func naturalReady(destination: SearchResult) -> NaturalJourneyResult {
         .ready(
             answer: "Arrivée à 10 h 57, dans les temps.",
+            answerSource: .server,
             preferenceNotice: nil,
             interpretation: NaturalJourneyInterpretation(
                 originLabel: "Ta position",
@@ -856,6 +1097,36 @@ private actor DelayedNaturalJourneyRepository: NaturalJourneyRepository {
         }
         try? await Task.sleep(for: delay)
         return result
+    }
+}
+
+private actor NaturalResolutionRaceRepository: NaturalJourneyRepository {
+    let clarification: NaturalJourneyResult
+    let resolved: NaturalJourneyResult
+    let replacement: NaturalJourneyResult
+
+    init(
+        clarification: NaturalJourneyResult,
+        resolved: NaturalJourneyResult,
+        replacement: NaturalJourneyResult
+    ) {
+        self.clarification = clarification
+        self.resolved = resolved
+        self.replacement = replacement
+    }
+
+    func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
+        switch request {
+        case .submit(let query, _):
+            if query == "replacement" {
+                try? await Task.sleep(for: .milliseconds(5))
+                return replacement
+            }
+            return clarification
+        case .resolve:
+            try? await Task.sleep(for: .milliseconds(80))
+            return resolved
+        }
     }
 }
 

@@ -56,6 +56,7 @@ actor InMemoryAccountRemote: AccountRemote {
             appliedOperationIDs: operations.map(\.operationID),
             favorites: [],
             recents: [],
+            places: [],
             preferences: .empty,
             syncedAt: .now
         )

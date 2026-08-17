@@ -145,6 +145,7 @@ enum NaturalJourneyResultDTO: Decodable {
         }
 
         let answer: String
+        let answerSource: String
         let preferenceNotice: String?
         let interpretation: Interpretation
         let journeys: JourneyResultDTO
@@ -198,11 +199,13 @@ enum NaturalJourneyResultDTO: Decodable {
         switch self {
         case .ready(let value):
             let interpretation = value.interpretation
-            guard let time = JourneyDatetimeRepresents(
-                rawValue: interpretation.datetimeRepresents
-            ) else { throw ViaError.decoding }
+            guard
+                let time = JourneyDatetimeRepresents(rawValue: interpretation.datetimeRepresents),
+                let answerSource = Self.answerSource(value.answerSource)
+            else { throw ViaError.decoding }
             return .ready(
                 answer: value.answer,
+                answerSource: answerSource,
                 preferenceNotice: value.preferenceNotice,
                 interpretation: NaturalJourneyInterpretation(
                     originLabel: interpretation.originLabel,
@@ -239,9 +242,17 @@ enum NaturalJourneyResultDTO: Decodable {
         case .unsupported(let value):
             return .unsupported(message: value.message, examples: value.examples ?? [])
         case .unavailable(let value):
-            return .unavailable(message: value.message)
+            return .unavailable(message: value.message, guidance: nil)
         case .rateLimited(let value):
             return .rateLimited(message: value.message)
+        }
+    }
+
+    private static func answerSource(_ value: String) -> NaturalJourneyAnswerSource? {
+        switch value {
+        case "ai": .server
+        case "deterministic": .deterministic
+        default: nil
         }
     }
 }

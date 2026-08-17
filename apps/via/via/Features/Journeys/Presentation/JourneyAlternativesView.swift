@@ -8,6 +8,12 @@ struct JourneyAlternativesView: View {
     var naturalJourney: Loadable<NaturalJourneyResult> = .idle
     var naturalJourneyPrimaryJourneyID: JourneyID? = nil
     var onRetryNatural: (() -> Void)? = nil
+    var onResolveNatural: ((
+        NaturalJourneyDraft,
+        SearchResult?,
+        SearchResult?,
+        JourneyDatetimeRepresents?
+    ) -> Void)? = nil
     var onGo: (() -> Void)?
 
     var body: some View {
@@ -83,15 +89,15 @@ struct JourneyAlternativesView: View {
                 .foregroundStyle(.orange)
                 .padding(.bottom, 14)
             }
-        case .loaded(.needsClarification(_, let fields)):
-            NaturalJourneyStatusCard(
-                title: "Un détail manque",
-                systemImage: "questionmark.bubble",
-                message: fields.first?.question ?? "Précise ta demande puis réessaie.",
-                example: "Reformule directement dans la barre de recherche.",
-                onRetry: nil
-            )
-            .padding(.bottom, 14)
+        case .loaded(.needsClarification(let draft, let fields)):
+            if let field = fields.first, let onResolveNatural {
+                NaturalJourneyClarificationCard(
+                    draft: draft,
+                    field: field,
+                    onResolve: onResolveNatural
+                )
+                .padding(.bottom, 14)
+            }
         case .loaded(.unsupported(let message, let examples)):
             NaturalJourneyStatusCard(
                 title: "Via n’a pas pu répondre",
@@ -101,12 +107,10 @@ struct JourneyAlternativesView: View {
                 onRetry: nil
             )
             .padding(.bottom, 14)
-        case .loaded(.unavailable(let message)):
-            NaturalJourneyStatusCard(
-                title: "Recherche indisponible",
-                systemImage: "sparkles",
+        case .loaded(.unavailable(let message, let guidance)):
+            NaturalJourneyUnavailableCard(
                 message: message,
-                example: nil,
+                guidance: guidance,
                 onRetry: onRetryNatural
             )
             .padding(.bottom, 14)

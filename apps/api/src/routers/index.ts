@@ -1,7 +1,6 @@
 import { env } from '../env';
 import { implementer } from '../orpc/implementer';
 import { redis } from '../redis';
-import { createChatHandler } from './chat/handler';
 import { accountRouter } from './account/router';
 import { departuresRouter } from './departures/router';
 import { healthRouter } from './health/router';
@@ -65,19 +64,6 @@ const naturalJourneyService = createNaturalJourneyService({
  * The folder tree still mirrors the URL tree: `routers/network/` serves
  * `/api/network/*`.
  */
-/** Streaming chat endpoint — plain Hono, outside the oRPC contract. */
-export const chatHandler = createChatHandler({
-  redis,
-  places: placeResolver,
-  journeys: journeyPlanner,
-  config: {
-    apiKey: env.OPENAI_API_KEY,
-    model: env.OPENAI_MODEL,
-    personalLimit: env.NATURAL_JOURNEYS_PERSONAL_LIMIT,
-    personalWindowSeconds: env.NATURAL_JOURNEYS_PERSONAL_WINDOW_SECONDS,
-  },
-});
-
 export const apiRouter = implementer.router({
   account: accountRouter,
   departures: departuresRouter,

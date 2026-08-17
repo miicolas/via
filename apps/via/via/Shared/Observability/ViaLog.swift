@@ -7,6 +7,7 @@ enum ViaLog {
     static let app = Logger(subsystem: subsystem, category: "app")
     static let network = Logger(subsystem: subsystem, category: "network")
     static let location = Logger(subsystem: subsystem, category: "location")
+    static let ai = Logger(subsystem: subsystem, category: "ai")
 
     static func requestStarted(_ operation: StaticString) -> OSSignpostID {
         let identifier = OSSignpostID(log: signpostLog)
@@ -20,4 +21,3 @@ enum ViaLog {
 
     private static let signpostLog = OSLog(subsystem: subsystem, category: .pointsOfInterest)
 }
-

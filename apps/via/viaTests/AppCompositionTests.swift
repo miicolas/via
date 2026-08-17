@@ -19,7 +19,14 @@ final class AppCompositionTests: XCTestCase {
         )
         XCTAssertEqual(
             storedPropertyNames(of: dependencies.root),
-            Set(["account", "makeDeparturesViewModel", "mapPresentation", "networkMap"])
+            Set([
+                "account",
+                "makeDeparturesViewModel",
+                "makeSavedPlacePicker",
+                "mapPresentation",
+                "nearbyStations",
+                "networkMap",
+            ])
         )
         XCTAssertTrue(dependencies.root.mapPresentation.state.isCompact)
 
@@ -31,7 +38,7 @@ final class AppCompositionTests: XCTestCase {
 
     @MainActor
     func testPreviewRestoresAndLoadsWithoutAnyLiveAdapter() async {
-        let dependencies = AppDependencies.preview
+        let dependencies = PreviewDependencies()
 
         await dependencies.authSession.restore()
         guard case .authenticated(let session, .online) = dependencies.authSession.state else {
@@ -39,26 +46,13 @@ final class AppCompositionTests: XCTestCase {
             return
         }
         XCTAssertEqual(session.user.id, "preview-user")
-        guard case .active = dependencies.root.account.state else {
-            XCTFail("Authentication and RootDependencies must share AccountModel")
+        guard case .active = dependencies.account.state else {
+            XCTFail("Authentication and previews must share AccountModel")
             return
         }
 
-        dependencies.root.networkMap.viewportChanged(
-            to: NetworkViewport(
-                center: GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
-                latitudeDelta: 0.009,
-                longitudeDelta: 0.009,
-                width: 400,
-                height: 800
-            ),
-            phase: .ended
-        )
-        await waitUntil { dependencies.root.networkMap.state.loading == .loaded }
-        XCTAssertFalse(dependencies.root.networkMap.state.snapshot.stations.isEmpty)
-
-        let departures = dependencies.root.makeDeparturesViewModel(
-            StationID(rawValue: "preview-station")
+        let departures = dependencies.makeDeparturesViewModel(
+            for: StationID(rawValue: "preview-station")
         )
         departures.start()
         await waitUntil {
@@ -76,9 +70,9 @@ final class AppCompositionTests: XCTestCase {
             loadConfiguration: {
                 throw ViaError.invalidConfiguration("missing URL")
             },
-            buildDependencies: { _ in
+            buildDependencies: { configuration in
                 didBuildDependencies = true
-                return .preview
+                return try AppDependencies.live(configuration: configuration)
             }
         )
 

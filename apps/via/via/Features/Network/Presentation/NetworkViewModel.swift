@@ -49,12 +49,6 @@ final class NetworkViewModel {
             }
             try Task.checkCancellation()
 
-            var fetchedStations: [StationMapItem]?
-            if viewport.showsStations {
-                fetchedStations = try await repository.viewport(in: viewport.bounds).mapItems
-            }
-            try Task.checkCancellation()
-
             let mapViewport = viewport.transitMapViewport
             let routes = await Task.detached(priority: .userInitiated) {
                 layout.positioned(in: mapViewport)
@@ -64,7 +58,12 @@ final class NetworkViewModel {
 
             routeLayout = layout
             positionedRoutes = routes
-            if let fetchedStations {
+            publishSnapshot(for: viewport, loading: .loading)
+
+            if viewport.showsStations {
+                let fetchedStations = try await repository.viewport(in: viewport.bounds).mapItems
+                try Task.checkCancellation()
+                guard revision == viewportRevision else { return }
                 loadedStations = fetchedStations
             }
             publishSnapshot(for: viewport, loading: .loaded)

@@ -116,7 +116,9 @@
                             "recent.upsert",
                             "recent.remove",
                             "recent.clear",
-                            "preferences.set"
+                            "preferences.set",
+                            "place.upsert",
+                            "place.remove"
                           ],
                           "type": "string"
                         },
@@ -136,6 +138,21 @@
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 300
+                            },
+                            "coordinate": {
+                              "type": "object",
+                              "properties": {
+                                "latitude": {
+                                  "type": "number"
+                                },
+                                "longitude": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "latitude",
+                                "longitude"
+                              ]
                             },
                             "savedAt": {
                               "type": "string",
@@ -256,6 +273,77 @@
                             "excludedModes",
                             "updatedAt"
                           ]
+                        },
+                        "place": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "kind": {
+                              "enum": [
+                                "station",
+                                "address"
+                              ],
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            "context": {
+                              "type": "string",
+                              "maxLength": 500
+                            },
+                            "coordinate": {
+                              "type": "object",
+                              "properties": {
+                                "latitude": {
+                                  "type": "number"
+                                },
+                                "longitude": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "latitude",
+                                "longitude"
+                              ]
+                            },
+                            "role": {
+                              "enum": [
+                                "home",
+                                "work",
+                                "favorite"
+                              ],
+                              "type": "string"
+                            },
+                            "savedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "kind",
+                            "name",
+                            "coordinate",
+                            "role",
+                            "savedAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "placeId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
                         }
                       },
                       "required": [
@@ -303,6 +391,21 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 300
+                          },
+                          "coordinate": {
+                            "type": "object",
+                            "properties": {
+                              "latitude": {
+                                "type": "number"
+                              },
+                              "longitude": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "latitude",
+                              "longitude"
+                            ]
                           },
                           "savedAt": {
                             "type": "string",
@@ -377,6 +480,76 @@
                         ]
                       }
                     },
+                    "places": {
+                      "type": "array",
+                      "maxItems": 50,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "kind": {
+                            "enum": [
+                              "station",
+                              "address"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "context": {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          "coordinate": {
+                            "type": "object",
+                            "properties": {
+                              "latitude": {
+                                "type": "number"
+                              },
+                              "longitude": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "latitude",
+                              "longitude"
+                            ]
+                          },
+                          "role": {
+                            "enum": [
+                              "home",
+                              "work",
+                              "favorite"
+                            ],
+                            "type": "string"
+                          },
+                          "savedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "kind",
+                          "name",
+                          "coordinate",
+                          "role",
+                          "savedAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
                     "preferences": {
                       "type": "object",
                       "properties": {
@@ -428,6 +601,7 @@
                     "appliedOperationIds",
                     "favorites",
                     "recents",
+                    "places",
                     "preferences",
                     "syncedAt"
                   ]

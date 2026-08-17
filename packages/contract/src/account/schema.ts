@@ -4,10 +4,27 @@ import { coordinateSchema, networkModeSchema } from '../shared/schema';
 
 export const ACCOUNT_FAVORITE_LIMIT = 50;
 export const ACCOUNT_RECENT_LIMIT = 5;
+export const ACCOUNT_PLACE_LIMIT = 50;
+/** Favorites get trimmed; home and work always keep their slot. */
+export const ACCOUNT_PLACE_FAVORITE_LIMIT = ACCOUNT_PLACE_LIMIT - 2;
 
 export const favoriteStationSchema = z.object({
   stationId: z.string().min(1).max(300),
   name: z.string().min(1).max(300),
+  coordinate: coordinateSchema.optional(),
+  savedAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const accountPlaceRoleSchema = z.enum(['home', 'work', 'favorite']);
+
+export const accountPlaceSchema = z.object({
+  id: z.string().min(1).max(500),
+  kind: z.enum(['station', 'address']),
+  name: z.string().min(1).max(300),
+  context: z.string().max(500).optional(),
+  coordinate: coordinateSchema,
+  role: accountPlaceRoleSchema,
   savedAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 });
@@ -37,6 +54,8 @@ export const accountSyncOperationSchema = z
       'recent.remove',
       'recent.clear',
       'preferences.set',
+      'place.upsert',
+      'place.remove',
     ]),
     occurredAt: z.iso.datetime({ offset: true }),
     station: favoriteStationSchema.optional(),
@@ -44,6 +63,8 @@ export const accountSyncOperationSchema = z
     recentId: z.string().min(1).max(500).optional(),
     recent: accountRecentSearchSchema.optional(),
     preferences: transportPreferencesSchema.optional(),
+    place: accountPlaceSchema.optional(),
+    placeId: z.string().min(1).max(500).optional(),
   })
   .superRefine((operation, context) => {
     const valid =
@@ -52,7 +73,9 @@ export const accountSyncOperationSchema = z
       (operation.kind === 'recent.upsert' && operation.recent !== undefined) ||
       (operation.kind === 'recent.remove' && operation.recentId !== undefined) ||
       operation.kind === 'recent.clear' ||
-      (operation.kind === 'preferences.set' && operation.preferences !== undefined);
+      (operation.kind === 'preferences.set' && operation.preferences !== undefined) ||
+      (operation.kind === 'place.upsert' && operation.place !== undefined) ||
+      (operation.kind === 'place.remove' && operation.placeId !== undefined);
 
     if (!valid) {
       context.addIssue({
@@ -70,6 +93,7 @@ export const accountSyncResponseSchema = z.object({
   appliedOperationIds: z.array(z.uuid()),
   favorites: z.array(favoriteStationSchema).max(ACCOUNT_FAVORITE_LIMIT),
   recents: z.array(accountRecentSearchSchema).max(ACCOUNT_RECENT_LIMIT),
+  places: z.array(accountPlaceSchema).max(ACCOUNT_PLACE_LIMIT),
   preferences: transportPreferencesSchema,
   syncedAt: z.iso.datetime({ offset: true }),
 });

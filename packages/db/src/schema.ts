@@ -326,12 +326,37 @@ export const accountFavoriteStations = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     stationId: text('station_id').notNull(),
     name: text('name').notNull(),
+    latitude: doublePrecision('latitude'),
+    longitude: doublePrecision('longitude'),
     savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   (table) => [
     primaryKey({ columns: [table.userId, table.stationId] }),
     index('account_favorite_stations_user_saved_idx').on(table.userId, table.savedAt),
+  ]
+);
+
+/** Saved places (home, work, and later arbitrary favorites) keyed by composite search id. */
+export const accountPlaces = pgTable(
+  'account_places',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    id: text('id').notNull(),
+    role: text('role', { enum: ['home', 'work', 'favorite'] }).notNull(),
+    kind: text('kind', { enum: ['station', 'address'] }).notNull(),
+    name: text('name').notNull(),
+    context: text('context'),
+    latitude: doublePrecision('latitude').notNull(),
+    longitude: doublePrecision('longitude').notNull(),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
+    index('account_places_user_role_idx').on(table.userId, table.role),
   ]
 );
 
