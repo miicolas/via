@@ -2,6 +2,7 @@ import Foundation
 import Observation
 
 enum OnboardingDemoPhase: Equatable {
+    case welcome
     case input
     case generating
     case result
@@ -17,7 +18,7 @@ final class OnboardingDemoModel {
     @ObservationIgnored private var generationTask: Task<Void, Never>?
 
     init(
-        phase: OnboardingDemoPhase = .input,
+        phase: OnboardingDemoPhase = .welcome,
         generationDelay: Duration = .milliseconds(700)
     ) {
         self.phase = phase
@@ -35,6 +36,11 @@ final class OnboardingDemoModel {
 
     var naturalJourneyResult: NaturalJourneyResult {
         OnboardingDemoFixture.naturalJourneyResult
+    }
+
+    func start() {
+        guard phase == .welcome else { return }
+        phase = .input
     }
 
     func send() {
@@ -59,7 +65,7 @@ final class OnboardingDemoModel {
     func reset() {
         generationTask?.cancel()
         generationTask = nil
-        phase = .input
+        phase = .welcome
     }
 
     private func finishGeneration() {

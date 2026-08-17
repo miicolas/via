@@ -10,7 +10,7 @@ struct OnboardingDemoView: View {
     init(
         onContinue: @escaping () -> Void,
         onSkip: @escaping () -> Void,
-        initialPhase: OnboardingDemoPhase = .input
+        initialPhase: OnboardingDemoPhase = .welcome
     ) {
         self.onContinue = onContinue
         self.onSkip = onSkip
@@ -54,6 +54,10 @@ struct OnboardingDemoView: View {
         .shadow(color: .black.opacity(0.16), radius: 24, y: -8)
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.25),
+            value: model.phase
+        )
     }
 
     private var skipButton: some View {
@@ -73,6 +77,9 @@ struct OnboardingDemoView: View {
     @ViewBuilder
     private var panelContent: some View {
         switch model.phase {
+        case .welcome:
+            OnboardingWelcomeView(onStart: model.start)
+
         case .input:
             OnboardingDemoInputView(
                 query: model.query,
@@ -94,8 +101,16 @@ struct OnboardingDemoView: View {
     }
 }
 
-#Preview("Saisie") {
+#Preview("Bienvenue") {
     OnboardingDemoView(onContinue: {}, onSkip: {})
+}
+
+#Preview("Saisie") {
+    OnboardingDemoView(
+        onContinue: {},
+        onSkip: {},
+        initialPhase: .input
+    )
 }
 
 #Preview("Génération") {

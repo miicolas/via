@@ -3,17 +3,27 @@ import XCTest
 
 final class OnboardingDemoModelTests: XCTestCase {
     @MainActor
-    func testStartsWithPrefilledQueryAndInputPhase() {
-        let model = OnboardingDemoModel(generationDelay: .zero)
+    func testStartsWithWelcomeAndPrefilledQuery() {
+        let model = OnboardingDemoModel()
 
-        XCTAssertEqual(model.phase, .input)
+        XCTAssertEqual(model.phase, .welcome)
         XCTAssertEqual(model.query, "Je veux arriver à La Défense avant 9 h")
         XCTAssertNil(model.journeyPresentation)
     }
 
     @MainActor
+    func testStartMovesFromWelcomeToInput() {
+        let model = OnboardingDemoModel()
+
+        model.start()
+
+        XCTAssertEqual(model.phase, .input)
+    }
+
+    @MainActor
     func testSendGeneratesLocalResultAndMapPresentation() async {
         let model = OnboardingDemoModel(generationDelay: .zero)
+        model.start()
 
         model.send()
 
@@ -31,6 +41,7 @@ final class OnboardingDemoModelTests: XCTestCase {
     @MainActor
     func testSecondSendDoesNotRestartCompletedDemo() async {
         let model = OnboardingDemoModel(generationDelay: .zero)
+        model.start()
         model.send()
         await waitForResult(model)
 
@@ -42,6 +53,7 @@ final class OnboardingDemoModelTests: XCTestCase {
     @MainActor
     func testSecondSendWhileGeneratingIsIgnored() async {
         let model = OnboardingDemoModel(generationDelay: .zero)
+        model.start()
         model.send()
         model.send()
 
@@ -51,14 +63,15 @@ final class OnboardingDemoModelTests: XCTestCase {
     }
 
     @MainActor
-    func testResetReturnsToInputAndHidesJourney() async {
+    func testResetReturnsToWelcomeAndHidesJourney() async {
         let model = OnboardingDemoModel(generationDelay: .zero)
+        model.start()
         model.send()
         await waitForResult(model)
 
         model.reset()
 
-        XCTAssertEqual(model.phase, .input)
+        XCTAssertEqual(model.phase, .welcome)
         XCTAssertNil(model.journeyPresentation)
     }
 
