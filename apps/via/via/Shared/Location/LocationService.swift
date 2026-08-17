@@ -65,7 +65,7 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {
-        ViaLog.location.error("Location failed: \(String(describing: error), privacy: .private(mask: .hash))")
+        AppLog.location.error("Location failed: \(String(describing: error), privacy: .private(mask: .hash))")
         onEvent?(.failed(Self.map(manager.authorizationStatus)))
     }
 

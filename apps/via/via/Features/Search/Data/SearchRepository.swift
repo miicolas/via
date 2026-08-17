@@ -5,7 +5,7 @@ protocol SearchRepository: Sendable {
 }
 
 struct LiveSearchRepository: SearchRepository {
-    let transport: ViaTransport
+    let transport: APITransport
 
     func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
         try await transport.perform("search") { client in
@@ -20,7 +20,7 @@ struct LiveSearchRepository: SearchRepository {
             case .ok(let response):
                 return try transport.convert(response.body.json, to: SearchResponseDTO.self).domain()
             case .undocumented(let statusCode, _):
-                throw ViaTransport.error(for: statusCode)
+                throw APITransport.error(for: statusCode)
             }
         }
     }

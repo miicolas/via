@@ -67,14 +67,14 @@ final class NetworkViewModel {
                 loadedStations = fetchedStations
             }
             publishSnapshot(for: viewport, loading: .loaded)
-            ViaLog.network.debug(
+            AppLog.network.debug(
                 "Map snapshot loaded with \(routes.count, privacy: .public) routes"
             )
         } catch is CancellationError {
         } catch {
             guard revision == viewportRevision else { return }
             state.loading = .failed(error.via)
-            ViaLog.network.error(
+            AppLog.network.error(
                 "Map snapshot failed: \(String(describing: error), privacy: .private(mask: .hash))"
             )
         }

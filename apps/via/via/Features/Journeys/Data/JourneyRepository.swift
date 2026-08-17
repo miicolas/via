@@ -6,7 +6,7 @@ protocol JourneyRepository: Sendable {
 }
 
 struct LiveJourneyRepository: JourneyRepository {
-    let transport: ViaTransport
+    let transport: APITransport
 
     func plan(_ request: JourneyRequest) async throws -> JourneyResult {
         try await transport.perform("journeys") { client in
@@ -30,7 +30,7 @@ struct LiveJourneyRepository: JourneyRepository {
             case .ok(let response):
                 return try transport.convert(response.body.json, to: JourneyResultDTO.self).domain()
             case .undocumented(let statusCode, _):
-                throw ViaTransport.error(for: statusCode)
+                throw APITransport.error(for: statusCode)
             }
         }
     }

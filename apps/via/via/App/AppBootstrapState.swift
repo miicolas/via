@@ -22,7 +22,7 @@ enum AppBootstrapState {
             return .ready(try buildDependencies(configuration))
         } catch {
             let error = error.via
-            ViaLog.app.fault(
+            AppLog.app.fault(
                 "Invalid configuration: \(String(describing: error), privacy: .public)"
             )
             return .failed(error)

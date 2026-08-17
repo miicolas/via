@@ -5,7 +5,7 @@ protocol DeparturesRepository: Sendable {
 }
 
 struct LiveDeparturesRepository: DeparturesRepository {
-    let transport: ViaTransport
+    let transport: APITransport
 
     func board(stationID: StationID) async throws -> DepartureBoard {
         try await transport.perform("departures") { client in
@@ -16,7 +16,7 @@ struct LiveDeparturesRepository: DeparturesRepository {
             case .ok(let response):
                 return try transport.convert(response.body.json, to: DepartureBoardDTO.self).domain()
             case .undocumented(let statusCode, _):
-                throw ViaTransport.error(for: statusCode)
+                throw APITransport.error(for: statusCode)
             }
         }
     }

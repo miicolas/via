@@ -6,6 +6,7 @@ struct RootDependencies {
     let networkMap: NetworkViewModel
     let mapPresentation: MapPresentationModel
     let account: AccountModel
+    let lineStatusRepository: any LineStatusRepository
     let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
     let nearbyStations: NearbyStationsViewModel
     let makeSavedPlacePicker: () -> SavedPlacePickerViewModel
@@ -20,7 +21,7 @@ struct AppDependencies {
     static func live(configuration: AppConfiguration) throws -> AppDependencies {
         let vault = KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
         let unauthorized = AsyncStream.makeStream(of: Void.self)
-        let transport = ViaTransport(
+        let transport = APITransport(
             baseURL: configuration.apiBaseURL,
             authSessionVault: vault,
             onUnauthorized: {
@@ -75,6 +76,7 @@ struct AppDependencies {
                     locationAdapter: CoreLocationAdapter()
                 ),
                 account: account,
+                lineStatusRepository: PreviewLineStatusRepository(),
                 makeDeparturesViewModel: makeDeparturesViewModel,
                 nearbyStations: NearbyStationsViewModel(
                     network: network,

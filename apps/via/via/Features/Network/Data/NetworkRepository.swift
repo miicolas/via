@@ -2,12 +2,12 @@ import Foundation
 import OSLog
 
 actor LiveNetworkRepository: NetworkRepository {
-    private let transport: ViaTransport
+    private let transport: APITransport
     private var cache: [ViewportTile: StationsArea] = [:]
     private var railMapTask: Task<TransitNetwork, Error>?
     private var lastAssembly: (tiles: Set<ViewportTile>, area: StationsArea)?
 
-    init(transport: ViaTransport) {
+    init(transport: APITransport) {
         self.transport = transport
     }
 
@@ -19,7 +19,7 @@ actor LiveNetworkRepository: NetworkRepository {
                 case .ok(let response):
                     return try transport.convert(response.body.json, to: RailMapDTO.self).domain()
                 case .undocumented(let statusCode, _):
-                    throw ViaTransport.error(for: statusCode)
+                    throw APITransport.error(for: statusCode)
                 }
             }
         }
@@ -65,14 +65,14 @@ actor LiveNetworkRepository: NetworkRepository {
                                     to: StationsAreaDTO.self
                                 ).domain()
                             case .undocumented(let statusCode, _):
-                                throw ViaTransport.error(for: statusCode)
+                                throw APITransport.error(for: statusCode)
                             }
                         }
                         return (tile, area)
                     } catch is CancellationError {
                         throw CancellationError()
                     } catch {
-                        ViaLog.network.error("Viewport tile failed: \(String(describing: error), privacy: .private(mask: .hash))")
+                        AppLog.network.error("Viewport tile failed: \(String(describing: error), privacy: .private(mask: .hash))")
                         return (tile, nil)
                     }
                 }
