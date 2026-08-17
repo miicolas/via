@@ -3,11 +3,15 @@ import SwiftUI
 struct MapPresentationState: Equatable {
     static let collapsedDetent = PresentationDetent.height(95)
     static let searchDetent = PresentationDetent.fraction(0.45)
+    static let expandedDetent = PresentationDetent.fraction(0.97)
 
     var screen: MapPresentationScreen = .planner(.editing(nil))
-    var selectedDetent: PresentationDetent = searchDetent
+    var selectedDetent: PresentationDetent = collapsedDetent
     var draft = JourneyDraft()
     var search = PlaceSearchState.idle
+    var naturalJourneyQuery = ""
+    var naturalJourney: Loadable<NaturalJourneyResult> = .idle
+    var naturalJourneyPrimaryJourneyID: JourneyID?
     var location: LocationState
     var journeys: Loadable<JourneyResult> = .idle
     var currentRequest: JourneyRequest?
@@ -41,6 +45,10 @@ struct MapPresentationState: Equatable {
     }
 
     var journeyResult: JourneyResult? { journeys.value }
+
+    var isNaturalJourneyActive: Bool {
+        naturalJourney != .idle
+    }
 
     var presentedSheet: MapPresentationSheetRoute? {
         plannerStage == .planning || plannerStage == .results ? .journeys : nil

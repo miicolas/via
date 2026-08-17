@@ -9,9 +9,8 @@ Application SwiftUI native iPhone, iOS 26+, structurée en Clean MVVM par foncti
 Les points d’entrée prêts à consommer sont :
 
 - `NetworkViewModel` : carte ferrée, sélection de ligne et stations par tuiles ;
-- `MapPresentationModel` : recherche, géolocalisation, récents, planification et navigation de la feuille carte ;
+- `MapPresentationModel` : recherche classique et naturelle, géolocalisation, récents, planification et navigation de la feuille carte ;
 - `DeparturesViewModel` : départs et polling suspendable ;
-- `NaturalJourneyViewModel` : saisie naturelle et clarifications ;
 - `ChatViewModel` : conversation locale avec Apple Foundation Models, disponibilité exhaustive et itinéraire atomique ;
 - `LocationAdapter` : seam de localisation orchestré par `MapPresentationModel`.
 

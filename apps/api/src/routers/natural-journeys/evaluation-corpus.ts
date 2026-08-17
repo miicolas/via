@@ -83,6 +83,10 @@ const templates = [
     phrase: (destination: string) => `jpars dans 45 min direction ${destination}`,
     expected: { origin: 'current_location', datetimeRepresents: 'departure', temporal: 'relative-45m' },
   },
+  {
+    phrase: (destination: string) => `${destination} à 11 h`,
+    expected: { origin: 'current_location', datetimeRepresents: 'arrival', temporal: 'next-future-11:00' },
+  },
 ] as const;
 
 const generatedCases: NaturalJourneyEvaluationCase[] = destinations.flatMap(

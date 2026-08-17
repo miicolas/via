@@ -6,11 +6,11 @@ struct SearchQuickDestinationCard: View {
 
     var body: some View {
         Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
                 Image(systemName: recent.kind.iconSystemImage)
                     .font(.headline)
                     .foregroundStyle(recent.kind.iconColor)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 36, height: 36)
                     .background(recent.kind.iconColor.opacity(0.12), in: Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -24,11 +24,21 @@ struct SearchQuickDestinationCard: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
+
+                Spacer(minLength: 0)
             }
-            .frame(width: 148, alignment: .leading)
-            .padding(14)
-            .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .frame(width: 210, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                .quaternary.opacity(0.45),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(.primary.opacity(0.06), lineWidth: 0.5)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Utiliser \(recent.name)")

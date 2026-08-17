@@ -93,6 +93,7 @@ final class MapPresentationModelTests: XCTestCase {
         let model = MapPresentationModel(
             searchRepository: search,
             journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+            naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
             account: makeAccount(),
             locationAdapter: InMemoryLocationAdapter()
         )
@@ -153,6 +154,186 @@ final class MapPresentationModelTests: XCTestCase {
 
         XCTAssertEqual(model.state.plannerStage, .results)
         XCTAssertEqual(model.state.draft.origin, .currentLocation(coordinate))
+    }
+
+    @MainActor
+    func testSubmittingSearchTextPlansNaturalJourneyAndFeedsSharedResults() async {
+        let coordinate = JourneyResult.mapPreview.journeys[0].sections[0].from.coordinate
+        let destination = SearchResponse.mapPreview.results[1]
+        let result = naturalReady(destination: destination)
+        let naturalJourneys = NaturalJourneyRepositoryRecorder(results: [result])
+        let account = makeAccount()
+        let model = makeModel(
+            naturalJourneys: naturalJourneys,
+            account: account,
+            location: InMemoryLocationAdapter(
+                authorization: .authorized,
+                coordinate: coordinate
+            )
+        )
+        model.send(.openPlanner)
+
+        model.send(.submitNaturalJourney("Gare du Nord à 11 h"))
+        await waitUntil { model.state.plannerStage == .results }
+
+        let naturalRequests = await naturalJourneys.requests
+        XCTAssertEqual(
+            naturalRequests,
+            [.submit(query: "Gare du Nord à 11 h", currentLocation: coordinate)]
+        )
+        XCTAssertEqual(model.state.naturalJourney.value, result)
+        XCTAssertEqual(model.state.journeyResult, .mapPreview)
+        XCTAssertEqual(model.state.selectedJourneyID, JourneyResult.mapPreview.journeys[0].id)
+        XCTAssertEqual(model.state.displayedRequest?.origin, coordinate)
+        XCTAssertEqual(model.state.displayedRequest?.destination.name, destination.name)
+        XCTAssertEqual(model.state.displayedRequest?.datetimeRepresents, .arrival)
+        XCTAssertEqual(account.recentSearches.first?.id, destination.id)
+        XCTAssertNotNil(model.state.mapPresentation)
+    }
+
+    @MainActor
+    func testLatestNaturalJourneyWinsWhenOlderResponseArrivesLate() async {
+        let firstDestination = address(id: "first", name: "Premier")
+        let secondDestination = address(id: "second", name: "Second")
+        let naturalJourneys = DelayedNaturalJourneyRepository(responses: [
+            "premier à 11 h": (naturalReady(destination: firstDestination), .milliseconds(80)),
+            "second à 12 h": (naturalReady(destination: secondDestination), .milliseconds(5)),
+        ])
+        let model = makeModel(naturalJourneys: naturalJourneys)
+        model.send(.openPlanner)
+
+        model.send(.submitNaturalJourney("premier à 11 h"))
+        await Task.yield()
+        model.send(.submitNaturalJourney("second à 12 h"))
+
+        await waitUntil { model.state.displayedRequest?.destination.name == "Second" }
+        try? await Task.sleep(for: .milliseconds(100))
+
+        XCTAssertEqual(model.state.naturalJourneyQuery, "second à 12 h")
+        XCTAssertEqual(model.state.displayedRequest?.destination.name, "Second")
+    }
+
+    @MainActor
+    func testClosingNaturalJourneyClearsAnswerAndMapRoute() async {
+        let model = makeModel(
+            naturalJourneys: InMemoryNaturalJourneyRepository(
+                result: naturalReady(destination: SearchResponse.mapPreview.results[1])
+            )
+        )
+        model.send(.openPlanner)
+        model.send(.submitNaturalJourney("La Défense à 11 h"))
+        await waitUntil { model.state.plannerStage == .results }
+
+        model.send(.closeJourneys)
+
+        XCTAssertEqual(model.state.naturalJourney, .idle)
+        XCTAssertEqual(model.state.naturalJourneyQuery, "")
+        XCTAssertNil(model.state.journeyResult)
+        XCTAssertNil(model.state.mapPresentation)
+        XCTAssertEqual(model.state.plannerStage, .editing(nil))
+    }
+
+    @MainActor
+    func testBackDuringNaturalPlanningRejectsCancelledResponse() async {
+        let destination = address(id: "slow-natural", name: "Lent")
+        let naturalJourneys = DelayedNaturalJourneyRepository(responses: [
+            "trajet lent": (naturalReady(destination: destination), .milliseconds(80)),
+        ])
+        let model = makeModel(naturalJourneys: naturalJourneys)
+        model.send(.openPlanner)
+        model.send(.submitNaturalJourney("trajet lent"))
+        XCTAssertEqual(model.state.plannerStage, .planning)
+
+        model.send(.backToForm)
+        try? await Task.sleep(for: .milliseconds(100))
+
+        XCTAssertEqual(model.state.activeField, .destination)
+        XCTAssertEqual(model.state.naturalJourney, .idle)
+        XCTAssertNil(model.state.journeyResult)
+        XCTAssertNil(model.state.mapPresentation)
+    }
+
+    @MainActor
+    func testNaturalClarificationKeepsQueryWithoutPublishingRoute() async {
+        let clarification = NaturalJourneyResult.needsClarification(
+            draft: NaturalJourneyDraft(
+                intent: RouteIntent(
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destinationQuery: "Gare du Nord",
+                    requestedAt: nil,
+                    datetimeRepresents: .arrival,
+                    requiredModes: [],
+                    excludedModes: [],
+                    preferredModes: []
+                ),
+                origin: nil,
+                destination: nil
+            ),
+            fields: [NaturalJourneyClarification(
+                target: .time,
+                question: "Pour quand ?",
+                candidates: []
+            )]
+        )
+        let model = makeModel(
+            naturalJourneys: InMemoryNaturalJourneyRepository(result: clarification)
+        )
+        model.send(.openPlanner)
+
+        model.send(.submitNaturalJourney("Gare du Nord"))
+        await waitUntil { model.state.plannerStage == .results }
+
+        XCTAssertEqual(model.state.naturalJourneyQuery, "Gare du Nord")
+        XCTAssertEqual(model.state.naturalJourney.value, clarification)
+        XCTAssertNil(model.state.journeyResult)
+        XCTAssertNil(model.state.mapPresentation)
+    }
+
+    @MainActor
+    func testSelectingNaturalAlternativePromotesItOnMap() async {
+        let model = makeModel(
+            naturalJourneys: InMemoryNaturalJourneyRepository(
+                result: naturalReady(destination: SearchResponse.mapPreview.results[1])
+            )
+        )
+        model.send(.openPlanner)
+        model.send(.submitNaturalJourney("La Défense à 11 h"))
+        await waitUntil { model.state.plannerStage == .results }
+        let alternative = JourneyResult.mapPreview.journeys[1]
+
+        model.send(.selectJourney(alternative.id))
+
+        XCTAssertEqual(model.state.selectedJourneyID, alternative.id)
+        XCTAssertEqual(model.state.selectedJourney?.id, alternative.id)
+        XCTAssertEqual(model.state.mapPresentation?.journey?.id, alternative.id)
+        XCTAssertEqual(
+            model.state.naturalJourneyPrimaryJourneyID,
+            JourneyResult.mapPreview.journeys[0].id
+        )
+    }
+
+    @MainActor
+    func testRetryNaturalJourneyReusesLastRequest() async {
+        let destination = SearchResponse.mapPreview.results[1]
+        let naturalJourneys = SequencedNaturalJourneyRepository(outcomes: [
+            .failure(.transport),
+            .success(naturalReady(destination: destination)),
+        ])
+        let model = makeModel(naturalJourneys: naturalJourneys)
+        model.send(.openPlanner)
+        model.send(.submitNaturalJourney("La Défense à 11 h"))
+        await waitUntil {
+            if case .failed = model.state.naturalJourney { return true }
+            return false
+        }
+
+        model.send(.retryNaturalJourney)
+        await waitUntil { model.state.plannerStage == .results && model.state.journeyResult != nil }
+
+        let requests = await naturalJourneys.requests
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(requests[0], requests[1])
     }
 
     @MainActor
@@ -500,15 +681,35 @@ final class MapPresentationModelTests: XCTestCase {
     private func makeModel(
         search: any SearchRepository = InMemorySearchRepository(response: .mapPreview),
         journeys: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
+        naturalJourneys: any NaturalJourneyRepository = InMemoryNaturalJourneyRepository(),
         account: AccountModel? = nil,
         location: any LocationAdapter = InMemoryLocationAdapter()
     ) -> MapPresentationModel {
         MapPresentationModel(
             searchRepository: search,
             journeyRepository: journeys,
+            naturalJourneyRepository: naturalJourneys,
             account: account ?? makeAccount(),
             locationAdapter: location,
             searchDelay: .zero
+        )
+    }
+
+    private func naturalReady(destination: SearchResult) -> NaturalJourneyResult {
+        .ready(
+            answer: "Arrivée à 10 h 57, dans les temps.",
+            preferenceNotice: nil,
+            interpretation: NaturalJourneyInterpretation(
+                originLabel: "Ta position",
+                destination: JourneyPlaceSelection(destination).journeyDestination,
+                destinationResult: destination,
+                requestedAt: Date(timeIntervalSince1970: 1_787_000_400),
+                datetimeRepresents: .arrival,
+                requiredModes: [],
+                excludedModes: [],
+                preferredModes: []
+            ),
+            journeys: .mapPreview
         )
     }
 
@@ -624,6 +825,51 @@ private actor JourneyRepositoryRecorder: JourneyRepository {
     func plan(_ request: JourneyRequest) async throws -> JourneyResult {
         requests.append(request)
         return result
+    }
+}
+
+private actor NaturalJourneyRepositoryRecorder: NaturalJourneyRepository {
+    let results: [NaturalJourneyResult]
+    private(set) var requests: [NaturalJourneyRequest] = []
+
+    init(results: [NaturalJourneyResult]) {
+        self.results = results
+    }
+
+    func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
+        requests.append(request)
+        return results[min(requests.count - 1, results.count - 1)]
+    }
+}
+
+private actor DelayedNaturalJourneyRepository: NaturalJourneyRepository {
+    let responses: [String: (NaturalJourneyResult, Duration)]
+
+    init(responses: [String: (NaturalJourneyResult, Duration)]) {
+        self.responses = responses
+    }
+
+    func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
+        guard case .submit(let query, _) = request,
+              let (result, delay) = responses[query] else {
+            return .unsupported(message: "Demande inconnue", examples: [])
+        }
+        try? await Task.sleep(for: delay)
+        return result
+    }
+}
+
+private actor SequencedNaturalJourneyRepository: NaturalJourneyRepository {
+    let outcomes: [Result<NaturalJourneyResult, ViaError>]
+    private(set) var requests: [NaturalJourneyRequest] = []
+
+    init(outcomes: [Result<NaturalJourneyResult, ViaError>]) {
+        self.outcomes = outcomes
+    }
+
+    func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
+        requests.append(request)
+        return try outcomes[min(requests.count - 1, outcomes.count - 1)].get()
     }
 }
 

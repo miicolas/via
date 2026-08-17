@@ -27,11 +27,9 @@ struct SearchResultRow: View {
 
                 if !routes.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        GlassEffectContainer(spacing: 0) {
-                            HStack(spacing: 4) {
-                                ForEach(routes.prefix(8)) { route in
-                                    TransitRouteBadgeView(route: route, size: 20)
-                                }
+                        HStack(spacing: 4) {
+                            ForEach(routes.prefix(8)) { route in
+                                TransitRouteBadgeView(route: route, size: 20)
                             }
                         }
                     }

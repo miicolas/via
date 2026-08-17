@@ -13,8 +13,8 @@ struct RootView: View {
     @State private var isMapSheetPresented = true
     @State private var presentation: MapPresentationModel
     @State private var networkViewModel: NetworkViewModel
-    @State private var naturalJourneyViewModel: NaturalJourneyViewModel
     @State private var mapPosition = MapCameraPosition.region(.paris)
+    @State private var isLargeScreen = false
     private let authViewModel: AuthSessionViewModel
     private let account: AccountModel
     private let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
@@ -25,7 +25,6 @@ struct RootView: View {
     ) {
         _networkViewModel = State(initialValue: dependencies.networkMap)
         _presentation = State(initialValue: dependencies.mapPresentation)
-        _naturalJourneyViewModel = State(initialValue: dependencies.naturalJourney)
         self.authViewModel = authViewModel
         account = dependencies.account
         makeDeparturesViewModel = dependencies.makeDeparturesViewModel
@@ -63,9 +62,14 @@ struct RootView: View {
                 model: presentation,
                 authViewModel: authViewModel,
                 account: account,
-                naturalJourneyViewModel: naturalJourneyViewModel,
-                makeDeparturesViewModel: makeDeparturesViewModel
+                makeDeparturesViewModel: makeDeparturesViewModel,
+                isLargeScreen: isLargeScreen
             )
+        }
+        .onGeometryChange(for: Bool.self) { geometry in
+            geometry.size.width > 600
+        } action: { isLargeScreen in
+            updateLayout(isLargeScreen: isLargeScreen)
         }
     }
 
@@ -74,6 +78,20 @@ struct RootView: View {
             get: { presentation.state.selectedStation },
             set: { presentation.send(.selectMapStation($0)) }
         )
+    }
+
+    private func updateLayout(isLargeScreen newValue: Bool) {
+        guard newValue != isLargeScreen else { return }
+
+        let currentDetent = presentation.state.selectedDetent
+        let nextDetent = MapPresentationSheetLayout.transitionedDetent(
+            currentDetent,
+            isLargeScreen: newValue
+        )
+        if nextDetent != currentDetent {
+            presentation.send(.detentChanged(nextDetent))
+        }
+        isLargeScreen = newValue
     }
 }
 

@@ -4,24 +4,28 @@ struct MapPresentationSheet: View {
     let model: MapPresentationModel
     let authViewModel: AuthSessionViewModel
     let account: AccountModel
-    let naturalJourneyViewModel: NaturalJourneyViewModel
     let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
+    let isLargeScreen: Bool
 
     var body: some View {
         content
-            .sheetTabVisibilityRoot()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .presentationDetents(detents, selection: selectedDetent)
-            .presentationBackgroundInteraction(.enabled(upThrough: .large))
-            .presentationContentInteraction(.resizes)
-            .presentationDragIndicator(.visible)
-            .interactiveDismissDisabled()
+            .adaptiveSheetPresentation(
+                compactDetents: MapPresentationSheetLayout.mainCompactDetents(
+                    for: model.state.screen
+                ),
+                wideDetents: MapPresentationSheetLayout.wideDetents,
+                selection: selectedDetent,
+                isLargeScreen: isLargeScreen
+            )
             .sheet(item: presentedSheet) { route in
-            switch route {
-            case .journeys:
-                JourneyResultsSheet(model: model)
+                switch route {
+                case .journeys:
+                    JourneyResultsSheet(
+                        model: model,
+                        isLargeScreen: isLargeScreen
+                    )
+                }
             }
-        }
     }
 
     private var presentedSheet: Binding<MapPresentationSheetRoute?> {
@@ -41,8 +45,7 @@ struct MapPresentationSheet: View {
             MapSearchSheet(
                 model: model,
                 authViewModel: authViewModel,
-                account: account,
-                naturalJourneyViewModel: naturalJourneyViewModel
+                account: account
             )
 
         case .station(let station):
@@ -58,20 +61,14 @@ struct MapPresentationSheet: View {
         }
     }
 
-    private var detents: Set<PresentationDetent> {
-        switch model.state.screen {
-        case .planner(.planning), .planner(.results):
-            [MapPresentationState.collapsedDetent]
-        case .planner:
-            [MapPresentationState.collapsedDetent, MapPresentationState.searchDetent, .large]
-        case .station:
-            [MapPresentationState.collapsedDetent, .medium, .large]
-        }
-    }
-
     private var selectedDetent: Binding<PresentationDetent> {
         Binding(
-            get: { model.state.selectedDetent },
+            get: {
+                MapPresentationSheetLayout.presentedDetent(
+                    model.state.selectedDetent,
+                    isLargeScreen: isLargeScreen
+                )
+            },
             set: { model.send(.detentChanged($0)) }
         )
     }
@@ -87,8 +84,8 @@ struct MapPresentationSheet: View {
                 model: dependencies.root.mapPresentation,
                 authViewModel: dependencies.authSession,
                 account: dependencies.root.account,
-                naturalJourneyViewModel: dependencies.root.naturalJourney,
-                makeDeparturesViewModel: dependencies.root.makeDeparturesViewModel
+                makeDeparturesViewModel: dependencies.root.makeDeparturesViewModel,
+                isLargeScreen: false
             )
         }
 }

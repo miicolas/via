@@ -3,6 +3,10 @@ import SwiftUI
 struct SearchQuickDestinationsView: View {
     let recent: [RecentSearch]
     let onSelect: (RecentSearch) -> Void
+    /// The horizontal inset of the surrounding list; the carousel escapes it
+    /// so cards scroll to the sheet edge instead of being chopped at the
+    /// padded bounds, and `contentMargins` restores it at rest.
+    var horizontalInset: CGFloat = 16
 
     private var quickDestinations: [RecentSearch] {
         Array(recent.prefix(3))
@@ -10,22 +14,26 @@ struct SearchQuickDestinationsView: View {
 
     var body: some View {
         if !quickDestinations.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
                 ViaSectionHeader("Raccourcis")
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 12) {
+                    LazyHStack(spacing: 10) {
                         ForEach(quickDestinations) { recent in
                             SearchQuickDestinationCard(recent: recent) {
                                 onSelect(recent)
                             }
                         }
                     }
-                    .padding(.vertical, 2)
+                    .padding(.vertical, 1)
+                    .scrollTargetLayout()
                 }
-                .scrollClipDisabled()
+                .contentMargins(.horizontal, horizontalInset, for: .scrollContent)
+                .scrollTargetBehavior(.viewAligned)
+                .padding(.horizontal, -horizontalInset)
             }
-            .padding(.vertical, 10)
+            .padding(.top, 6)
+            .padding(.bottom, 14)
         }
     }
 }

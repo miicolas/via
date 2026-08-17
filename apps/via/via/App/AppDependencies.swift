@@ -4,7 +4,6 @@ import Foundation
 struct RootDependencies {
     let networkMap: NetworkViewModel
     let mapPresentation: MapPresentationModel
-    let naturalJourney: NaturalJourneyViewModel
     let account: AccountModel
     let makeDeparturesViewModel: (StationID) -> DeparturesViewModel
 }
@@ -49,10 +48,10 @@ struct AppDependencies {
                 mapPresentation: MapPresentationModel(
                     searchRepository: search,
                     journeyRepository: journeys,
+                    naturalJourneyRepository: naturalJourneys,
                     account: account,
                     locationAdapter: CoreLocationAdapter()
                 ),
-                naturalJourney: NaturalJourneyViewModel(repository: naturalJourneys),
                 account: account,
                 makeDeparturesViewModel: { stationID in
                     DeparturesViewModel(stationID: stationID, repository: departures)
@@ -103,10 +102,10 @@ struct AppDependencies {
                 mapPresentation: MapPresentationModel(
                     searchRepository: search,
                     journeyRepository: journeys,
+                    naturalJourneyRepository: naturalJourneys,
                     account: account,
                     locationAdapter: InMemoryLocationAdapter()
                 ),
-                naturalJourney: NaturalJourneyViewModel(repository: naturalJourneys),
                 account: account,
                 makeDeparturesViewModel: { stationID in
                     DeparturesViewModel(stationID: stationID, repository: departures)

@@ -127,7 +127,7 @@ Instant serveur: ${now.toISOString()}. Fuseau obligatoire: Europe/Paris.
 Résous aujourd'hui, demain, les jours de semaine, les dates explicites et les durées relatives vers un ISO 8601 avec décalage.
 Sans date explicite, choisis la prochaine occurrence future de l'heure demandée. Sans heure, utilise l'instant serveur.
 "avant", "pour être à", "arriver à" signifient arrival. "à partir de", "partir à", "après" signifient departure.
-Une heure seule associée à une destination signifie departure. N'utilise ambiguous que si la phrase demande explicitement de choisir entre un départ et une arrivée.
+Une heure seule associée à une destination signifie arrival. Une formulation explicite comme "partir à" ou "départ à" signifie departure. N'utilise ambiguous que si la phrase demande explicitement de choisir entre un départ et une arrivée.
 "plutôt en bus/métro/RER/Transilien/tram" est preferred; "uniquement" ou "seulement" est required; "sans" ou "évite" est excluded.
 N'invente pas de lieu. Garde les libellés de lieux assez complets pour que Via les géocode ensuite.
 Un nom de commune seul est déjà un lieu complet : conserve-le comme destination et ne lui invente ni rue ni numéro.

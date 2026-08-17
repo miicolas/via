@@ -8,6 +8,8 @@ enum MapPresentationEvent {
     case openPlanner
     case focus(MapPlaceField)
     case queryChanged(MapPlaceField, String)
+    case naturalJourneyQueryChanged(String)
+    case submitNaturalJourney(String)
     case selectResult(SearchResult)
     case selectRecent(RecentSearch)
     case removeRecent(RecentSearch)
@@ -18,6 +20,7 @@ enum MapPresentationEvent {
     case newSearch
     case retrySearch
     case retryJourneys
+    case retryNaturalJourney
     case selectMapStation(StationMapItem?)
     case closeStation
     case dismissSearch
@@ -33,25 +36,31 @@ final class MapPresentationModel {
 
     @ObservationIgnored private let searchRepository: any SearchRepository
     @ObservationIgnored private let journeyRepository: any JourneyRepository
+    @ObservationIgnored private let naturalJourneyRepository: any NaturalJourneyRepository
     @ObservationIgnored private let account: AccountModel
     @ObservationIgnored private let locationAdapter: any LocationAdapter
     @ObservationIgnored private let searchDelay: Duration
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var journeyTask: Task<Void, Never>?
+    @ObservationIgnored private var naturalJourneyTask: Task<Void, Never>?
     @ObservationIgnored private var searchRevision = 0
     @ObservationIgnored private var journeyRevision = 0
+    @ObservationIgnored private var naturalJourneyRevision = 0
     @ObservationIgnored private var currentLocation: GeoCoordinate?
     @ObservationIgnored private var hasRequestedLocation = false
+    @ObservationIgnored private var lastNaturalJourneyRequest: NaturalJourneyRequest?
 
     init(
         searchRepository: any SearchRepository,
         journeyRepository: any JourneyRepository,
+        naturalJourneyRepository: any NaturalJourneyRepository,
         account: AccountModel,
         locationAdapter: any LocationAdapter,
         searchDelay: Duration = .milliseconds(600)
     ) {
         self.searchRepository = searchRepository
         self.journeyRepository = journeyRepository
+        self.naturalJourneyRepository = naturalJourneyRepository
         self.account = account
         self.locationAdapter = locationAdapter
         self.searchDelay = searchDelay
@@ -73,6 +82,10 @@ final class MapPresentationModel {
             focus(field)
         case .queryChanged(let field, let query):
             updateQuery(query, for: field)
+        case .naturalJourneyQueryChanged(let query):
+            state.naturalJourneyQuery = query
+        case .submitNaturalJourney(let query):
+            submitNaturalJourney(query)
         case .selectResult(let result):
             select(JourneyPlaceSelection(result), recentResult: result)
         case .selectRecent(let recent):
@@ -88,6 +101,7 @@ final class MapPresentationModel {
             swapPlaces()
         case .backToForm:
             cancelSearch()
+            restoreNaturalJourneyAfterCancellation()
             restoreJourneysAfterCancellation()
             state.screen = .planner(.editing(.destination))
             state.search = .idle
@@ -98,6 +112,8 @@ final class MapPresentationModel {
             scheduleSearch(delay: .zero)
         case .retryJourneys:
             retryJourneys()
+        case .retryNaturalJourney:
+            retryNaturalJourney()
         case .selectMapStation(let station):
             selectMapStation(station)
         case .closeStation:
@@ -135,6 +151,11 @@ final class MapPresentationModel {
 
     private func focus(_ field: MapPlaceField) {
         cancelSearch()
+        cancelNaturalJourney()
+        state.naturalJourneyQuery = ""
+        state.naturalJourney = .idle
+        state.naturalJourneyPrimaryJourneyID = nil
+        lastNaturalJourneyRequest = nil
         restoreJourneysAfterCancellation()
         state.screen = .planner(.editing(field))
         state.search = .idle
@@ -226,12 +247,17 @@ final class MapPresentationModel {
     private func clearJourneys() {
         cancelSearch()
         cancelJourney()
+        cancelNaturalJourney()
         state.draft.setPlace(nil, for: .destination)
         state.journeys = .idle
         state.currentRequest = nil
         state.displayedRequest = nil
         state.selectedJourneyID = nil
         state.search = .idle
+        state.naturalJourneyQuery = ""
+        state.naturalJourney = .idle
+        state.naturalJourneyPrimaryJourneyID = nil
+        lastNaturalJourneyRequest = nil
     }
 
     private func selectMapStation(_ station: StationMapItem?) {
@@ -315,6 +341,11 @@ final class MapPresentationModel {
     private func planCurrentDraft() {
         guard let origin = state.draft.origin,
               let destination = state.draft.destination else { return }
+        cancelNaturalJourney()
+        state.naturalJourneyQuery = ""
+        state.naturalJourney = .idle
+        state.naturalJourneyPrimaryJourneyID = nil
+        lastNaturalJourneyRequest = nil
         cancelJourney()
         let request = JourneyRequest(
             origin: origin.coordinate,
@@ -348,8 +379,133 @@ final class MapPresentationModel {
     }
 
     private func retryJourneys() {
+        if state.isNaturalJourneyActive {
+            retryNaturalJourney()
+            return
+        }
         guard state.draft.origin != nil, state.draft.destination != nil else { return }
         planCurrentDraft()
+    }
+
+    private func submitNaturalJourney(_ query: String) {
+        let value = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        let request = NaturalJourneyRequest.submit(
+            query: value,
+            currentLocation: currentLocation
+        )
+        state.naturalJourneyQuery = value
+        lastNaturalJourneyRequest = request
+        performNaturalJourney(request)
+    }
+
+    private func retryNaturalJourney() {
+        guard let lastNaturalJourneyRequest else { return }
+        performNaturalJourney(lastNaturalJourneyRequest)
+    }
+
+    private func performNaturalJourney(_ request: NaturalJourneyRequest) {
+        cancelSearch()
+        cancelJourney()
+        cancelNaturalJourney()
+
+        let revision = naturalJourneyRevision
+        let previousNaturalJourney = state.naturalJourney.value
+        let previousJourneys = state.journeys.value
+        state.search = .idle
+        state.naturalJourney = .loading(previous: previousNaturalJourney)
+        state.journeys = .loading(previous: previousJourneys)
+        state.screen = .planner(.planning)
+        state.selectedDetent = MapPresentationState.collapsedDetent
+
+        naturalJourneyTask = Task { [weak self, naturalJourneyRepository] in
+            guard let self else { return }
+            do {
+                let result = try await naturalJourneyRepository.submit(request)
+                try Task.checkCancellation()
+                guard revision == naturalJourneyRevision else { return }
+                state.naturalJourney = .loaded(result)
+                presentNaturalJourneyResult(result)
+            } catch is CancellationError {
+            } catch {
+                guard !Task.isCancelled, revision == naturalJourneyRevision else { return }
+                state.naturalJourney = .failed(error.via, previous: previousNaturalJourney)
+                state.journeys = previousJourneys.map(Loadable.loaded) ?? .idle
+                state.screen = .planner(.results)
+            }
+        }
+    }
+
+    private func presentNaturalJourneyResult(_ result: NaturalJourneyResult) {
+        guard case .ready(
+            _,
+            _,
+            let interpretation,
+            let journeys
+        ) = result else {
+            clearPublishedJourneyResult()
+            state.screen = .planner(.results)
+            return
+        }
+
+        guard let primary = journeys.journeys.first,
+              let origin = primary.sections.first?.from.coordinate else {
+            state.naturalJourney = .loaded(.unavailable(
+                message: "Je n’ai pas trouvé d’itinéraire vérifiable."
+            ))
+            clearPublishedJourneyResult()
+            state.screen = .planner(.results)
+            return
+        }
+
+        let request = JourneyRequest(
+            origin: origin,
+            destination: interpretation.destination,
+            limit: 4,
+            requestedAt: interpretation.requestedAt,
+            datetimeRepresents: interpretation.datetimeRepresents,
+            requiredModes: interpretation.requiredModes,
+            excludedModes: interpretation.excludedModes,
+            preferredModes: interpretation.preferredModes
+        )
+        let selectedOrigin: JourneyPlaceSelection
+        if currentLocation == origin {
+            selectedOrigin = .currentLocation(origin)
+        } else {
+            selectedOrigin = .address(
+                id: "natural-origin",
+                name: interpretation.originLabel,
+                context: nil,
+                coordinate: origin
+            )
+        }
+
+        state.draft.setPlace(selectedOrigin, for: .origin)
+        state.draft.setPlace(
+            JourneyPlaceSelection(interpretation.destinationResult),
+            for: .destination
+        )
+        state.currentRequest = request
+        state.displayedRequest = request
+        state.journeys = .loaded(journeys)
+        state.selectedJourneyID = primary.id
+        state.naturalJourneyPrimaryJourneyID = primary.id
+        state.screen = .planner(.results)
+        account.recordRecentSearch(interpretation.destinationResult)
+    }
+
+    private func clearPublishedJourneyResult() {
+        state.journeys = .idle
+        state.currentRequest = nil
+        state.displayedRequest = nil
+        state.selectedJourneyID = nil
+        state.naturalJourneyPrimaryJourneyID = nil
+    }
+
+    private func cancelNaturalJourney() {
+        naturalJourneyRevision &+= 1
+        naturalJourneyTask?.cancel()
+        naturalJourneyTask = nil
     }
 
     private func cancelJourney() {
@@ -363,6 +519,17 @@ final class MapPresentationModel {
         cancelJourney()
         state.journeys = previous.map(Loadable.loaded) ?? .idle
         state.currentRequest = state.displayedRequest
+    }
+
+    private func restoreNaturalJourneyAfterCancellation() {
+        guard case .loading(let previous) = state.naturalJourney else { return }
+        cancelNaturalJourney()
+        state.naturalJourney = previous.map(Loadable.loaded) ?? .idle
+        if previous == nil {
+            state.naturalJourneyQuery = ""
+            state.naturalJourneyPrimaryJourneyID = nil
+            lastNaturalJourneyRequest = nil
+        }
     }
 
     private func requestLocation(force: Bool = false) {

@@ -9,3 +9,15 @@ test('versions at least 150 annotated French journey requests', () => {
   );
   expect(naturalJourneyEvaluationCorpus.every(({ phrase }) => phrase.trim().length > 0)).toBe(true);
 });
+
+test('treats a destination followed by a bare time as an arrival', () => {
+  const example = naturalJourneyEvaluationCorpus.find(
+    ({ phrase }) => phrase === 'Gare du Nord à 11 h'
+  );
+
+  expect(example?.expected).toMatchObject({
+    destination: 'Gare du Nord',
+    datetimeRepresents: 'arrival',
+    temporal: 'next-future-11:00',
+  });
+});

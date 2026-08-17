@@ -2,65 +2,71 @@ import SwiftUI
 
 struct JourneyResultsSheet: View {
     let model: MapPresentationModel
+    let isLargeScreen: Bool
 
-    @State private var detent = MapPresentationState.searchDetent
+    @State private var detent: PresentationDetent
+
+    init(model: MapPresentationModel, isLargeScreen: Bool) {
+        self.model = model
+        self.isLargeScreen = isLargeScreen
+        _detent = State(
+            initialValue: MapPresentationSheetLayout.journeyDetent(
+                for: model.state.naturalJourney,
+                isLargeScreen: isLargeScreen
+            )
+        )
+    }
 
     var body: some View {
-        NavigationStack {
-            JourneyAlternativesView(
-                state: model.state.journeys,
-                selectedJourneyID: model.state.selectedJourneyID,
-                onSelect: { model.send(.selectJourney($0)) },
-                onRetry: { model.send(.retryJourneys) },
-                onGo: { detent = MapPresentationState.searchDetent }
-            )
-            .sheetTabVisibility()
-            .searchable(
-                text: destinationText,
-                isPresented: isSearchPresented,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Où aller ?"
-            )
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(role: .close) {
-                        model.send(.closeJourneys)
+        Group {
+            if detent == MapPresentationState.collapsedDetent {
+                JourneyResultsCompactView(
+                    journey: model.state.selectedJourney,
+                    onExpand: {
+                        detent = MapPresentationSheetLayout.journeyDetent(
+                            for: model.state.naturalJourney,
+                            isLargeScreen: isLargeScreen
+                        )
                     }
-                }
+                )
+            } else {
+                JourneyResultsExpandedView(
+                    model: model,
+                    onCollapse: {
+                        detent = MapPresentationState.collapsedDetent
+                    }
+                )
             }
         }
-        .presentationDetents(
-            [MapPresentationState.searchDetent, .large],
-            selection: $detent
+        .adaptiveSheetPresentation(
+            compactDetents: MapPresentationSheetLayout.journeyCompactDetents,
+            wideDetents: MapPresentationSheetLayout.wideDetents,
+            selection: $detent,
+            isLargeScreen: isLargeScreen
         )
-        .presentationBackgroundInteraction(.enabled(upThrough: .large))
-        .presentationDragIndicator(.visible)
-    }
-
-    private var destinationText: Binding<String> {
-        Binding(
-            get: { model.state.draft.destinationQuery },
-            set: { query in
-                model.send(.focus(.destination))
-                model.send(.queryChanged(.destination, query))
-            }
-        )
-    }
-
-    private var isSearchPresented: Binding<Bool> {
-        Binding(
-            get: { false },
-            set: { presented in
-                guard presented else { return }
-                model.send(.focus(.destination))
-            }
-        )
+        .onChange(of: isLargeScreen) { _, isLargeScreen in
+            guard detent != MapPresentationState.collapsedDetent else { return }
+            detent = MapPresentationSheetLayout.journeyDetent(
+                for: model.state.naturalJourney,
+                isLargeScreen: isLargeScreen
+            )
+        }
+        .onChange(of: model.state.naturalJourney) { _, naturalJourney in
+            guard detent != MapPresentationState.collapsedDetent else { return }
+            detent = MapPresentationSheetLayout.journeyDetent(
+                for: naturalJourney,
+                isLargeScreen: isLargeScreen
+            )
+        }
     }
 }
 
 #Preview {
     Color.blue
         .sheet(isPresented: .constant(true)) {
-            JourneyResultsSheet(model: AppDependencies.preview.root.mapPresentation)
+            JourneyResultsSheet(
+                model: AppDependencies.preview.root.mapPresentation,
+                isLargeScreen: false
+            )
         }
 }

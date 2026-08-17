@@ -4,20 +4,22 @@ struct MapSearchSheet: View {
     let model: MapPresentationModel
     let authViewModel: AuthSessionViewModel
     let account: AccountModel
-    let naturalJourneyViewModel: NaturalJourneyViewModel
 
     @State private var isAccountPresented = false
-    @State private var isNaturalSearchPresented = false
 
     var body: some View {
         NavigationStack {
             content
-                .sheetTabVisibility()
+                .sheetContentVisibility()
                 .searchable(
                     text: searchText,
                     isPresented: isSearchPresented,
                     prompt: searchPrompt
                 )
+                .onSubmit(of: .search) {
+                    model.send(.submitNaturalJourney(searchText.wrappedValue))
+                }
+                .toolbarVisibility(.hidden, for: .navigationBar)
                 .toolbar {
                     DefaultToolbarItem(kind: .search, placement: .bottomBar)
 
@@ -32,12 +34,6 @@ struct MapSearchSheet: View {
                 }
                 .sheet(isPresented: $isAccountPresented) {
                     AccountView(authViewModel: authViewModel, account: account)
-                }
-                .sheet(isPresented: $isNaturalSearchPresented) {
-                    NaturalJourneySearchView(
-                        viewModel: naturalJourneyViewModel,
-                        currentLocation: currentLocation
-                    )
                 }
                 .onAppear {
                     model.send(.preparePlanner)
@@ -69,17 +65,23 @@ struct MapSearchSheet: View {
                 recentSearches: account.recentSearches,
                 activeField: model.state.activeField,
                 location: model.state.location,
+                naturalJourneyQuery: activeQuery,
+                onSubmitNaturalJourney: { model.send(.submitNaturalJourney($0)) },
                 onSelectResult: { model.send(.selectResult($0)) },
                 onSelectRecent: { model.send(.selectRecent($0)) },
                 onRemoveRecent: { model.send(.removeRecent($0)) },
                 onUseCurrentLocation: { model.send(.useCurrentLocation) },
-                onOpenNaturalSearch: { isNaturalSearchPresented = true },
                 onRetry: { model.send(.retrySearch) }
             )
 
         case .station:
             Color.clear
         }
+    }
+
+    private var activeQuery: String {
+        guard let field = model.state.activeField else { return "" }
+        return model.state.draft.query(for: field)
     }
 
     private var searchText: Binding<String> {
@@ -100,13 +102,8 @@ struct MapSearchSheet: View {
     private var searchPrompt: Text {
         switch model.state.activeField {
         case .origin: Text("Ma position ou un lieu")
-        case .destination, nil: Text("Où aller ?")
+        case .destination, nil: Text("Où aller et pour quand ?")
         }
-    }
-
-    private var currentLocation: GeoCoordinate? {
-        guard case .located(let coordinate) = model.state.location else { return nil }
-        return coordinate
     }
 }
 
@@ -118,8 +115,7 @@ struct MapSearchSheet: View {
             MapSearchSheet(
                 model: dependencies.root.mapPresentation,
                 authViewModel: dependencies.authSession,
-                account: dependencies.root.account,
-                naturalJourneyViewModel: dependencies.root.naturalJourney
+                account: dependencies.root.account
             )
             .presentationDetents([.height(95), .fraction(0.45), .large])
         }

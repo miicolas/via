@@ -5,21 +5,17 @@ struct PlaceSuggestionsView: View {
     let recentSearches: [RecentSearch]
     let activeField: MapPlaceField?
     let location: LocationState
+    let naturalJourneyQuery: String
+    let onSubmitNaturalJourney: (String) -> Void
     let onSelectResult: (SearchResult) -> Void
     let onSelectRecent: (RecentSearch) -> Void
     let onRemoveRecent: (RecentSearch) -> Void
     let onUseCurrentLocation: () -> Void
-    let onOpenNaturalSearch: () -> Void
     let onRetry: () -> Void
 
     var body: some View {
         let content = ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                if case .idle = search {
-                    NaturalSearchCallout(onOpen: onOpenNaturalSearch)
-                        .padding(.vertical, 12)
-                }
-
                 if activeField == .origin, case .located = location {
                     Button(action: onUseCurrentLocation) {
                         Label("Ma position", systemImage: "location.fill")
@@ -35,6 +31,15 @@ struct PlaceSuggestionsView: View {
                 if activeField == .origin, case .locating = location {
                     ViaLoadingStatus(label: "Localisation…")
                         .padding(.vertical, 14)
+                }
+
+                if let query = submittedNaturalJourneyQuery {
+                    NaturalJourneySuggestionRow(query: query) {
+                        onSubmitNaturalJourney(query)
+                    }
+                    .padding(.vertical, 10)
+
+                    Divider()
                 }
 
                 if let response = search.visibleResponse {
@@ -63,18 +68,33 @@ struct PlaceSuggestionsView: View {
         content.swipeActionsContainerIfAvailable()
     }
 
+    private var submittedNaturalJourneyQuery: String? {
+        guard activeField == .destination else { return nil }
+        let query = naturalJourneyQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return query.isEmpty ? nil : query
+    }
+
     @ViewBuilder
     private var emptyContent: some View {
         switch search {
         case .idle:
             let recent = recentSearches
             if recent.isEmpty {
-                ContentUnavailableView(
-                    "Recherche un lieu",
-                    systemImage: "magnifyingglass",
-                    description: Text("Saisis une station ou une adresse d’Île-de-France.")
-                )
-                .padding(.top, 24)
+                VStack(alignment: .leading, spacing: 10) {
+                    ViaAIBadge()
+
+                    Text("Demande ton trajet à Via")
+                        .font(.headline)
+
+                    Text("Écris par exemple « Gare du Nord à 11 h », puis touche Rechercher.")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.viaAISecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
+                .viaAISurface()
+                .padding(.vertical, 16)
             } else {
                 SearchQuickDestinationsView(
                     recent: recent,

@@ -31,7 +31,7 @@ struct StationDeparturesView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 18)
             }
-            .sheetTabVisibility()
+            .sheetContentVisibility()
             .textSelection(.enabled)
             .navigationTitle(station.name)
             .navigationBarTitleDisplayMode(.inline)
