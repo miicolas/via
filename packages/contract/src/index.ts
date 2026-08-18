@@ -2,6 +2,7 @@ import { accountDeleteRelation, accountSyncRelation } from './account';
 import { departuresForStationRelation } from './departures';
 import { healthRelation } from './health';
 import { journeysPlanRelation } from './journeys';
+import { lineDetailRelation, lineSearchRelation, lineStatusesRelation } from './lines';
 import { naturalJourneysSubmitRelation } from './natural-journeys';
 import { railMapRelation, stationsInAreaRelation } from './network';
 import { searchQueryRelation } from './search';
@@ -17,6 +18,11 @@ export const contract = {
   health: healthRelation,
   journeys: {
     plan: journeysPlanRelation,
+  },
+  lines: {
+    statuses: lineStatusesRelation,
+    search: lineSearchRelation,
+    detail: lineDetailRelation,
   },
   naturalJourneys: {
     submit: naturalJourneysSubmitRelation,
@@ -37,6 +43,8 @@ export * from './health/schema';
 export * from './health/type';
 export * from './journeys/schema';
 export * from './journeys/type';
+export * from './lines/schema';
+export * from './lines/type';
 export * from './natural-journeys/schema';
 export * from './natural-journeys/type';
 export * from './network/schema';

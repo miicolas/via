@@ -56,6 +56,18 @@ const envSchema = z.object({
     .default(
       "https://prim.iledefrance-mobilites.fr/marketplace/v2/navitia/journeys",
     ),
+  /** Network-wide disruptions bulk feed, refreshed through its own cache. */
+  PRIM_DISRUPTIONS_URL: z
+    .url()
+    .default(
+      "https://prim.iledefrance-mobilites.fr/marketplace/disruptions_bulk/disruptions/v2",
+    ),
+  /** One shared snapshot per TTL window keeps this near 720 requests/day. */
+  PRIM_DISRUPTIONS_DAILY_BUDGET: z
+    .string()
+    .default("800")
+    .transform(Number)
+    .pipe(z.number().int().min(0)),
   /**
    * Daily request ceiling of the PRIM token (new tokens: 1 000/day). The
    * governor keeps a safety margin below it; raise this only after PRIM

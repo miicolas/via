@@ -14,7 +14,9 @@ extension MKCoordinateRegion {
 struct MapShellView: View {
     let networkViewModel: NetworkViewModel
     let stationsViewModel: StationsViewModel
+    let linesViewModel: LinesViewModel
     let searchRepository: any SearchRepository
+    let lineStatusRepository: any LineStatusRepository
 
     @State private var showTabSheet: Bool = true
     @State private var activeTab: MapShellTab = .stations
@@ -31,11 +33,15 @@ struct MapShellView: View {
     init(
         networkViewModel: NetworkViewModel,
         stationsViewModel: StationsViewModel,
-        searchRepository: any SearchRepository = InMemorySearchRepository.preview
+        linesViewModel: LinesViewModel,
+        searchRepository: any SearchRepository = InMemorySearchRepository.preview,
+        lineStatusRepository: any LineStatusRepository = PreviewLineStatusRepository()
     ) {
         self.networkViewModel = networkViewModel
         self.stationsViewModel = stationsViewModel
+        self.linesViewModel = linesViewModel
         self.searchRepository = searchRepository
+        self.lineStatusRepository = lineStatusRepository
     }
 
     var body: some View {
@@ -71,7 +77,10 @@ struct MapShellView: View {
                     }
 
                     Tab(value: .lines) {
-                        LinesView()
+                        LinesView(
+                            viewModel: linesViewModel,
+                            repository: lineStatusRepository
+                        )
                     } label: {
                         MapShellTab.lines.tabLabel
                     }
@@ -143,6 +152,7 @@ struct MapShellView: View {
             locationAdapter: locationAdapter,
             networkRepository: InMemoryNetworkRepository.mapPreview,
             departuresRepository: InMemoryDeparturesRepository.stationsPreview
-        )
+        ),
+        linesViewModel: LinesViewModel(repository: PreviewLineStatusRepository())
     )
 }
