@@ -8,6 +8,7 @@ import { createGtfsJourneyPlanner } from './journeys/gtfs/loader';
 import { createIdfmJourneyPlanner } from './journeys/idfm/client';
 import { createJourneysRouter } from './journeys/router';
 import { createJourneyPlanner } from './journeys/service';
+import { linesRouter } from './lines/router';
 import { networkRouter } from './network/router';
 import { serviceHorizon } from './natural-journeys/horizon';
 import { createNaturalLanguageModel } from './natural-journeys/model';
@@ -69,6 +70,7 @@ export const apiRouter = implementer.router({
   departures: departuresRouter,
   health: healthRouter,
   journeys: createJourneysRouter(journeyPlanner),
+  lines: linesRouter,
   naturalJourneys: createNaturalJourneysRouter(naturalJourneyService),
   network: networkRouter,
   search: searchRouter,

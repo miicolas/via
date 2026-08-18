@@ -5,7 +5,9 @@ import SwiftUI
 struct ApplicationEntry: App {
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
+    @State private var linesViewModel: LinesViewModel
     private let searchRepository: any SearchRepository
+    private let lineStatusRepository: any LineStatusRepository
 
     init() {
         let dependencies = Self.makeDependencies()
@@ -19,7 +21,11 @@ struct ApplicationEntry: App {
                 departuresRepository: dependencies.departuresRepository
             )
         )
+        _linesViewModel = State(
+            initialValue: LinesViewModel(repository: dependencies.lineStatusRepository)
+        )
         searchRepository = dependencies.searchRepository
+        lineStatusRepository = dependencies.lineStatusRepository
     }
 
     var body: some Scene {
@@ -27,7 +33,9 @@ struct ApplicationEntry: App {
             MapShellView(
                 networkViewModel: networkViewModel,
                 stationsViewModel: stationsViewModel,
-                searchRepository: searchRepository
+                linesViewModel: linesViewModel,
+                searchRepository: searchRepository,
+                lineStatusRepository: lineStatusRepository
             )
         }
     }
@@ -40,7 +48,8 @@ struct ApplicationEntry: App {
                 ),
                 networkRepository: InMemoryNetworkRepository.mapPreview,
                 departuresRepository: InMemoryDeparturesRepository.stationsPreview,
-                searchRepository: InMemorySearchRepository.preview
+                searchRepository: InMemorySearchRepository.preview,
+                lineStatusRepository: PreviewLineStatusRepository()
             )
         }
 
@@ -55,7 +64,8 @@ struct ApplicationEntry: App {
             locationAdapter: CoreLocationAdapter(),
             networkRepository: networkRepository,
             departuresRepository: LiveDeparturesRepository(transport: transport),
-            searchRepository: LiveSearchRepository(transport: transport)
+            searchRepository: LiveSearchRepository(transport: transport),
+            lineStatusRepository: LiveLineStatusRepository(transport: transport)
         )
     }
 
@@ -64,5 +74,6 @@ struct ApplicationEntry: App {
         let networkRepository: any NetworkRepository
         let departuresRepository: any DeparturesRepository
         let searchRepository: any SearchRepository
+        let lineStatusRepository: any LineStatusRepository
     }
 }
