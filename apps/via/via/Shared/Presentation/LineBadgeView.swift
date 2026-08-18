@@ -3,20 +3,16 @@ import SwiftUI
 struct LineBadgeView: View {
     let route: RouteBadge
     let size: CGFloat
+    let showsLabel: Bool
 
-    init(route: RouteBadge, size: CGFloat = 22) {
+    init(route: RouteBadge, size: CGFloat = 22, showsLabel: Bool = true) {
         self.route = route
         self.size = size
+        self.showsLabel = showsLabel
     }
 
     var body: some View {
-        Text(route.shortName)
-            .font(.system(size: max(11, size * 0.5), weight: .bold, design: .rounded).monospacedDigit())
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .foregroundStyle(Color(transitHex: route.textColorHex, fallback: .white))
-            .frame(minWidth: size, minHeight: size)
-            .padding(.horizontal, route.shortName.count > 2 ? 4 : 0)
+        content
             .background(
                 Color(transitHex: route.colorHex, fallback: .secondary),
                 in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
@@ -27,6 +23,22 @@ struct LineBadgeView: View {
                 .regular,
                 in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
             )
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if showsLabel {
+            Text(route.shortName)
+                .font(.system(size: max(11, size * 0.5), weight: .bold, design: .rounded).monospacedDigit())
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .foregroundStyle(Color(transitHex: route.textColorHex, fallback: .white))
+                .frame(minWidth: size, minHeight: size)
+                .padding(.horizontal, route.shortName.count > 2 ? 4 : 0)
+        } else {
+            Color.clear
+                .frame(width: size, height: size)
+        }
     }
 }
 

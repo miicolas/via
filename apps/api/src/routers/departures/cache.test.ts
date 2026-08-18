@@ -1,69 +1,105 @@
 import { expect, test } from 'bun:test';
+import type { RouteBadge } from '@via/contract';
 
 import { fakeRedis } from './__fixtures__/fake-redis';
-import { visitsThroughCache } from './cache';
+import { stationSnapshotThroughCache } from './cache';
 import type { NormalizedVisit } from './prim/parse';
 
 const someVisits: NormalizedVisit[] = [
-  { routeId: 'IDFM:C01371', destination: 'La Défense', expectedAt: '2026-08-12T19:00:00+02:00' },
+  {
+    routeId: 'IDFM:C01371',
+    destination: 'La Défense',
+    expectedAt: Math.floor(Date.parse('2026-08-12T19:00:00+02:00') / 1_000),
+  },
 ];
+const fetchedAt = Math.floor(Date.parse('2026-08-12T18:55:00+02:00') / 1_000);
+const routes: RouteBadge[] = [
+  {
+    id: 'IDFM:C01371',
+    shortName: '1',
+    mode: 'metro',
+    color: '#FFCD00',
+    textColor: '#000000',
+  },
+];
+const cacheKey = 'transit:station-snapshot:v1:IDFM:71264';
 
 test('a cache hit never reaches the loader', async () => {
   const { client, store } = fakeRedis();
-  store.set('prim:cache:stop:IDFM:71264', someVisits);
+  store.set(cacheKey, { visits: someVisits, fetchedAt, routes });
 
   let loads = 0;
-  const visits = await visitsThroughCache(client, 'stop:IDFM:71264', async () => {
+  const snapshot = await stationSnapshotThroughCache(client, cacheKey, async () => {
     loads += 1;
-    return { visits: someVisits, ttlSeconds: 120 };
+    return { visits: someVisits, fetchedAt, routes, ttlSeconds: 120 };
   });
 
-  expect(visits).toEqual(someVisits);
+  expect(snapshot).toEqual({ visits: someVisits, fetchedAt, routes });
   expect(loads).toBe(0);
+});
+
+test('a warm snapshot stays below the 100 ms p95 budget', async () => {
+  const { client, store } = fakeRedis();
+  store.set(cacheKey, { visits: someVisits, fetchedAt, routes });
+
+  const durations = await Promise.all(
+    Array.from({ length: 100 }, async () => {
+      const startedAt = performance.now();
+      const snapshot = await stationSnapshotThroughCache(client, cacheKey, async () => {
+        throw new Error('warm cache unexpectedly loaded');
+      });
+      expect(snapshot).not.toBeNull();
+      return performance.now() - startedAt;
+    })
+  );
+
+  durations.sort((left, right) => left - right);
+  expect(durations[94]).toBeLessThan(100);
 });
 
 test('a miss loads once and publishes with the governed TTL', async () => {
   const { client, store, expiries } = fakeRedis();
 
-  const visits = await visitsThroughCache(client, 'stop:IDFM:71264', async () => ({
+  const snapshot = await stationSnapshotThroughCache(client, cacheKey, async () => ({
     visits: someVisits,
+    fetchedAt,
+    routes,
     ttlSeconds: 240,
   }));
 
-  expect(visits).toEqual(someVisits);
-  expect(store.get('prim:cache:stop:IDFM:71264')).toEqual(someVisits);
-  expect(expiries.get('prim:cache:stop:IDFM:71264')).toBe(240);
+  expect(snapshot).toEqual({ visits: someVisits, fetchedAt, routes });
+  expect(store.get(cacheKey)).toEqual({ visits: someVisits, fetchedAt, routes });
+  expect(expiries.get(cacheKey)).toBe(240);
 });
 
-test('concurrent misses collapse to a single load', async () => {
+test('100 concurrent misses collapse to a single load', async () => {
   const { client } = fakeRedis();
 
   let loads = 0;
   const load = async () => {
     loads += 1;
-    // Slower than the loser's retry beat, to prove the loser reads the
-    // published value rather than racing a second upstream call.
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    return { visits: someVisits, ttlSeconds: 120 };
+    // Slower than three retry beats, to prove waiters read the published
+    // value rather than falling through to a second upstream call.
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    return { visits: someVisits, fetchedAt, routes, ttlSeconds: 120 };
   };
 
-  const [first, second] = await Promise.all([
-    visitsThroughCache(client, 'stop:IDFM:71264', load),
-    visitsThroughCache(client, 'stop:IDFM:71264', load),
-  ]);
+  const snapshots = await Promise.all(
+    Array.from({ length: 100 }, () => stationSnapshotThroughCache(client, cacheKey, load))
+  );
 
   expect(loads).toBe(1);
-  expect(first).toEqual(someVisits);
-  expect(second).toEqual(someVisits);
+  expect(snapshots.every((snapshot) => snapshot !== null)).toBe(true);
+  expect(snapshots[0]).toEqual({ visits: someVisits, fetchedAt, routes });
 });
 
 test('a loader that yields nothing caches nothing and returns null', async () => {
   const { client, store } = fakeRedis();
 
-  const visits = await visitsThroughCache(client, 'stop:IDFM:71264', async () => null);
+  const snapshot = await stationSnapshotThroughCache(client, cacheKey, async () => null);
 
-  expect(visits).toBeNull();
-  expect(store.has('prim:cache:stop:IDFM:71264')).toBe(false);
+  expect(snapshot).toBeNull();
+  expect(store.has(cacheKey)).toBe(false);
 });
 
 test('redis failing degrades to null instead of throwing', async () => {
@@ -72,10 +108,12 @@ test('redis failing degrades to null instead of throwing', async () => {
     throw new Error('boom');
   };
 
-  const visits = await visitsThroughCache(client, 'stop:IDFM:71264', async () => ({
+  const snapshot = await stationSnapshotThroughCache(client, cacheKey, async () => ({
     visits: someVisits,
+    fetchedAt,
+    routes,
     ttlSeconds: 120,
   }));
 
-  expect(visits).toBeNull();
+  expect(snapshot).toBeNull();
 });

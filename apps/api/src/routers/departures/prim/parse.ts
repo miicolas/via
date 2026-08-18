@@ -1,14 +1,21 @@
 import { routeIdOfLineRef } from './refs';
+import {
+  normalizePrimDepartureStatus,
+  type PrimDepartureStatus,
+} from '../status';
 
 /**
  * A departure PRIM announced, reduced to what the mapper needs. `routeId` is
- * already back in our GTFS vocabulary; `expectedAt` is an ISO timestamp so the
- * whole array survives a JSON round-trip through the shared cache unchanged.
+ * already back in our GTFS vocabulary. Epoch seconds keep the Redis snapshot
+ * compact; the API turns them into ISO strings only at the wire boundary.
  */
 export type NormalizedVisit = {
   routeId: string;
   destination: string;
-  expectedAt: string;
+  scheduledAt?: number;
+  expectedAt?: number;
+  providerStatus?: PrimDepartureStatus;
+  providerJourneyRef?: string;
 };
 
 /**
@@ -31,18 +38,50 @@ export function parseStopMonitoring(body: unknown): NormalizedVisit[] {
       const routeId = routeIdOfLineRef(scalar(journey.LineRef) ?? '');
       const destination = scalar(journey.DestinationName) ?? scalar(journey.DirectionName);
       const call = journey.MonitoredCall;
-      const expectedAt =
-        scalar(call?.ExpectedDepartureTime) ?? scalar(call?.ExpectedArrivalTime);
+      const scheduledAt = parseTimestampSeconds(
+        scalar(call?.AimedDepartureTime) ?? scalar(call?.AimedArrivalTime)
+      );
+      const expectedAt = parseTimestampSeconds(
+        scalar(call?.ExpectedDepartureTime) ?? scalar(call?.ExpectedArrivalTime)
+      );
+      const providerStatus = normalizePrimDepartureStatus(
+        scalar(call?.DepartureStatus) ?? scalar(call?.ArrivalStatus)
+      );
+      const providerJourneyRef =
+        scalar(journey.FramedVehicleJourneyRef?.DatedVehicleJourneyRef) ?? undefined;
 
-      if (!routeId || !destination || !expectedAt) continue;
-      visits.push({ routeId, destination, expectedAt });
+      if (!routeId || !destination) continue;
+      if (
+        scheduledAt === undefined &&
+        expectedAt === undefined &&
+        providerStatus !== 'cancelled' &&
+        providerStatus !== 'missed'
+      ) {
+        continue;
+      }
+
+      visits.push({
+        routeId,
+        destination,
+        ...(scheduledAt === undefined ? {} : { scheduledAt }),
+        ...(expectedAt === undefined ? {} : { expectedAt }),
+        ...(providerStatus === undefined ? {} : { providerStatus }),
+        ...(providerJourneyRef === undefined ? {} : { providerJourneyRef }),
+      });
     }
   }
   return visits;
 }
 
+function parseTimestampSeconds(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const milliseconds = Date.parse(value);
+  return Number.isFinite(milliseconds) ? Math.floor(milliseconds / 1_000) : undefined;
+}
+
 function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
+  if (value === null || value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
 }
 
 /** Unwraps PRIM's `{ value }` envelopes, arrays thereof, or a bare string. */

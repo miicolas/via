@@ -7,7 +7,7 @@ struct StationAnnotationView: View {
         VStack(spacing: 2) {
             VStack(alignment: .center, spacing: 4) {
                 Text(item.name)
-                    .font(.caption2.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary.opacity(0.88))
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
@@ -23,17 +23,17 @@ struct StationAnnotationView: View {
 
                 if !item.routes.isEmpty {
                     AnnotationFlowLayout(
-                        spacing: 3,
-                        maximumLineWidth: 132,
+                        spacing: 4,
+                        maximumLineWidth: 200,
                         alignment: .center
                     ) {
                         ForEach(item.routes) { route in
-                            RouteLineBadgeView(route: route)
+                            LineBadgeView(route: route, size: 14, showsLabel: false)
                         }
                     }
                 }
             }
-            .frame(width: 132, alignment: .center)
+            .frame(width: 200, alignment: .center)
 
             Circle()
                 .fill(.primary.opacity(0.55))

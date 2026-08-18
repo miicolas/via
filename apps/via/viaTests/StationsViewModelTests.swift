@@ -2,6 +2,39 @@ import XCTest
 @testable import Via
 
 final class StationsViewModelTests: XCTestCase {
+    func testRealtimeEstimateWithoutBaselineUsesLiveColorRole() {
+        XCTAssertEqual(
+            departureTimeColorRole(status: .noReport, source: .realtime),
+            .live
+        )
+    }
+
+    func testTheoreticalScheduleKeepsTheoreticalColorRole() {
+        XCTAssertEqual(
+            departureTimeColorRole(status: .scheduled, source: .theoretical),
+            .theoretical
+        )
+    }
+
+    func testDepartureCountdownRoundsUpToTheNextWholeMinute() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+
+        XCTAssertEqual(
+            DepartureTimingMath.minutesUntil(now.addingTimeInterval(121), now: now),
+            3
+        )
+        XCTAssertEqual(
+            DepartureTimingMath.minutesUntil(now.addingTimeInterval(-1), now: now),
+            0
+        )
+    }
+
+    func testDepartureDelayUsesReadableWholeMinutes() {
+        XCTAssertEqual(DepartureTimingMath.roundedDelayMinutes(30), 1)
+        XCTAssertEqual(DepartureTimingMath.roundedDelayMinutes(330), 6)
+        XCTAssertEqual(DepartureTimingMath.roundedDelayMinutes(-120), 2)
+    }
+
     func testNearestStationUsesGeodesicDistanceAndResolvesRoutes() {
         let location = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
         let nearestRoute = route(id: "nearest", shortName: "1", mode: .metro)
@@ -69,8 +102,88 @@ final class StationsViewModelTests: XCTestCase {
             departures.map(\.destination),
             ["Destination tardive", "Destination proche"]
         )
-        XCTAssertEqual(departures[0].departureAt, now.addingTimeInterval(900))
-        XCTAssertEqual(departures[1].departureAt, now.addingTimeInterval(300))
+        XCTAssertEqual(departures[0].departureAt, .some(now.addingTimeInterval(900)))
+        XCTAssertEqual(departures[1].departureAt, .some(now.addingTimeInterval(300)))
+    }
+
+    func testNextDeparturesPreservesDelayMetadataAndHidesDepartedItems() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let route = route(id: "metro", shortName: "1", mode: .metro)
+        let scheduled = now.addingTimeInterval(300)
+        let expected = now.addingTimeInterval(480)
+        let board = DepartureBoard(
+            source: .realtime,
+            generatedAt: now,
+            fetchedAt: now.addingTimeInterval(-18),
+            groups: [
+                DepartureGroup(
+                    route: route,
+                    destination: "La Défense",
+                    departureItems: [
+                        DepartureItem(
+                            id: "departed",
+                            scheduledAt: now.addingTimeInterval(120),
+                            expectedAt: now.addingTimeInterval(120),
+                            delaySeconds: 0,
+                            status: .departed
+                        ),
+                        DepartureItem(
+                            id: "delayed",
+                            scheduledAt: scheduled,
+                            expectedAt: expected,
+                            delaySeconds: 180,
+                            status: .delayed
+                        ),
+                    ]
+                )
+            ]
+        )
+
+        let departures = StationOverviewBuilder.nextDepartures(
+            from: board,
+            routes: [route],
+            now: now
+        )
+
+        XCTAssertEqual(departures.count, 1)
+        XCTAssertEqual(departures.first?.id, "delayed")
+        XCTAssertEqual(departures.first?.scheduledAt, scheduled)
+        XCTAssertEqual(departures.first?.departureAt, expected)
+        XCTAssertEqual(departures.first?.delaySeconds, 180)
+        XCTAssertEqual(departures.first?.status, .delayed)
+    }
+
+    func testNextDeparturesKeepsCancellationWithoutATimestampVisible() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let route = route(id: "metro", shortName: "1", mode: .metro)
+        let board = DepartureBoard(
+            source: .realtime,
+            generatedAt: now,
+            groups: [
+                DepartureGroup(
+                    route: route,
+                    destination: "La Défense",
+                    departureItems: [
+                        DepartureItem(
+                            id: "cancelled",
+                            scheduledAt: nil,
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .cancelled
+                        )
+                    ]
+                )
+            ]
+        )
+
+        let departures = StationOverviewBuilder.nextDepartures(
+            from: board,
+            routes: [route],
+            now: now
+        )
+
+        XCTAssertEqual(departures.first?.status, .cancelled)
+        XCTAssertNil(departures.first?.departureAt)
     }
 
     @MainActor
@@ -187,7 +300,7 @@ final class StationsViewModelTests: XCTestCase {
 
         for _ in 0..<100 {
             if await departures.requestCount() >= 2,
-               model.state.overview?.departures.first?.departureAt == updatedDeparture {
+               model.state.overview?.departures.first?.departureAt == .some(updatedDeparture) {
                 break
             }
             try? await Task.sleep(for: .milliseconds(1))
@@ -199,7 +312,7 @@ final class StationsViewModelTests: XCTestCase {
         guard case .loaded(let overview) = model.state else {
             return XCTFail("Expected an automatically refreshed station")
         }
-        XCTAssertEqual(overview.departures.first?.departureAt, updatedDeparture)
+        XCTAssertEqual(overview.departures.first?.departureAt, .some(updatedDeparture))
     }
 
     @MainActor

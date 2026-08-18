@@ -23,6 +23,7 @@ import { networkRouteCondition } from '@via/db/network-scope';
 import { projectStopsOntoPatterns } from '@via/db/projection';
 import { parse } from 'csv-parse';
 import { sql } from 'drizzle-orm';
+import { RedisClient as BunRedisClient } from 'bun';
 
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
@@ -57,6 +58,7 @@ type SourceStop = {
 
 const INSERT_BATCH = 5_000;
 const PATTERN_INSERT_BATCH = 1_000;
+const TRANSIT_NETWORK_VERSION_KEY = 'transit:network:version';
 
 async function* readCsv(path: string): AsyncGenerator<CsvRow> {
   const parser = createReadStream(path).pipe(
@@ -322,6 +324,22 @@ async function importTransitNetwork(gtfsPath: string) {
   );
 }
 
+/** Move API station metadata to a fresh Redis namespace after a successful import. */
+async function bumpTransitNetworkCacheVersion() {
+  const redisURL = process.env.REDIS_URL;
+  if (!redisURL) return;
+
+  const redis = new BunRedisClient(redisURL);
+  try {
+    await redis.incr(TRANSIT_NETWORK_VERSION_KEY);
+  } catch (cause) {
+    // A Redis outage must not turn a committed GTFS import into a failed import.
+    console.error(`[worker] could not bump transit cache version`, cause);
+  } finally {
+    redis.close();
+  }
+}
+
 const gtfsPath = process.argv[2] ?? process.env.GTFS_PATH;
 if (!gtfsPath) {
   throw new Error('Pass the extracted GTFS directory as an argument or set GTFS_PATH');
@@ -329,6 +347,7 @@ if (!gtfsPath) {
 
 try {
   await importTransitNetwork(gtfsPath);
+  await bumpTransitNetworkCacheVersion();
 } finally {
   await client.end();
 }

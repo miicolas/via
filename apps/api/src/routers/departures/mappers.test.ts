@@ -1,4 +1,4 @@
-import type { RouteBadge } from '@via/contract';
+import type { DepartureGroup, RouteBadge } from '@via/contract';
 import { expect, test } from 'bun:test';
 
 import { toDepartureGroups } from './mappers';
@@ -7,7 +7,9 @@ import type { NormalizedVisit } from './prim/parse';
 const now = new Date('2026-08-12T18:00:00+02:00');
 
 const at = (minutes: number) =>
-  new Date(now.getTime() + minutes * 60_000).toISOString();
+  Math.floor((now.getTime() + minutes * 60_000) / 1_000);
+
+const isoAt = (minutes: number) => new Date(at(minutes) * 1_000).toISOString();
 
 const visit = (routeId: string, destination: string, minutes: number): NormalizedVisit => ({
   routeId,
@@ -39,7 +41,26 @@ test('visits bucket by line and destination, soonest first', () => {
     'Château de Vincennes',
     'La Défense',
   ]);
-  expect(groups[1].departures).toEqual([at(3), at(7)]);
+  expect(groups[1].departures).toEqual([isoAt(3), isoAt(7)]);
+  expect(groups[1].departureItems.map((item) => item.status)).toEqual(['no_report', 'no_report']);
+});
+
+test('keeps PRIM default onTime neutral without a delay baseline', () => {
+  const groups = toDepartureGroups(
+    [
+      {
+        routeId: 'IDFM:C01371',
+        destination: 'La Défense',
+        expectedAt: at(5),
+        providerStatus: 'on_time',
+      },
+    ],
+    [badge('IDFM:C01371')],
+    now
+  );
+
+  expect(groups[0]?.departureItems[0]).toMatchObject({ status: 'no_report' });
+  expect(groups[0]?.departureItems[0]).not.toHaveProperty('delaySeconds');
 });
 
 test("other lines' visits in the same payload are filtered out", () => {
@@ -54,12 +75,13 @@ test("other lines' visits in the same payload are filtered out", () => {
 
 test('what already left is dropped and each group caps at four', () => {
   const groups = toDepartureGroups(
-    [-3, 1, 4, 7, 10, 13].map((minutes) => visit('IDFM:C01371', 'La Défense', minutes)),
+    [-3, 13, 1, 10, 4, 7].map((minutes) => visit('IDFM:C01371', 'La Défense', minutes)),
     [badge('IDFM:C01371')],
     now
   );
 
-  expect(groups[0].departures).toEqual([at(1), at(4), at(7), at(10)]);
+  expect(groups[0].departures).toEqual([isoAt(1), isoAt(4), isoAt(7), isoAt(10)]);
+  expect(groups[0].departureItems).toHaveLength(4);
 });
 
 test("each group carries its line's badge", () => {
@@ -70,4 +92,108 @@ test("each group carries its line's badge", () => {
   );
 
   expect(groups[0].route).toEqual(badge('IDFM:C01371'));
+});
+
+test('computed timing wins over a contradictory provider timing status', () => {
+  const groups = toDepartureGroups(
+    [
+      {
+        routeId: 'IDFM:C01371',
+        destination: 'La Défense',
+        scheduledAt: at(5),
+        expectedAt: at(8),
+        providerStatus: 'on_time',
+      },
+    ],
+    [badge('IDFM:C01371')],
+    now,
+    'IDFM:71264'
+  );
+
+  expect(groups[0].departureItems[0]).toMatchObject({
+    status: 'delayed',
+    delaySeconds: 180,
+  });
+});
+
+test('cancellations without a timestamp remain visible', () => {
+  const groups = toDepartureGroups(
+    [
+      {
+        routeId: 'IDFM:C01371',
+        destination: 'La Défense',
+        providerStatus: 'cancelled',
+      },
+    ],
+    [badge('IDFM:C01371')],
+    now,
+    'IDFM:71264'
+  );
+
+  expect(groups[0].departureItems).toHaveLength(1);
+  expect(groups[0].departureItems[0]).toMatchObject({ status: 'cancelled' });
+  expect(groups[0].departures).toEqual([]);
+});
+
+test('arrived and departed passages are hidden from the future board', () => {
+  const groups = toDepartureGroups(
+    [
+      {
+        routeId: 'IDFM:C01371',
+        destination: 'La Défense',
+        expectedAt: at(5),
+        providerStatus: 'arrived',
+      },
+      {
+        routeId: 'IDFM:C01371',
+        destination: 'La Défense',
+        expectedAt: at(6),
+        providerStatus: 'departed',
+      },
+    ],
+    [badge('IDFM:C01371')],
+    now
+  );
+
+  expect(groups).toEqual([]);
+});
+
+test('matches a realtime estimate to the GTFS baseline and computes the delay', () => {
+  const route = badge('IDFM:C01371');
+  const scheduledAt = isoAt(5);
+  const theoretical: DepartureGroup[] = [
+    {
+      route,
+      destination: 'La Défense',
+      departures: [scheduledAt],
+      departureItems: [
+        {
+          id: 'scheduled',
+          scheduledAt,
+          status: 'scheduled',
+        },
+      ],
+    },
+  ];
+
+  const groups = toDepartureGroups(
+    [
+      {
+        routeId: route.id,
+        destination: 'La Défense',
+        expectedAt: at(8),
+      },
+    ],
+    [route],
+    now,
+    'IDFM:71264',
+    theoretical
+  );
+
+  expect(groups[0]?.departureItems[0]).toMatchObject({
+    scheduledAt,
+    expectedAt: isoAt(8),
+    status: 'delayed',
+    delaySeconds: 180,
+  });
 });

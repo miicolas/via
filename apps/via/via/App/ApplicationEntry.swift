@@ -5,6 +5,7 @@ import SwiftUI
 struct ApplicationEntry: App {
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
+    private let searchRepository: any SearchRepository
 
     init() {
         let dependencies = Self.makeDependencies()
@@ -18,13 +19,15 @@ struct ApplicationEntry: App {
                 departuresRepository: dependencies.departuresRepository
             )
         )
+        searchRepository = dependencies.searchRepository
     }
 
     var body: some Scene {
         WindowGroup {
             MapShellView(
                 networkViewModel: networkViewModel,
-                stationsViewModel: stationsViewModel
+                stationsViewModel: stationsViewModel,
+                searchRepository: searchRepository
             )
         }
     }
@@ -36,7 +39,8 @@ struct ApplicationEntry: App {
                     coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
                 ),
                 networkRepository: InMemoryNetworkRepository.mapPreview,
-                departuresRepository: InMemoryDeparturesRepository.stationsPreview
+                departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+                searchRepository: InMemorySearchRepository.preview
             )
         }
 
@@ -50,7 +54,8 @@ struct ApplicationEntry: App {
         return Dependencies(
             locationAdapter: CoreLocationAdapter(),
             networkRepository: networkRepository,
-            departuresRepository: LiveDeparturesRepository(transport: transport)
+            departuresRepository: LiveDeparturesRepository(transport: transport),
+            searchRepository: LiveSearchRepository(transport: transport)
         )
     }
 
@@ -58,5 +63,6 @@ struct ApplicationEntry: App {
         let locationAdapter: any LocationAdapter
         let networkRepository: any NetworkRepository
         let departuresRepository: any DeparturesRepository
+        let searchRepository: any SearchRepository
     }
 }

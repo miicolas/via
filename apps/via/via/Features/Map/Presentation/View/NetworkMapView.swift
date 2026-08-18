@@ -84,12 +84,6 @@ struct NetworkMapView: View {
                         phase: .ended
                     )
                 }
-
-                if case .loading = viewModel.state.loading {
-                    NetworkRefreshPill()
-                        .padding(.top, 16)
-                        .allowsHitTesting(false)
-                }
             }
         }
     }

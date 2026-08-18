@@ -76,7 +76,8 @@ enum StationOverviewBuilder {
                 routes: candidate.routes,
                 now: now
             ),
-            departureSource: board.source
+            departureSource: board.source,
+            departureFetchedAt: board.fetchedAt
         )
     }
 
@@ -90,21 +91,35 @@ enum StationOverviewBuilder {
 
         for group in board.groups {
             guard routes.contains(where: { $0.id == group.route.id }) else { continue }
-            guard let departureAt = group.departures.filter({ $0 >= now }).min() else { continue }
 
             let route = routes.first(where: { $0.id == group.route.id }) ?? group.route
+            let items = group.departureItems.filter { item in
+                guard !item.status.isHiddenFromBoard else { return false }
+                guard let displayAt = item.displayAt else {
+                    return item.status == .cancelled || item.status == .missed
+                }
+                return displayAt >= now || item.status == .cancelled || item.status == .missed
+            }
+
+            guard let item = items.min(by: { lhs, rhs in isEarlier(lhs, than: rhs) }) else {
+                continue
+            }
             let key = DepartureKey(routeID: route.id, destination: group.destination)
             let departure = StationDeparture(
+                id: item.id,
                 route: route,
                 destination: group.destination,
-                departureAt: departureAt
+                scheduledAt: item.scheduledAt,
+                expectedAt: item.expectedAt,
+                delaySeconds: item.delaySeconds,
+                status: item.status
             )
 
             if earliestByDirection[key] == nil {
                 directionOrder.append(key)
             }
 
-            if let current = earliestByDirection[key], current.departureAt <= departureAt {
+            if let current = earliestByDirection[key], !isEarlier(departure, than: current) {
                 continue
             }
             earliestByDirection[key] = departure
@@ -114,6 +129,38 @@ enum StationOverviewBuilder {
             directionOrder
                 .filter { $0.routeID == route.id }
                 .compactMap { earliestByDirection[$0] }
+        }
+    }
+
+    private static func isEarlier(
+        _ lhs: DepartureItem,
+        than rhs: DepartureItem
+    ) -> Bool {
+        switch (lhs.displayAt, rhs.displayAt) {
+        case let (lhs?, rhs?):
+            return lhs < rhs
+        case (nil, _?):
+            return false
+        case (_?, nil):
+            return true
+        case (nil, nil):
+            return false
+        }
+    }
+
+    private static func isEarlier(
+        _ lhs: StationDeparture,
+        than rhs: StationDeparture
+    ) -> Bool {
+        switch (lhs.departureAt, rhs.departureAt) {
+        case let (lhs?, rhs?):
+            return lhs < rhs
+        case (nil, _?):
+            return false
+        case (_?, nil):
+            return true
+        case (nil, nil):
+            return false
         }
     }
 }

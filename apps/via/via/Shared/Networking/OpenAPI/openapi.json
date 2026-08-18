@@ -653,6 +653,10 @@
                       "type": "string",
                       "format": "date-time"
                     },
+                    "fetchedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
                     "groups": {
                       "type": "array",
                       "items": {
@@ -702,12 +706,57 @@
                               "type": "string",
                               "format": "date-time"
                             }
+                          },
+                          "departureItems": {
+                            "type": "array",
+                            "maxItems": 4,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "scheduledAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "expectedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "delaySeconds": {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                "status": {
+                                  "enum": [
+                                    "on_time",
+                                    "delayed",
+                                    "early",
+                                    "cancelled",
+                                    "missed",
+                                    "arrived",
+                                    "departed",
+                                    "no_report",
+                                    "scheduled"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "status"
+                              ]
+                            }
                           }
                         },
                         "required": [
                           "route",
                           "destination",
-                          "departures"
+                          "departures",
+                          "departureItems"
                         ]
                       }
                     }
