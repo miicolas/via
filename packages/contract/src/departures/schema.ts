@@ -10,6 +10,30 @@ export const departuresInputSchema = z.object({
   stationId: z.string().min(1),
 });
 
+export const departureStatusSchema = z.enum([
+  'on_time',
+  'delayed',
+  'early',
+  'cancelled',
+  'missed',
+  'arrived',
+  'departed',
+  'no_report',
+  'scheduled',
+]);
+
+export const departureItemSchema = z.object({
+  /** Stable opaque identity used by clients when an estimate changes. */
+  id: z.string().min(1),
+  /** Theoretical departure time, when the provider supplies one. */
+  scheduledAt: z.iso.datetime({ offset: true }).optional(),
+  /** Realtime expected departure time, when the provider supplies one. */
+  expectedAt: z.iso.datetime({ offset: true }).optional(),
+  /** Signed Expected - Scheduled difference, in seconds. */
+  delaySeconds: z.number().int().optional(),
+  status: departureStatusSchema,
+});
+
 export const departureGroupSchema = z.object({
   /** The line's badge, ready to render without another fetch. */
   route: routeBadgeSchema,
@@ -18,8 +42,10 @@ export const departureGroupSchema = z.object({
    * ISO timestamps of the next departures, soonest first. Timestamps rather
    * than minutes: the payload crosses a shared cache, so the client derives
    * the countdown from its own clock instead of trusting a stale delta.
-   */
+  */
   departures: z.array(z.iso.datetime({ offset: true })).max(DEPARTURES_PER_GROUP),
+  /** Enriched passage data; `departures` remains during the public transition. */
+  departureItems: z.array(departureItemSchema).max(DEPARTURES_PER_GROUP),
 });
 
 export const departuresResponseSchema = z.object({
@@ -30,5 +56,7 @@ export const departuresResponseSchema = z.object({
    */
   source: z.enum(['realtime', 'theoretical', 'unavailable']),
   generatedAt: z.iso.datetime({ offset: true }),
+  /** Upstream retrieval time; omitted for theoretical and unavailable boards. */
+  fetchedAt: z.iso.datetime({ offset: true }).optional(),
   groups: z.array(departureGroupSchema),
 });

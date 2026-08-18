@@ -1,57 +1,125 @@
 import type { NormalizedVisit } from './prim/parse';
+import type { RouteBadge } from '@via/contract';
 import type { RedisClient } from '../../redis';
 
-const LOCK_TTL_SECONDS = 3;
-const LOCK_RETRY_DELAY_MS = 300;
+// PRIM is capped at 2 s; the extra headroom covers the route lookup and Redis
+// round-trip so a slow miss cannot reopen the single-flight window.
+const LOCK_TTL_SECONDS = 5;
+const LOCK_RETRY_DELAY_MS = 100;
 
-type LoadFresh = () => Promise<{ visits: NormalizedVisit[]; ttlSeconds: number } | null>;
+export type CachedStationSnapshot = {
+  visits: NormalizedVisit[];
+  /** Epoch seconds at which the API fetched the upstream payload. */
+  fetchedAt: number;
+  /** The GTFS-derived badges used to render the snapshot. */
+  routes: RouteBadge[];
+};
+
+type LoadFresh = () => Promise<(CachedStationSnapshot & { ttlSeconds: number }) | null>;
 
 /**
  * Read-through cache with a best-effort cross-instance single-flight.
  *
  * Cache hit → serve it. Miss → take a short `SET NX` lock; the winner calls
  * `loadFresh` (budget check + PRIM round-trip) and publishes the result, losers
- * wait one beat and re-read what the winner published. Every failure path —
+ * wait for the bounded request and re-read what the winner published. Every failure path —
  * Redis down, lock contention with nothing published, `loadFresh` returning
  * null — collapses to `null`, which the handler turns into its fallback. N
  * concurrent viewers of one station therefore cost ~1 PRIM request, and never
  * an error.
  */
-export async function visitsThroughCache(
+export async function stationSnapshotThroughCache(
   redis: RedisClient,
   cacheKey: string,
   loadFresh: LoadFresh
-): Promise<NormalizedVisit[] | null> {
+): Promise<CachedStationSnapshot | null> {
   try {
-    const cached = await readVisits(redis, cacheKey);
+    const cached = await readSnapshot(redis, cacheKey);
     if (cached) return cached;
 
-    const lock = await redis.set(`prim:lock:${cacheKey}`, '1', {
+    const lock = await redis.set(`${cacheKey}:lock`, '1', {
       nx: true,
       ex: LOCK_TTL_SECONDS,
     });
 
     if (lock === null) {
-      // Another instance is fetching: give it one beat, then take its result.
-      // Plain setTimeout, not Bun.sleep — Vercel runs this on Node.
-      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
-      return await readVisits(redis, cacheKey);
+      // Another instance is fetching: wait for its bounded PRIM request to
+      // publish the snapshot. Plain setTimeout, not Bun.sleep — Vercel runs
+      // this on Node.
+      return await waitForPublishedSnapshot(redis, cacheKey);
     }
 
-    const fresh = await loadFresh();
-    if (!fresh) return null;
+    let fresh: (CachedStationSnapshot & { ttlSeconds: number }) | null;
+    try {
+      fresh = await loadFresh();
+    } catch (cause) {
+      // Do not make waiters sit on the full lock TTL after an upstream error.
+      await redis.expire(`${cacheKey}:lock`, 1).catch(() => undefined);
+      throw cause;
+    }
+    if (!fresh) {
+      await redis.expire(`${cacheKey}:lock`, 1).catch(() => undefined);
+      return null;
+    }
 
-    await redis.set(`prim:cache:${cacheKey}`, JSON.stringify(fresh.visits), {
+    await redis.set(cacheKey, JSON.stringify({
+      visits: fresh.visits,
+      fetchedAt: fresh.fetchedAt,
+      routes: fresh.routes,
+    }), {
       ex: fresh.ttlSeconds,
     });
-    return fresh.visits;
+    return {
+      visits: fresh.visits,
+      fetchedAt: fresh.fetchedAt,
+      routes: fresh.routes,
+    };
   } catch (cause) {
+    await redis.expire(`${cacheKey}:lock`, 1).catch(() => undefined);
     console.error('[departures] cache Redis indisponible', cause);
     return null;
   }
 }
 
-async function readVisits(redis: RedisClient, cacheKey: string) {
-  const cached = await redis.get<NormalizedVisit[]>(`prim:cache:${cacheKey}`);
-  return cached ?? null;
+async function waitForPublishedSnapshot(
+  redis: RedisClient,
+  cacheKey: string
+): Promise<CachedStationSnapshot | null> {
+  const deadline = Date.now() + LOCK_TTL_SECONDS * 1_000;
+  const lockKey = `${cacheKey}:lock`;
+
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
+
+    const cached = await readSnapshot(redis, cacheKey);
+    if (cached) return cached;
+
+    // A failed winner shortens the lock to one second. Once it expires, fall
+    // back immediately instead of making every waiter burn the whole window.
+    if ((await redis.get<unknown>(lockKey)) === null) return null;
+  }
+
+  return null;
+}
+
+async function readSnapshot(redis: RedisClient, cacheKey: string) {
+  const cached = await redis.get<unknown>(cacheKey);
+  if (!cached || typeof cached !== 'object' || Array.isArray(cached)) return null;
+
+  const candidate = cached as { visits?: unknown; fetchedAt?: unknown; routes?: unknown };
+  if (
+    !Array.isArray(candidate.visits) ||
+    typeof candidate.fetchedAt !== 'number' ||
+    !Number.isFinite(candidate.fetchedAt) ||
+    !Array.isArray(candidate.routes) ||
+    candidate.routes.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    visits: candidate.visits as NormalizedVisit[],
+    fetchedAt: candidate.fetchedAt,
+    routes: candidate.routes as RouteBadge[],
+  } satisfies CachedStationSnapshot;
 }

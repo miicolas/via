@@ -8,6 +8,8 @@ struct StationDetailView: View {
     @Binding var detailDetent: PresentationDetent
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isFavorite = false
 
     var body: some View {
         NavigationStack {
@@ -24,6 +26,11 @@ struct StationDetailView: View {
 
                         Text(currentStation.sourceText)
                             .font(.caption)
+
+                        DepartureFreshnessView(
+                            source: currentStation.departureSource,
+                            fetchedAt: currentStation.departureFetchedAt
+                        )
                     }
                     .foregroundStyle(.gray)
 
@@ -91,25 +98,6 @@ struct StationDetailView: View {
                         .compositingGroup()
                         .opacity(0.5)
                     }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Image(systemName: "star.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(.orange)
-
-                        Text("Favoris")
-                            .fontWeight(.bold)
-
-                        Divider()
-                            .padding(.vertical, 4)
-
-                        Toggle("Ajouter aux stations favorites", isOn: .constant(false))
-                            .font(.callout)
-                            .foregroundStyle(.gray)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.regularMaterial, in: .rect(cornerRadius: 20))
                 }
                 .padding([.horizontal, .bottom], 15)
                 .padding(.top, 12)
@@ -122,6 +110,28 @@ struct StationDetailView: View {
                         dismiss()
                     }
                 }
+
+                ToolbarItem(placement: .bottomBar) {
+                    Button {
+                        isFavorite.toggle()
+                    } label: {
+                        Image(systemName: isFavorite ? "star.fill" : "star")
+                            .contentTransition(
+                                reduceMotion
+                                    ? .identity
+                                    : .symbolEffect(
+                                        .replace.magic(fallback: .offUp.byLayer),
+                                        options: .nonRepeating
+                                    )
+                            )
+                    }
+                    .tint(isFavorite ? .orange : .primary)
+                    .accessibilityLabel("Favoris")
+                    .accessibilityValue(isFavorite ? "Ajoutée" : "Non ajoutée")
+                    .accessibilityHint("Ajoute ou retire cette station des favoris.")
+                }
+
+                ToolbarSpacer(.flexible, placement: .bottomBar)
             }
         }
         .presentationDetents(detents, selection: $detailDetent)

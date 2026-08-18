@@ -14,9 +14,11 @@ extension MKCoordinateRegion {
 struct MapShellView: View {
     let networkViewModel: NetworkViewModel
     let stationsViewModel: StationsViewModel
+    let searchRepository: any SearchRepository
 
     @State private var showTabSheet: Bool = true
     @State private var activeTab: MapShellTab = .stations
+    @State private var previousTab: MapShellTab = .stations
     @State private var selectedStation: StationOverview?
     @State private var position: MapCameraPosition = .region(.paris)
     @State private var selectedMapStation: StationMapItem?
@@ -25,6 +27,16 @@ struct MapShellView: View {
     // The reference opens with the map still visible above the content sheet.
     @State private var activeDetent: PresentationDetent = .fraction(0.45)
     @State private var detailSheetDetent: PresentationDetent = .height(80)
+
+    init(
+        networkViewModel: NetworkViewModel,
+        stationsViewModel: StationsViewModel,
+        searchRepository: any SearchRepository = InMemorySearchRepository.preview
+    ) {
+        self.networkViewModel = networkViewModel
+        self.stationsViewModel = stationsViewModel
+        self.searchRepository = searchRepository
+    }
 
     var body: some View {
         NetworkMapView(
@@ -71,10 +83,21 @@ struct MapShellView: View {
                     }
 
                     Tab(value: MapShellTab.search, role: .search) {
-                        SearchView()
+                        SearchView(
+                            repository: searchRepository,
+                            onClose: closeSearch
+                        )
                     }
                 }
                 .adaptiveSheet(380, isActive: isLargeScreen)
+            }
+            .onChange(of: activeTab) { oldValue, newValue in
+                if newValue == .search, oldValue != .search {
+                    previousTab = oldValue
+                    activeDetent = isLargeScreen ? .fraction(0.97) : .large
+                } else if oldValue == .search, newValue != .search {
+                    activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
+                }
             }
             .onGeometryChange(for: Bool.self) {
                 $0.size.width > 600
@@ -94,6 +117,10 @@ struct MapShellView: View {
 
                 isLargeScreen = newValue
             }
+    }
+
+    private func closeSearch() {
+        activeTab = previousTab
     }
 }
 

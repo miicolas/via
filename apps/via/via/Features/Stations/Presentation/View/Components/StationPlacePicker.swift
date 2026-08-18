@@ -1,47 +1,25 @@
 import SwiftUI
 
-enum StationPlaceShortcut: String, CaseIterable, Hashable, Identifiable {
-    case home
-    case work
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .home:
-            "Maison"
-        case .work:
-            "Travail"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .home:
-            "house.fill"
-        case .work:
-            "briefcase.fill"
-        }
-    }
-}
-
 struct StationPlacePicker: View {
     @Binding private var selection: StationPlaceShortcut?
 
+    private let shortcuts: [StationPlaceShortcut]
     private let onAddPlace: () -> Void
 
     init(
         selection: Binding<StationPlaceShortcut?>,
+        shortcuts: [StationPlaceShortcut] = [.home, .work],
         onAddPlace: @escaping () -> Void = {}
     ) {
         _selection = selection
+        self.shortcuts = shortcuts
         self.onAddPlace = onAddPlace
     }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(StationPlaceShortcut.allCases) { shortcut in
+                ForEach(shortcuts) { shortcut in
                     shortcutButton(for: shortcut)
                 }
 

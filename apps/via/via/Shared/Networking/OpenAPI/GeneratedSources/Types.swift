@@ -1306,6 +1306,8 @@ internal enum Operations {
                         internal var source: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.sourcePayload
                         /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/generatedAt`.
                         internal var generatedAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/fetchedAt`.
+                        internal var fetchedAt: Foundation.Date?
                         /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload`.
                         internal struct groupsPayloadPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/route`.
@@ -1363,25 +1365,86 @@ internal enum Operations {
                             internal var destination: Swift.String
                             /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departures`.
                             internal var departures: [Foundation.Date]
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItemsPayload`.
+                            internal struct departureItemsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItemsPayload/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItemsPayload/scheduledAt`.
+                                internal var scheduledAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItemsPayload/expectedAt`.
+                                internal var expectedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItemsPayload/delaySeconds`.
+                                internal var delaySeconds: Swift.Int?
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItemsPayload/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case on_time = "on_time"
+                                    case delayed = "delayed"
+                                    case early = "early"
+                                    case cancelled = "cancelled"
+                                    case missed = "missed"
+                                    case arrived = "arrived"
+                                    case departed = "departed"
+                                    case no_report = "no_report"
+                                    case scheduled = "scheduled"
+                                }
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItemsPayload/status`.
+                                internal var status: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayloadPayload.departureItemsPayloadPayload.statusPayload
+                                /// Creates a new `departureItemsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - scheduledAt:
+                                ///   - expectedAt:
+                                ///   - delaySeconds:
+                                ///   - status:
+                                internal init(
+                                    id: Swift.String,
+                                    scheduledAt: Foundation.Date? = nil,
+                                    expectedAt: Foundation.Date? = nil,
+                                    delaySeconds: Swift.Int? = nil,
+                                    status: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayloadPayload.departureItemsPayloadPayload.statusPayload
+                                ) {
+                                    self.id = id
+                                    self.scheduledAt = scheduledAt
+                                    self.expectedAt = expectedAt
+                                    self.delaySeconds = delaySeconds
+                                    self.status = status
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case scheduledAt
+                                    case expectedAt
+                                    case delaySeconds
+                                    case status
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItems`.
+                            internal typealias departureItemsPayload = [Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayloadPayload.departureItemsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/departureItems`.
+                            internal var departureItems: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayloadPayload.departureItemsPayload
                             /// Creates a new `groupsPayloadPayload`.
                             ///
                             /// - Parameters:
                             ///   - route:
                             ///   - destination:
                             ///   - departures:
+                            ///   - departureItems:
                             internal init(
                                 route: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayloadPayload.routePayload,
                                 destination: Swift.String,
-                                departures: [Foundation.Date]
+                                departures: [Foundation.Date],
+                                departureItems: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayloadPayload.departureItemsPayload
                             ) {
                                 self.route = route
                                 self.destination = destination
                                 self.departures = departures
+                                self.departureItems = departureItems
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case route
                                 case destination
                                 case departures
+                                case departureItems
                             }
                         }
                         /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groups`.
@@ -1393,19 +1456,23 @@ internal enum Operations {
                         /// - Parameters:
                         ///   - source:
                         ///   - generatedAt:
+                        ///   - fetchedAt:
                         ///   - groups:
                         internal init(
                             source: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.sourcePayload,
                             generatedAt: Foundation.Date,
+                            fetchedAt: Foundation.Date? = nil,
                             groups: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayload
                         ) {
                             self.source = source
                             self.generatedAt = generatedAt
+                            self.fetchedAt = fetchedAt
                             self.groups = groups
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case source
                             case generatedAt
+                            case fetchedAt
                             case groups
                         }
                     }

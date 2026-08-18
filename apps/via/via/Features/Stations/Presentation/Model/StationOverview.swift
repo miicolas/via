@@ -1,12 +1,42 @@
 import Foundation
 
 struct StationDeparture: Sendable, Hashable, Identifiable {
+    let id: String
     let route: RouteBadge
     let destination: String
-    let departureAt: Date
+    let scheduledAt: Date?
+    let departureAt: Date?
+    let delaySeconds: Int?
+    let status: DepartureStatus
 
-    var id: String {
-        "\(route.id.rawValue):\(destination):\(departureAt.timeIntervalSince1970)"
+    init(
+        id: String,
+        route: RouteBadge,
+        destination: String,
+        scheduledAt: Date?,
+        expectedAt: Date?,
+        delaySeconds: Int?,
+        status: DepartureStatus
+    ) {
+        self.id = id
+        self.route = route
+        self.destination = destination
+        self.scheduledAt = scheduledAt
+        self.departureAt = expectedAt ?? scheduledAt
+        self.delaySeconds = delaySeconds
+        self.status = status
+    }
+
+    init(route: RouteBadge, destination: String, departureAt: Date) {
+        self.init(
+            id: "legacy-\(route.id.rawValue)-\(destination)-\(departureAt.timeIntervalSince1970)",
+            route: route,
+            destination: destination,
+            scheduledAt: departureAt,
+            expectedAt: nil,
+            delaySeconds: nil,
+            status: .noReport
+        )
     }
 }
 
@@ -18,6 +48,27 @@ struct StationOverview: Sendable, Hashable, Identifiable {
     let distanceMeters: Double
     let departures: [StationDeparture]
     let departureSource: DepartureBoard.Source
+    let departureFetchedAt: Date?
+
+    init(
+        id: StationID,
+        name: String,
+        coordinate: GeoCoordinate,
+        routes: [RouteBadge],
+        distanceMeters: Double,
+        departures: [StationDeparture],
+        departureSource: DepartureBoard.Source,
+        departureFetchedAt: Date? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.coordinate = coordinate
+        self.routes = routes
+        self.distanceMeters = distanceMeters
+        self.departures = departures
+        self.departureSource = departureSource
+        self.departureFetchedAt = departureFetchedAt
+    }
 
     var primaryMode: TransitMode {
         routes.first?.mode ?? .metro
@@ -90,9 +141,13 @@ extension StationOverview {
             distanceMeters: 250,
             departures: [
                 StationDeparture(
+                    id: "preview-delayed",
                     route: metro1,
                     destination: "La Défense",
-                    departureAt: now.addingTimeInterval(4 * 60)
+                    scheduledAt: now.addingTimeInterval(2 * 60),
+                    expectedAt: now.addingTimeInterval(4 * 60),
+                    delaySeconds: 120,
+                    status: .delayed
                 ),
                 StationDeparture(
                     route: metro4,
@@ -105,7 +160,8 @@ extension StationOverview {
                     departureAt: now.addingTimeInterval(12 * 60)
                 ),
             ],
-            departureSource: .realtime
+            departureSource: .realtime,
+            departureFetchedAt: now.addingTimeInterval(-18)
         )
     }()
 }

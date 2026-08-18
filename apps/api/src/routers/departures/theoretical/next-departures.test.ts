@@ -44,6 +44,10 @@ test('departures group by line and headsign, soonest first', async () => {
     '2026-08-12T16:04:00.000Z',
     '2026-08-12T16:08:00.000Z',
   ]);
+  expect(groups[1].departureItems.map((item) => item.status)).toEqual([
+    'scheduled',
+    'scheduled',
+  ]);
 });
 
 test("just past midnight, yesterday's service still supplies the trains", async () => {

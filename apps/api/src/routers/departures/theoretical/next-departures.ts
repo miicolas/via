@@ -29,14 +29,18 @@ type LoadRows = (
 export async function nextTheoreticalDepartures(
   now: Date,
   stationRoutes: RouteBadge[],
-  loadRows: LoadRows
+  loadRows: LoadRows,
+  stationId = '',
+  lookBehindSeconds = 0
 ): Promise<DepartureGroup[]> {
   const { date, seconds } = parisDay(now);
   const yesterdayDate = previousDate(date);
+  const todayAfterSeconds = Math.max(0, seconds - lookBehindSeconds);
+  const yesterdayAfterSeconds = Math.max(0, seconds + 86_400 - lookBehindSeconds);
 
   const [today, yesterday] = await Promise.all([
-    loadRows(date, seconds, ROW_LIMIT),
-    loadRows(yesterdayDate, seconds + 86_400, ROW_LIMIT),
+    loadRows(date, todayAfterSeconds, ROW_LIMIT),
+    loadRows(yesterdayDate, yesterdayAfterSeconds, ROW_LIMIT),
   ]);
 
   return groupDepartures(
@@ -46,8 +50,10 @@ export async function nextTheoreticalDepartures(
     ].map(({ row, serviceDate }) => ({
       routeId: row.routeId,
       destination: row.headsign,
-      at: toInstant(serviceDate, row.departureSeconds),
+      scheduledAt: Math.floor(Date.parse(toInstant(serviceDate, row.departureSeconds)) / 1_000),
+      status: 'scheduled' as const,
     })),
-    stationRoutes
+    stationRoutes,
+    stationId
   );
 }
