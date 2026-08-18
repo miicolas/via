@@ -16,7 +16,7 @@ struct StationDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 15) {
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 6) {
+                        AnnotationFlowLayout(spacing: 6, maximumLineWidth: .infinity) {
                             ForEach(currentStation.routes) { route in
                                 LineBadgeView(route: route)
                             }
