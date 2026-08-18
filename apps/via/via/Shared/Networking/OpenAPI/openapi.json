@@ -1296,6 +1296,496 @@
         }
       }
     },
+    "/lines/statuses": {
+      "get": {
+        "operationId": "lines.statuses",
+        "summary": "État des lignes ferrées",
+        "description": "Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.",
+        "tags": [
+          "lines"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "enum": [
+                        "live",
+                        "unavailable"
+                      ],
+                      "type": "string"
+                    },
+                    "fetchedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "route": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "shortName": {
+                                "type": "string"
+                              },
+                              "mode": {
+                                "enum": [
+                                  "metro",
+                                  "rer",
+                                  "transilien",
+                                  "tram",
+                                  "bus"
+                                ],
+                                "type": "string"
+                              },
+                              "color": {
+                                "type": "string"
+                              },
+                              "textColor": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "shortName",
+                              "mode",
+                              "color",
+                              "textColor"
+                            ]
+                          },
+                          "condition": {
+                            "enum": [
+                              "normal",
+                              "attention",
+                              "disrupted",
+                              "suspended"
+                            ],
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          },
+                          "activeCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "upcoming": {
+                            "type": "object",
+                            "properties": {
+                              "beginsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "beginsAt"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "route",
+                          "condition",
+                          "activeCount"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "lines"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lines/search": {
+      "get": {
+        "operationId": "lines.search",
+        "summary": "Recherche de lignes",
+        "description": "Lignes de tous modes — bus compris — dont le code ou le nom correspond à la requête, avec le même niveau de service que `statuses`.",
+        "tags": [
+          "lines"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 10
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "enum": [
+                        "live",
+                        "unavailable"
+                      ],
+                      "type": "string"
+                    },
+                    "fetchedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "lines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "route": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "shortName": {
+                                "type": "string"
+                              },
+                              "mode": {
+                                "enum": [
+                                  "metro",
+                                  "rer",
+                                  "transilien",
+                                  "tram",
+                                  "bus"
+                                ],
+                                "type": "string"
+                              },
+                              "color": {
+                                "type": "string"
+                              },
+                              "textColor": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "shortName",
+                              "mode",
+                              "color",
+                              "textColor"
+                            ]
+                          },
+                          "condition": {
+                            "enum": [
+                              "normal",
+                              "attention",
+                              "disrupted",
+                              "suspended"
+                            ],
+                            "type": "string"
+                          },
+                          "summary": {
+                            "type": "string"
+                          },
+                          "activeCount": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "upcoming": {
+                            "type": "object",
+                            "properties": {
+                              "beginsAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "title": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "beginsAt"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "route",
+                          "condition",
+                          "activeCount"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "source",
+                    "lines"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lines/detail": {
+      "get": {
+        "operationId": "lines.detail",
+        "summary": "Détail d’une ligne",
+        "description": "Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.",
+        "tags": [
+          "lines"
+        ],
+        "parameters": [
+          {
+            "name": "lineId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "route": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "shortName": {
+                          "type": "string"
+                        },
+                        "mode": {
+                          "enum": [
+                            "metro",
+                            "rer",
+                            "transilien",
+                            "tram",
+                            "bus"
+                          ],
+                          "type": "string"
+                        },
+                        "color": {
+                          "type": "string"
+                        },
+                        "textColor": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "shortName",
+                        "mode",
+                        "color",
+                        "textColor"
+                      ]
+                    },
+                    "branches": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "directionId": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "headsign": {
+                            "type": "string"
+                          },
+                          "isCanonical": {
+                            "type": "boolean"
+                          },
+                          "stops": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "directionId",
+                          "headsign",
+                          "isCanonical",
+                          "stops"
+                        ]
+                      }
+                    },
+                    "source": {
+                      "enum": [
+                        "live",
+                        "unavailable"
+                      ],
+                      "type": "string"
+                    },
+                    "fetchedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "disruptions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "severity": {
+                            "enum": [
+                              "attention",
+                              "disrupted",
+                              "suspended"
+                            ],
+                            "type": "string"
+                          },
+                          "activity": {
+                            "enum": [
+                              "active",
+                              "upcoming"
+                            ],
+                            "type": "string"
+                          },
+                          "cause": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "periods": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "beginsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "endsAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "beginsAt",
+                                "endsAt"
+                              ]
+                            }
+                          },
+                          "impactedSections": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "fromStopId": {
+                                  "type": "string"
+                                },
+                                "fromName": {
+                                  "type": "string"
+                                },
+                                "toStopId": {
+                                  "type": "string"
+                                },
+                                "toName": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "fromStopId",
+                                "fromName",
+                                "toStopId",
+                                "toName"
+                              ]
+                            }
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "severity",
+                          "activity",
+                          "periods",
+                          "impactedSections"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "route",
+                    "branches",
+                    "source",
+                    "disruptions"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/natural-journeys": {
       "post": {
         "operationId": "naturalJourneys.submit",

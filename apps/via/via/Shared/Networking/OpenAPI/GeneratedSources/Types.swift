@@ -47,6 +47,27 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /journeys`.
     /// - Remark: Generated from `#/paths//journeys/get(journeys.plan)`.
     func journeys_period_plan(_ input: Operations.journeys_period_plan.Input) async throws -> Operations.journeys_period_plan.Output
+    /// État des lignes ferrées
+    ///
+    /// Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.
+    ///
+    /// - Remark: HTTP `GET /lines/statuses`.
+    /// - Remark: Generated from `#/paths//lines/statuses/get(lines.statuses)`.
+    func lines_period_statuses(_ input: Operations.lines_period_statuses.Input) async throws -> Operations.lines_period_statuses.Output
+    /// Recherche de lignes
+    ///
+    /// Lignes de tous modes — bus compris — dont le code ou le nom correspond à la requête, avec le même niveau de service que `statuses`.
+    ///
+    /// - Remark: HTTP `GET /lines/search`.
+    /// - Remark: Generated from `#/paths//lines/search/get(lines.search)`.
+    func lines_period_search(_ input: Operations.lines_period_search.Input) async throws -> Operations.lines_period_search.Output
+    /// Détail d’une ligne
+    ///
+    /// Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.
+    ///
+    /// - Remark: HTTP `GET /lines/detail`.
+    /// - Remark: Generated from `#/paths//lines/detail/get(lines.detail)`.
+    func lines_period_detail(_ input: Operations.lines_period_detail.Input) async throws -> Operations.lines_period_detail.Output
     /// Comprendre et calculer un itinéraire en langage naturel
     ///
     /// Interprète une phrase française, clarifie les lieux ou le sens temporel si nécessaire, puis calcule un itinéraire vérifié.
@@ -144,6 +165,45 @@ extension APIProtocol {
         headers: Operations.journeys_period_plan.Input.Headers = .init()
     ) async throws -> Operations.journeys_period_plan.Output {
         try await journeys_period_plan(Operations.journeys_period_plan.Input(
+            query: query,
+            headers: headers
+        ))
+    }
+    /// État des lignes ferrées
+    ///
+    /// Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.
+    ///
+    /// - Remark: HTTP `GET /lines/statuses`.
+    /// - Remark: Generated from `#/paths//lines/statuses/get(lines.statuses)`.
+    internal func lines_period_statuses(headers: Operations.lines_period_statuses.Input.Headers = .init()) async throws -> Operations.lines_period_statuses.Output {
+        try await lines_period_statuses(Operations.lines_period_statuses.Input(headers: headers))
+    }
+    /// Recherche de lignes
+    ///
+    /// Lignes de tous modes — bus compris — dont le code ou le nom correspond à la requête, avec le même niveau de service que `statuses`.
+    ///
+    /// - Remark: HTTP `GET /lines/search`.
+    /// - Remark: Generated from `#/paths//lines/search/get(lines.search)`.
+    internal func lines_period_search(
+        query: Operations.lines_period_search.Input.Query,
+        headers: Operations.lines_period_search.Input.Headers = .init()
+    ) async throws -> Operations.lines_period_search.Output {
+        try await lines_period_search(Operations.lines_period_search.Input(
+            query: query,
+            headers: headers
+        ))
+    }
+    /// Détail d’une ligne
+    ///
+    /// Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.
+    ///
+    /// - Remark: HTTP `GET /lines/detail`.
+    /// - Remark: Generated from `#/paths//lines/detail/get(lines.detail)`.
+    internal func lines_period_detail(
+        query: Operations.lines_period_detail.Input.Query,
+        headers: Operations.lines_period_detail.Input.Headers = .init()
+    ) async throws -> Operations.lines_period_detail.Output {
+        try await lines_period_detail(Operations.lines_period_detail.Input(
             query: query,
             headers: headers
         ))
@@ -2438,6 +2498,1000 @@ internal enum Operations {
             /// - Throws: An error if `self` is not `.ok`.
             /// - SeeAlso: `.ok`.
             internal var ok: Operations.journeys_period_plan.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// État des lignes ferrées
+    ///
+    /// Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.
+    ///
+    /// - Remark: HTTP `GET /lines/statuses`.
+    /// - Remark: Generated from `#/paths//lines/statuses/get(lines.statuses)`.
+    internal enum lines_period_statuses {
+        internal static let id: Swift.String = "lines.statuses"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/lines/statuses/GET/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.lines_period_statuses.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.lines_period_statuses.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.lines_period_statuses.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            internal init(headers: Operations.lines_period_statuses.Input.Headers = .init()) {
+                self.headers = headers
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/source`.
+                        internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case live = "live"
+                            case unavailable = "unavailable"
+                        }
+                        /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/source`.
+                        internal var source: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.sourcePayload
+                        /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/fetchedAt`.
+                        internal var fetchedAt: Foundation.Date?
+                        /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload`.
+                        internal struct linesPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/route`.
+                            internal struct routePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/route/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/route/shortName`.
+                                internal var shortName: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/route/mode`.
+                                internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case metro = "metro"
+                                    case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
+                                    case bus = "bus"
+                                }
+                                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/route/mode`.
+                                internal var mode: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload.routePayload.modePayload
+                                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/route/color`.
+                                internal var color: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/route/textColor`.
+                                internal var textColor: Swift.String
+                                /// Creates a new `routePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - shortName:
+                                ///   - mode:
+                                ///   - color:
+                                ///   - textColor:
+                                internal init(
+                                    id: Swift.String,
+                                    shortName: Swift.String,
+                                    mode: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload.routePayload.modePayload,
+                                    color: Swift.String,
+                                    textColor: Swift.String
+                                ) {
+                                    self.id = id
+                                    self.shortName = shortName
+                                    self.mode = mode
+                                    self.color = color
+                                    self.textColor = textColor
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case shortName
+                                    case mode
+                                    case color
+                                    case textColor
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/route`.
+                            internal var route: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload.routePayload
+                            /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/condition`.
+                            internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case normal = "normal"
+                                case attention = "attention"
+                                case disrupted = "disrupted"
+                                case suspended = "suspended"
+                            }
+                            /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/condition`.
+                            internal var condition: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload.conditionPayload
+                            /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/summary`.
+                            internal var summary: Swift.String?
+                            /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/activeCount`.
+                            internal var activeCount: Swift.Int
+                            /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/upcoming`.
+                            internal struct upcomingPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/upcoming/beginsAt`.
+                                internal var beginsAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/upcoming/title`.
+                                internal var title: Swift.String?
+                                /// Creates a new `upcomingPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - beginsAt:
+                                ///   - title:
+                                internal init(
+                                    beginsAt: Foundation.Date,
+                                    title: Swift.String? = nil
+                                ) {
+                                    self.beginsAt = beginsAt
+                                    self.title = title
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case beginsAt
+                                    case title
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/linesPayload/upcoming`.
+                            internal var upcoming: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload.upcomingPayload?
+                            /// Creates a new `linesPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - route:
+                            ///   - condition:
+                            ///   - summary:
+                            ///   - activeCount:
+                            ///   - upcoming:
+                            internal init(
+                                route: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload.routePayload,
+                                condition: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload.conditionPayload,
+                                summary: Swift.String? = nil,
+                                activeCount: Swift.Int,
+                                upcoming: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload.upcomingPayload? = nil
+                            ) {
+                                self.route = route
+                                self.condition = condition
+                                self.summary = summary
+                                self.activeCount = activeCount
+                                self.upcoming = upcoming
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case route
+                                case condition
+                                case summary
+                                case activeCount
+                                case upcoming
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/lines`.
+                        internal typealias linesPayload = [Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/json/lines`.
+                        internal var lines: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayload
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - source:
+                        ///   - fetchedAt:
+                        ///   - lines:
+                        internal init(
+                            source: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.sourcePayload,
+                            fetchedAt: Foundation.Date? = nil,
+                            lines: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.linesPayload
+                        ) {
+                            self.source = source
+                            self.fetchedAt = fetchedAt
+                            self.lines = lines
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case source
+                            case fetchedAt
+                            case lines
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/lines/statuses/GET/responses/200/content/application\/json`.
+                    case json(Operations.lines_period_statuses.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.lines_period_statuses.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.lines_period_statuses.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.lines_period_statuses.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//lines/statuses/get(lines.statuses)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.lines_period_statuses.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.lines_period_statuses.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Recherche de lignes
+    ///
+    /// Lignes de tous modes — bus compris — dont le code ou le nom correspond à la requête, avec le même niveau de service que `statuses`.
+    ///
+    /// - Remark: HTTP `GET /lines/search`.
+    /// - Remark: Generated from `#/paths//lines/search/get(lines.search)`.
+    internal enum lines_period_search {
+        internal static let id: Swift.String = "lines.search"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/lines/search/GET/query`.
+            internal struct Query: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/lines/search/GET/query/q`.
+                internal var q: Swift.String
+                /// - Remark: Generated from `#/paths/lines/search/GET/query/limit`.
+                internal var limit: Swift.Int?
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - q:
+                ///   - limit:
+                internal init(
+                    q: Swift.String,
+                    limit: Swift.Int? = nil
+                ) {
+                    self.q = q
+                    self.limit = limit
+                }
+            }
+            internal var query: Operations.lines_period_search.Input.Query
+            /// - Remark: Generated from `#/paths/lines/search/GET/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.lines_period_search.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.lines_period_search.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.lines_period_search.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            internal init(
+                query: Operations.lines_period_search.Input.Query,
+                headers: Operations.lines_period_search.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/source`.
+                        internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case live = "live"
+                            case unavailable = "unavailable"
+                        }
+                        /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/source`.
+                        internal var source: Operations.lines_period_search.Output.Ok.Body.jsonPayload.sourcePayload
+                        /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/fetchedAt`.
+                        internal var fetchedAt: Foundation.Date?
+                        /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload`.
+                        internal struct linesPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/route`.
+                            internal struct routePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/route/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/route/shortName`.
+                                internal var shortName: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/route/mode`.
+                                internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case metro = "metro"
+                                    case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
+                                    case bus = "bus"
+                                }
+                                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/route/mode`.
+                                internal var mode: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload.routePayload.modePayload
+                                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/route/color`.
+                                internal var color: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/route/textColor`.
+                                internal var textColor: Swift.String
+                                /// Creates a new `routePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - shortName:
+                                ///   - mode:
+                                ///   - color:
+                                ///   - textColor:
+                                internal init(
+                                    id: Swift.String,
+                                    shortName: Swift.String,
+                                    mode: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload.routePayload.modePayload,
+                                    color: Swift.String,
+                                    textColor: Swift.String
+                                ) {
+                                    self.id = id
+                                    self.shortName = shortName
+                                    self.mode = mode
+                                    self.color = color
+                                    self.textColor = textColor
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case shortName
+                                    case mode
+                                    case color
+                                    case textColor
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/route`.
+                            internal var route: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload.routePayload
+                            /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/condition`.
+                            internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case normal = "normal"
+                                case attention = "attention"
+                                case disrupted = "disrupted"
+                                case suspended = "suspended"
+                            }
+                            /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/condition`.
+                            internal var condition: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload.conditionPayload
+                            /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/summary`.
+                            internal var summary: Swift.String?
+                            /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/activeCount`.
+                            internal var activeCount: Swift.Int
+                            /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/upcoming`.
+                            internal struct upcomingPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/upcoming/beginsAt`.
+                                internal var beginsAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/upcoming/title`.
+                                internal var title: Swift.String?
+                                /// Creates a new `upcomingPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - beginsAt:
+                                ///   - title:
+                                internal init(
+                                    beginsAt: Foundation.Date,
+                                    title: Swift.String? = nil
+                                ) {
+                                    self.beginsAt = beginsAt
+                                    self.title = title
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case beginsAt
+                                    case title
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/linesPayload/upcoming`.
+                            internal var upcoming: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload.upcomingPayload?
+                            /// Creates a new `linesPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - route:
+                            ///   - condition:
+                            ///   - summary:
+                            ///   - activeCount:
+                            ///   - upcoming:
+                            internal init(
+                                route: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload.routePayload,
+                                condition: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload.conditionPayload,
+                                summary: Swift.String? = nil,
+                                activeCount: Swift.Int,
+                                upcoming: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload.upcomingPayload? = nil
+                            ) {
+                                self.route = route
+                                self.condition = condition
+                                self.summary = summary
+                                self.activeCount = activeCount
+                                self.upcoming = upcoming
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case route
+                                case condition
+                                case summary
+                                case activeCount
+                                case upcoming
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/lines`.
+                        internal typealias linesPayload = [Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/json/lines`.
+                        internal var lines: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayload
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - source:
+                        ///   - fetchedAt:
+                        ///   - lines:
+                        internal init(
+                            source: Operations.lines_period_search.Output.Ok.Body.jsonPayload.sourcePayload,
+                            fetchedAt: Foundation.Date? = nil,
+                            lines: Operations.lines_period_search.Output.Ok.Body.jsonPayload.linesPayload
+                        ) {
+                            self.source = source
+                            self.fetchedAt = fetchedAt
+                            self.lines = lines
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case source
+                            case fetchedAt
+                            case lines
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/lines/search/GET/responses/200/content/application\/json`.
+                    case json(Operations.lines_period_search.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.lines_period_search.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.lines_period_search.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.lines_period_search.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//lines/search/get(lines.search)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.lines_period_search.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.lines_period_search.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Détail d’une ligne
+    ///
+    /// Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.
+    ///
+    /// - Remark: HTTP `GET /lines/detail`.
+    /// - Remark: Generated from `#/paths//lines/detail/get(lines.detail)`.
+    internal enum lines_period_detail {
+        internal static let id: Swift.String = "lines.detail"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/lines/detail/GET/query`.
+            internal struct Query: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/lines/detail/GET/query/lineId`.
+                internal var lineId: Swift.String
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - lineId:
+                internal init(lineId: Swift.String) {
+                    self.lineId = lineId
+                }
+            }
+            internal var query: Operations.lines_period_detail.Input.Query
+            /// - Remark: Generated from `#/paths/lines/detail/GET/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.lines_period_detail.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.lines_period_detail.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.lines_period_detail.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            internal init(
+                query: Operations.lines_period_detail.Input.Query,
+                headers: Operations.lines_period_detail.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/route`.
+                        internal struct routePayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/route/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/route/shortName`.
+                            internal var shortName: Swift.String
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/route/mode`.
+                            internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case metro = "metro"
+                                case rer = "rer"
+                                case transilien = "transilien"
+                                case tram = "tram"
+                                case bus = "bus"
+                            }
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/route/mode`.
+                            internal var mode: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.routePayload.modePayload
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/route/color`.
+                            internal var color: Swift.String
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/route/textColor`.
+                            internal var textColor: Swift.String
+                            /// Creates a new `routePayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - shortName:
+                            ///   - mode:
+                            ///   - color:
+                            ///   - textColor:
+                            internal init(
+                                id: Swift.String,
+                                shortName: Swift.String,
+                                mode: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.routePayload.modePayload,
+                                color: Swift.String,
+                                textColor: Swift.String
+                            ) {
+                                self.id = id
+                                self.shortName = shortName
+                                self.mode = mode
+                                self.color = color
+                                self.textColor = textColor
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case shortName
+                                case mode
+                                case color
+                                case textColor
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/route`.
+                        internal var route: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.routePayload
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload`.
+                        internal struct branchesPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/directionId`.
+                            internal var directionId: Swift.Int
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/headsign`.
+                            internal var headsign: Swift.String
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/isCanonical`.
+                            internal var isCanonical: Swift.Bool
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/stopsPayload`.
+                            internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/stopsPayload/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/stopsPayload/name`.
+                                internal var name: Swift.String
+                                /// Creates a new `stopsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - name:
+                                internal init(
+                                    id: Swift.String,
+                                    name: Swift.String
+                                ) {
+                                    self.id = id
+                                    self.name = name
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case name
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/stops`.
+                            internal typealias stopsPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayloadPayload.stopsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branchesPayload/stops`.
+                            internal var stops: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayloadPayload.stopsPayload
+                            /// Creates a new `branchesPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - directionId:
+                            ///   - headsign:
+                            ///   - isCanonical:
+                            ///   - stops:
+                            internal init(
+                                id: Swift.String,
+                                directionId: Swift.Int,
+                                headsign: Swift.String,
+                                isCanonical: Swift.Bool,
+                                stops: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayloadPayload.stopsPayload
+                            ) {
+                                self.id = id
+                                self.directionId = directionId
+                                self.headsign = headsign
+                                self.isCanonical = isCanonical
+                                self.stops = stops
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case directionId
+                                case headsign
+                                case isCanonical
+                                case stops
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branches`.
+                        internal typealias branchesPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branches`.
+                        internal var branches: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayload
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/source`.
+                        internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case live = "live"
+                            case unavailable = "unavailable"
+                        }
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/source`.
+                        internal var source: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.sourcePayload
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/fetchedAt`.
+                        internal var fetchedAt: Foundation.Date?
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload`.
+                        internal struct disruptionsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/severity`.
+                            internal enum severityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case attention = "attention"
+                                case disrupted = "disrupted"
+                                case suspended = "suspended"
+                            }
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/severity`.
+                            internal var severity: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.severityPayload
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/activity`.
+                            internal enum activityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case active = "active"
+                                case upcoming = "upcoming"
+                            }
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/activity`.
+                            internal var activity: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.activityPayload
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/cause`.
+                            internal var cause: Swift.String?
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/title`.
+                            internal var title: Swift.String?
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/message`.
+                            internal var message: Swift.String?
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/periodsPayload`.
+                            internal struct periodsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/periodsPayload/beginsAt`.
+                                internal var beginsAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/periodsPayload/endsAt`.
+                                internal var endsAt: Foundation.Date
+                                /// Creates a new `periodsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - beginsAt:
+                                ///   - endsAt:
+                                internal init(
+                                    beginsAt: Foundation.Date,
+                                    endsAt: Foundation.Date
+                                ) {
+                                    self.beginsAt = beginsAt
+                                    self.endsAt = endsAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case beginsAt
+                                    case endsAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/periods`.
+                            internal typealias periodsPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.periodsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/periods`.
+                            internal var periods: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.periodsPayload
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/impactedSectionsPayload`.
+                            internal struct impactedSectionsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/impactedSectionsPayload/fromStopId`.
+                                internal var fromStopId: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/impactedSectionsPayload/fromName`.
+                                internal var fromName: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/impactedSectionsPayload/toStopId`.
+                                internal var toStopId: Swift.String
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/impactedSectionsPayload/toName`.
+                                internal var toName: Swift.String
+                                /// Creates a new `impactedSectionsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - fromStopId:
+                                ///   - fromName:
+                                ///   - toStopId:
+                                ///   - toName:
+                                internal init(
+                                    fromStopId: Swift.String,
+                                    fromName: Swift.String,
+                                    toStopId: Swift.String,
+                                    toName: Swift.String
+                                ) {
+                                    self.fromStopId = fromStopId
+                                    self.fromName = fromName
+                                    self.toStopId = toStopId
+                                    self.toName = toName
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case fromStopId
+                                    case fromName
+                                    case toStopId
+                                    case toName
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/impactedSections`.
+                            internal typealias impactedSectionsPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.impactedSectionsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/impactedSections`.
+                            internal var impactedSections: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.impactedSectionsPayload
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptionsPayload/updatedAt`.
+                            internal var updatedAt: Foundation.Date?
+                            /// Creates a new `disruptionsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - severity:
+                            ///   - activity:
+                            ///   - cause:
+                            ///   - title:
+                            ///   - message:
+                            ///   - periods:
+                            ///   - impactedSections:
+                            ///   - updatedAt:
+                            internal init(
+                                id: Swift.String,
+                                severity: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.severityPayload,
+                                activity: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.activityPayload,
+                                cause: Swift.String? = nil,
+                                title: Swift.String? = nil,
+                                message: Swift.String? = nil,
+                                periods: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.periodsPayload,
+                                impactedSections: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload.impactedSectionsPayload,
+                                updatedAt: Foundation.Date? = nil
+                            ) {
+                                self.id = id
+                                self.severity = severity
+                                self.activity = activity
+                                self.cause = cause
+                                self.title = title
+                                self.message = message
+                                self.periods = periods
+                                self.impactedSections = impactedSections
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case severity
+                                case activity
+                                case cause
+                                case title
+                                case message
+                                case periods
+                                case impactedSections
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptions`.
+                        internal typealias disruptionsPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/disruptions`.
+                        internal var disruptions: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayload
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - route:
+                        ///   - branches:
+                        ///   - source:
+                        ///   - fetchedAt:
+                        ///   - disruptions:
+                        internal init(
+                            route: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.routePayload,
+                            branches: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayload,
+                            source: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.sourcePayload,
+                            fetchedAt: Foundation.Date? = nil,
+                            disruptions: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayload
+                        ) {
+                            self.route = route
+                            self.branches = branches
+                            self.source = source
+                            self.fetchedAt = fetchedAt
+                            self.disruptions = disruptions
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case route
+                            case branches
+                            case source
+                            case fetchedAt
+                            case disruptions
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/application\/json`.
+                    case json(Operations.lines_period_detail.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.lines_period_detail.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.lines_period_detail.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.lines_period_detail.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//lines/detail/get(lines.detail)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.lines_period_detail.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.lines_period_detail.Output.Ok {
                 get throws {
                     switch self {
                     case let .ok(response):

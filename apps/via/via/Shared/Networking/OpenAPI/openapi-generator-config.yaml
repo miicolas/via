@@ -11,6 +11,9 @@ filter:
     - departures.forStation
     - health
     - journeys.plan
+    - lines.detail
+    - lines.search
+    - lines.statuses
     - naturalJourneys.submit
     - network.railMap
     - network.stationsInArea
