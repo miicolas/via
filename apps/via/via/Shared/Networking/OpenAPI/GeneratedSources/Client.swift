@@ -430,6 +430,213 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// État des lignes ferrées
+    ///
+    /// Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.
+    ///
+    /// - Remark: HTTP `GET /lines/statuses`.
+    /// - Remark: Generated from `#/paths//lines/statuses/get(lines.statuses)`.
+    internal func lines_period_statuses(_ input: Operations.lines_period_statuses.Input) async throws -> Operations.lines_period_statuses.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.lines_period_statuses.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/lines/statuses",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.lines_period_statuses.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.lines_period_statuses.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Recherche de lignes
+    ///
+    /// Lignes de tous modes — bus compris — dont le code ou le nom correspond à la requête, avec le même niveau de service que `statuses`.
+    ///
+    /// - Remark: HTTP `GET /lines/search`.
+    /// - Remark: Generated from `#/paths//lines/search/get(lines.search)`.
+    internal func lines_period_search(_ input: Operations.lines_period_search.Input) async throws -> Operations.lines_period_search.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.lines_period_search.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/lines/search",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "q",
+                    value: input.query.q
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "limit",
+                    value: input.query.limit
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.lines_period_search.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.lines_period_search.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Détail d’une ligne
+    ///
+    /// Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.
+    ///
+    /// - Remark: HTTP `GET /lines/detail`.
+    /// - Remark: Generated from `#/paths//lines/detail/get(lines.detail)`.
+    internal func lines_period_detail(_ input: Operations.lines_period_detail.Input) async throws -> Operations.lines_period_detail.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.lines_period_detail.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/lines/detail",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "lineId",
+                    value: input.query.lineId
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.lines_period_detail.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.lines_period_detail.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
     /// Comprendre et calculer un itinéraire en langage naturel
     ///
     /// Interprète une phrase française, clarifie les lieux ou le sens temporel si nécessaire, puis calcule un itinéraire vérifié.
