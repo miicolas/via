@@ -45,7 +45,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
     let name: String
     let coordinate: GeoCoordinate
     let routes: [RouteBadge]
-    let distanceMeters: Double
+    let distanceMeters: Double?
     let departures: [StationDeparture]
     let departureSource: DepartureBoard.Source
     let departureFetchedAt: Date?
@@ -55,7 +55,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         name: String,
         coordinate: GeoCoordinate,
         routes: [RouteBadge],
-        distanceMeters: Double,
+        distanceMeters: Double?,
         departures: [StationDeparture],
         departureSource: DepartureBoard.Source,
         departureFetchedAt: Date? = nil
@@ -74,7 +74,9 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         routes.first?.mode ?? .metro
     }
 
-    var distanceText: String {
+    var distanceText: String? {
+        guard let distanceMeters else { return nil }
+
         let formatter = MeasurementFormatter()
         formatter.locale = Locale(identifier: "fr_FR")
         formatter.unitOptions = .providedUnit

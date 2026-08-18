@@ -91,6 +91,14 @@ struct MapShellView: View {
                 }
                 .adaptiveSheet(380, isActive: isLargeScreen)
             }
+            .onChange(of: selectedMapStation) { _, newValue in
+                guard let newValue else { return }
+                // Clear right away so re-tapping the same annotation reopens the sheet.
+                selectedMapStation = nil
+                activeTab = .stations
+                detailSheetDetent = isLargeScreen ? .fraction(0.97) : .large
+                selectedStation = stationsViewModel.selectStation(newValue)
+            }
             .onChange(of: activeTab) { oldValue, newValue in
                 if newValue == .search, oldValue != .search {
                     previousTab = oldValue
