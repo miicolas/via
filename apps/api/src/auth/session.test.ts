@@ -50,7 +50,10 @@ describe("authentication middleware", () => {
     expect(lookupCount).toBe(0);
   });
 
-  test("rejects a protected route when Better Auth cannot validate the Bearer", async () => {
+  // HOTFIX(no-account): les requêtes anonymes passent tant que l'app est
+  // utilisable sans compte. Restaurer les assertions 401 commentées en
+  // réactivant le rejet dans session.ts.
+  test("lets an anonymous request through while accounts are optional", async () => {
     const app = new Hono<AppEnv>();
     app.use(
       "*",
@@ -63,13 +66,15 @@ describe("authentication middleware", () => {
 
     const response = await app.request("/api/search");
 
-    expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({
-      error: {
-        code: "unauthorized",
-        message: "Une connexion Apple valide est requise.",
-      },
-    });
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("protected");
+    // expect(response.status).toBe(401);
+    // expect(await response.json()).toEqual({
+    //   error: {
+    //     code: "unauthorized",
+    //     message: "Une connexion Apple valide est requise.",
+    //   },
+    // });
   });
 
   test("forwards a renewed signed Bearer and marks protected responses private", async () => {
