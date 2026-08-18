@@ -169,6 +169,9 @@ enum StationOverviewBuilder {
 @Observable
 final class StationsViewModel {
     private(set) var state: StationsViewState = .idle
+    /// Overview of a station explicitly picked on the map, independent from
+    /// the nearest-station flow driving `state`.
+    private(set) var selectedOverview: StationOverview?
 
     @ObservationIgnored private let locationAdapter: any LocationAdapter
     @ObservationIgnored private let networkRepository: any NetworkRepository
@@ -179,6 +182,8 @@ final class StationsViewModel {
     @ObservationIgnored private var stationCandidate: StationCandidate?
     @ObservationIgnored private var refreshGeneration = 0
     @ObservationIgnored private var hasStarted = false
+    @ObservationIgnored private var lastKnownCoordinate: GeoCoordinate?
+    @ObservationIgnored private var selectionTask: Task<Void, Never>?
 
     init(
         locationAdapter: any LocationAdapter,
@@ -232,8 +237,61 @@ final class StationsViewModel {
     }
 
     func overview(for stationID: StationID) -> StationOverview? {
-        guard let overview = state.overview, overview.id == stationID else { return nil }
-        return overview
+        if let overview = state.overview, overview.id == stationID {
+            return overview
+        }
+        if let selectedOverview, selectedOverview.id == stationID {
+            return selectedOverview
+        }
+        return nil
+    }
+
+    /// Builds an overview for a station picked on the map and fetches its
+    /// departure board in the background. Returns immediately with a
+    /// placeholder so the detail sheet can open without waiting.
+    func selectStation(_ item: StationMapItem) -> StationOverview {
+        if let overview = state.overview, overview.id == item.id {
+            return overview
+        }
+
+        let placeholder = StationOverview(
+            id: item.id,
+            name: item.name,
+            coordinate: item.coordinate,
+            routes: item.routes,
+            distanceMeters: lastKnownCoordinate.map { item.coordinate.metersAway(from: $0) },
+            departures: [],
+            departureSource: .unavailable
+        )
+        selectedOverview = placeholder
+
+        selectionTask?.cancel()
+        let departuresRepository = self.departuresRepository
+        selectionTask = Task { [weak self] in
+            guard let board = try? await departuresRepository.board(stationID: item.id) else {
+                return
+            }
+
+            guard let self, !Task.isCancelled,
+                  self.selectedOverview?.id == item.id else { return }
+
+            self.selectedOverview = StationOverview(
+                id: placeholder.id,
+                name: placeholder.name,
+                coordinate: placeholder.coordinate,
+                routes: placeholder.routes,
+                distanceMeters: placeholder.distanceMeters,
+                departures: StationOverviewBuilder.nextDepartures(
+                    from: board,
+                    routes: placeholder.routes,
+                    now: self.now()
+                ),
+                departureSource: board.source,
+                departureFetchedAt: board.fetchedAt
+            )
+        }
+
+        return placeholder
     }
 
     private func requestLocation() {
@@ -264,6 +322,7 @@ final class StationsViewModel {
                 state = .locationUnavailable(authorization)
             }
         case .located(let coordinate):
+            lastKnownCoordinate = coordinate
             loadStations(near: coordinate)
         case .failed(let authorization):
             state = .locationUnavailable(authorization)

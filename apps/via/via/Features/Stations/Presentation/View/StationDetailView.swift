@@ -22,7 +22,9 @@ struct StationDetailView: View {
                             }
                         }
 
-                        Text(currentStation.distanceText)
+                        if let distanceText = currentStation.distanceText {
+                            Text(distanceText)
+                        }
 
                         Text(currentStation.sourceText)
                             .font(.caption)
@@ -88,7 +90,7 @@ struct StationDetailView: View {
                             Text("Itinéraire")
                                 .fontWeight(.bold)
 
-                            Text(currentStation.distanceText)
+                            Text(currentStation.distanceText ?? "Vers cette station")
                                 .font(.callout)
                                 .foregroundStyle(.gray)
                         }
