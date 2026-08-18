@@ -1,0 +1,111 @@
+import Foundation
+
+struct StationDeparture: Sendable, Hashable, Identifiable {
+    let route: RouteBadge
+    let destination: String
+    let departureAt: Date
+
+    var id: String {
+        "\(route.id.rawValue):\(destination):\(departureAt.timeIntervalSince1970)"
+    }
+}
+
+struct StationOverview: Sendable, Hashable, Identifiable {
+    let id: StationID
+    let name: String
+    let coordinate: GeoCoordinate
+    let routes: [RouteBadge]
+    let distanceMeters: Double
+    let departures: [StationDeparture]
+    let departureSource: DepartureBoard.Source
+
+    var primaryMode: TransitMode {
+        routes.first?.mode ?? .metro
+    }
+
+    var distanceText: String {
+        let formatter = MeasurementFormatter()
+        formatter.locale = Locale(identifier: "fr_FR")
+        formatter.unitOptions = .providedUnit
+        formatter.numberFormatter.maximumFractionDigits = distanceMeters >= 1_000 ? 1 : 0
+        formatter.numberFormatter.minimumFractionDigits = 0
+
+        if distanceMeters >= 1_000 {
+            return formatter.string(
+                from: Measurement(value: distanceMeters / 1_000, unit: UnitLength.kilometers)
+            )
+        }
+
+        return formatter.string(
+            from: Measurement(value: distanceMeters, unit: UnitLength.meters)
+        )
+    }
+
+    var sourceText: String {
+        switch departureSource {
+        case .realtime:
+            "Temps réel"
+        case .theoretical:
+            "Théorique"
+        case .unavailable:
+            "Horaires indisponibles"
+        }
+    }
+
+    func departures(for route: RouteBadge) -> [StationDeparture] {
+        departures.filter { $0.route.id == route.id }
+    }
+}
+
+extension StationOverview {
+    static let preview: Self = {
+        let metro1 = RouteBadge(
+            id: RouteID(rawValue: "preview:metro:1"),
+            shortName: "1",
+            mode: .metro,
+            colorHex: "#FFCD00",
+            textColorHex: "#000000"
+        )
+        let metro4 = RouteBadge(
+            id: RouteID(rawValue: "preview:metro:4"),
+            shortName: "4",
+            mode: .metro,
+            colorHex: "#B42C91",
+            textColorHex: "#FFFFFF"
+        )
+        let metro11 = RouteBadge(
+            id: RouteID(rawValue: "preview:metro:11"),
+            shortName: "11",
+            mode: .metro,
+            colorHex: "#8D5E2A",
+            textColorHex: "#FFFFFF"
+        )
+        let now = Date.now
+
+        return Self(
+            id: StationID(rawValue: "preview:chatelet"),
+            name: "Châtelet",
+            coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470),
+            routes: [metro1, metro4, metro11],
+            distanceMeters: 250,
+            departures: [
+                StationDeparture(
+                    route: metro1,
+                    destination: "La Défense",
+                    departureAt: now.addingTimeInterval(4 * 60)
+                ),
+                StationDeparture(
+                    route: metro4,
+                    destination: "Bagneux",
+                    departureAt: now.addingTimeInterval(7 * 60)
+                ),
+                StationDeparture(
+                    route: metro11,
+                    destination: "Mairie des Lilas",
+                    departureAt: now.addingTimeInterval(12 * 60)
+                ),
+            ],
+            departureSource: .realtime
+        )
+    }()
+}

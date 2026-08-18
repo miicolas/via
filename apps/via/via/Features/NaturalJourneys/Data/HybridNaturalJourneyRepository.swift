@@ -27,7 +27,7 @@ struct HybridNaturalJourneyRepository: NaturalJourneyRepository {
             } catch NaturalIntentParsingError.cancelled {
                 throw CancellationError()
             } catch let parsingError as NaturalIntentParsingError {
-                ViaLog.ai.notice(
+                AppLog.ai.notice(
                     "natural journey fallback=server reason=\(Self.label(parsingError), privacy: .public)"
                 )
                 return try await submitRemote(
@@ -38,13 +38,13 @@ struct HybridNaturalJourneyRepository: NaturalJourneyRepository {
             } catch is CancellationError {
                 throw CancellationError()
             } catch let error as ViaError {
-                ViaLog.ai.error(
+                AppLog.ai.error(
                     "natural journey path=on_device transport_error=\(String(describing: error), privacy: .public)"
                 )
                 throw error
             }
         case .unavailable(let reason):
-            ViaLog.ai.notice(
+            AppLog.ai.notice(
                 "natural journey path=server local_unavailable=\(Self.label(reason), privacy: .public)"
             )
             return try await submitRemote(
@@ -69,12 +69,12 @@ struct HybridNaturalJourneyRepository: NaturalJourneyRepository {
         } catch {
             guard let unavailableReason,
                   let explanation = Self.doubleFailure(for: unavailableReason) else {
-                ViaLog.ai.error(
+                AppLog.ai.error(
                     "natural journey path=server failed_after_fallback=true"
                 )
                 throw error
             }
-            ViaLog.ai.error(
+            AppLog.ai.error(
                 "natural journey paths_failed=true guidance=\(Self.guidanceLabel(explanation.guidance), privacy: .public)"
             )
             return .unavailable(
@@ -109,7 +109,7 @@ struct HybridNaturalJourneyRepository: NaturalJourneyRepository {
         startedAt: Date
     ) {
         let latencyMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
-        ViaLog.ai.info(
+        AppLog.ai.info(
             "natural journey path=\(path, privacy: .public) latency_ms=\(latencyMs) status=\(status(result), privacy: .public) answer_source=\(answerSource(result), privacy: .public)"
         )
     }

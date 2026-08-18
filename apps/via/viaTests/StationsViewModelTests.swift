@@ -1,0 +1,378 @@
+import XCTest
+@testable import Via
+
+final class StationsViewModelTests: XCTestCase {
+    func testNearestStationUsesGeodesicDistanceAndResolvesRoutes() {
+        let location = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let nearestRoute = route(id: "nearest", shortName: "1", mode: .metro)
+        let fartherRoute = route(id: "farther", shortName: "A", mode: .rer)
+        let area = StationsArea(
+            stations: [
+                NetworkStation(
+                    id: StationID(rawValue: "farther-station"),
+                    name: "Farther",
+                    coordinate: GeoCoordinate(latitude: 48.8700, longitude: 2.3522),
+                    routeIDs: [fartherRoute.id]
+                ),
+                NetworkStation(
+                    id: StationID(rawValue: "nearest-station"),
+                    name: "Nearest",
+                    coordinate: GeoCoordinate(latitude: 48.8570, longitude: 2.3522),
+                    routeIDs: [nearestRoute.id]
+                ),
+            ],
+            routes: [fartherRoute, nearestRoute]
+        )
+
+        let candidate = StationOverviewBuilder.nearestStation(in: area, to: location)
+
+        XCTAssertEqual(candidate?.station.id, StationID(rawValue: "nearest-station"))
+        XCTAssertEqual(candidate?.routes, [nearestRoute])
+        XCTAssertLessThan(candidate?.distanceMeters ?? .greatestFiniteMagnitude, 100)
+    }
+
+    func testNextDeparturesKeepsTheEarliestFutureGroupPerRouteAndDestination() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let routeA = route(id: "a", shortName: "1", mode: .metro)
+        let routeB = route(id: "b", shortName: "A", mode: .rer)
+        let board = DepartureBoard(
+            source: .realtime,
+            generatedAt: now,
+            groups: [
+                DepartureGroup(
+                    route: routeA,
+                    destination: "Destination tardive",
+                    departures: [now.addingTimeInterval(900)]
+                ),
+                DepartureGroup(
+                    route: routeA,
+                    destination: "Destination proche",
+                    departures: [now.addingTimeInterval(-60), now.addingTimeInterval(300)]
+                ),
+                DepartureGroup(
+                    route: routeB,
+                    destination: "Sans passage",
+                    departures: [now.addingTimeInterval(-60)]
+                ),
+            ]
+        )
+
+        let departures = StationOverviewBuilder.nextDepartures(
+            from: board,
+            routes: [routeA, routeB],
+            now: now
+        )
+
+        XCTAssertEqual(departures.count, 2)
+        XCTAssertEqual(departures.map(\.route.id), [routeA.id, routeA.id])
+        XCTAssertEqual(
+            departures.map(\.destination),
+            ["Destination tardive", "Destination proche"]
+        )
+        XCTAssertEqual(departures[0].departureAt, now.addingTimeInterval(900))
+        XCTAssertEqual(departures[1].departureAt, now.addingTimeInterval(300))
+    }
+
+    @MainActor
+    func testViewModelLoadsNearestStationAndDepartureBoard() async {
+        let location = InMemoryLocationAdapter(
+            authorization: .authorized,
+            coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        )
+        let route = route(id: "metro-1", shortName: "1", mode: .metro)
+        let station = NetworkStation(
+            id: StationID(rawValue: "station"),
+            name: "Station",
+            coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3522),
+            routeIDs: [route.id]
+        )
+        let network = InMemoryNetworkRepository(
+            area: StationsArea(stations: [station], routes: [route])
+        )
+        let now = Date(timeIntervalSince1970: 2_000_000)
+        let departures = InMemoryDeparturesRepository(
+            board: DepartureBoard(
+                source: .theoretical,
+                generatedAt: now,
+                groups: [
+                    DepartureGroup(
+                        route: route,
+                        destination: "La Défense",
+                        departures: [now.addingTimeInterval(240)]
+                    )
+                ]
+            )
+        )
+        let model = StationsViewModel(
+            locationAdapter: location,
+            networkRepository: network,
+            departuresRepository: departures,
+            now: { now }
+        )
+
+        model.loadIfNeeded()
+        await waitForState(model) { state in
+            if case .loaded = state { return true }
+            return false
+        }
+
+        guard case .loaded(let overview) = model.state else {
+            return XCTFail("Expected a loaded station")
+        }
+        XCTAssertEqual(overview.name, "Station")
+        XCTAssertEqual(overview.departureSource, .theoretical)
+        XCTAssertEqual(overview.departures.first?.destination, "La Défense")
+    }
+
+    @MainActor
+    func testViewModelAutomaticallyRefreshesDepartureBoard() async {
+        let location = InMemoryLocationAdapter(
+            authorization: .authorized,
+            coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        )
+        let route = route(id: "metro-1", shortName: "1", mode: .metro)
+        let station = NetworkStation(
+            id: StationID(rawValue: "station"),
+            name: "Station",
+            coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3522),
+            routeIDs: [route.id]
+        )
+        let now = Date(timeIntervalSince1970: 2_000_000)
+        let firstDeparture = now.addingTimeInterval(240)
+        let updatedDeparture = now.addingTimeInterval(540)
+        let departures = ScriptedDeparturesRepository(
+            boards: [
+                DepartureBoard(
+                    source: .realtime,
+                    generatedAt: now,
+                    groups: [
+                        DepartureGroup(
+                            route: route,
+                            destination: "La Défense",
+                            departures: [firstDeparture]
+                        )
+                    ]
+                ),
+                DepartureBoard(
+                    source: .realtime,
+                    generatedAt: now.addingTimeInterval(30),
+                    groups: [
+                        DepartureGroup(
+                            route: route,
+                            destination: "La Défense",
+                            departures: [updatedDeparture]
+                        )
+                    ]
+                ),
+            ]
+        )
+        let model = StationsViewModel(
+            locationAdapter: location,
+            networkRepository: InMemoryNetworkRepository(
+                area: StationsArea(stations: [station], routes: [route])
+            ),
+            departuresRepository: departures,
+            now: { now }
+        )
+
+        model.loadIfNeeded()
+        await waitForState(model) { state in
+            if case .loaded = state { return true }
+            return false
+        }
+
+        let automaticRefreshTask = Task { @MainActor in
+            await model.runAutomaticRefresh(every: .milliseconds(5))
+        }
+
+        for _ in 0..<100 {
+            if await departures.requestCount() >= 2,
+               model.state.overview?.departures.first?.departureAt == updatedDeparture {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(1))
+        }
+
+        automaticRefreshTask.cancel()
+        await automaticRefreshTask.value
+
+        guard case .loaded(let overview) = model.state else {
+            return XCTFail("Expected an automatically refreshed station")
+        }
+        XCTAssertEqual(overview.departures.first?.departureAt, updatedDeparture)
+    }
+
+    @MainActor
+    func testViewModelExposesEmptyStateWhenNoStationIsReturned() async {
+        let model = StationsViewModel(
+            locationAdapter: InMemoryLocationAdapter(),
+            networkRepository: InMemoryNetworkRepository(
+                area: StationsArea(stations: [], routes: [])
+            ),
+            departuresRepository: InMemoryDeparturesRepository(),
+            now: { Date(timeIntervalSince1970: 2_000_000) }
+        )
+
+        model.loadIfNeeded()
+        await waitForState(model) { $0 == .empty }
+
+        XCTAssertEqual(model.state, .empty)
+    }
+
+    @MainActor
+    func testViewModelKeepsStationWhenDeparturesAreUnavailable() async {
+        let location = InMemoryLocationAdapter()
+        let route = route(id: "metro-1", shortName: "1", mode: .metro)
+        let station = NetworkStation(
+            id: StationID(rawValue: "station"),
+            name: "Station",
+            coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3522),
+            routeIDs: [route.id]
+        )
+        let model = StationsViewModel(
+            locationAdapter: location,
+            networkRepository: InMemoryNetworkRepository(
+                area: StationsArea(stations: [station], routes: [route])
+            ),
+            departuresRepository: FailingDeparturesRepository(),
+            now: { Date(timeIntervalSince1970: 2_000_000) }
+        )
+
+        model.loadIfNeeded()
+        await waitForState(model) { state in
+            if case .loaded = state { return true }
+            return false
+        }
+
+        guard case .loaded(let overview) = model.state else {
+            return XCTFail("Expected the station to remain visible")
+        }
+        XCTAssertEqual(overview.departureSource, .unavailable)
+        XCTAssertTrue(overview.departures.isEmpty)
+    }
+
+    @MainActor
+    func testViewModelExposesNetworkErrorAndRetryLoadsAgain() async {
+        let route = route(id: "metro-1", shortName: "1", mode: .metro)
+        let station = NetworkStation(
+            id: StationID(rawValue: "station"),
+            name: "Station",
+            coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3522),
+            routeIDs: [route.id]
+        )
+        let area = StationsArea(stations: [station], routes: [route])
+        let network = ScriptedNetworkRepository(results: [.failure(.unavailable)])
+        let model = StationsViewModel(
+            locationAdapter: InMemoryLocationAdapter(),
+            networkRepository: network,
+            departuresRepository: InMemoryDeparturesRepository(),
+            now: { Date(timeIntervalSince1970: 2_000_000) }
+        )
+
+        model.loadIfNeeded()
+        await waitForState(model) { state in
+            if case .failed(let error, let previous) = state,
+               error == .unavailable,
+               previous == nil {
+                return true
+            }
+            return false
+        }
+
+        await network.append(.success(area))
+        model.retry()
+        await waitForState(model) { state in
+            if case .loaded = state { return true }
+            return false
+        }
+
+        guard case .loaded(let overview) = model.state else {
+            return XCTFail("Expected retry to load the station")
+        }
+        XCTAssertEqual(overview.id, station.id)
+    }
+
+    @MainActor
+    func testDeniedLocationShowsLocationUnavailable() {
+        let model = StationsViewModel(
+            locationAdapter: InMemoryLocationAdapter(authorization: .denied),
+            networkRepository: InMemoryNetworkRepository.mapPreview,
+            departuresRepository: InMemoryDeparturesRepository.stationsPreview
+        )
+
+        model.loadIfNeeded()
+
+        XCTAssertEqual(model.state, .locationUnavailable(.denied))
+    }
+
+    private func route(id: String, shortName: String, mode: TransitMode) -> RouteBadge {
+        RouteBadge(
+            id: RouteID(rawValue: id),
+            shortName: shortName,
+            mode: mode,
+            colorHex: "#000000",
+            textColorHex: "#FFFFFF"
+        )
+    }
+
+    @MainActor
+    private func waitForState(
+        _ model: StationsViewModel,
+        matching predicate: (StationsViewState) -> Bool
+    ) async {
+        for _ in 0..<50 {
+            if predicate(model.state) { return }
+            await Task.yield()
+        }
+    }
+}
+
+private struct FailingDeparturesRepository: DeparturesRepository {
+    func board(stationID: StationID) async throws -> DepartureBoard {
+        throw ViaError.unavailable
+    }
+}
+
+private actor ScriptedDeparturesRepository: DeparturesRepository {
+    private var boards: [DepartureBoard]
+    private var requests = 0
+
+    init(boards: [DepartureBoard]) {
+        self.boards = boards
+    }
+
+    func board(stationID: StationID) async throws -> DepartureBoard {
+        requests += 1
+        if boards.count > 1 {
+            return boards.removeFirst()
+        }
+        return boards[0]
+    }
+
+    func requestCount() -> Int {
+        requests
+    }
+}
+
+private actor ScriptedNetworkRepository: NetworkRepository {
+    private var results: [Result<StationsArea, ViaError>]
+
+    init(results: [Result<StationsArea, ViaError>]) {
+        self.results = results
+    }
+
+    func railMap() async throws -> TransitNetwork {
+        TransitNetwork(routes: [], stations: [])
+    }
+
+    func viewport(in bounds: GeoBounds) async throws -> StationsArea {
+        guard !results.isEmpty else {
+            return StationsArea(stations: [], routes: [])
+        }
+        return try results.removeFirst().get()
+    }
+
+    func append(_ result: Result<StationsArea, ViaError>) {
+        results.append(result)
+    }
+}

@@ -6,7 +6,7 @@ protocol AccountRemote: Sendable {
 }
 
 struct LiveAccountRemote: AccountRemote {
-    let transport: ViaTransport
+    let transport: APITransport
 
     func synchronize(_ operations: [AccountSyncOperation]) async throws -> AccountSyncResult {
         try await transport.perform("account_sync") { client in
@@ -19,7 +19,7 @@ struct LiveAccountRemote: AccountRemote {
             case .ok(let response):
                 return try transport.convert(response.body.json, to: AccountSyncResult.self)
             case .undocumented(let statusCode, _):
-                throw ViaTransport.error(for: statusCode)
+                throw APITransport.error(for: statusCode)
             }
         }
     }
@@ -35,7 +35,7 @@ struct LiveAccountRemote: AccountRemote {
             case .ok:
                 return
             case .undocumented(let statusCode, _):
-                throw ViaTransport.error(for: statusCode)
+                throw APITransport.error(for: statusCode)
             }
         }
     }

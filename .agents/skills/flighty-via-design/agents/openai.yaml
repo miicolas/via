@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flighty Via Design"
+  short_description: "Flighty native SwiftUI design system and atlas"
+  default_prompt: "Use $flighty-via-design to implement or review Via SwiftUI UI with the Flighty capture atlas, native Apple controls, reusable surfaces, adaptive sheets, and beam behavior."

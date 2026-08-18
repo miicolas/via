@@ -5,7 +5,7 @@ protocol NaturalJourneyRepository: Sendable {
 }
 
 struct LiveNaturalJourneyRepository: NaturalJourneyRepository {
-    let transport: ViaTransport
+    let transport: APITransport
 
     func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
         try await transport.perform("natural_journey") { client in
@@ -31,7 +31,7 @@ struct LiveNaturalJourneyRepository: NaturalJourneyRepository {
                     to: NaturalJourneyResultDTO.self
                 ).domain()
             case .undocumented(let statusCode, _):
-                throw ViaTransport.error(for: statusCode)
+                throw APITransport.error(for: statusCode)
             }
         }
     }
