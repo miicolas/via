@@ -33,7 +33,6 @@ struct SearchDatePickerSheet: View {
                 .padding(.bottom, 32)
             }
             .scrollIndicators(.hidden)
-            .background(Color(.systemBackground))
             .navigationTitle("Ajouter un trajet")
             .navigationSubtitle("Choisissez une date de départ")
             .toolbarTitleDisplayMode(.inlineLarge)
@@ -47,11 +46,9 @@ struct SearchDatePickerSheet: View {
                 }
             }
         }
-        .background(Color(.systemBackground))
         .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
         .presentationCornerRadius(36)
-        .presentationBackground(Color(.systemBackground))
     }
 }
 

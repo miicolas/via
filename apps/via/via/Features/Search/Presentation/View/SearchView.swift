@@ -39,7 +39,7 @@ struct SearchView: View {
             }
             .navigationTitle("Recherche")
             .navigationSubtitle(viewModel.subtitle)
-            .toolbarTitleDisplayMode(.large)
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .largeSubtitle) {
                     departureMenu(viewModel: $viewModel)

@@ -64,8 +64,8 @@ struct NetworkMapState: Sendable, Equatable {
 }
 
 extension NetworkViewport {
-    private static let fullyVisibleStationSpanMeters = 1_100.0
-    private static let maximumStationSpanMeters = 1_400.0
+    private static let fullyVisibleStationSpanMeters = 1_700.0
+    private static let maximumStationSpanMeters = 2_100.0
 
     var showsStations: Bool {
         maximumSpanMeters < Self.maximumStationSpanMeters

@@ -12,6 +12,21 @@ extension TransitMode {
         }
     }
 
+    /// Official Île-de-France Mobilités mode mark used in map annotations.
+    ///
+    /// Keep this separate from `chipSystemImage`: journey chips intentionally
+    /// use compact SF Symbols, while map annotations use the official vector
+    /// marks bundled in the asset catalog.
+    var logoAssetName: String {
+        switch self {
+        case .metro: "TransitModeMetro"
+        case .rer: "TransitModeRER"
+        case .transilien: "TransitModeTransilien"
+        case .tram: "TransitModeTram"
+        case .bus: "TransitModeBus"
+        }
+    }
+
     /// SF Symbol shown on journey segment chips next to the line name.
     var chipSystemImage: String {
         switch self {
