@@ -70,11 +70,6 @@ enum SearchDepartureSelection: Sendable, Hashable {
     }
 }
 
-struct SearchQuery: Sendable, Hashable {
-    let destination: SearchResult
-    let departure: SearchDepartureSelection
-}
-
 @MainActor
 @Observable
 final class SearchViewModel {
@@ -82,6 +77,7 @@ final class SearchViewModel {
     private(set) var results: [SearchResult] = []
     private(set) var loadState: SearchLoadState = .idle
     private(set) var journeyResult: JourneyResult?
+    private(set) var mapPresentation: JourneyMapPresentation?
     private(set) var selectedDestination: SearchResult?
     private(set) var selectedDeparture: SearchDepartureSelection = .currentLocation
 
@@ -90,6 +86,7 @@ final class SearchViewModel {
     @ObservationIgnored private let repository: any SearchRepository
     @ObservationIgnored private let journeyRepository: any JourneyRepository
     @ObservationIgnored private let locationModel: LocationModel
+    @ObservationIgnored private let account: AccountModel?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var journeyTask: Task<Void, Never>?
     @ObservationIgnored private var lastSearchedQuery = ""
@@ -97,23 +94,25 @@ final class SearchViewModel {
     init(
         repository: any SearchRepository,
         journeyRepository: any JourneyRepository,
-        locationModel: LocationModel
+        locationModel: LocationModel,
+        account: AccountModel? = nil
     ) {
         self.repository = repository
         self.journeyRepository = journeyRepository
         self.locationModel = locationModel
+        self.account = account
     }
 
     var subtitle: String {
         "Depuis \(selectedDeparture.title)"
     }
 
-    var searchQuery: SearchQuery? {
-        guard let selectedDestination else { return nil }
-        return SearchQuery(
-            destination: selectedDestination,
-            departure: selectedDeparture
-        )
+    var savedPlaces: [SavedPlace] {
+        account?.places ?? []
+    }
+
+    var selectedJourneyID: JourneyID? {
+        mapPresentation?.id
     }
 
     func updateQuery(_ value: String) {
@@ -187,6 +186,7 @@ final class SearchViewModel {
 
     func selectDestination(_ result: SearchResult) {
         searchTask?.cancel()
+        account?.recordRecentSearch(result)
         selectedDestination = result
         results = []
         loadState = .idle
@@ -201,6 +201,7 @@ final class SearchViewModel {
             : query
         selectedDestination = nil
         journeyResult = nil
+        mapPresentation = nil
         query = editingQuery
         results = []
         loadState = .idle
@@ -224,18 +225,15 @@ final class SearchViewModel {
         planJourney()
     }
 
-    /// Kept as a small compatibility seam for callers that submit an already
-    /// selected query. New UI submits from the destination result directly.
-    @discardableResult
-    func submitSearch() -> SearchQuery? {
-        guard let searchQuery else { return nil }
-        planJourney()
-        return searchQuery
+    func selectJourney(_ journey: Journey) {
+        guard journeyResult?.journeys.contains(where: { $0.id == journey.id }) == true else {
+            return
+        }
+        mapPresentation = JourneyMapPresentation(journey: journey)
     }
 
-    func editSubmittedSearch() {
-        guard selectedDestination != nil else { return }
-        editDestination()
+    func searchPlaces(query: String) async throws -> SearchResponse {
+        try await repository.search(query: query, near: locationModel.coordinate)
     }
 
     private func planJourney() {
@@ -243,6 +241,7 @@ final class SearchViewModel {
 
         journeyTask?.cancel()
         journeyResult = nil
+        mapPresentation = nil
         step = .planning
 
         journeyTask = Task { [weak self] in
@@ -269,6 +268,9 @@ final class SearchViewModel {
                 journeyResult = result
                 switch result.status {
                 case .ready where !result.journeys.isEmpty:
+                    if let firstJourney = result.journeys.first {
+                        selectJourney(firstJourney)
+                    }
                     step = .results
                 case .noRoute, .ready:
                     step = .noRoute

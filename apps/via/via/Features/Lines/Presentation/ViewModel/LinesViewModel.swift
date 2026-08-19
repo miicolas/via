@@ -70,6 +70,13 @@ final class LinesViewModel {
         }
     }
 
+    /// Keeps construction of line detail state behind the browsing module.
+    /// Navigation callers select a route without learning which adapter the
+    /// detail screen needs.
+    func detailViewModel(for route: RouteBadge) -> LineDetailViewModel {
+        LineDetailViewModel(repository: repository, lineID: route.id)
+    }
+
     /// The permanent rail catalogue, one section per mode in display order,
     /// narrowed by the search text.
     var sections: [(mode: TransitMode, lines: [LineStatus])] {

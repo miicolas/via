@@ -11,6 +11,7 @@ import {
   transitTransfers,
   transitTrips,
 } from '@via/db/schema';
+import { absoluteTimetableSeconds } from '@via/db/timetable';
 import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 
 import { parisDay, previousDate } from '../../../time/paris';
@@ -224,12 +225,8 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
               stopId: transitStops.id,
               stopNumericId: transitStops.numericId,
               stopSequence: transitProfileStops.position,
-              arrivalSeconds: sql<number>`${transitTrips.startSeconds} + ${transitProfileStops.arrivalOffset}`.mapWith(
-                Number
-              ),
-              departureSeconds: sql<number>`${transitTrips.startSeconds} + ${transitProfileStops.departureOffset}`.mapWith(
-                Number
-              ),
+              arrivalSeconds: absoluteTimetableSeconds(transitProfileStops.arrivalOffset),
+              departureSeconds: absoluteTimetableSeconds(transitProfileStops.departureOffset),
               name: transitStops.name,
               coordinate: sql<Coordinate>`json_build_object(
                 'latitude', ST_Y(${transitStops.location}),
@@ -361,7 +358,7 @@ async function loadStopTimeCandidates(
     direction === 'board'
       ? transitProfileStops.departureOffset
       : transitProfileStops.arrivalOffset;
-  const column = sql<number>`${transitTrips.startSeconds} + ${offsetColumn}`.mapWith(Number);
+  const column = absoluteTimetableSeconds(offsetColumn);
   const rows = await db
     .select({
       tripId: transitTrips.id,

@@ -15,19 +15,13 @@ struct MapShellView: View {
     let networkViewModel: NetworkViewModel
     let stationsViewModel: StationsViewModel
     let linesViewModel: LinesViewModel
-    let locationModel: LocationModel
-    let accountModel: AccountModel
-    let authSessionViewModel: AuthSessionViewModel
-    let onboardingModel: OnboardingModel
-    let supportDestinations: SupportDestinations
-    let searchRepository: any SearchRepository
-    let journeyRepository: any JourneyRepository
-    let lineStatusRepository: any LineStatusRepository
+    let selectedStationModel: SelectedStationModel
+    let searchViewModel: SearchViewModel
+    let accountHubModel: AccountHubModel
 
     @State private var showTabSheet: Bool = true
     @State private var activeTab: MapShellTab = .stations
     @State private var previousTab: MapShellTab = .stations
-    @State private var selectedStation: StationOverview?
     @State private var position: MapCameraPosition = .region(.paris)
     @State private var selectedMapStation: StationMapItem?
 
@@ -41,32 +35,24 @@ struct MapShellView: View {
         networkViewModel: NetworkViewModel,
         stationsViewModel: StationsViewModel,
         linesViewModel: LinesViewModel,
-        locationModel: LocationModel,
-        accountModel: AccountModel,
-        authSessionViewModel: AuthSessionViewModel,
-        onboardingModel: OnboardingModel,
-        supportDestinations: SupportDestinations,
-        searchRepository: any SearchRepository = InMemorySearchRepository.preview,
-        journeyRepository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
-        lineStatusRepository: any LineStatusRepository = PreviewLineStatusRepository()
+        selectedStationModel: SelectedStationModel,
+        searchViewModel: SearchViewModel,
+        accountHubModel: AccountHubModel
     ) {
         self.networkViewModel = networkViewModel
         self.stationsViewModel = stationsViewModel
         self.linesViewModel = linesViewModel
-        self.locationModel = locationModel
-        self.accountModel = accountModel
-        self.authSessionViewModel = authSessionViewModel
-        self.onboardingModel = onboardingModel
-        self.supportDestinations = supportDestinations
-        self.searchRepository = searchRepository
-        self.journeyRepository = journeyRepository
-        self.lineStatusRepository = lineStatusRepository
+        self.selectedStationModel = selectedStationModel
+        self.searchViewModel = searchViewModel
+        self.accountHubModel = accountHubModel
     }
 
     var body: some View {
         NetworkMapView(
             viewModel: networkViewModel,
             position: $position,
+            stationSelectionEnabled: activeTab != .search,
+            journeyPresentation: activeTab == .search ? searchViewModel.mapPresentation : nil,
             selectedStation: $selectedMapStation
         )
             // Keeps the Apple legal attribution above the collapsed sheet.
@@ -80,14 +66,13 @@ struct MapShellView: View {
                     selection: $activeTab,
                     activeDetent: $activeDetent,
                     isLargeScreen: isLargeScreen,
-                    isAnotherSheetPresenting: selectedStation != nil
+                    isAnotherSheetPresenting: selectedStationModel.overview != nil
                 ) {
                     Tab(value: .stations) {
                         StationsView(
                             viewModel: stationsViewModel,
-                            account: accountModel,
+                            selectedStation: selectedStationModel,
                             isLargeScreen: $isLargeScreen,
-                            selectedStation: $selectedStation,
                             detailDetent: $detailSheetDetent,
                             onOpenSearch: { activeTab = .search },
                             onOpenProfile: { activeTab = .me }
@@ -97,41 +82,27 @@ struct MapShellView: View {
                     }
 
                     Tab(value: .lines) {
-                        LinesView(
-                            viewModel: linesViewModel,
-                            repository: lineStatusRepository
-                        )
+                        LinesView(viewModel: linesViewModel)
                     } label: {
                         MapShellTab.lines.tabLabel
                     }
 
                     Tab(value: .me) {
-                        MeView(
-                            accountModel: accountModel,
-                            authSessionViewModel: authSessionViewModel,
-                            onboardingModel: onboardingModel,
-                            searchRepository: searchRepository,
-                            supportDestinations: supportDestinations,
-                            onOpenSearch: { activeTab = .search }
-                        )
+                        MeView(model: accountHubModel, onOpenSearch: { activeTab = .search })
                     } label: {
                         MapShellTab.me.tabLabel
                     }
 
                     Tab(value: MapShellTab.search, role: .search) {
                         SearchView(
-                            repository: searchRepository,
-                            journeyRepository: journeyRepository,
-                            locationModel: locationModel,
-                            savedPlaces: accountModel.places,
-                            account: accountModel,
+                            viewModel: searchViewModel,
                             onClose: closeSearch
                         )
                     }
                 }
                 .adaptiveSheet(380, isActive: isLargeScreen)
                 .sheet(isPresented: $isOnboardingPresented) {
-                    OnboardingView(model: onboardingModel)
+                    OnboardingView(model: accountHubModel.onboarding)
                 }
             }
             .onChange(of: selectedMapStation) { _, newValue in
@@ -140,7 +111,11 @@ struct MapShellView: View {
                 selectedMapStation = nil
                 activeTab = .stations
                 detailSheetDetent = isLargeScreen ? .fraction(0.97) : .large
-                selectedStation = stationsViewModel.selectStation(newValue)
+                selectedStationModel.select(newValue)
+            }
+            .onChange(of: searchViewModel.mapPresentation) { _, presentation in
+                guard activeTab == .search, let mapRect = presentation?.mapRect else { return }
+                position = .rect(mapRect)
             }
             .onChange(of: activeTab) { oldValue, newValue in
                 if newValue == .search, oldValue != .search {
@@ -173,7 +148,7 @@ struct MapShellView: View {
                 isLargeScreen = newValue
             }
             .task {
-                guard !onboardingModel.isCompleted else { return }
+                guard !accountHubModel.onboarding.isCompleted else { return }
                 isOnboardingPresented = true
             }
     }
@@ -189,39 +164,58 @@ struct MapShellView: View {
             coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
         )
     )
-    let accountModel = AccountModel(
-        remote: InMemoryAccountRemote(),
-        synchronizationEnabled: false
+    let accountModel: AccountModel = {
+        let model = AccountModel(
+            remote: InMemoryAccountRemote(),
+            synchronizationEnabled: false
+        )
+        model.activateAnonymous()
+        return model
+    }()
+    let authSession = AuthSessionViewModel(
+        client: InMemoryAuthenticationClient(
+            session: StoredAuthSession(
+                bearerToken: "preview.token",
+                user: AuthUser(
+                    id: "preview",
+                    appleUserIdentifier: "preview",
+                    name: "Preview",
+                    email: "preview@example.com"
+                ),
+                expiresAt: .distantFuture,
+                lastValidatedAt: .now
+            )
+        ),
+        vault: InMemoryAuthSessionVault(),
+        account: accountModel
     )
+    let departures = InMemoryDeparturesRepository.stationsPreview
 
     MapShellView(
         networkViewModel: NetworkViewModel(repository: InMemoryNetworkRepository.mapPreview),
         stationsViewModel: StationsViewModel(
             locationModel: locationModel,
             networkRepository: InMemoryNetworkRepository.mapPreview,
-            departuresRepository: InMemoryDeparturesRepository.stationsPreview
+            departuresRepository: departures
         ),
         linesViewModel: LinesViewModel(repository: PreviewLineStatusRepository()),
-        locationModel: locationModel,
-        accountModel: accountModel,
-        authSessionViewModel: AuthSessionViewModel(
-            client: InMemoryAuthenticationClient(
-                session: StoredAuthSession(
-                    bearerToken: "preview.token",
-                    user: AuthUser(
-                        id: "preview",
-                        appleUserIdentifier: "preview",
-                        name: "Preview",
-                        email: "preview@example.com"
-                    ),
-                    expiresAt: .distantFuture,
-                    lastValidatedAt: .now
-                )
-            ),
-            vault: InMemoryAuthSessionVault(),
+        selectedStationModel: SelectedStationModel(
+            departuresRepository: departures,
+            account: accountModel,
+            locationModel: locationModel
+        ),
+        searchViewModel: SearchViewModel(
+            repository: InMemorySearchRepository.preview,
+            journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+            locationModel: locationModel,
             account: accountModel
         ),
-        onboardingModel: OnboardingModel(store: OnboardingStore(defaults: .standard)),
-        supportDestinations: .preview
+        accountHubModel: AccountHubModel(
+            account: accountModel,
+            authSession: authSession,
+            onboarding: OnboardingModel(store: OnboardingStore(defaults: .standard)),
+            supportDestinations: .preview,
+            searchRepository: InMemorySearchRepository.preview
+        )
     )
 }

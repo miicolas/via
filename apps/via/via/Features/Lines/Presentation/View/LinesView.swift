@@ -4,7 +4,6 @@ struct LinesView: View {
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
 
     let viewModel: LinesViewModel
-    let repository: any LineStatusRepository
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -43,7 +42,10 @@ struct LinesView: View {
             .toolbarTitleDisplayMode(.inlineLarge)
             .searchable(text: $viewModel.searchText, prompt: "Ligne, mode, bus…")
             .navigationDestination(for: LineStatus.self) { status in
-                LineDetailView(repository: repository, route: status.route)
+                LineDetailView(
+                    viewModel: viewModel.detailViewModel(for: status.route),
+                    route: status.route
+                )
             }
             .overlay {
                 if case .loading(nil) = viewModel.board {
@@ -81,7 +83,6 @@ struct LinesView: View {
     let repository = PreviewLineStatusRepository()
 
     LinesView(
-        viewModel: LinesViewModel(repository: repository),
-        repository: repository
+        viewModel: LinesViewModel(repository: repository)
     )
 }

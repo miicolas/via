@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SearchManualDepartureView: View {
-    let repository: any SearchRepository
+    let searchPlaces: @MainActor (String) async throws -> SearchResponse
     let onSelect: (SearchResult) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -9,6 +9,14 @@ struct SearchManualDepartureView: View {
     @State private var results: [SearchResult] = []
     @State private var loadState: SearchLoadState = .idle
     @State private var searchRequestID = 0
+
+    init(
+        searchPlaces: @escaping @MainActor (String) async throws -> SearchResponse,
+        onSelect: @escaping (SearchResult) -> Void
+    ) {
+        self.searchPlaces = searchPlaces
+        self.onSelect = onSelect
+    }
 
     var body: some View {
         NavigationStack {
@@ -66,7 +74,7 @@ struct SearchManualDepartureView: View {
         loadState = .loading
 
         do {
-            let response = try await repository.search(query: normalized, near: nil)
+            let response = try await searchPlaces(normalized)
             guard !Task.isCancelled else { return }
             results = response.results
             loadState = results.isEmpty ? .empty : .loaded
@@ -80,5 +88,13 @@ struct SearchManualDepartureView: View {
 }
 
 #Preview {
-    SearchManualDepartureView(repository: InMemorySearchRepository.preview) { _ in }
+    let locationModel = LocationModel(adapter: InMemoryLocationAdapter())
+    SearchManualDepartureView(
+        searchPlaces: SearchViewModel(
+            repository: InMemorySearchRepository.preview,
+            journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+            locationModel: locationModel
+        )
+            .searchPlaces
+    ) { _ in }
 }

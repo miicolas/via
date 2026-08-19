@@ -1,7 +1,6 @@
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { Readable, type Writable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
+import type { Writable } from 'node:stream';
 
 import type { db } from '@via/db';
 import {
@@ -78,22 +77,18 @@ export async function importSchedules({
   representativeTrips,
   readCsv,
 }: ImportSchedulesOptions) {
-  const stopRoutePairs = new Map<string, { stopId: string; routeId: string }>();
-  const counters = { departureCount: 0, skippedStops: 0 };
-  const { profiles, profileKeyByTrip, startSecondsByTrip } = await buildTimeProfiles({
+  const profiles = await buildTimeProfiles({
     stopTimes: readCsv(join(gtfsPath, 'stop_times.txt')),
     trips,
     canonicalStopIdOf,
     stopKeyById,
-    stopRoutePairs,
-    counters,
   });
 
   // Profiles must exist before the COPY below and the trips insert satisfy
   // their foreign keys; ids are dense 1..N by construction.
-  if (profiles.length > 0) {
+  if (profiles.profileCount > 0) {
     await tx.execute(
-      sql`INSERT INTO ${transitTimeProfiles} (id) SELECT generate_series(1, ${profiles.length}::integer)`
+      sql`INSERT INTO ${transitTimeProfiles} (id) SELECT generate_series(1, ${profiles.profileCount}::integer)`
     );
   }
 
@@ -103,16 +98,15 @@ export async function importSchedules({
       (profile_key, position, stop_key, arrival_offset, departure_offset)
     FROM STDIN WITH (FORMAT text, DELIMITER E'\\t')
   `.writable();
-  await pipeline(Readable.from(streamProfileStops(profiles)), copyWriter);
-  const profileStopCount = profiles.reduce((total, vector) => total + vector.length / 3, 0);
+  await profiles.writeProfileStopsTo(copyWriter);
   console.log(
-    `Copied ${profileStopCount} calls of ${profiles.length} time profiles; deriving route patterns…`
+    `Copied ${profiles.callCount} calls of ${profiles.profileCount} time profiles; deriving route patterns…`
   );
 
   /** A trip whose every call was skipped has no profile to reference. */
   const tripRows = [...trips.values()].flatMap((trip) => {
-    const profileKey = profileKeyByTrip[trip.numericId];
-    if (profileKey === 0) return [];
+    const assignment = profiles.assignmentForTrip(trip.numericId);
+    if (!assignment) return [];
     return [
       {
         numericId: trip.numericId,
@@ -122,8 +116,8 @@ export async function importSchedules({
         directionId: trip.directionId,
         headsign: trip.headsign,
         shapeId: trip.shapeId,
-        profileKey,
-        startSeconds: startSecondsByTrip[trip.numericId],
+        profileKey: assignment.profileKey,
+        startSeconds: assignment.startSeconds,
       },
     ];
   });
@@ -139,8 +133,8 @@ export async function importSchedules({
    * the calls — no consumer expects raw GTFS sequence values.
    */
   const patternValues = [...representativeTrips].flatMap(([patternId, tripKey]) => {
-    const profileKey = profileKeyByTrip[tripKey];
-    return profileKey === 0 ? [] : [sql`(${patternId}, ${profileKey}::integer)`];
+    const assignment = profiles.assignmentForTrip(tripKey);
+    return assignment ? [sql`(${patternId}, ${assignment.profileKey}::integer)`] : [];
   });
   if (patternValues.length > 0) {
     await tx.execute(sql`
@@ -165,7 +159,7 @@ export async function importSchedules({
     `);
   }
 
-  const stopRoutes = [...stopRoutePairs.values()];
+  const stopRoutes = [...profiles.stopRoutePairs.values()];
   for (let start = 0; start < stopRoutes.length; start += INSERT_BATCH) {
     await tx
       .insert(transitStopRoutes)
@@ -204,22 +198,13 @@ export async function importSchedules({
 
   const droppedTrips = trips.size - tripRows.length;
   console.log(
-    `Imported ${counters.departureCount} calls as ${profiles.length} time profiles ` +
+    `Imported ${profiles.stats.departureCount} calls as ${profiles.profileCount} time profiles ` +
       `over ${serviceDates.length} service days` +
       (droppedTrips > 0 ? ` (${droppedTrips} trips without usable calls dropped)` : '') +
-      (counters.skippedStops > 0 ? ` (${counters.skippedStops} calls on unknown stops skipped).` : '.')
+      (profiles.stats.skippedStops > 0
+        ? ` (${profiles.stats.skippedStops} calls on unknown stops skipped).`
+        : '.')
   );
-}
-
-/** COPY text rows; every cell is an integer, so no escaping is needed. */
-function* streamProfileStops(profiles: readonly Int32Array[]) {
-  for (let index = 0; index < profiles.length; index += 1) {
-    const vector = profiles[index];
-    const profileKey = index + 1;
-    for (let call = 0; call < vector.length; call += 3) {
-      yield `${profileKey}\t${call / 3}\t${vector[call]}\t${vector[call + 1]}\t${vector[call + 2]}\n`;
-    }
-  }
 }
 
 async function exists(path: string): Promise<boolean> {
