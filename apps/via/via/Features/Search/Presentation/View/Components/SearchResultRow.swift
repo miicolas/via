@@ -2,7 +2,18 @@ import SwiftUI
 
 struct SearchResultRow: View {
     let result: SearchResult
+    let accessibilityHint: String
     let action: () -> Void
+
+    init(
+        result: SearchResult,
+        accessibilityHint: String = "Sélectionne cette destination",
+        action: @escaping () -> Void
+    ) {
+        self.result = result
+        self.accessibilityHint = accessibilityHint
+        self.action = action
+    }
 
     var body: some View {
         Button(action: action) {
@@ -31,7 +42,7 @@ struct SearchResultRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint("Sélectionne cette destination")
+        .accessibilityHint(accessibilityHint)
     }
 
     @ViewBuilder

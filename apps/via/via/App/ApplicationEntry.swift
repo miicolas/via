@@ -9,6 +9,7 @@ struct ApplicationEntry: App {
     @State private var linesViewModel: LinesViewModel
     @State private var selectedStationModel: SelectedStationModel
     @State private var searchViewModel: SearchViewModel
+    @State private var reportViewModel: ReportViewModel
     @State private var authSessionViewModel: AuthSessionViewModel
     @State private var onboardingModel: OnboardingModel
 
@@ -42,6 +43,17 @@ struct ApplicationEntry: App {
                 account: dependencies.accountModel
             )
         )
+        _reportViewModel = State(
+            initialValue: ReportViewModel(
+                contextResolver: ReportContextResolver(
+                    locationModel: dependencies.locationModel,
+                    networkRepository: dependencies.networkRepository
+                ),
+                repository: dependencies.reportRepository,
+                searchRepository: dependencies.searchRepository,
+                activeJourneyProvider: dependencies.activeJourneyProvider
+            )
+        )
         _authSessionViewModel = State(
             initialValue: dependencies.authSessionViewModel
         )
@@ -58,6 +70,7 @@ struct ApplicationEntry: App {
                 linesViewModel: linesViewModel,
                 selectedStationModel: selectedStationModel,
                 searchViewModel: searchViewModel,
+                reportViewModel: reportViewModel,
                 onboardingModel: onboardingModel
             )
             .task {
@@ -98,6 +111,8 @@ struct ApplicationEntry: App {
                 networkRepository: InMemoryNetworkRepository.mapPreview,
                 departuresRepository: InMemoryDeparturesRepository.stationsPreview,
                 searchRepository: InMemorySearchRepository.preview,
+                reportRepository: InMemoryReportRepository(),
+                activeJourneyProvider: NoActiveJourneyProvider(),
                 journeyRepository: PreferenceAwareJourneyRepository(
                     base: InMemoryJourneyRepository(result: .mapPreview),
                     account: accountModel
@@ -131,6 +146,8 @@ struct ApplicationEntry: App {
             networkRepository: LiveNetworkRepository(transport: transport),
             departuresRepository: LiveDeparturesRepository(transport: transport),
             searchRepository: LiveSearchRepository(transport: transport),
+            reportRepository: InMemoryReportRepository(),
+            activeJourneyProvider: NoActiveJourneyProvider(),
             journeyRepository: journeyRepository,
             lineStatusRepository: LiveLineStatusRepository(transport: transport),
             accountModel: accountModel,
@@ -148,6 +165,8 @@ struct ApplicationEntry: App {
         let networkRepository: any NetworkRepository
         let departuresRepository: any DeparturesRepository
         let searchRepository: any SearchRepository
+        let reportRepository: any ReportRepository
+        let activeJourneyProvider: any ActiveJourneyProvider
         let journeyRepository: any JourneyRepository
         let lineStatusRepository: any LineStatusRepository
         let accountModel: AccountModel
