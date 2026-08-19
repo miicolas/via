@@ -69,6 +69,47 @@ export const lineBranchSchema = z.object({
   stops: z.array(lineStopSchema),
 });
 
+/** A station of the complete line schema. */
+export const lineSchemaStopSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  /** Served by at least one other metro, RER, Transilien or tram line. */
+  isInterchange: z.boolean(),
+});
+
+/**
+ * A run of consecutive stations sharing the same service: the trunk that
+ * every train of the direction serves, or a branch ("Branche Cergy-le-Haut",
+ * "Branches Cergy-le-Haut / Poissy" for a shared sub-trunk).
+ */
+export const lineSchemaSectionSchema = z.object({
+  role: z.enum(['trunk', 'branch']),
+  /** Absent for the trunk. */
+  label: z.string().optional(),
+  /**
+   * Origin and terminus stops of the service groups whose trains call in this
+   * section — the trunk lists every group, a branch only its own. Two
+   * sections lie on one physical path iff their groups intersect on both
+   * sides; that is how a disruption spanning trunk, shared sub-trunk and leaf
+   * branch projects onto the schema.
+   */
+  origins: z.array(z.string()),
+  termini: z.array(z.string()),
+  stops: z.array(lineSchemaStopSchema),
+});
+
+/**
+ * One direction of the line, complete: every station merged from all trips at
+ * import time (`apps/worker/src/line-schema/`), not one mission's calls.
+ */
+export const lineDirectionSchema = z.object({
+  directionId: z.int(),
+  /** Real termini riders know the direction by, e.g. "Boissy / Marne-la-Vallée". */
+  label: z.string(),
+  /** Sections in travel order: origin branches, trunk, destination branches. */
+  sections: z.array(lineSchemaSectionSchema),
+});
+
 export const disruptionPeriodSchema = z.object({
   beginsAt: z.iso.datetime({ offset: true }),
   endsAt: z.iso.datetime({ offset: true }),
@@ -97,7 +138,14 @@ export const lineDisruptionSchema = z.object({
 
 export const lineDetailResponseSchema = z.object({
   route: routeBadgeSchema,
+  /**
+   * @deprecated One representative mission's calls per pattern — a skip-stop
+   * subset of the line. Kept because shipped TestFlight builds decode it as a
+   * required key; new clients read `directions`.
+   */
   branches: z.array(lineBranchSchema),
+  /** The complete schema of the line, one entry per direction of travel. */
+  directions: z.array(lineDirectionSchema),
   source: z.enum(['live', 'unavailable']),
   fetchedAt: z.iso.datetime({ offset: true }).optional(),
   /** Active disruptions first, then upcoming ones by start time. */

@@ -8,7 +8,10 @@ struct PreviewLineStatusRepository: LineStatusRepository {
 
     init(
         board: LineStatusBoard = Self.defaultBoard,
-        details: [RouteID: LineDetail] = [Self.metro1.id: Self.metro1Detail]
+        details: [RouteID: LineDetail] = [
+            Self.metro1.id: Self.metro1Detail,
+            Self.rerA.id: Self.rerADetail,
+        ]
     ) {
         self.board = board
         self.details = details
@@ -48,6 +51,7 @@ struct PreviewLineStatusRepository: LineStatusRepository {
     }
 
     static let metro1 = route("IDFM:C01371", "1", .metro, "#FFCD00", textColorHex: "#000000")
+    static let rerA = route("IDFM:C01742", "A", .rer, "#E2231A")
 
     static let defaultBoard = LineStatusBoard(
         source: .live,
@@ -101,6 +105,17 @@ struct PreviewLineStatusRepository: LineStatusRepository {
         ]
     )
 
+    private static let metro1Stops = [
+        LineSchemaStop(id: "IDFM:71264", name: "La Défense", isInterchange: true),
+        LineSchemaStop(id: "IDFM:71253", name: "Esplanade de la Défense", isInterchange: false),
+        LineSchemaStop(id: "IDFM:71217", name: "Charles de Gaulle — Étoile", isInterchange: true),
+        LineSchemaStop(id: "IDFM:71199", name: "Franklin D. Roosevelt", isInterchange: true),
+        LineSchemaStop(id: "IDFM:71167", name: "Concorde", isInterchange: true),
+        LineSchemaStop(id: "IDFM:71150", name: "Châtelet", isInterchange: true),
+        LineSchemaStop(id: "IDFM:71135", name: "Nation", isInterchange: true),
+        LineSchemaStop(id: "IDFM:71125", name: "Château de Vincennes", isInterchange: false),
+    ]
+
     static let metro1Detail = LineDetail(
         route: metro1,
         branches: [
@@ -120,6 +135,36 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                     LineStop(id: "IDFM:71125", name: "Château de Vincennes"),
                 ]
             )
+        ],
+        directions: [
+            LineDirection(
+                id: "direction-0",
+                directionId: 0,
+                label: "Château de Vincennes",
+                sections: [
+                    LineSchemaSection(
+                        role: .trunk,
+                        label: nil,
+                        origins: ["IDFM:71264"],
+                        termini: ["IDFM:71125"],
+                        stops: metro1Stops
+                    )
+                ]
+            ),
+            LineDirection(
+                id: "direction-1",
+                directionId: 1,
+                label: "La Défense",
+                sections: [
+                    LineSchemaSection(
+                        role: .trunk,
+                        label: nil,
+                        origins: ["IDFM:71125"],
+                        termini: ["IDFM:71264"],
+                        stops: metro1Stops.reversed()
+                    )
+                ]
+            ),
         ],
         source: .live,
         fetchedAt: Date(timeIntervalSince1970: 1_755_500_000),
@@ -162,6 +207,188 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                     )
                 ],
                 impactedSections: [],
+                updatedAt: nil
+            ),
+        ]
+    )
+
+    private static func schemaStop(
+        _ id: String,
+        _ name: String,
+        interchange: Bool = false
+    ) -> LineSchemaStop {
+        LineSchemaStop(id: id, name: name, isInterchange: interchange)
+    }
+
+    /// A branched line with a shared sub-trunk, the shape the schema exists for.
+    static let rerADetail = LineDetail(
+        route: rerA,
+        branches: [],
+        directions: [
+            LineDirection(
+                id: "direction-0",
+                directionId: 0,
+                label: "Marne-la-Vallée – Chessy / Boissy-St-Léger",
+                sections: [
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Saint-Germain-en-Laye",
+                        origins: ["IDFM:73618"],
+                        termini: ["IDFM:74001", "IDFM:70648"],
+                        stops: [
+                            schemaStop("IDFM:73618", "Saint-Germain-en-Laye"),
+                            schemaStop("IDFM:73620", "Le Vésinet — Le Pecq"),
+                        ]
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Cergy-le-Haut",
+                        origins: ["IDFM:73731"],
+                        termini: ["IDFM:74001", "IDFM:70648"],
+                        stops: [
+                            schemaStop("IDFM:73731", "Cergy-le-Haut"),
+                            schemaStop("IDFM:73733", "Conflans-Fin-d'Oise", interchange: true),
+                        ]
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Poissy",
+                        origins: ["IDFM:73699"],
+                        termini: ["IDFM:74001", "IDFM:70648"],
+                        stops: [
+                            schemaStop("IDFM:73699", "Poissy"),
+                            schemaStop("IDFM:73697", "Achères-Ville"),
+                        ]
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branches Cergy-le-Haut / Poissy",
+                        origins: ["IDFM:73731", "IDFM:73699"],
+                        termini: ["IDFM:74001", "IDFM:70648"],
+                        stops: [
+                            schemaStop("IDFM:73688", "Sartrouville", interchange: true),
+                            schemaStop("IDFM:73690", "Maisons-Laffitte"),
+                        ]
+                    ),
+                    LineSchemaSection(
+                        role: .trunk,
+                        label: nil,
+                        origins: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
+                        termini: ["IDFM:74001", "IDFM:70648"],
+                        stops: [
+                            schemaStop("IDFM:71517", "Nanterre-Préfecture"),
+                            schemaStop("IDFM:71264", "La Défense", interchange: true),
+                            schemaStop("IDFM:71304", "Auber", interchange: true),
+                            schemaStop("IDFM:71150", "Châtelet — Les Halles", interchange: true),
+                            schemaStop("IDFM:71270", "Gare de Lyon", interchange: true),
+                            schemaStop("IDFM:71135", "Nation", interchange: true),
+                            schemaStop("IDFM:71129", "Vincennes"),
+                        ]
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Marne-la-Vallée – Chessy",
+                        origins: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
+                        termini: ["IDFM:74001"],
+                        stops: [
+                            schemaStop("IDFM:73942", "Val de Fontenay", interchange: true),
+                            schemaStop("IDFM:73952", "Noisy-le-Grand — Mont d'Est"),
+                            schemaStop("IDFM:73963", "Val d'Europe"),
+                            schemaStop("IDFM:74001", "Marne-la-Vallée – Chessy"),
+                        ]
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Boissy-St-Léger",
+                        origins: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
+                        termini: ["IDFM:70648"],
+                        stops: [
+                            schemaStop("IDFM:70645", "Joinville-le-Pont"),
+                            schemaStop("IDFM:70648", "Boissy-St-Léger"),
+                        ]
+                    ),
+                ]
+            ),
+            LineDirection(
+                id: "direction-1",
+                directionId: 1,
+                label: "Saint-Germain-en-Laye / Cergy-le-Haut / Poissy",
+                sections: [
+                    LineSchemaSection(
+                        role: .trunk,
+                        label: nil,
+                        origins: ["IDFM:74001", "IDFM:70648"],
+                        termini: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
+                        stops: [
+                            schemaStop("IDFM:71129", "Vincennes"),
+                            schemaStop("IDFM:71135", "Nation", interchange: true),
+                            schemaStop("IDFM:71270", "Gare de Lyon", interchange: true),
+                            schemaStop("IDFM:71150", "Châtelet — Les Halles", interchange: true),
+                            schemaStop("IDFM:71304", "Auber", interchange: true),
+                            schemaStop("IDFM:71264", "La Défense", interchange: true),
+                            schemaStop("IDFM:71517", "Nanterre-Préfecture"),
+                        ]
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Saint-Germain-en-Laye",
+                        origins: ["IDFM:74001", "IDFM:70648"],
+                        termini: ["IDFM:73618"],
+                        stops: [
+                            schemaStop("IDFM:73620", "Le Vésinet — Le Pecq"),
+                            schemaStop("IDFM:73618", "Saint-Germain-en-Laye"),
+                        ]
+                    ),
+                ]
+            ),
+        ],
+        source: .live,
+        fetchedAt: Date(timeIntervalSince1970: 1_755_500_000),
+        disruptions: [
+            LineDisruption(
+                id: "d-rer-block",
+                condition: .suspended,
+                isActive: true,
+                cause: "perturbation",
+                title: "Trafic interrompu entre Noisy-le-Grand et Marne-la-Vallée",
+                message: "Reprise estimée à 12 h.",
+                periods: [
+                    LineDisruptionPeriod(
+                        beginsAt: Date(timeIntervalSince1970: 1_755_490_000),
+                        endsAt: Date(timeIntervalSince1970: 1_755_530_000)
+                    )
+                ],
+                impactedSections: [
+                    LineImpactedSection(
+                        fromStopID: "IDFM:73952",
+                        fromName: "Noisy-le-Grand — Mont d'Est",
+                        toStopID: "IDFM:74001",
+                        toName: "Marne-la-Vallée – Chessy"
+                    )
+                ],
+                updatedAt: Date(timeIntervalSince1970: 1_755_499_000)
+            ),
+            LineDisruption(
+                id: "d-rer-slow",
+                condition: .attention,
+                isActive: true,
+                cause: "perturbation",
+                title: "Ralentissements entre Auber et Gare de Lyon",
+                message: "Temps de parcours allongé de 10 minutes.",
+                periods: [
+                    LineDisruptionPeriod(
+                        beginsAt: Date(timeIntervalSince1970: 1_755_490_000),
+                        endsAt: Date(timeIntervalSince1970: 1_755_530_000)
+                    )
+                ],
+                impactedSections: [
+                    LineImpactedSection(
+                        fromStopID: "IDFM:71304",
+                        fromName: "Auber",
+                        toStopID: "IDFM:71270",
+                        toName: "Gare de Lyon"
+                    )
+                ],
                 updatedAt: nil
             ),
         ]

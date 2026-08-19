@@ -16,17 +16,17 @@ struct LineDetailView: View {
             headerSection
 
             if let detail = viewModel.detail.value {
-                if detail.branches.count > 1 {
-                    branchPicker(branches: detail.branches)
+                if detail.schemaDirections.count > 1 {
+                    directionPicker(directions: detail.schemaDirections)
                 }
 
-                if let branch = viewModel.selectedBranch {
+                if let direction = viewModel.selectedDirection {
                     Section("Schéma de la ligne") {
                         LineSchemaView(
-                            branch: branch,
+                            rows: viewModel.schemaRows,
                             lineColor: Color(transitHex: route.colorHex, fallback: .secondary),
-                            cutSegments: viewModel.cutSegments,
-                            affectedStopIDs: viewModel.affectedStopIDs
+                            directionLabel: direction.label,
+                            onToggleRun: { viewModel.toggleRun($0) }
                         )
                     }
                 }
@@ -90,21 +90,21 @@ struct LineDetailView: View {
         }
     }
 
-    private func branchPicker(branches: [LineBranch]) -> some View {
+    private func directionPicker(directions: [LineDirection]) -> some View {
         Section {
-            Picker("Direction", selection: branchSelection) {
-                ForEach(branches) { branch in
-                    Text("Vers \(branch.headsign)").tag(branch.id)
+            Picker("Direction", selection: directionSelection) {
+                ForEach(directions) { direction in
+                    Text("Vers \(direction.label)").tag(direction.id)
                 }
             }
             .pickerStyle(.menu)
         }
     }
 
-    private var branchSelection: Binding<String> {
+    private var directionSelection: Binding<String> {
         Binding(
-            get: { viewModel.selectedBranch?.id ?? "" },
-            set: { viewModel.selectedBranchID = $0 }
+            get: { viewModel.selectedDirection?.id ?? "" },
+            set: { viewModel.selectedDirectionID = $0 }
         )
     }
 }

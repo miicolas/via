@@ -1,9 +1,12 @@
 import { db } from '@via/db';
 import { networkRouteCondition, drawnRouteCondition } from '@via/db/network-scope';
 import {
+  transitLineDirections,
+  transitLineSchemaStops,
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
+  transitStopRoutes,
   transitStops,
 } from '@via/db/schema';
 import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm';
@@ -83,5 +86,50 @@ export function selectLineBranchStops(lineId: string) {
     );
 }
 
+/**
+ * One row per station of the line's complete schema, in render order. Unlike
+ * the pattern rows above — one mission's calls — this table was merged from
+ * every trip at import time, so no station is missing. `isInterchange` marks
+ * stations served by at least one *other* drawn line; buses don't count.
+ */
+export function selectLineSchemaStops(lineId: string) {
+  return db
+    .select({
+      directionId: transitLineSchemaStops.directionId,
+      directionLabel: transitLineDirections.label,
+      sectionIndex: transitLineSchemaStops.sectionIndex,
+      sectionRole: transitLineSchemaStops.sectionRole,
+      sectionLabel: transitLineSchemaStops.sectionLabel,
+      sectionOrigins: transitLineSchemaStops.sectionOrigins,
+      sectionTermini: transitLineSchemaStops.sectionTermini,
+      stopId: transitStops.id,
+      stopName: transitStops.name,
+      isInterchange: sql<boolean>`EXISTS (
+        SELECT 1
+        FROM ${transitStopRoutes}
+        INNER JOIN ${transitRoutes} ON ${transitRoutes.id} = ${transitStopRoutes.routeId}
+        WHERE ${transitStopRoutes.stopId} = ${transitStops.id}
+          AND ${transitStopRoutes.routeId} <> ${lineId}
+          AND ${drawnRouteCondition()}
+      )`,
+    })
+    .from(transitLineSchemaStops)
+    .innerJoin(transitStops, eq(transitLineSchemaStops.stopId, transitStops.id))
+    .innerJoin(
+      transitLineDirections,
+      and(
+        eq(transitLineDirections.routeId, transitLineSchemaStops.routeId),
+        eq(transitLineDirections.directionId, transitLineSchemaStops.directionId)
+      )
+    )
+    .where(eq(transitLineSchemaStops.routeId, lineId))
+    .orderBy(
+      asc(transitLineSchemaStops.directionId),
+      asc(transitLineSchemaStops.sectionIndex),
+      asc(transitLineSchemaStops.position)
+    );
+}
+
 export type LineRow = Awaited<ReturnType<typeof selectRailLines>>[number];
 export type LineBranchStopRow = Awaited<ReturnType<typeof selectLineBranchStops>>[number];
+export type LineSchemaStopRow = Awaited<ReturnType<typeof selectLineSchemaStops>>[number];

@@ -216,6 +216,69 @@ export const transitStopRoutes = pgTable(
   (table) => [primaryKey({ columns: [table.stopId, table.routeId] })]
 );
 
+/**
+ * One row per direction of a line: the label riders pick a platform by,
+ * derived at import from the real termini of the merged schema — never from
+ * `trip_headsign`, which is a mission code (DUCK, ZEUS) on RER/Transilien.
+ */
+export const transitLineDirections = pgTable(
+  'transit_line_directions',
+  {
+    routeId: text('route_id')
+      .notNull()
+      .references(() => transitRoutes.id, { onDelete: 'cascade' }),
+    directionId: integer('direction_id').notNull(),
+    /** Termini busiest first, e.g. "Marne-la-Vallée – Chessy / Boissy-St-Léger". */
+    label: text('label').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.routeId, table.directionId] })]
+);
+
+/**
+ * The complete, rider-facing schema of a line: every station of a direction in
+ * reading order, decomposed into a common trunk and named branch sections.
+ *
+ * Deliberately separate from `transit_route_pattern_stops`, which stores one
+ * representative trip's calls per pattern and feeds the map (snapping, drawn
+ * geometry). A semi-direct RER mission skips stations, so the map's table can
+ * never answer "list every station of the line"; this one is built by merging
+ * the stop_times of *all* trips at import (`apps/worker/src/line-schema/`).
+ */
+export const transitLineSchemaStops = pgTable(
+  'transit_line_schema_stops',
+  {
+    routeId: text('route_id')
+      .notNull()
+      .references(() => transitRoutes.id, { onDelete: 'cascade' }),
+    directionId: integer('direction_id').notNull(),
+    /** Render order of the section within the direction. */
+    sectionIndex: integer('section_index').notNull(),
+    sectionRole: text('section_role', { enum: ['trunk', 'branch'] }).notNull(),
+    /** Worker-computed, e.g. "Branche Cergy"; NULL for the trunk. */
+    sectionLabel: text('section_label'),
+    /**
+     * Origin and terminus stops of the service groups whose trains call in
+     * this section — the trunk lists every group, a branch only its own.
+     * Two sections lie on one physical path iff their groups intersect on
+     * both sides; the client needs this to project a disruption that spans
+     * trunk, shared sub-trunk and leaf branch without any fork geometry.
+     */
+    sectionOrigins: text('section_origins').array().notNull(),
+    sectionTermini: text('section_termini').array().notNull(),
+    /** Stop order within the section. */
+    position: integer('position').notNull(),
+    stopId: text('stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.routeId, table.directionId, table.sectionIndex, table.position],
+    }),
+    index('transit_line_schema_stops_route_idx').on(table.routeId),
+  ]
+);
+
 export const transitShapes = pgTable('transit_shapes', {
   id: text('id').primaryKey(),
   geometry: lineStringWgs84('geometry'),
@@ -397,3 +460,4 @@ export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
 export type TransitTrip = typeof transitTrips.$inferSelect;
 export type TransitTripStopTime = typeof transitTripStopTimes.$inferSelect;
+export type TransitLineSchemaStop = typeof transitLineSchemaStops.$inferSelect;

@@ -5,7 +5,10 @@ import {
   lineConditionSchema,
   lineDetailInputSchema,
   lineDetailResponseSchema,
+  lineDirectionSchema,
   lineDisruptionSchema,
+  lineSchemaSectionSchema,
+  lineSchemaStopSchema,
   lineSearchInputSchema,
   lineStatusSchema,
   lineStatusesResponseSchema,
@@ -21,5 +24,8 @@ export type LineSearchInput = z.infer<typeof lineSearchInputSchema>;
 export type LineDetailInput = z.infer<typeof lineDetailInputSchema>;
 export type LineStop = z.infer<typeof lineStopSchema>;
 export type LineBranch = z.infer<typeof lineBranchSchema>;
+export type LineSchemaStop = z.infer<typeof lineSchemaStopSchema>;
+export type LineSchemaSection = z.infer<typeof lineSchemaSectionSchema>;
+export type LineDirection = z.infer<typeof lineDirectionSchema>;
 export type LineDisruption = z.infer<typeof lineDisruptionSchema>;
 export type LineDetailResponse = z.infer<typeof lineDetailResponseSchema>;

@@ -63,7 +63,7 @@ internal protocol APIProtocol: Sendable {
     func lines_period_search(_ input: Operations.lines_period_search.Input) async throws -> Operations.lines_period_search.Output
     /// Détail d’une ligne
     ///
-    /// Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.
+    /// Le schéma complet de la ligne par direction — tronc commun et branches, toutes stations confondues avec leurs correspondances — et ses perturbations actives puis à venir sous sept jours, tronçons impactés compris, résolubles contre les stations. `branches` est conservé pour les anciens clients et ne montre que les arrêts d’une mission.
     ///
     /// - Remark: HTTP `GET /lines/detail`.
     /// - Remark: Generated from `#/paths//lines/detail/get(lines.detail)`.
@@ -195,7 +195,7 @@ extension APIProtocol {
     }
     /// Détail d’une ligne
     ///
-    /// Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.
+    /// Le schéma complet de la ligne par direction — tronc commun et branches, toutes stations confondues avec leurs correspondances — et ses perturbations actives puis à venir sous sept jours, tronçons impactés compris, résolubles contre les stations. `branches` est conservé pour les anciens clients et ne montre que les arrêts d’une mission.
     ///
     /// - Remark: HTTP `GET /lines/detail`.
     /// - Remark: Generated from `#/paths//lines/detail/get(lines.detail)`.
@@ -3104,7 +3104,7 @@ internal enum Operations {
     }
     /// Détail d’une ligne
     ///
-    /// Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.
+    /// Le schéma complet de la ligne par direction — tronc commun et branches, toutes stations confondues avec leurs correspondances — et ses perturbations actives puis à venir sous sept jours, tronçons impactés compris, résolubles contre les stations. `branches` est conservé pour les anciens clients et ne montre que les arrêts d’une mission.
     ///
     /// - Remark: HTTP `GET /lines/detail`.
     /// - Remark: Generated from `#/paths//lines/detail/get(lines.detail)`.
@@ -3276,6 +3276,118 @@ internal enum Operations {
                         internal typealias branchesPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayloadPayload]
                         /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/branches`.
                         internal var branches: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayload
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload`.
+                        internal struct directionsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/directionId`.
+                            internal var directionId: Swift.Int
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload`.
+                            internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/role`.
+                                internal enum rolePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case trunk = "trunk"
+                                    case branch = "branch"
+                                }
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/role`.
+                                internal var role: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload.sectionsPayloadPayload.rolePayload
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/label`.
+                                internal var label: Swift.String?
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/origins`.
+                                internal var origins: [Swift.String]
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/termini`.
+                                internal var termini: [Swift.String]
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/stopsPayload`.
+                                internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/stopsPayload/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/stopsPayload/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/stopsPayload/isInterchange`.
+                                    internal var isInterchange: Swift.Bool
+                                    /// Creates a new `stopsPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - name:
+                                    ///   - isInterchange:
+                                    internal init(
+                                        id: Swift.String,
+                                        name: Swift.String,
+                                        isInterchange: Swift.Bool
+                                    ) {
+                                        self.id = id
+                                        self.name = name
+                                        self.isInterchange = isInterchange
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case name
+                                        case isInterchange
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/stops`.
+                                internal typealias stopsPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload.sectionsPayloadPayload.stopsPayloadPayload]
+                                /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sectionsPayload/stops`.
+                                internal var stops: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload.sectionsPayloadPayload.stopsPayload
+                                /// Creates a new `sectionsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - role:
+                                ///   - label:
+                                ///   - origins:
+                                ///   - termini:
+                                ///   - stops:
+                                internal init(
+                                    role: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload.sectionsPayloadPayload.rolePayload,
+                                    label: Swift.String? = nil,
+                                    origins: [Swift.String],
+                                    termini: [Swift.String],
+                                    stops: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload.sectionsPayloadPayload.stopsPayload
+                                ) {
+                                    self.role = role
+                                    self.label = label
+                                    self.origins = origins
+                                    self.termini = termini
+                                    self.stops = stops
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case role
+                                    case label
+                                    case origins
+                                    case termini
+                                    case stops
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sections`.
+                            internal typealias sectionsPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload.sectionsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directionsPayload/sections`.
+                            internal var sections: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload.sectionsPayload
+                            /// Creates a new `directionsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - directionId:
+                            ///   - label:
+                            ///   - sections:
+                            internal init(
+                                directionId: Swift.Int,
+                                label: Swift.String,
+                                sections: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload.sectionsPayload
+                            ) {
+                                self.directionId = directionId
+                                self.label = label
+                                self.sections = sections
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case directionId
+                                case label
+                                case sections
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directions`.
+                        internal typealias directionsPayload = [Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/directions`.
+                        internal var directions: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayload
                         /// - Remark: Generated from `#/paths/lines/detail/GET/responses/200/content/json/source`.
                         internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
                             case live = "live"
@@ -3432,18 +3544,21 @@ internal enum Operations {
                         /// - Parameters:
                         ///   - route:
                         ///   - branches:
+                        ///   - directions:
                         ///   - source:
                         ///   - fetchedAt:
                         ///   - disruptions:
                         internal init(
                             route: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.routePayload,
                             branches: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.branchesPayload,
+                            directions: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.directionsPayload,
                             source: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.sourcePayload,
                             fetchedAt: Foundation.Date? = nil,
                             disruptions: Operations.lines_period_detail.Output.Ok.Body.jsonPayload.disruptionsPayload
                         ) {
                             self.route = route
                             self.branches = branches
+                            self.directions = directions
                             self.source = source
                             self.fetchedAt = fetchedAt
                             self.disruptions = disruptions
@@ -3451,6 +3566,7 @@ internal enum Operations {
                         internal enum CodingKeys: String, CodingKey {
                             case route
                             case branches
+                            case directions
                             case source
                             case fetchedAt
                             case disruptions
