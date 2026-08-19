@@ -44,9 +44,7 @@ struct AccountDataView: View {
                     Label("Historique des recherches", systemImage: "clock.arrow.circlepath")
                 }
 
-                ShareLink(item: account.makeExport()) {
-                    Label("Exporter mes données", systemImage: "square.and.arrow.up")
-                }
+                AccountExportLink(export: account.makeExport())
 
                 Button("Effacer l’historique", role: .destructive) {
                     isClearHistoryConfirmationPresented = true

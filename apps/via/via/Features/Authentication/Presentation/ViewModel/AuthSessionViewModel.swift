@@ -95,8 +95,12 @@ final class AuthSessionViewModel {
         case .authorized(let credentials):
             state = .authenticating
             do {
-                let bearerToken = anonymousSession?.bearerToken
-                    ?? (try? await vault.load())?.flatMap { $0.user.isAnonymous ? $0.bearerToken : nil }
+                var bearerToken = anonymousSession?.bearerToken
+                if bearerToken == nil,
+                   let storedSession = try? await vault.load(),
+                   storedSession.user.isAnonymous {
+                    bearerToken = storedSession.bearerToken
+                }
                 let session = try await client.signIn(
                     with: credentials,
                     existingBearerToken: bearerToken

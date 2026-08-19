@@ -19,7 +19,7 @@ actor InMemoryAuthenticationClient: AuthenticationClient {
             email: credentials.email ?? session.user.email,
             isAnonymous: false
         )
-        session
+        return session
     }
 
     func signInAnonymously() -> StoredAuthSession {

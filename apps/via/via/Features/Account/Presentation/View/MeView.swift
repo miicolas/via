@@ -67,9 +67,7 @@ struct MeView: View {
                         Label("Historique des recherches", systemImage: "clock.arrow.circlepath")
                     }
 
-                    ShareLink(item: accountModel.makeExport()) {
-                        Label("Exporter mes données", systemImage: "square.and.arrow.up")
-                    }
+                    AccountExportLink(export: accountModel.makeExport())
 
                     if authSessionViewModel.isSignedIn {
                         Button("Se déconnecter", role: .destructive) {
