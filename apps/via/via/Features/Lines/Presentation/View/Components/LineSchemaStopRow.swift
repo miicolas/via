@@ -13,7 +13,6 @@ struct LineSchemaStopRow: View {
     private let railWidth: CGFloat = 11
     private let haloWidth: CGFloat = 22
     private let beadSize: CGFloat = 18
-    private let rowHeight: CGFloat = 38
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
@@ -38,13 +37,17 @@ struct LineSchemaStopRow: View {
                             .frame(width: beadSize + 7, height: beadSize + 7)
                     }
             }
-            .frame(width: haloWidth, height: rowHeight)
+            .frame(width: haloWidth)
+            .frame(minHeight: 44)
 
             Text(row.stop.name)
                 .font(row.isSectionEnd ? .subheadline.weight(.bold) : .subheadline)
                 .foregroundStyle(row.condition != nil || row.isSectionEnd ? .primary : .secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, row.condition == nil ? 0 : 8)
+                .padding(.vertical, row.condition == nil ? 0 : 4)
+                .background(row.condition?.tint.opacity(0.10) ?? .clear)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             if row.stop.isInterchange {
                 Image(systemName: "arrow.triangle.branch")
@@ -62,8 +65,20 @@ struct LineSchemaStopRow: View {
 
             Spacer(minLength: 0)
         }
-        .frame(height: rowHeight)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    private var accessibilityLabel: String {
+        var labels = [row.stop.name]
+        if row.stop.isInterchange {
+            labels.append("Correspondances")
+        }
+        if let condition = row.condition {
+            labels.append(condition.title)
+        }
+        return labels.joined(separator: ", ")
     }
 
     @ViewBuilder

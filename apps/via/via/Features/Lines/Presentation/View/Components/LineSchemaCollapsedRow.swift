@@ -9,7 +9,6 @@ struct LineSchemaCollapsedRow: View {
 
     private let railWidth: CGFloat = 11
     private let haloWidth: CGFloat = 22
-    private let rowHeight: CGFloat = 34
 
     var body: some View {
         Button(action: action) {
@@ -46,7 +45,7 @@ struct LineSchemaCollapsedRow: View {
 
                 Spacer(minLength: 0)
             }
-            .frame(height: rowHeight)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
