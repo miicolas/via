@@ -174,6 +174,8 @@ export async function importSchedules({
   }
 
   const serviceIds = new Set([...trips.values()].map((trip) => trip.serviceId));
+  // Past days are dead weight: the planner only ever asks for today onwards.
+  const today = new Date().toISOString().slice(0, 10);
   const serviceDates = expandServiceDates(
     await readGtfsRows(join(gtfsPath, 'calendar.txt'), serviceIds, readCsv, toCalendarRow),
     await readGtfsRows(
@@ -182,7 +184,7 @@ export async function importSchedules({
       readCsv,
       toCalendarDateRow
     )
-  );
+  ).filter((serviceDate) => serviceDate.date >= today);
 
   for (let start = 0; start < serviceDates.length; start += INSERT_BATCH) {
     await tx
@@ -199,13 +201,6 @@ export async function importSchedules({
       WHERE trips.service_id = dates.service_id
     )
   `);
-
-  // The next request must get production query plans immediately after the
-  // atomic swap; waiting for autovacuum would make a fresh import look broken.
-  await tx.execute(sql`ANALYZE ${transitTrips}`);
-  await tx.execute(sql`ANALYZE ${transitTimeProfiles}`);
-  await tx.execute(sql`ANALYZE ${transitProfileStops}`);
-  await tx.execute(sql`ANALYZE ${transitServiceDates}`);
 
   const droppedTrips = trips.size - tripRows.length;
   console.log(
