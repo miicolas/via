@@ -4,6 +4,7 @@ import SwiftUI
 struct NetworkMapView: View {
     let viewModel: NetworkViewModel
     let stationSelectionEnabled: Bool
+    let journeyPresentation: JourneyMapPresentation?
     @Binding var position: MapCameraPosition
     @Binding var selectedStation: StationMapItem?
     @Namespace private var mapScope
@@ -13,10 +14,12 @@ struct NetworkMapView: View {
         viewModel: NetworkViewModel,
         position: Binding<MapCameraPosition>,
         stationSelectionEnabled: Bool = true,
+        journeyPresentation: JourneyMapPresentation? = nil,
         selectedStation: Binding<StationMapItem?> = .constant(nil)
     ) {
         self.viewModel = viewModel
         self.stationSelectionEnabled = stationSelectionEnabled
+        self.journeyPresentation = journeyPresentation
         _position = position
         _selectedStation = selectedStation
     }
@@ -36,6 +39,10 @@ struct NetworkMapView: View {
                             opacity: snapshot.lineStyle.opacity,
                             lineWidth: snapshot.lineStyle.width
                         )
+                    }
+
+                    if let journeyPresentation {
+                        JourneyRouteMapContent(presentation: journeyPresentation)
                     }
 
                     UserAnnotation()

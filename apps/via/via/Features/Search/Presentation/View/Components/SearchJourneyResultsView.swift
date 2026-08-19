@@ -5,6 +5,8 @@ struct SearchJourneyResultsView: View {
     let result: JourneyResult?
     let destinationName: String
     let departureTitle: String
+    var selectedJourneyID: JourneyID? = nil
+    var onSelectJourney: (Journey) -> Void = { _ in }
     let onRetry: () -> Void
     let onEdit: () -> Void
 
@@ -103,7 +105,17 @@ struct SearchJourneyResultsView: View {
                 .font(.headline)
 
             ForEach(Array(result.journeys.prefix(4))) { journey in
-                JourneySummaryCard(journey: journey, source: result.source)
+                Button {
+                    onSelectJourney(journey)
+                } label: {
+                    JourneySummaryCard(
+                        journey: journey,
+                        source: result.source,
+                        isSelected: selectedJourneyID == journey.id
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Affiche cet itinéraire sur la carte")
             }
         }
     }
@@ -192,6 +204,8 @@ private extension ViaError {
         result: .mapPreview,
         destinationName: "La Défense",
         departureTitle: "Ma position",
+        selectedJourneyID: JourneyResult.mapPreview.journeys.first?.id,
+        onSelectJourney: { _ in },
         onRetry: {},
         onEdit: {}
     )
@@ -204,6 +218,8 @@ private extension ViaError {
         result: .mapPreview,
         destinationName: "La Défense",
         departureTitle: "Maison",
+        selectedJourneyID: nil,
+        onSelectJourney: { _ in },
         onRetry: {},
         onEdit: {}
     )
@@ -216,6 +232,8 @@ private extension ViaError {
         result: SearchJourneyPreviewData.disrupted,
         destinationName: "La Défense",
         departureTitle: "Ma position",
+        selectedJourneyID: nil,
+        onSelectJourney: { _ in },
         onRetry: {},
         onEdit: {}
     )

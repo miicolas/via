@@ -37,16 +37,12 @@ function build(
   stopKeys: ReadonlyMap<string, number>,
   canonicalStopIdOf: (stopId: string) => string = (stopId) => stopId
 ) {
-  const stopRoutePairs = new Map<string, { stopId: string; routeId: string }>();
-  const counters = { departureCount: 0, skippedStops: 0 };
   return buildTimeProfiles({
     stopTimes: rowsOf(rows),
     trips,
     canonicalStopIdOf,
     stopKeyById: stopKeys,
-    stopRoutePairs,
-    counters,
-  }).then((result) => ({ ...result, stopRoutePairs, counters }));
+  });
 }
 
 const STOP_KEYS = new Map([
@@ -68,11 +64,14 @@ describe('buildTimeProfiles', () => {
       STOP_KEYS
     );
 
-    expect(result.profiles).toHaveLength(1);
-    expect([...result.profiles[0]]).toEqual([1, 0, 0, 2, 300, 300, 3, 750, 750]);
-    expect(result.profileKeyByTrip[1]).toBe(1);
-    expect(result.startSecondsByTrip[1]).toBe(8 * 3600);
-    expect(result.counters.departureCount).toBe(3);
+    expect(result.profileCount).toBe(1);
+    expect(result.callsForTrip(1)).toEqual([
+      { stopKey: 1, arrivalOffset: 0, departureOffset: 0 },
+      { stopKey: 2, arrivalOffset: 300, departureOffset: 300 },
+      { stopKey: 3, arrivalOffset: 750, departureOffset: 750 },
+    ]);
+    expect(result.assignmentForTrip(1)).toEqual({ profileKey: 1, startSeconds: 8 * 3600 });
+    expect(result.stats.departureCount).toBe(3);
   });
 
   test('sorts a block by numeric stop_sequence before computing offsets', async () => {
@@ -86,8 +85,11 @@ describe('buildTimeProfiles', () => {
       STOP_KEYS
     );
 
-    expect([...result.profiles[0]]).toEqual([1, 0, 0, 2, 600, 600]);
-    expect(result.startSecondsByTrip[1]).toBe(9 * 3600);
+    expect(result.callsForTrip(1)).toEqual([
+      { stopKey: 1, arrivalOffset: 0, departureOffset: 0 },
+      { stopKey: 2, arrivalOffset: 600, departureOffset: 600 },
+    ]);
+    expect(result.assignmentForTrip(1)?.startSeconds).toBe(9 * 3600);
   });
 
   test('trips with identical offset vectors share one profile', async () => {
@@ -109,10 +111,10 @@ describe('buildTimeProfiles', () => {
       STOP_KEYS
     );
 
-    expect(result.profiles).toHaveLength(2);
-    expect(result.profileKeyByTrip[1]).toBe(result.profileKeyByTrip[2]);
-    expect(result.profileKeyByTrip[3]).not.toBe(result.profileKeyByTrip[1]);
-    expect(result.startSecondsByTrip[2]).toBe(11 * 3600 + 30 * 60);
+    expect(result.profileCount).toBe(2);
+    expect(result.assignmentForTrip(1)?.profileKey).toBe(result.assignmentForTrip(2)?.profileKey);
+    expect(result.assignmentForTrip(3)?.profileKey).not.toBe(result.assignmentForTrip(1)?.profileKey);
+    expect(result.assignmentForTrip(2)?.startSeconds).toBe(11 * 3600 + 30 * 60);
   });
 
   test('keeps a first-call arrival earlier than its departure and >24h times', async () => {
@@ -139,8 +141,15 @@ describe('buildTimeProfiles', () => {
     );
 
     const start = 24 * 3600;
-    expect(result.startSecondsByTrip[1]).toBe(start);
-    expect([...result.profiles[0]]).toEqual([1, -120, 0, 2, 25 * 3600 + 900 - start, 25 * 3600 + 900 - start]);
+    expect(result.assignmentForTrip(1)?.startSeconds).toBe(start);
+    expect(result.callsForTrip(1)).toEqual([
+      { stopKey: 1, arrivalOffset: -120, departureOffset: 0 },
+      {
+        stopKey: 2,
+        arrivalOffset: 25 * 3600 + 900 - start,
+        departureOffset: 25 * 3600 + 900 - start,
+      },
+    ]);
   });
 
   test('preserves the legacy skip semantics and side effects', async () => {
@@ -157,12 +166,14 @@ describe('buildTimeProfiles', () => {
       (stopId) => (stopId === 'platform-b' ? 'stop-b' : stopId)
     );
 
-    expect(result.counters.skippedStops).toBe(1);
-    expect(result.counters.departureCount).toBe(1);
+    expect(result.stats.skippedStops).toBe(1);
+    expect(result.stats.departureCount).toBe(1);
     expect([...result.stopRoutePairs.values()]).toEqual([{ stopId: 'stop-b', routeId: 'route-x' }]);
     // The only kept call: arrival backfills the missing departure.
-    expect([...result.profiles[0]]).toEqual([2, 0, 0]);
-    expect(result.startSecondsByTrip[1]).toBe(7 * 3600 + 120);
+    expect(result.callsForTrip(1)).toEqual([
+      { stopKey: 2, arrivalOffset: 0, departureOffset: 0 },
+    ]);
+    expect(result.assignmentForTrip(1)?.startSeconds).toBe(7 * 3600 + 120);
   });
 
   test('a trip with no usable call gets no profile assignment', async () => {
@@ -179,8 +190,8 @@ describe('buildTimeProfiles', () => {
       STOP_KEYS
     );
 
-    expect(result.profileKeyByTrip[1]).toBe(0);
-    expect(result.profileKeyByTrip[2]).toBe(1);
+    expect(result.assignmentForTrip(1)).toBeUndefined();
+    expect(result.assignmentForTrip(2)?.profileKey).toBe(1);
   });
 
   test('throws when a flushed trip reappears later in the file', async () => {

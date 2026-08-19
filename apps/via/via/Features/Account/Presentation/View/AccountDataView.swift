@@ -12,11 +12,31 @@ struct AccountDataView: View {
     @State private var isAppleReauthorizationPresented = false
 
     var body: some View {
+        deletionConfirmations
+            .sheet(isPresented: $isAppleReauthorizationPresented) {
+                AccountDeletionSheet(
+                    isDeletingAccount: authSession.isDeletingAccount,
+                    onOutcome: { outcome in
+                        Task {
+                            await authSession.completeAccountDeletion(outcome)
+                            isAppleReauthorizationPresented = false
+                        }
+                    },
+                    onCancel: {
+                        isAppleReauthorizationPresented = false
+                    }
+                )
+            }
+            .navigationTitle("Compte et données")
+            .toolbarTitleDisplayMode(.inlineLarge)
+    }
+
+    private var sections: some View {
         List {
             AccountSynchronizationSection(
                 state: account.syncState,
                 isSignedIn: authSession.isSignedIn,
-                onSynchronize: account.synchronize
+                onSynchronize: { account.synchronize() }
             )
             AccountStorageSection(
                 account: account,
@@ -35,9 +55,10 @@ struct AccountDataView: View {
             )
             AccountAuthenticationErrorSection(message: authSession.errorMessage)
         }
-        .navigationTitle("Compte et données")
-        .toolbarTitleDisplayMode(.inlineLarge)
-        .confirmationDialog(
+    }
+
+    private var historyConfirmation: some View {
+        sections.confirmationDialog(
             "Effacer l’historique ?",
             isPresented: $isClearHistoryConfirmationPresented,
             titleVisibility: .visible
@@ -49,7 +70,10 @@ struct AccountDataView: View {
         } message: {
             Text("Cette action est irréversible sur les espaces actuellement utilisés.")
         }
-        .confirmationDialog(
+    }
+
+    private var preferencesConfirmation: some View {
+        historyConfirmation.confirmationDialog(
             "Réinitialiser les préférences ?",
             isPresented: $isResetPreferencesConfirmationPresented,
             titleVisibility: .visible
@@ -62,7 +86,10 @@ struct AccountDataView: View {
         } message: {
             Text("Les modes et l’introduction seront réinitialisés. Les favoris, lieux et l’historique resteront en place.")
         }
-        .confirmationDialog(
+    }
+
+    private var deviceConfirmations: some View {
+        preferencesConfirmation.confirmationDialog(
             "Effacer les données de cet appareil ?",
             isPresented: $isEraseDeviceConfirmationPresented,
             titleVisibility: .visible
@@ -74,7 +101,10 @@ struct AccountDataView: View {
         } message: {
             Text("Seule la copie locale sera supprimée. Le compte distant restera intact.")
         }
-        .confirmationDialog(
+    }
+
+    private var deletionConfirmations: some View {
+        deviceConfirmations.confirmationDialog(
             "Supprimer le compte Via ?",
             isPresented: $isDeleteAccountConfirmationPresented,
             titleVisibility: .visible
@@ -85,20 +115,6 @@ struct AccountDataView: View {
             Button("Annuler", role: .cancel) {}
         } message: {
             Text("Cette action supprime le compte distant et ses données synchronisées. Une confirmation Apple récente est requise.")
-        }
-        .sheet(isPresented: $isAppleReauthorizationPresented) {
-            AccountDeletionSheet(
-                isDeletingAccount: authSession.isDeletingAccount,
-                onOutcome: { outcome in
-                    Task {
-                        await authSession.completeAccountDeletion(outcome)
-                        isAppleReauthorizationPresented = false
-                    }
-                },
-                onCancel: {
-                    isAppleReauthorizationPresented = false
-                }
-            )
         }
     }
 }

@@ -5,7 +5,8 @@ import {
   transitStops,
   transitTrips,
 } from '@via/db/schema';
-import { and, asc, eq, gt, sql } from 'drizzle-orm';
+import { absoluteTimetableSeconds } from '@via/db/timetable';
+import { and, asc, eq, gt } from 'drizzle-orm';
 
 import type { TheoreticalDepartureRow } from './next-departures';
 
@@ -24,9 +25,7 @@ export async function selectNextTheoreticalDepartures(
   afterSeconds: number,
   limit: number
 ): Promise<TheoreticalDepartureRow[]> {
-  const departureSeconds = sql<number>`${transitTrips.startSeconds} + ${transitProfileStops.departureOffset}`.mapWith(
-    Number
-  );
+  const departureSeconds = absoluteTimetableSeconds(transitProfileStops.departureOffset);
   return db
     .select({
       routeId: transitTrips.routeId,

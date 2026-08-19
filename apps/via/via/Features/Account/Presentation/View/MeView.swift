@@ -1,11 +1,7 @@
 import SwiftUI
 
 struct MeView: View {
-    let accountModel: AccountModel
-    let authSessionViewModel: AuthSessionViewModel
-    let onboardingModel: OnboardingModel
-    let searchRepository: any SearchRepository
-    let supportDestinations: SupportDestinations
+    let model: AccountHubModel
     let onOpenSearch: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
@@ -17,8 +13,8 @@ struct MeView: View {
             List {
                 Section {
                     AccountCardView(
-                        account: accountModel,
-                        authSession: authSessionViewModel
+                        account: model.account,
+                        authSession: model.authSession
                     )
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                     .listRowSeparator(.hidden)
@@ -27,8 +23,8 @@ struct MeView: View {
                 Section("TRAJETS") {
                     NavigationLink {
                         SavedPlacesView(
-                            account: accountModel,
-                            searchRepository: searchRepository
+                            account: model.account,
+                            searchPlaces: model.searchPlaces
                         )
                     } label: {
                         Label("Lieux enregistrés", systemImage: "mappin.and.ellipse")
@@ -36,7 +32,7 @@ struct MeView: View {
 
                     NavigationLink {
                         FavoriteStationsView(
-                            account: accountModel,
+                            account: model.account,
                             onOpenSearch: onOpenSearch
                         )
                     } label: {
@@ -44,7 +40,7 @@ struct MeView: View {
                     }
 
                     NavigationLink {
-                        TransportModesView(account: accountModel)
+                        TransportModesView(account: model.account)
                     } label: {
                         Label("Modes de transport", systemImage: "tram.fill")
                     }
@@ -53,25 +49,25 @@ struct MeView: View {
                 Section("COMPTE") {
                     NavigationLink {
                         AccountDataView(
-                            account: accountModel,
-                            authSession: authSessionViewModel,
-                            onboarding: onboardingModel
+                            account: model.account,
+                            authSession: model.authSession,
+                            onboarding: model.onboarding
                         )
                     } label: {
                         Label("Compte et données", systemImage: "person.crop.circle")
                     }
 
                     NavigationLink {
-                        RecentSearchesView(account: accountModel)
+                        RecentSearchesView(account: model.account)
                     } label: {
                         Label("Historique des recherches", systemImage: "clock.arrow.circlepath")
                     }
 
-                    AccountExportLink(export: accountModel.makeExport())
+                    AccountExportLink(export: model.account.makeExport())
 
-                    if authSessionViewModel.isSignedIn {
+                    if model.authSession.isSignedIn {
                         Button("Se déconnecter", role: .destructive) {
-                            Task { await authSessionViewModel.signOut() }
+                            Task { await model.authSession.signOut() }
                         }
                     }
                 }
@@ -79,15 +75,15 @@ struct MeView: View {
                 Section("SUPPORT") {
                     NavigationLink {
                         SupportView(
-                            onboarding: onboardingModel,
-                            destinations: supportDestinations
+                            onboarding: model.onboarding,
+                            destinations: model.supportDestinations
                         )
                     } label: {
                         Label("Aide et support", systemImage: "questionmark.circle")
                     }
 
                     Button {
-                        onboardingModel.reset()
+                        model.onboarding.reset()
                         isOnboardingPresented = true
                     } label: {
                         Label("Revoir l’introduction", systemImage: "sparkles.rectangle.stack")
@@ -116,7 +112,7 @@ struct MeView: View {
                 .presentationDetents([.height(250)])
         }
         .sheet(isPresented: $isOnboardingPresented) {
-            OnboardingView(model: onboardingModel)
+            OnboardingView(model: model.onboarding)
         }
     }
 }

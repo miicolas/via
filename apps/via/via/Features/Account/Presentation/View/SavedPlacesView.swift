@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SavedPlacesView: View {
     let account: AccountModel
-    let searchRepository: any SearchRepository
+    let searchPlaces: @MainActor (String) async throws -> SearchResponse
 
     @State private var editingRole: SavedPlace.Role?
 
@@ -61,7 +61,7 @@ struct SavedPlacesView: View {
         .navigationTitle("Lieux enregistrés")
         .toolbarTitleDisplayMode(.inlineLarge)
         .sheet(item: $editingRole) { role in
-            SearchManualDepartureView(repository: searchRepository) { result in
+            SearchManualDepartureView(searchPlaces: searchPlaces) { result in
                 account.setPlace(result, role: role)
             }
         }

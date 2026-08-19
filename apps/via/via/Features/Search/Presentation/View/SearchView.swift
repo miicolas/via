@@ -4,38 +4,20 @@ import SwiftUI
 /// becomes a journey request; the map remains visible behind the sheet.
 @MainActor
 struct SearchView: View {
-    let repository: any SearchRepository
-    let journeyRepository: any JourneyRepository
-    let locationModel: LocationModel
-    let savedPlaces: [SavedPlace]
-    let account: AccountModel?
+    let viewModel: SearchViewModel
     let onClose: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var inputTransitionNamespace
-    @State private var viewModel: SearchViewModel
     @State private var isDeparturePickerPresented = false
 
     init(
-        repository: any SearchRepository,
-        journeyRepository: any JourneyRepository,
-        locationModel: LocationModel,
-        savedPlaces: [SavedPlace] = [],
-        account: AccountModel? = nil,
+        viewModel: SearchViewModel,
         onClose: @escaping () -> Void = {}
     ) {
-        self.repository = repository
-        self.journeyRepository = journeyRepository
-        self.locationModel = locationModel
-        self.savedPlaces = savedPlaces
-        self.account = account
+        self.viewModel = viewModel
         self.onClose = onClose
-        _viewModel = State(initialValue: SearchViewModel(
-            repository: repository,
-            journeyRepository: journeyRepository,
-            locationModel: locationModel
-        ))
     }
 
     var body: some View {
@@ -64,8 +46,8 @@ struct SearchView: View {
         .scrollEdgeEffectStyle(.soft, for: .vertical)
         .sheet(isPresented: $isDeparturePickerPresented) {
             SearchDeparturePickerView(
-                repository: repository,
-                savedPlaces: savedPlaces,
+                viewModel: viewModel,
+                savedPlaces: viewModel.savedPlaces,
                 selection: viewModel.selectedDeparture,
                 onSelect: viewModel.selectDeparture
             )
@@ -76,7 +58,7 @@ struct SearchView: View {
         Menu {
             SearchDepartureMenuContent(
                 selection: viewModel.wrappedValue.selectedDeparture,
-                savedPlaces: savedPlaces,
+                savedPlaces: viewModel.wrappedValue.savedPlaces,
                 onSelect: viewModel.wrappedValue.selectDeparture,
                 onChooseManual: { isDeparturePickerPresented = true }
             )
@@ -109,10 +91,7 @@ struct SearchView: View {
                         state: viewModel.wrappedValue.loadState,
                         results: viewModel.wrappedValue.results,
                         onRetry: viewModel.wrappedValue.retry,
-                        onSelect: { result in
-                            account?.recordRecentSearch(result)
-                            viewModel.wrappedValue.selectDestination(result)
-                        }
+                        onSelect: viewModel.wrappedValue.selectDestination
                     )
                 } else if let destination = viewModel.wrappedValue.selectedDestination {
                     SearchJourneyResultsView(
@@ -120,6 +99,8 @@ struct SearchView: View {
                         result: viewModel.wrappedValue.journeyResult,
                         destinationName: destination.name,
                         departureTitle: viewModel.wrappedValue.selectedDeparture.title,
+                        selectedJourneyID: viewModel.wrappedValue.selectedJourneyID,
+                        onSelectJourney: viewModel.wrappedValue.selectJourney,
                         onRetry: viewModel.wrappedValue.retryJourney,
                         onEdit: viewModel.wrappedValue.editDestination
                     )
@@ -208,9 +189,12 @@ private extension SearchResult {
 }
 
 #Preview("Destination") {
+    let locationModel = LocationModel(adapter: InMemoryLocationAdapter())
     SearchView(
-        repository: InMemorySearchRepository.preview,
-        journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
-        locationModel: LocationModel(adapter: InMemoryLocationAdapter())
+        viewModel: SearchViewModel(
+            repository: InMemorySearchRepository.preview,
+            journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+            locationModel: locationModel
+        )
     )
 }

@@ -3,6 +3,7 @@ import SwiftUI
 struct JourneySummaryCard: View {
     let journey: Journey
     let source: JourneyResult.Source?
+    var isSelected = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -77,13 +78,17 @@ struct JourneySummaryCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.secondary.opacity(0.085), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
-            if journey.qualifier == .recommended {
+            if isSelected || journey.qualifier == .recommended {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color.accentColor.opacity(0.35), lineWidth: 1.5)
+                    .stroke(
+                        Color.accentColor.opacity(isSelected ? 0.8 : 0.35),
+                        lineWidth: isSelected ? 2.5 : 1.5
+                    )
             }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var routeBadges: [RouteBadge] {

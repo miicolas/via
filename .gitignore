@@ -11,6 +11,9 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# Claude-managed worktrees are local checkouts, not repository content.
+/.claude/worktrees/
+
 # macOS
 .DS_Store
 *.pem
@@ -43,3 +46,6 @@ xcuserdata/
 
 # App Store Connect build artifacts
 .asc/artifacts/
+
+# agent worktrees
+.claude/worktrees/

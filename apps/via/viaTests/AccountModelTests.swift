@@ -431,34 +431,6 @@ private actor AccountRemoteStub: AccountRemote {
     }
 
     private func apply(_ operation: AccountSyncOperation) {
-        switch operation.kind {
-        case .favoriteUpsert:
-            guard let favorite = operation.station else { return }
-            snapshot.favorites.removeAll { $0.stationID == favorite.stationID }
-            snapshot.favorites.insert(favorite, at: 0)
-        case .favoriteRemove:
-            snapshot.favorites.removeAll { $0.stationID == operation.stationID }
-        case .recentUpsert:
-            guard let recent = operation.recent else { return }
-            snapshot.recents.removeAll { $0.id == recent.id }
-            snapshot.recents.insert(recent, at: 0)
-        case .recentRemove:
-            snapshot.recents.removeAll { $0.id == operation.recentID }
-        case .recentClear:
-            snapshot.recents.removeAll { $0.savedAt <= operation.occurredAt }
-        case .preferencesSet:
-            if let preferences = operation.preferences {
-                snapshot.preferences = preferences
-            }
-        case .placeUpsert:
-            guard let place = operation.place else { return }
-            snapshot.places.removeAll { $0.id == place.id }
-            if place.role != .favorite {
-                snapshot.places.removeAll { $0.role == place.role }
-            }
-            snapshot.places.insert(place, at: 0)
-        case .placeRemove:
-            snapshot.places.removeAll { $0.id == operation.placeID }
-        }
+        AccountOperationReducer.replay(operation, into: &snapshot)
     }
 }

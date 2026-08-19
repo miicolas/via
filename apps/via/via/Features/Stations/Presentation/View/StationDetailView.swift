@@ -2,147 +2,138 @@ import SwiftUI
 
 /// Detail sheet stacked above the tab sheet when a station row is selected.
 struct StationDetailView: View {
-    var station: StationOverview
-    let viewModel: StationsViewModel
-    let account: AccountModel?
+    let selection: SelectedStationModel
     var isLargeScreen: Bool
     @Binding var detailDetent: PresentationDetent
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isFavorite = false
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 15) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        AnnotationFlowLayout(spacing: 6, maximumLineWidth: .infinity) {
-                            ForEach(currentStation.routes) { route in
-                                LineBadgeView(route: route)
+            if let currentStation = selection.overview {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 15) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            AnnotationFlowLayout(spacing: 6, maximumLineWidth: .infinity) {
+                                ForEach(currentStation.routes) { route in
+                                    LineBadgeView(route: route)
+                                }
                             }
+
+                            if let distanceText = currentStation.distanceText {
+                                Text(distanceText)
+                            }
+
+                            Text(currentStation.sourceText)
+                                .font(.caption)
+
+                            DepartureFreshnessView(
+                                source: currentStation.departureSource,
+                                fetchedAt: currentStation.departureFetchedAt
+                            )
                         }
+                        .foregroundStyle(.gray)
 
-                        if let distanceText = currentStation.distanceText {
-                            Text(distanceText)
-                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Prochains passages")
+                                .font(.headline)
+                                .foregroundStyle(.primary)
 
-                        Text(currentStation.sourceText)
-                            .font(.caption)
+                            ForEach(currentStation.routes) { route in
+                                let departures = currentStation.departures(for: route)
 
-                        DepartureFreshnessView(
-                            source: currentStation.departureSource,
-                            fetchedAt: currentStation.departureFetchedAt
-                        )
-                    }
-                    .foregroundStyle(.gray)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Prochains passages")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-
-                        ForEach(currentStation.routes) { route in
-                            let departures = currentStation.departures(for: route)
-
-                            if departures.isEmpty {
-                                DepartureLineRow(
-                                    route: route,
-                                    departure: nil,
-                                    source: currentStation.departureSource
-                                )
-                            } else {
-                                ForEach(departures) { departure in
+                                if departures.isEmpty {
                                     DepartureLineRow(
                                         route: route,
-                                        departure: departure,
+                                        departure: nil,
                                         source: currentStation.departureSource
                                     )
+                                } else {
+                                    ForEach(departures) { departure in
+                                        DepartureLineRow(
+                                            route: route,
+                                            departure: departure,
+                                            source: currentStation.departureSource
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.regularMaterial, in: .rect(cornerRadius: 20))
-
-                    HStack {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Image(systemName: "clock.fill")
-                                .font(.title)
-                                .foregroundStyle(.blue)
-
-                            Text("Départs")
-                                .fontWeight(.bold)
-
-                            Text("Prochains passages")
-                                .font(.callout)
-                                .foregroundStyle(.gray)
-                        }
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(.regularMaterial, in: .rect(cornerRadius: 20))
 
-                        VStack(alignment: .leading, spacing: 6) {
-                            Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(.blue)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Image(systemName: "clock.fill")
+                                    .font(.title)
+                                    .foregroundStyle(.blue)
 
-                            Text("Itinéraire")
-                                .fontWeight(.bold)
+                                Text("Départs")
+                                    .fontWeight(.bold)
 
-                            Text(currentStation.distanceText ?? "Vers cette station")
-                                .font(.callout)
-                                .foregroundStyle(.gray)
+                                Text("Prochains passages")
+                                    .font(.callout)
+                                    .foregroundStyle(.gray)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.regularMaterial, in: .rect(cornerRadius: 20))
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Image(systemName: "arrow.triangle.turn.up.right.circle.fill")
+                                    .font(.title)
+                                    .foregroundStyle(.blue)
+
+                                Text("Itinéraire")
+                                    .fontWeight(.bold)
+
+                                Text(currentStation.distanceText ?? "Vers cette station")
+                                    .font(.callout)
+                                    .foregroundStyle(.gray)
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.regularMaterial, in: .rect(cornerRadius: 20))
+                            .compositingGroup()
+                            .opacity(0.5)
                         }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.regularMaterial, in: .rect(cornerRadius: 20))
-                        .compositingGroup()
-                        .opacity(0.5)
                     }
+                    .padding([.horizontal, .bottom], 15)
+                    .padding(.top, 12)
                 }
-                .padding([.horizontal, .bottom], 15)
-                .padding(.top, 12)
-            }
-            .navigationTitle(currentStation.name)
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(role: .close) {
-                        dismiss()
-                    }
-                }
-
-                ToolbarItem(placement: .bottomBar) {
-                    Button {
-                        if let account {
-                            isFavorite = account.toggleFavorite(
-                                stationID: currentStation.id,
-                                name: currentStation.name,
-                                coordinate: currentStation.coordinate
-                            )
-                        } else {
-                            isFavorite.toggle()
+                .navigationTitle(currentStation.name)
+                .toolbarTitleDisplayMode(.inlineLarge)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(role: .close) {
+                            dismiss()
                         }
-                    } label: {
-                        Image(systemName: isFavorite ? "star.fill" : "star")
-                            .contentTransition(
-                                reduceMotion
-                                    ? .identity
-                                    : .symbolEffect(
-                                        .replace.magic(fallback: .offUp.byLayer),
-                                        options: .nonRepeating
-                                    )
-                            )
                     }
-                    .tint(isFavorite ? .orange : .primary)
-                    .accessibilityLabel("Favoris")
-                    .accessibilityValue(isFavorite ? "Ajoutée" : "Non ajoutée")
-                    .accessibilityHint("Ajoute ou retire cette station des favoris.")
-                }
 
-                ToolbarSpacer(.flexible, placement: .bottomBar)
+                    ToolbarItem(placement: .bottomBar) {
+                        Button {
+                            selection.toggleFavorite()
+                        } label: {
+                            Image(systemName: selection.isFavorite ? "star.fill" : "star")
+                                .contentTransition(
+                                    reduceMotion
+                                        ? .identity
+                                        : .symbolEffect(
+                                            .replace.magic(fallback: .offUp.byLayer),
+                                            options: .nonRepeating
+                                        )
+                                )
+                        }
+                        .tint(selection.isFavorite ? .orange : .primary)
+                        .accessibilityLabel("Favoris")
+                        .accessibilityValue(selection.isFavorite ? "Ajoutée" : "Non ajoutée")
+                        .accessibilityHint("Ajoute ou retire cette station des favoris.")
+                    }
+
+                    ToolbarSpacer(.flexible, placement: .bottomBar)
+                }
             }
         }
         .presentationDetents(detents, selection: $detailDetent)
@@ -150,9 +141,6 @@ struct StationDetailView: View {
         .adaptiveSheet(380, isActive: isLargeScreen)
         .presentationBackgroundInteraction(.enabled)
         .interactiveDismissDisabled()
-        .onAppear {
-            isFavorite = account?.isFavorite(stationID: currentStation.id) ?? false
-        }
         .scrollEdgeEffectStyle(.soft, for: .vertical)
     }
 
@@ -163,23 +151,25 @@ struct StationDetailView: View {
 
         return [.height(80), .large]
     }
-
-    private var currentStation: StationOverview {
-        viewModel.overview(for: station.id) ?? station
-    }
 }
 
 #Preview {
     @Previewable @State var detailDetent: PresentationDetent = .large
+    let locationModel = LocationModel(adapter: InMemoryLocationAdapter())
+    let accountModel = AccountModel(
+        remote: InMemoryAccountRemote(),
+        synchronizationEnabled: false
+    )
+    accountModel.activateAnonymous()
+    let selection = SelectedStationModel(
+        departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+        account: accountModel,
+        locationModel: locationModel
+    )
+    selection.select(StationOverview.preview)
 
     StationDetailView(
-        station: .preview,
-        viewModel: StationsViewModel(
-            locationAdapter: InMemoryLocationAdapter(),
-            networkRepository: InMemoryNetworkRepository.mapPreview,
-            departuresRepository: InMemoryDeparturesRepository.stationsPreview
-        ),
-        account: nil,
+        selection: selection,
         isLargeScreen: false,
         detailDetent: $detailDetent
     )
