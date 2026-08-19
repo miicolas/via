@@ -57,6 +57,26 @@ struct LineDetailDTO: Decodable {
         let name: String
     }
 
+    struct Direction: Decodable {
+        let directionId: Int
+        let label: String
+        let sections: [SchemaSection]
+    }
+
+    struct SchemaSection: Decodable {
+        let role: String
+        let label: String?
+        let origins: [String]
+        let termini: [String]
+        let stops: [SchemaStop]
+    }
+
+    struct SchemaStop: Decodable {
+        let id: String
+        let name: String
+        let isInterchange: Bool
+    }
+
     struct Disruption: Decodable {
         let id: String
         let severity: String
@@ -83,6 +103,7 @@ struct LineDetailDTO: Decodable {
 
     let route: RouteBadgeDTO
     let branches: [Branch]
+    let directions: [Direction]
     let source: String
     let fetchedAt: Date?
     let disruptions: [Disruption]
@@ -100,6 +121,27 @@ struct LineDetailDTO: Decodable {
                     headsign: branch.headsign,
                     isCanonical: branch.isCanonical,
                     stops: branch.stops.map { LineStop(id: $0.id, name: $0.name) }
+                )
+            },
+            directions: try directions.map { direction in
+                LineDirection(
+                    id: "direction-\(direction.directionId)",
+                    directionId: direction.directionId,
+                    label: direction.label,
+                    sections: try direction.sections.map { section in
+                        guard let role = LineSchemaSection.Role(rawValue: section.role) else {
+                            throw ViaError.decoding
+                        }
+                        return LineSchemaSection(
+                            role: role,
+                            label: section.label,
+                            origins: section.origins,
+                            termini: section.termini,
+                            stops: section.stops.map {
+                                LineSchemaStop(id: $0.id, name: $0.name, isInterchange: $0.isInterchange)
+                            }
+                        )
+                    }
                 )
             },
             source: source,

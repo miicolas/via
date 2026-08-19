@@ -99,6 +99,13 @@
       "when": 1786973701616,
       "tag": "0013_black_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787129439498,
+      "tag": "0014_hot_firestar",
+      "breakpoints": true
     }
   ]
 }

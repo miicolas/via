@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 
 import type { NormalizedDisruption } from './disruptions/parse';
-import type { LineBranchStopRow } from './queries';
-import { toLineBranches, toLineDisruptions } from './to-line-detail';
+import type { LineBranchStopRow, LineSchemaStopRow } from './queries';
+import { toLineBranches, toLineDirections, toLineDisruptions } from './to-line-detail';
 
 const now = 1_000_000;
 const hour = 3_600;
@@ -55,6 +55,84 @@ test('rows group into branches in travel order', () => {
       stops: [{ id: 'IDFM:70648', name: 'Boissy-St-Léger' }],
     },
   ]);
+});
+
+function schemaRow(overrides: Partial<LineSchemaStopRow>): LineSchemaStopRow {
+  return {
+    directionId: 0,
+    directionLabel: 'Marne-la-Vallée – Chessy / Boissy-St-Léger',
+    sectionIndex: 0,
+    sectionRole: 'trunk',
+    sectionLabel: null,
+    sectionOrigins: ['IDFM:71264'],
+    sectionTermini: ['IDFM:70648'],
+    stopId: 'IDFM:71264',
+    stopName: 'La Défense',
+    isInterchange: true,
+    ...overrides,
+  };
+}
+
+test('schema rows group into directions and sections in order', () => {
+  const directions = toLineDirections([
+    schemaRow({}),
+    schemaRow({ stopId: 'IDFM:71135', stopName: 'Nation', isInterchange: false }),
+    schemaRow({
+      sectionIndex: 1,
+      sectionRole: 'branch',
+      sectionLabel: 'Branche Boissy-St-Léger',
+      stopId: 'IDFM:70648',
+      stopName: 'Boissy-St-Léger',
+      isInterchange: false,
+    }),
+    schemaRow({
+      directionId: 1,
+      directionLabel: 'Saint-Germain-en-Laye',
+      stopId: 'IDFM:71264',
+      stopName: 'La Défense',
+    }),
+  ]);
+
+  expect(directions).toEqual([
+    {
+      directionId: 0,
+      label: 'Marne-la-Vallée – Chessy / Boissy-St-Léger',
+      sections: [
+        {
+          role: 'trunk',
+          origins: ['IDFM:71264'],
+          termini: ['IDFM:70648'],
+          stops: [
+            { id: 'IDFM:71264', name: 'La Défense', isInterchange: true },
+            { id: 'IDFM:71135', name: 'Nation', isInterchange: false },
+          ],
+        },
+        {
+          role: 'branch',
+          label: 'Branche Boissy-St-Léger',
+          origins: ['IDFM:71264'],
+          termini: ['IDFM:70648'],
+          stops: [{ id: 'IDFM:70648', name: 'Boissy-St-Léger', isInterchange: false }],
+        },
+      ],
+    },
+    {
+      directionId: 1,
+      label: 'Saint-Germain-en-Laye',
+      sections: [
+        {
+          role: 'trunk',
+          origins: ['IDFM:71264'],
+          termini: ['IDFM:70648'],
+          stops: [{ id: 'IDFM:71264', name: 'La Défense', isInterchange: true }],
+        },
+      ],
+    },
+  ]);
+});
+
+test('an empty schema table yields no directions', () => {
+  expect(toLineDirections([])).toEqual([]);
 });
 
 function disruption(overrides: Partial<NormalizedDisruption>): NormalizedDisruption {
