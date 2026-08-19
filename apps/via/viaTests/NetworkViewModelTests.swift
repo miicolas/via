@@ -30,7 +30,8 @@ final class NetworkViewModelTests: XCTestCase {
             area: area(stationID: "hidden", latitude: 48.85)
         )
         let model = NetworkViewModel(repository: repository)
-        let overview = viewport(spanMeters: 2_000)
+        // Past maximumStationSpanMeters (2 100 m): stations neither fetched nor drawn.
+        let overview = viewport(spanMeters: 2_500)
 
         model.viewportChanged(to: overview, phase: .ended)
         await waitUntil { model.state.loading == .loaded }
@@ -85,6 +86,36 @@ final class NetworkViewModelTests: XCTestCase {
         XCTAssertEqual(model.state.snapshot.lineStyle.opacity, 0.45, accuracy: 0.000_000_1)
         let viewportCalls = await repository.viewportCallCount
         XCTAssertEqual(viewportCalls, 1)
+    }
+
+    @MainActor
+    func testContinuousZoomGesturePublishesABoundedNumberOfSnapshots() async {
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: area(stationID: "near", latitude: 48.85)
+        )
+        let model = NetworkViewModel(repository: repository)
+        model.viewportChanged(to: viewport(spanMeters: 20_000), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+
+        // A pinch from 20 km to 62 km of span, one camera update per frame.
+        // Every publish rebuilds the whole map content, so the gesture must
+        // coalesce into a handful of style steps — not one publish per frame.
+        var publishes = 0
+        var previous = model.state
+        for frame in 1...60 {
+            model.viewportChanged(
+                to: viewport(spanMeters: 20_000 + Double(frame) * 700),
+                phase: .continuous
+            )
+            if model.state != previous {
+                publishes += 1
+                previous = model.state
+            }
+        }
+
+        XCTAssertLessThanOrEqual(publishes, 12)
+        XCTAssertGreaterThan(publishes, 0)
     }
 
     @MainActor

@@ -11,6 +11,18 @@ export const coordinateSchema = z.object({
   longitude: z.number(),
 });
 
+/**
+ * {@link coordinateSchema} for GET query strings. Swift's OpenAPI runtime
+ * serializes whole-number doubles as `"2.0"`, which the smart-coercion plugin
+ * refuses to convert (its `Number→String` round-trip yields `"2"`), so query
+ * coordinates coerce explicitly. Same JSON Schema output as `z.number()` —
+ * the generated OpenAPI document does not change.
+ */
+export const coordinateParamSchema = z.object({
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
+});
+
 export const networkModeSchema = z.enum(['metro', 'rer', 'transilien', 'tram', 'bus']);
 
 /**
