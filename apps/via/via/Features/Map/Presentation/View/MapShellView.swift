@@ -15,7 +15,10 @@ struct MapShellView: View {
     let networkViewModel: NetworkViewModel
     let stationsViewModel: StationsViewModel
     let linesViewModel: LinesViewModel
+    let locationModel: LocationModel
+    let accountModel: AccountModel
     let searchRepository: any SearchRepository
+    let journeyRepository: any JourneyRepository
     let lineStatusRepository: any LineStatusRepository
 
     @State private var showTabSheet: Bool = true
@@ -34,13 +37,19 @@ struct MapShellView: View {
         networkViewModel: NetworkViewModel,
         stationsViewModel: StationsViewModel,
         linesViewModel: LinesViewModel,
+        locationModel: LocationModel,
+        accountModel: AccountModel,
         searchRepository: any SearchRepository = InMemorySearchRepository.preview,
+        journeyRepository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
         lineStatusRepository: any LineStatusRepository = PreviewLineStatusRepository()
     ) {
         self.networkViewModel = networkViewModel
         self.stationsViewModel = stationsViewModel
         self.linesViewModel = linesViewModel
+        self.locationModel = locationModel
+        self.accountModel = accountModel
         self.searchRepository = searchRepository
+        self.journeyRepository = journeyRepository
         self.lineStatusRepository = lineStatusRepository
     }
 
@@ -94,6 +103,9 @@ struct MapShellView: View {
                     Tab(value: MapShellTab.search, role: .search) {
                         SearchView(
                             repository: searchRepository,
+                            journeyRepository: journeyRepository,
+                            locationModel: locationModel,
+                            savedPlaces: accountModel.places,
                             onClose: closeSearch
                         )
                     }
@@ -142,17 +154,24 @@ struct MapShellView: View {
 }
 
 #Preview {
-    let locationAdapter = InMemoryLocationAdapter(
-        coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
+    let locationModel = LocationModel(
+        adapter: InMemoryLocationAdapter(
+            coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
+        )
     )
 
     MapShellView(
         networkViewModel: NetworkViewModel(repository: InMemoryNetworkRepository.mapPreview),
         stationsViewModel: StationsViewModel(
-            locationAdapter: locationAdapter,
+            locationModel: locationModel,
             networkRepository: InMemoryNetworkRepository.mapPreview,
             departuresRepository: InMemoryDeparturesRepository.stationsPreview
         ),
-        linesViewModel: LinesViewModel(repository: PreviewLineStatusRepository())
+        linesViewModel: LinesViewModel(repository: PreviewLineStatusRepository()),
+        locationModel: locationModel,
+        accountModel: AccountModel(
+            remote: InMemoryAccountRemote(),
+            synchronizationEnabled: false
+        )
     )
 }

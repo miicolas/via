@@ -10,6 +10,8 @@ final class NetworkViewModel {
     @ObservationIgnored private let repository: any NetworkRepository
     @ObservationIgnored private var routeLayout: TransitRouteLayout?
     @ObservationIgnored private var positionedRoutes: [NetworkRoute] = []
+    @ObservationIgnored private var positionedViewport: TransitMapViewport?
+    @ObservationIgnored private var routesGeneration = 0
     @ObservationIgnored private var loadedStations: [StationMapItem] = []
     @ObservationIgnored private var viewportTask: Task<Void, Never>?
     @ObservationIgnored private var viewportRevision = 0
@@ -49,15 +51,23 @@ final class NetworkViewModel {
             }
             try Task.checkCancellation()
 
+            // Lane positions depend only on the viewport's shape, not its
+            // center: skip the recompute (and the generation bump) when a pan
+            // lands on the same zoom, so the published routes stay identical.
             let mapViewport = viewport.transitMapViewport
-            let routes = await Task.detached(priority: .userInitiated) {
-                layout.positioned(in: mapViewport)
-            }.value
-            try Task.checkCancellation()
+            if routeLayout == nil || positionedViewport != mapViewport {
+                let routes = await Task.detached(priority: .userInitiated) {
+                    layout.positioned(in: mapViewport)
+                }.value
+                try Task.checkCancellation()
+                guard revision == viewportRevision else { return }
+                positionedRoutes = routes
+                positionedViewport = mapViewport
+                routesGeneration &+= 1
+            }
             guard revision == viewportRevision else { return }
 
             routeLayout = layout
-            positionedRoutes = routes
             publishSnapshot(for: viewport, loading: .loading)
 
             if viewport.showsStations {
@@ -68,7 +78,7 @@ final class NetworkViewModel {
             }
             publishSnapshot(for: viewport, loading: .loaded)
             AppLog.network.debug(
-                "Map snapshot loaded with \(routes.count, privacy: .public) routes"
+                "Map snapshot loaded with \(self.positionedRoutes.count, privacy: .public) routes"
             )
         } catch is CancellationError {
         } catch {
@@ -94,6 +104,7 @@ final class NetworkViewModel {
         let refreshed = NetworkMapState(
             snapshot: NetworkMapSnapshot(
                 routes: positionedRoutes,
+                routesGeneration: routesGeneration,
                 stations: visibleStations,
                 lineStyle: viewport.lineStyle,
                 stationOpacity: viewport.stationOpacity

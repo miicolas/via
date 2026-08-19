@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { coordinateSchema, networkModeSchema } from '../shared/schema';
+import { coordinateParamSchema, coordinateSchema, networkModeSchema } from '../shared/schema';
 
 export const journeyModeSchema = networkModeSchema;
 export const journeyDatetimeRepresentsSchema = z.enum(['departure', 'arrival']);
@@ -61,7 +61,7 @@ const journeyModeListParamSchema = z
   .pipe(z.array(journeyModeSchema).max(3));
 
 export const journeyInputSchema = z.object({
-  origin: coordinateSchema,
+  origin: coordinateParamSchema,
   destination: journeyDestinationParamSchema,
   limit: z.int().min(1).max(6).default(4),
   /** Omitted by the classic flow, which keeps its current "leave now" behavior. */

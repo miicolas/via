@@ -10,8 +10,8 @@ export const searchInputSchema = z
      * prioritization of address results, and `distanceMeters` on every result.
      * Absent when location permission is denied — results then carry no distance.
      */
-    latitude: z.number().min(-90).max(90).optional(),
-    longitude: z.number().min(-180).max(180).optional(),
+    latitude: z.coerce.number().min(-90).max(90).optional(),
+    longitude: z.coerce.number().min(-180).max(180).optional(),
     limit: z.int().min(1).max(20).default(10),
   })
   .refine((input) => (input.latitude === undefined) === (input.longitude === undefined), {

@@ -39,6 +39,22 @@ struct SavedPlace: Codable, Sendable, Hashable, Identifiable {
         case home, work, favorite
 
         var id: String { rawValue }
+
+        var displayTitle: String {
+            switch self {
+            case .home: "Maison"
+            case .work: "Travail"
+            case .favorite: "Lieu enregistré"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .home: "house.fill"
+            case .work: "briefcase.fill"
+            case .favorite: "mappin.and.ellipse"
+            }
+        }
     }
 
     let id: String

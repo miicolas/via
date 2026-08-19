@@ -37,16 +37,29 @@ struct NetworkLineStyle: Sendable, Equatable {
 
 struct NetworkMapSnapshot: Sendable, Equatable {
     let routes: [NetworkRoute]
+    /// Bumped whenever `routes` is replaced. Equality goes through it instead of
+    /// the routes themselves: the deep compare walks every coordinate of every
+    /// polyline, and the view model runs it on the main thread for each
+    /// continuous camera frame.
+    let routesGeneration: Int
     let stations: [StationMapItem]
     let lineStyle: NetworkLineStyle
     let stationOpacity: Double
 
     static let empty = NetworkMapSnapshot(
         routes: [],
+        routesGeneration: 0,
         stations: [],
         lineStyle: NetworkLineStyle(opacity: 1, width: 3),
         stationOpacity: 1
     )
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.routesGeneration == rhs.routesGeneration &&
+            lhs.lineStyle == rhs.lineStyle &&
+            lhs.stationOpacity == rhs.stationOpacity &&
+            lhs.stations == rhs.stations
+    }
 }
 
 enum NetworkMapLoadingState: Sendable, Equatable {
@@ -75,8 +88,13 @@ extension NetworkViewport {
         let span = maximumSpanMeters
         guard span > Self.fullyVisibleStationSpanMeters else { return 1 }
         guard span < Self.maximumStationSpanMeters else { return 0 }
-        return 1 - (span - Self.fullyVisibleStationSpanMeters) /
-            (Self.maximumStationSpanMeters - Self.fullyVisibleStationSpanMeters)
+        // Quantized for the same reason as TransitLineVisibility: each distinct
+        // value republishes the snapshot and rebuilds the annotations.
+        return TransitLineVisibility.quantized(
+            1 - (span - Self.fullyVisibleStationSpanMeters) /
+                (Self.maximumStationSpanMeters - Self.fullyVisibleStationSpanMeters),
+            step: 0.1
+        )
     }
 
     var lineStyle: NetworkLineStyle {

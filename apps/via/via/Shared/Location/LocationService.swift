@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import Observation
 import OSLog
 
 enum LocationAuthorization: Sendable, Equatable {
@@ -20,6 +21,129 @@ enum LocationAdapterEvent: Sendable, Equatable {
     case authorizationChanged(LocationAuthorization)
     case located(GeoCoordinate)
     case failed(LocationAuthorization)
+}
+
+/// Shared owner of the single Core Location adapter used by the app.
+///
+/// Stations and Search both need the same current coordinate. Keeping the
+/// adapter behind this model prevents the last consumer that assigns
+/// `LocationAdapter.onEvent` from silently stealing location updates from the
+/// other feature.
+@MainActor
+@Observable
+final class LocationModel {
+    private(set) var state: LocationState
+
+    /// Stations observes this callback for its existing loading flow. Search
+    /// waits through `requestCurrentLocation()` so it can resume a pending
+    /// journey after the permission prompt completes.
+    @ObservationIgnored var onStateChange: (@MainActor (LocationState) -> Void)?
+
+    @ObservationIgnored private let adapter: any LocationAdapter
+
+    init(adapter: any LocationAdapter) {
+        self.adapter = adapter
+        state = .idle(authorization: adapter.authorization)
+        adapter.onEvent = { [weak self] event in
+            self?.handle(event)
+        }
+    }
+
+    var authorization: LocationAuthorization {
+        switch state {
+        case .idle(let authorization), .failed(let authorization):
+            authorization
+        case .locating:
+            adapter.authorization
+        case .located:
+            .authorized
+        }
+    }
+
+    var coordinate: GeoCoordinate? {
+        guard case .located(let coordinate) = state else { return nil }
+        return coordinate
+    }
+
+    func requestLocation() {
+        switch adapter.authorization {
+        case .authorized:
+            publish(.locating)
+            adapter.requestLocation()
+        case .notDetermined:
+            publish(.locating)
+            adapter.requestAuthorization()
+        case .restricted, .denied:
+            publish(.failed(adapter.authorization))
+        }
+    }
+
+    /// Requests the current coordinate and waits for the adapter event. The
+    /// stream is registered before requesting permission so synchronous test
+    /// adapters cannot race the listener.
+    func requestCurrentLocation() async -> GeoCoordinate? {
+        if let coordinate { return coordinate }
+
+        let updates = stateUpdates()
+        requestLocation()
+
+        for await update in updates {
+            switch update {
+            case .located(let coordinate):
+                return coordinate
+            case .failed:
+                return nil
+            case .idle(.denied), .idle(.restricted):
+                return nil
+            case .locating, .idle:
+                continue
+            }
+        }
+
+        return nil
+    }
+
+    @ObservationIgnored private var updateContinuations: [UUID: AsyncStream<LocationState>.Continuation] = [:]
+
+    private func stateUpdates() -> AsyncStream<LocationState> {
+        let id = UUID()
+        return AsyncStream { continuation in
+            updateContinuations[id] = continuation
+            continuation.yield(state)
+            continuation.onTermination = { @Sendable [weak self] _ in
+                Task { @MainActor in
+                    self?.updateContinuations.removeValue(forKey: id)
+                }
+            }
+        }
+    }
+
+    private func handle(_ event: LocationAdapterEvent) {
+        switch event {
+        case .authorizationChanged(let authorization):
+            switch authorization {
+            case .authorized:
+                publish(.locating)
+                adapter.requestLocation()
+            case .notDetermined:
+                publish(.idle(authorization: authorization))
+            case .restricted, .denied:
+                publish(.failed(authorization))
+            }
+        case .located(let coordinate):
+            publish(.located(coordinate))
+        case .failed(let authorization):
+            publish(.failed(authorization))
+        }
+    }
+
+    private func publish(_ newState: LocationState) {
+        state = newState
+        onStateChange?(newState)
+        for continuation in updateContinuations.values {
+            continuation.yield(newState)
+        }
+    }
 }
 
 @MainActor

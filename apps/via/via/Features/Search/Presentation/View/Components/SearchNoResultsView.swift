@@ -13,7 +13,7 @@ struct SearchNoResultsView: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, 24)
 
-            Text("Vérifiez votre destination, la date et votre point de départ. Toujours aucun résultat ?")
+            Text("Vérifie ta destination ou ton point de départ. Toujours aucun résultat ?")
                 .font(.body)
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
