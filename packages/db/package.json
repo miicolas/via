@@ -9,6 +9,7 @@
     "./projection": "./src/stop-projection.ts",
     "./network-scope": "./src/network-scope.ts",
     "./drawn-geometry": "./src/drawn-geometry.ts",
+    "./timetable": "./src/timetable.ts",
     "./package.json": "./package.json"
   },
   "types": "./src/index.ts",

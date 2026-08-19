@@ -120,6 +120,25 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(request.limit, 4)
         XCTAssertNil(request.requestedAt)
         XCTAssertNil(request.datetimeRepresents)
+        XCTAssertEqual(model.selectedJourneyID, JourneyResult.mapPreview.journeys.first?.id)
+        XCTAssertFalse(model.mapPresentation?.segments.isEmpty ?? true)
+    }
+
+    func testSelectingAnotherJourneyReplacesMapPresentation() async {
+        let model = makeModel(
+            journeyRepository: JourneyRepositoryRecorder(result: .mapPreview),
+            location: LocationModel(adapter: InMemoryLocationAdapter())
+        )
+        model.selectDestination(.previewStation)
+        await waitForStep(model, .results)
+
+        guard let alternate = JourneyResult.mapPreview.journeys.dropFirst().first else {
+            return XCTFail("Expected an alternate journey")
+        }
+        model.selectJourney(alternate)
+
+        XCTAssertEqual(model.selectedJourneyID, alternate.id)
+        XCTAssertEqual(model.mapPresentation, JourneyMapPresentation(journey: alternate))
     }
 
     func testNoRouteStateIsDisplayedWhenRepositoryReturnsNoRoute() async {

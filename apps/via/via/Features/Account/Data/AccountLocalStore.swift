@@ -101,150 +101,54 @@ final class AccountLocalStore: @unchecked Sendable {
         now: Date = .now
     ) -> Bool {
         locked {
-            guard let scope = activeScope else { return false }
-            var snapshot = load(for: scope)
-            if let index = snapshot.favorites.firstIndex(where: { $0.stationID == stationID.rawValue }) {
-                snapshot.favorites.remove(at: index)
-                snapshot.pendingOperations.append(AccountSyncOperation(
-                    kind: .favoriteRemove,
-                    occurredAt: now,
-                    stationID: stationID.rawValue
-                ))
-                trimOperations(&snapshot)
-                save(snapshot, for: scope)
-                return false
-            }
-
-            let favorite = FavoriteStation(
-                stationID: stationID.rawValue,
+            mutate(.toggleFavorite(
+                stationID: stationID,
                 name: name,
                 coordinate: coordinate,
-                savedAt: now,
-                updatedAt: now
-            )
-            snapshot.favorites.insert(favorite, at: 0)
-            snapshot.pendingOperations.append(AccountSyncOperation(
-                kind: .favoriteUpsert,
-                occurredAt: now,
-                station: favorite
-            ))
-
-            if snapshot.favorites.count > AccountLocalSnapshot.favoriteLimit {
-                let removed = snapshot.favorites.removeLast()
-                snapshot.pendingOperations.append(AccountSyncOperation(
-                    kind: .favoriteRemove,
-                    occurredAt: now,
-                    stationID: removed.stationID
-                ))
-            }
-            trimOperations(&snapshot)
-            save(snapshot, for: scope)
-            return true
+                at: now
+            ))?.favoriteIsSaved ?? false
         }
     }
 
     func removeFavorite(stationID: String, now: Date = .now) {
         locked {
-            guard let scope = activeScope else { return }
-            var snapshot = load(for: scope)
-            snapshot.favorites.removeAll { $0.stationID == stationID }
-            snapshot.pendingOperations.append(AccountSyncOperation(
-                kind: .favoriteRemove,
-                occurredAt: now,
-                stationID: stationID
-            ))
-            trimOperations(&snapshot)
-            save(snapshot, for: scope)
+            _ = mutate(.removeFavorite(stationID: stationID, at: now))
         }
     }
 
     func upsertRecent(_ recent: RecentSearch) {
         locked {
-            guard let scope = activeScope else { return }
-            var snapshot = load(for: scope)
-            snapshot.recents.removeAll { $0.id == recent.id }
-            snapshot.recents.insert(recent, at: 0)
-            snapshot.recents = Array(snapshot.recents.prefix(AccountLocalSnapshot.recentLimit))
-            snapshot.pendingOperations.append(Self.recentUpsertOperation(recent))
-            trimOperations(&snapshot)
-            save(snapshot, for: scope)
+            _ = mutate(.upsertRecent(recent))
         }
     }
 
     func removeRecent(id: String, now: Date = .now) {
         locked {
-            guard let scope = activeScope else { return }
-            var snapshot = load(for: scope)
-            snapshot.recents.removeAll { $0.id == id }
-            snapshot.pendingOperations.append(AccountSyncOperation(
-                kind: .recentRemove,
-                occurredAt: now,
-                recentID: id
-            ))
-            trimOperations(&snapshot)
-            save(snapshot, for: scope)
+            _ = mutate(.removeRecent(id: id, at: now))
         }
     }
 
     func clearRecents(now: Date = .now) {
         locked {
-            guard let scope = activeScope else { return }
-            var snapshot = load(for: scope)
-            snapshot.recents = []
-            snapshot.pendingOperations.append(AccountSyncOperation(
-                kind: .recentClear,
-                occurredAt: now
-            ))
-            trimOperations(&snapshot)
-            save(snapshot, for: scope)
+            _ = mutate(.clearRecents(at: now))
         }
     }
 
     func savePlace(_ place: SavedPlace) {
         locked {
-            guard let scope = activeScope else { return }
-            var snapshot = load(for: scope)
-            // The replay reducer is the single owner of place-op semantics so
-            // local saves and post-sync replays cannot drift apart.
-            let operation = AccountSyncOperation(
-                kind: .placeUpsert,
-                occurredAt: place.updatedAt,
-                place: place
-            )
-            replay(operation, into: &snapshot)
-            snapshot.pendingOperations.append(operation)
-            trimOperations(&snapshot)
-            save(snapshot, for: scope)
+            _ = mutate(.savePlace(place))
         }
     }
 
     func removePlace(id: String, now: Date = .now) {
         locked {
-            guard let scope = activeScope else { return }
-            var snapshot = load(for: scope)
-            snapshot.places.removeAll { $0.id == id }
-            snapshot.pendingOperations.append(AccountSyncOperation(
-                kind: .placeRemove,
-                occurredAt: now,
-                placeID: id
-            ))
-            trimOperations(&snapshot)
-            save(snapshot, for: scope)
+            _ = mutate(.removePlace(id: id, at: now))
         }
     }
 
     func setPreferences(_ preferences: TransportPreferences) {
         locked {
-            guard let scope = activeScope else { return }
-            var snapshot = load(for: scope)
-            snapshot.preferences = preferences
-            snapshot.pendingOperations.append(AccountSyncOperation(
-                kind: .preferencesSet,
-                occurredAt: preferences.updatedAt,
-                preferences: preferences
-            ))
-            trimOperations(&snapshot)
-            save(snapshot, for: scope)
+            _ = mutate(.setPreferences(preferences))
         }
     }
 
@@ -269,7 +173,9 @@ final class AccountLocalStore: @unchecked Sendable {
                 preferences: result.preferences,
                 pendingOperations: remaining
             )
-            for operation in remaining { replay(operation, into: &snapshot) }
+            for operation in remaining {
+                AccountOperationReducer.replay(operation, into: &snapshot)
+            }
             save(snapshot, for: .user(userID))
         }
     }
@@ -317,6 +223,17 @@ final class AccountLocalStore: @unchecked Sendable {
         cachedSnapshot = (scope, snapshot)
         guard let data = try? JSONEncoder.via.encode(snapshot) else { return }
         defaults.set(data, forKey: storageKey(for: scope))
+    }
+
+    private func mutate(_ mutation: AccountMutation) -> AccountMutationResult? {
+        guard let scope = activeScope else { return nil }
+        let current = load(for: scope)
+        let result = AccountOperationReducer.reduce(mutation, in: current)
+        var persisted = result.snapshot
+        persisted.pendingOperations.append(contentsOf: result.operations)
+        trimOperations(&persisted)
+        save(persisted, for: scope)
+        return result
     }
 
     private func storageKey(for scope: AccountScope) -> String {
@@ -402,7 +319,7 @@ final class AccountLocalStore: @unchecked Sendable {
                 break
             }
         }
-        trimFavoritePlaces(&merged)
+        AccountOperationReducer.normalize(&merged)
         return merged
     }
 
@@ -422,53 +339,6 @@ final class AccountLocalStore: @unchecked Sendable {
             ))
         }
         return operations
-    }
-
-    private func replay(_ operation: AccountSyncOperation, into snapshot: inout AccountLocalSnapshot) {
-        switch operation.kind {
-        case .favoriteUpsert:
-            guard let station = operation.station else { return }
-            snapshot.favorites.removeAll { $0.stationID == station.stationID }
-            snapshot.favorites.insert(station, at: 0)
-            snapshot.favorites = Array(snapshot.favorites.prefix(AccountLocalSnapshot.favoriteLimit))
-        case .favoriteRemove:
-            snapshot.favorites.removeAll { $0.stationID == operation.stationID }
-        case .recentUpsert:
-            guard let recent = operation.recent else { return }
-            snapshot.recents.removeAll { $0.id == recent.id }
-            snapshot.recents.insert(recent, at: 0)
-            snapshot.recents = Array(snapshot.recents.prefix(AccountLocalSnapshot.recentLimit))
-        case .recentRemove:
-            snapshot.recents.removeAll { $0.id == operation.recentID }
-        case .recentClear:
-            snapshot.recents.removeAll { $0.savedAt <= operation.occurredAt }
-        case .preferencesSet:
-            if let preferences = operation.preferences { snapshot.preferences = preferences }
-        case .placeUpsert:
-            guard let place = operation.place else { return }
-            snapshot.places.removeAll { $0.id == place.id }
-            if place.role != .favorite {
-                // Home and work are unique: last writer evicts the previous holder.
-                snapshot.places.removeAll { $0.role == place.role && $0.updatedAt <= place.updatedAt }
-            }
-            snapshot.places.insert(place, at: 0)
-            trimFavoritePlaces(&snapshot)
-        case .placeRemove:
-            snapshot.places.removeAll { $0.id == operation.placeID }
-        }
-    }
-
-    /// Favorites get trimmed to the shared limit; home and work never do.
-    private func trimFavoritePlaces(_ snapshot: inout AccountLocalSnapshot) {
-        let surplus = Set(
-            snapshot.places
-                .filter { $0.role == .favorite }
-                .sorted { $0.savedAt > $1.savedAt }
-                .dropFirst(AccountLocalSnapshot.favoritePlaceLimit)
-                .map(\.id)
-        )
-        guard !surplus.isEmpty else { return }
-        snapshot.places.removeAll { surplus.contains($0.id) }
     }
 
     private static func recentUpsertOperation(_ recent: RecentSearch) -> AccountSyncOperation {

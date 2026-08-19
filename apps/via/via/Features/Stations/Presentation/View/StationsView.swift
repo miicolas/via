@@ -2,10 +2,9 @@ import SwiftUI
 
 struct StationsView: View {
     let viewModel: StationsViewModel
-    let account: AccountModel?
+    let selectedStation: SelectedStationModel
 
     @Binding var isLargeScreen: Bool
-    @Binding var selectedStation: StationOverview?
     @Binding var detailDetent: PresentationDetent
 
     let onOpenSearch: () -> Void
@@ -39,14 +38,14 @@ struct StationsView: View {
             await viewModel.runAutomaticRefresh()
         }
         .scrollEdgeEffectStyle(.soft, for: .vertical)
-        .sheet(item: $selectedStation) { station in
-            StationDetailView(
-                station: station,
-                viewModel: viewModel,
-                account: account,
-                isLargeScreen: isLargeScreen,
-                detailDetent: $detailDetent
-            )
+        .sheet(isPresented: selectedStationPresentation) {
+            if selectedStation.overview != nil {
+                StationDetailView(
+                    selection: selectedStation,
+                    isLargeScreen: isLargeScreen,
+                    detailDetent: $detailDetent
+                )
+            }
         }
     }
 
@@ -99,7 +98,7 @@ struct StationsView: View {
 
             Button {
                 detailDetent = isLargeScreen ? .fraction(0.97) : .large
-                selectedStation = station
+                selectedStation.select(station)
             } label: {
                 StationRowLabel(station: station)
             }
@@ -183,20 +182,43 @@ struct StationsView: View {
             "Impossible de charger les stations pour le moment."
         }
     }
+
+    private var selectedStationPresentation: Binding<Bool> {
+        Binding(
+            get: { selectedStation.overview != nil },
+            set: { isPresented in
+                if !isPresented {
+                    selectedStation.dismiss()
+                }
+            }
+        )
+    }
 }
 
 #Preview("Station row") {
+    let locationModel = LocationModel(
+        adapter: InMemoryLocationAdapter(
+            coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
+        )
+    )
+    let accountModel = AccountModel(
+        remote: InMemoryAccountRemote(),
+        synchronizationEnabled: false
+    )
+    accountModel.activateAnonymous()
+
     StationsView(
         viewModel: StationsViewModel(
-            locationAdapter: InMemoryLocationAdapter(
-                coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
-            ),
+            locationModel: locationModel,
             networkRepository: InMemoryNetworkRepository.mapPreview,
             departuresRepository: InMemoryDeparturesRepository.stationsPreview
         ),
-        account: nil,
+        selectedStation: SelectedStationModel(
+            departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+            account: accountModel,
+            locationModel: locationModel
+        ),
         isLargeScreen: .constant(false),
-        selectedStation: .constant(nil),
         detailDetent: .constant(.large),
         onOpenSearch: {},
         onOpenProfile: {}

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SearchDeparturePickerView: View {
-    let repository: any SearchRepository
+    let viewModel: SearchViewModel
     let savedPlaces: [SavedPlace]
     let selection: SearchDepartureSelection
     let onSelect: (SearchDepartureSelection) -> Void
@@ -11,12 +11,12 @@ struct SearchDeparturePickerView: View {
     @State private var isManualSearchPresented = false
 
     init(
-        repository: any SearchRepository,
+        viewModel: SearchViewModel,
         savedPlaces: [SavedPlace] = [],
         selection: SearchDepartureSelection = .currentLocation,
         onSelect: @escaping (SearchDepartureSelection) -> Void
     ) {
-        self.repository = repository
+        self.viewModel = viewModel
         self.savedPlaces = savedPlaces
         self.selection = selection
         self.onSelect = onSelect
@@ -83,7 +83,7 @@ struct SearchDeparturePickerView: View {
             select(shortcut)
         }
         .sheet(isPresented: $isManualSearchPresented) {
-            SearchManualDepartureView(repository: repository) { result in
+            SearchManualDepartureView(searchPlaces: viewModel.searchPlaces) { result in
                 onSelect(.manual(result))
                 isManualSearchPresented = false
                 dismiss()
@@ -109,8 +109,13 @@ struct SearchDeparturePickerView: View {
 }
 
 #Preview {
+    let locationModel = LocationModel(adapter: InMemoryLocationAdapter())
     SearchDeparturePickerView(
-        repository: InMemorySearchRepository.preview,
+        viewModel: SearchViewModel(
+            repository: InMemorySearchRepository.preview,
+            journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+            locationModel: locationModel
+        ),
         selection: .currentLocation,
         onSelect: { _ in }
     )

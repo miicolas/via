@@ -1,27 +1,97 @@
+import { Readable, type Writable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+
 import { parseGtfsTime } from './gtfs-time';
 
 import type { ScheduledTrip } from './import-schedules';
 
-export type TimeProfileBuild = {
-  /**
-   * Index = profile id - 1. Each profile is a flat array of
-   * (stopKey, arrivalOffset, departureOffset) triples in call order, offsets
-   * relative to the trip's first departure.
-   */
-  profiles: Int32Array[];
-  /** Index = trip numericId; 0 means the trip had no usable call. */
-  profileKeyByTrip: Int32Array;
-  /** Index = trip numericId; departure at the trip's first call. */
-  startSecondsByTrip: Int32Array;
+export type TimeProfileCall = {
+  stopKey: number;
+  arrivalOffset: number;
+  departureOffset: number;
 };
+
+export type TimeProfileAssignment = {
+  profileKey: number;
+  startSeconds: number;
+};
+
+/**
+ * Owns the timetable encoding produced by one GTFS import. Callers work with
+ * semantic assignments and calls; the flat-vector stride, zero sentinel,
+ * dense profile ids, and COPY text representation stay inside this module.
+ */
+export class TimeProfileBuild {
+  readonly stopRoutePairs: ReadonlyMap<string, { stopId: string; routeId: string }>;
+  readonly stats: Readonly<{ departureCount: number; skippedStops: number }>;
+
+  readonly #profiles: readonly Int32Array[];
+  readonly #profileKeyByTrip: Int32Array;
+  readonly #startSecondsByTrip: Int32Array;
+
+  constructor(
+    profiles: readonly Int32Array[],
+    profileKeyByTrip: Int32Array,
+    startSecondsByTrip: Int32Array,
+    stopRoutePairs: ReadonlyMap<string, { stopId: string; routeId: string }>,
+    stats: Readonly<{ departureCount: number; skippedStops: number }>
+  ) {
+    this.#profiles = profiles;
+    this.#profileKeyByTrip = profileKeyByTrip;
+    this.#startSecondsByTrip = startSecondsByTrip;
+    this.stopRoutePairs = stopRoutePairs;
+    this.stats = stats;
+  }
+
+  get profileCount(): number {
+    return this.#profiles.length;
+  }
+
+  get callCount(): number {
+    return this.#profiles.reduce((total, vector) => total + vector.length / 3, 0);
+  }
+
+  assignmentForTrip(tripNumericId: number): TimeProfileAssignment | undefined {
+    const profileKey = this.#profileKeyByTrip[tripNumericId];
+    if (profileKey === 0) return undefined;
+    return { profileKey, startSeconds: this.#startSecondsByTrip[tripNumericId] };
+  }
+
+  callsForTrip(tripNumericId: number): TimeProfileCall[] {
+    const assignment = this.assignmentForTrip(tripNumericId);
+    if (!assignment) return [];
+    const vector = this.#profiles[assignment.profileKey - 1];
+    const calls: TimeProfileCall[] = [];
+    for (let index = 0; index < vector.length; index += 3) {
+      calls.push({
+        stopKey: vector[index],
+        arrivalOffset: vector[index + 1],
+        departureOffset: vector[index + 2],
+      });
+    }
+    return calls;
+  }
+
+  async writeProfileStopsTo(destination: Writable): Promise<void> {
+    await pipeline(Readable.from(this.#copyRows()), destination);
+  }
+
+  *#copyRows(): Generator<string> {
+    for (let index = 0; index < this.#profiles.length; index += 1) {
+      const vector = this.#profiles[index];
+      const profileKey = index + 1;
+      for (let call = 0; call < vector.length; call += 3) {
+        yield `${profileKey}\t${call / 3}\t${vector[call]}\t${vector[call + 1]}\t${vector[call + 2]}\n`;
+      }
+    }
+  }
+}
 
 type BuildTimeProfilesOptions = {
   stopTimes: AsyncGenerator<Record<string, string>>;
   trips: ReadonlyMap<string, ScheduledTrip>;
   canonicalStopIdOf: (stopId: string) => string;
   stopKeyById: ReadonlyMap<string, number>;
-  stopRoutePairs: Map<string, { stopId: string; routeId: string }>;
-  counters: { departureCount: number; skippedStops: number };
 };
 
 /**
@@ -40,14 +110,14 @@ export async function buildTimeProfiles({
   trips,
   canonicalStopIdOf,
   stopKeyById,
-  stopRoutePairs,
-  counters,
 }: BuildTimeProfilesOptions): Promise<TimeProfileBuild> {
   const profiles: Int32Array[] = [];
   const profileIdByVector = new Map<string, number>();
   const profileKeyByTrip = new Int32Array(trips.size + 1);
   const startSecondsByTrip = new Int32Array(trips.size + 1);
   const flushedTrips = new Set<number>();
+  const stopRoutePairs = new Map<string, { stopId: string; routeId: string }>();
+  const stats = { departureCount: 0, skippedStops: 0 };
 
   let currentTripId: string | undefined;
   let currentTrip: ScheduledTrip | undefined;
@@ -108,7 +178,7 @@ export async function buildTimeProfiles({
     const stopId = canonicalStopIdOf(stopTime.stop_id);
     const stopKey = stopKeyById.get(stopId);
     if (stopKey === undefined) {
-      counters.skippedStops += 1;
+      stats.skippedStops += 1;
       continue;
     }
 
@@ -118,13 +188,19 @@ export async function buildTimeProfiles({
       stopId,
       routeId: currentTrip.routeId,
     });
-    counters.departureCount += 1;
-    if (counters.departureCount % 1_000_000 === 0) {
-      console.log(`Streamed ${counters.departureCount} stop-times…`);
+    stats.departureCount += 1;
+    if (stats.departureCount % 1_000_000 === 0) {
+      console.log(`Streamed ${stats.departureCount} stop-times…`);
     }
     calls.push(Number(stopTime.stop_sequence), stopKey, arrivalSeconds, departureSeconds);
   }
   flush();
 
-  return { profiles, profileKeyByTrip, startSecondsByTrip };
+  return new TimeProfileBuild(
+    profiles,
+    profileKeyByTrip,
+    startSecondsByTrip,
+    stopRoutePairs,
+    stats
+  );
 }

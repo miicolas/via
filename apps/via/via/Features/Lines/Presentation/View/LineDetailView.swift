@@ -4,10 +4,8 @@ struct LineDetailView: View {
     @State private var viewModel: LineDetailViewModel
     private let route: RouteBadge
 
-    init(repository: any LineStatusRepository, route: RouteBadge) {
-        _viewModel = State(
-            initialValue: LineDetailViewModel(repository: repository, lineID: route.id)
-        )
+    init(viewModel: LineDetailViewModel, route: RouteBadge) {
+        _viewModel = State(initialValue: viewModel)
         self.route = route
     }
 
@@ -112,7 +110,10 @@ struct LineDetailView: View {
 #Preview {
     NavigationStack {
         LineDetailView(
-            repository: PreviewLineStatusRepository(),
+            viewModel: LineDetailViewModel(
+                repository: PreviewLineStatusRepository(),
+                lineID: PreviewLineStatusRepository.metro1.id
+            ),
             route: PreviewLineStatusRepository.metro1
         )
     }

@@ -21,27 +21,14 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
 
 extension StationsArea {
     var mapItems: [StationMapItem] {
-        let routesByID = routes.reduce(into: [RouteID: RouteBadge]()) { result, route in
-            result[route.id] = route
-        }
+        let routeCatalog = StationRouteCatalog(routes: routes)
 
         return stations.map { station in
-            var seenRouteIDs: Set<RouteID> = []
-            let stationRoutes = station.routeIDs
-                .filter { seenRouteIDs.insert($0).inserted }
-                .compactMap { routesByID[$0] }
-                .sorted { lhs, rhs in
-                    if lhs.mode != rhs.mode {
-                        return lhs.mode < rhs.mode
-                    }
-                    return lhs.shortName.localizedStandardCompare(rhs.shortName) == .orderedAscending
-                }
-
             return StationMapItem(
                 id: station.id,
                 name: station.name,
                 coordinate: station.coordinate,
-                routes: stationRoutes
+                routes: routeCatalog.routes(for: station.routeIDs)
             )
         }
     }
