@@ -6,6 +6,8 @@ import type { db } from '@via/db';
 import { transitShapes } from '@via/db/schema';
 import { sql } from 'drizzle-orm';
 
+import { formatCount, logStep } from '../progress';
+
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 type CopyClient = {
@@ -50,7 +52,6 @@ export async function importShapes({
     for await (const point of readCsv(join(gtfsPath, 'shapes.txt'))) {
       if (!shapeIds.has(point.shape_id)) continue;
       pointCount += 1;
-      if (pointCount % 1_000_000 === 0) console.log(`Streamed ${pointCount} shape points…`);
       yield [
         point.shape_id,
         requiredNumber(point.shape_pt_sequence, 'shape_pt_sequence'),
@@ -90,7 +91,7 @@ export async function importShapes({
       `Imported ${importedCount}/${shapeIds.size} shapes; missing or one-point shapes make routes unsafe`
     );
   }
-  console.log(`Imported ${importedCount} shapes from ${pointCount} points.`);
+  logStep(`Imported ${formatCount(importedCount)} shapes from ${formatCount(pointCount)} points.`);
 }
 
 function requiredNumber(value: string | undefined, field: string) {
