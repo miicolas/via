@@ -10,7 +10,7 @@ final class AccountModel {
     @ObservationIgnored private let remote: any AccountRemote
     @ObservationIgnored private let synchronizationEnabled: Bool
     @ObservationIgnored private let now: @Sendable () -> Date
-    @ObservationIgnored private var activeUserID: String?
+    @ObservationIgnored private var activeScope: AccountScope?
     @ObservationIgnored private var synchronizationTask: Task<Void, Never>?
 
     init(
@@ -26,35 +26,67 @@ final class AccountModel {
     }
 
     var snapshot: AccountSnapshot {
-        guard case .active(let snapshot, _) = state else { return .empty }
-        return snapshot
+        switch state {
+        case .inactive:
+            return .empty
+        case .local(let snapshot), .active(let snapshot, _):
+            return snapshot
+        }
     }
 
     var syncState: AccountSyncState {
-        guard case .active(_, let syncState) = state else { return .local }
-        return syncState
+        switch state {
+        case .inactive, .local:
+            return .local
+        case .active(_, let syncState):
+            return syncState
+        }
     }
 
+    var isAnonymous: Bool { activeScope == .anonymous }
     var favorites: [FavoriteStation] { snapshot.favorites }
     var recentSearches: [RecentSearch] { snapshot.recentSearches }
     var places: [SavedPlace] { snapshot.places }
     var transportPreferences: TransportPreferences { snapshot.transportPreferences }
 
+    func activateAnonymous() {
+        synchronizationTask?.cancel()
+        synchronizationTask = nil
+        activeScope = .anonymous
+        store.activateAnonymous()
+        refresh(syncState: .local)
+    }
+
     func activate(userID: String) {
         synchronizationTask?.cancel()
         synchronizationTask = nil
-        activeUserID = userID
+        activeScope = .user(userID)
         store.activate(userID: userID)
+        store.mergeAnonymous(into: userID)
         refresh(syncState: .local)
         scheduleSynchronization(fetchCanonical: true)
     }
 
+    /// Leaves the account model without an active workspace. Authentication
+    /// uses `activateAnonymous()` after a normal sign-out so the local guest
+    /// workspace remains immediately available.
     func deactivate() {
         synchronizationTask?.cancel()
         synchronizationTask = nil
-        activeUserID = nil
+        activeScope = nil
         store.deactivate()
         state = .inactive
+    }
+
+    /// Removes every Via account workspace on this device and starts a fresh
+    /// anonymous workspace. The remote account is never touched here.
+    func eraseDeviceData() {
+        synchronizationTask?.cancel()
+        synchronizationTask = nil
+        store.eraseAll()
+        activeScope = nil
+        store.deactivate()
+        activateAnonymous()
     }
 
     @discardableResult
@@ -128,32 +160,43 @@ final class AccountModel {
         scheduleSynchronization()
     }
 
+    func resetPreferences() {
+        var preferences = TransportPreferences.empty
+        preferences.updatedAt = now()
+        store.setPreferences(preferences)
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func makeExport(exportedAt: Date? = nil) -> AccountExport {
+        AccountExport(snapshot: snapshot, exportedAt: exportedAt ?? now())
+    }
+
     func synchronize() {
         scheduleSynchronization(fetchCanonical: true)
     }
 
     func delete(using proof: AccountDeletionProof) async throws {
-        guard let userID = activeUserID else { return }
+        guard case .user(let userID) = activeScope else { return }
         try await remote.delete(using: proof)
-        guard activeUserID == userID else { return }
+        guard activeScope == .user(userID) else { return }
         synchronizationTask?.cancel()
         synchronizationTask = nil
         store.erase(userID: userID)
-        activeUserID = nil
+        activeScope = nil
         state = .inactive
     }
 
     private func scheduleSynchronization(fetchCanonical: Bool = false) {
-        guard synchronizationEnabled, activeUserID != nil else {
+        guard synchronizationEnabled, case .user(let userID) = activeScope else {
             refresh(syncState: .local)
             return
         }
         guard synchronizationTask == nil else { return }
-        let expectedUserID = activeUserID
         refresh(syncState: .syncing)
         synchronizationTask = Task { [weak self] in
-            guard let self, let expectedUserID else { return }
-            await self.synchronize(userID: expectedUserID, fetchCanonical: fetchCanonical)
+            guard let self else { return }
+            await self.synchronize(userID: userID, fetchCanonical: fetchCanonical)
         }
     }
 
@@ -165,7 +208,7 @@ final class AccountModel {
         do {
             while !Task.isCancelled {
                 guard
-                    activeUserID == userID,
+                    activeScope == .user(userID),
                     let pending = store.pendingSync(),
                     pending.userID == userID
                 else { return }
@@ -174,7 +217,7 @@ final class AccountModel {
                 let result = try await remote.synchronize(pending.operations)
                 try Task.checkCancellation()
                 guard
-                    activeUserID == userID,
+                    activeScope == .user(userID),
                     store.pendingSync()?.userID == userID
                 else { return }
 
@@ -184,11 +227,11 @@ final class AccountModel {
                 refresh(syncState: .syncing)
             }
 
-            guard activeUserID == userID else { return }
+            guard activeScope == .user(userID) else { return }
             refresh(syncState: .synced(lastSyncedAt ?? now()))
         } catch is CancellationError {
         } catch {
-            guard activeUserID == userID else { return }
+            guard activeScope == .user(userID) else { return }
             let value = error.via
             switch value {
             case .transport, .unavailable:
@@ -200,11 +243,18 @@ final class AccountModel {
     }
 
     private func refresh(syncState: AccountSyncState) {
-        guard activeUserID != nil else {
+        guard let activeScope else {
             state = .inactive
             return
         }
-        let refreshed = AccountState.active(store.currentSnapshot(), syncState)
-        if state != refreshed { state = refreshed }
+
+        switch activeScope {
+        case .anonymous:
+            let refreshed = AccountState.local(store.currentSnapshot())
+            if state != refreshed { state = refreshed }
+        case .user:
+            let refreshed = AccountState.active(store.currentSnapshot(), syncState)
+            if state != refreshed { state = refreshed }
+        }
     }
 }

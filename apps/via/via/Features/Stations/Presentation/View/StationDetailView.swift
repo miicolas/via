@@ -4,6 +4,7 @@ import SwiftUI
 struct StationDetailView: View {
     var station: StationOverview
     let viewModel: StationsViewModel
+    let account: AccountModel?
     var isLargeScreen: Bool
     @Binding var detailDetent: PresentationDetent
 
@@ -115,7 +116,15 @@ struct StationDetailView: View {
 
                 ToolbarItem(placement: .bottomBar) {
                     Button {
-                        isFavorite.toggle()
+                        if let account {
+                            isFavorite = account.toggleFavorite(
+                                stationID: currentStation.id,
+                                name: currentStation.name,
+                                coordinate: currentStation.coordinate
+                            )
+                        } else {
+                            isFavorite.toggle()
+                        }
                     } label: {
                         Image(systemName: isFavorite ? "star.fill" : "star")
                             .contentTransition(
@@ -141,6 +150,9 @@ struct StationDetailView: View {
         .adaptiveSheet(380, isActive: isLargeScreen)
         .presentationBackgroundInteraction(.enabled)
         .interactiveDismissDisabled()
+        .onAppear {
+            isFavorite = account?.isFavorite(stationID: currentStation.id) ?? false
+        }
         .scrollEdgeEffectStyle(.soft, for: .vertical)
     }
 
@@ -167,6 +179,7 @@ struct StationDetailView: View {
             networkRepository: InMemoryNetworkRepository.mapPreview,
             departuresRepository: InMemoryDeparturesRepository.stationsPreview
         ),
+        account: nil,
         isLargeScreen: false,
         detailDetent: $detailDetent
     )
