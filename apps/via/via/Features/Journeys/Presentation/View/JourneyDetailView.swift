@@ -29,7 +29,7 @@ struct JourneyDetailView: View {
         self.onExpandMap = onExpandMap
         let firstSectionID = journey.sections.first?.id
         _expandedSectionIDs = State(initialValue: Set([firstSectionID].compactMap { $0 }))
-        _highlightedSectionID = State(initialValue: firstSectionID)
+        _highlightedSectionID = State(initialValue: nil)
     }
 
     var body: some View {

@@ -40,7 +40,6 @@ struct LocationSample: Codable, Sendable, Equatable {
 @Observable
 final class LocationModel {
     private(set) var state: LocationState
-    private(set) var latestSample: LocationSample?
 
     /// Stations observes this callback for its existing loading flow. Search
     /// waits through `requestCurrentLocation()` so it can resume a pending
@@ -196,7 +195,6 @@ final class LocationModel {
         case .located(let coordinate):
             publish(.located(coordinate))
         case .updated(let sample):
-            latestSample = sample
             publish(.located(sample.coordinate))
             for continuation in trackingContinuations.values {
                 continuation.yield(sample)

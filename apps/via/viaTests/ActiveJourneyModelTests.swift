@@ -280,6 +280,30 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertEqual(model.recalculationState, .offline)
     }
 
+    func testReconnectionClearsOfflineStateAndRefreshesLiveActivity() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let connectivity = InMemoryConnectivityMonitor(isConnected: true)
+        let activityManager = RecordingJourneyActivityManager()
+        let model = makeModel(
+            activityManager: activityManager,
+            connectivity: connectivity,
+            now: journey.departureAt
+        )
+        await model.activate(
+            journey: journey,
+            destination: destination,
+            source: .realtime
+        )
+
+        connectivity.update(isConnected: false)
+        await waitUntilAsync { await activityManager.lastUpdate?.isOffline == true }
+        connectivity.update(isConnected: true)
+        await waitUntilAsync { await activityManager.lastUpdate?.isOffline == false }
+
+        XCTAssertFalse(model.isOffline)
+        XCTAssertEqual(model.recalculationState, .idle)
+    }
+
     private var destination: JourneyDestination {
         .address(
             id: "test:destination",
@@ -293,6 +317,7 @@ final class ActiveJourneyModelTests: XCTestCase {
         location: LocationModel = LocationModel(adapter: InMemoryLocationAdapter()),
         repository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
         store: any ActiveJourneyStore = InMemoryActiveJourneyStore(),
+        activityManager: any JourneyActivityManaging = NoOpJourneyActivityManager(),
         connectivity: any ConnectivityMonitoring = InMemoryConnectivityMonitor(),
         now: Date
     ) -> ActiveJourneyModel {
@@ -300,6 +325,7 @@ final class ActiveJourneyModelTests: XCTestCase {
             location: location,
             repository: repository,
             store: store,
+            activityManager: activityManager,
             connectivity: connectivity,
             now: { now }
         )
@@ -309,6 +335,7 @@ final class ActiveJourneyModelTests: XCTestCase {
         location: LocationModel = LocationModel(adapter: InMemoryLocationAdapter()),
         repository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
         store: any ActiveJourneyStore = InMemoryActiveJourneyStore(),
+        activityManager: any JourneyActivityManaging = NoOpJourneyActivityManager(),
         connectivity: any ConnectivityMonitoring = InMemoryConnectivityMonitor(),
         now: @escaping @Sendable () -> Date
     ) -> ActiveJourneyModel {
@@ -316,7 +343,7 @@ final class ActiveJourneyModelTests: XCTestCase {
             locationModel: location,
             journeyRepository: repository,
             store: store,
-            activityManager: NoOpJourneyActivityManager(),
+            activityManager: activityManager,
             connectivity: connectivity,
             now: now
         )
@@ -329,6 +356,19 @@ final class ActiveJourneyModelTests: XCTestCase {
     ) async {
         for _ in 0..<200 {
             if predicate() { return }
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        XCTFail("Timed out waiting for active journey state", file: file, line: line)
+    }
+
+    private func waitUntilAsync(
+        _ predicate: @escaping @MainActor () async -> Bool,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        for _ in 0..<200 {
+            if await predicate() { return }
             await Task.yield()
             try? await Task.sleep(for: .milliseconds(5))
         }
@@ -369,4 +409,28 @@ private actor SuspendedJourneyRepository: JourneyRepository {
         continuation?.resume(returning: result)
         continuation = nil
     }
+}
+
+private actor RecordingJourneyActivityManager: JourneyActivityManaging {
+    private(set) var lastUpdate: JourneyActivityAttributes.ContentState?
+
+    func start(
+        attributes: JourneyActivityAttributes,
+        state: JourneyActivityAttributes.ContentState,
+        staleAt: Date
+    ) {}
+
+    func update(
+        journeyID: JourneyID,
+        state: JourneyActivityAttributes.ContentState,
+        staleAt: Date
+    ) {
+        lastUpdate = state
+    }
+
+    func end(
+        journeyID: JourneyID,
+        finalState: JourneyActivityAttributes.ContentState,
+        dismissAt: Date
+    ) {}
 }

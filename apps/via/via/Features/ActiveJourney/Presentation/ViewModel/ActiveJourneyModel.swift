@@ -22,6 +22,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     @ObservationIgnored private var monitoringTask: Task<Void, Never>?
     @ObservationIgnored private var recalculationTask: Task<Void, Never>?
     @ObservationIgnored private var recalculationID: UUID?
+    @ObservationIgnored private var lastAutomaticRecalculationSectionID: String?
     @ObservationIgnored private var isRestoring = false
 
     init(
@@ -377,6 +378,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         alternative = nil
         arrival = nil
         recalculationState = .idle
+        lastAutomaticRecalculationSectionID = nil
         await persist()
         startTimeMonitoring()
         await startActivity()
@@ -454,10 +456,15 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
 
     private func scheduleRecalculation(force: Bool) {
-        guard recalculationTask == nil,
-              session != nil,
+        guard let session,
+              recalculationTask == nil,
               isConnected else { return }
         guard force || (alternative == nil && recalculationState != .offline) else { return }
+        if !force {
+            let sectionID = session.currentSection?.id
+            guard sectionID != lastAutomaticRecalculationSectionID else { return }
+            lastAutomaticRecalculationSectionID = sectionID
+        }
 
         let identifier = UUID()
         recalculationID = identifier
@@ -528,12 +535,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     private func connectivityChanged(_ isConnected: Bool) {
         self.isConnected = isConnected
         if isConnected {
-            guard recalculationState == .offline else { return }
-            recalculationState = .idle
+            if recalculationState == .offline {
+                recalculationState = .idle
+            }
         } else {
             recalculationTask?.cancel()
             recalculationTask = nil
             recalculationID = nil
+            lastAutomaticRecalculationSectionID = nil
             recalculationState = .offline
         }
         Task { [weak self] in
@@ -569,6 +578,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         referenceDate = acceptedAt
         alternative = nil
         recalculationState = .idle
+        lastAutomaticRecalculationSectionID = nil
 
         await activityManager.end(
             journeyID: previous.journey.id,
@@ -604,6 +614,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         alternative = nil
         requiresResume = false
         recalculationState = .idle
+        lastAutomaticRecalculationSectionID = nil
         await store.clear()
     }
 

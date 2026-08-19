@@ -26,7 +26,11 @@ struct JourneyActivityWidget: Widget {
                         .font(.headline.monospacedDigit())
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    if context.state.isOffline {
+                    if context.isStale {
+                        Label("Mise à jour suspendue", systemImage: "pause.circle.fill")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.orange)
+                    } else if context.state.isOffline {
                         Label("Hors connexion", systemImage: "wifi.slash")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.orange)
@@ -51,10 +55,12 @@ struct JourneyActivityWidget: Widget {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                if context.state.isOffline {
-                    Image(systemName: "wifi.slash")
+                if context.isStale || context.state.isOffline {
+                    Image(systemName: context.isStale ? "pause.circle.fill" : "wifi.slash")
                         .foregroundStyle(.orange)
-                        .accessibilityLabel("Hors connexion")
+                        .accessibilityLabel(
+                            context.isStale ? "Mise à jour suspendue" : "Hors connexion"
+                        )
                 } else {
                     routeBadge(context.state)
                 }
@@ -62,13 +68,18 @@ struct JourneyActivityWidget: Widget {
                 Text(context.state.arrivalAt, style: .time)
                     .font(.caption2.monospacedDigit())
             } minimal: {
-                if context.state.isOffline {
-                    Image(systemName: "wifi.slash")
+                if context.isStale || context.state.isOffline {
+                    Image(systemName: context.isStale ? "pause.circle.fill" : "wifi.slash")
                         .foregroundStyle(.orange)
-                        .accessibilityLabel("Hors connexion")
+                        .accessibilityLabel(
+                            context.isStale ? "Mise à jour suspendue" : "Hors connexion"
+                        )
                 } else {
                     Image(systemName: context.state.isArrived ? "checkmark" : "location.fill")
                         .foregroundStyle(context.state.isArrived ? .green : .blue)
+                        .accessibilityLabel(
+                            context.state.isArrived ? "Vous êtes arrivé" : "Trajet actif"
+                        )
                 }
             }
             .keylineTint(routeColor(context.state))

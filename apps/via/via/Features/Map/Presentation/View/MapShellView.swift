@@ -57,7 +57,7 @@ struct MapShellView: View {
         NetworkMapView(
             viewModel: networkViewModel,
             position: $position,
-            stationSelectionEnabled: !activeJourneyModel.isActive && activeTab != .search,
+            stationSelectionEnabled: activeTab != .search,
             journeyPresentation: displayedJourneyPresentation,
             highlightedJourneySegmentID: displayedHighlightedSectionID,
             selectedStation: $selectedMapStation
@@ -108,9 +108,7 @@ struct MapShellView: View {
             }
             .onChange(of: activeTab) { oldValue, newValue in
                 if newValue == .search, oldValue != .search {
-                    if !activeJourneyModel.isActive, activeJourneyModel.arrival == nil {
-                        previousTab = oldValue
-                    }
+                    previousTab = oldValue
                     activeDetent = hasJourneySurface ? guidanceDetent : expandedDetent
                 } else if newValue == .report, oldValue != .report {
                     activeDetent = isLargeScreen ? .fraction(0.97) : .large

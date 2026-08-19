@@ -100,15 +100,16 @@ final class LocationModelTests: XCTestCase {
         var firstIterator = model
             .startJourneyTracking(allowsBackgroundUpdates: false)
             .makeAsyncIterator()
-        XCTAssertEqual(await firstIterator.next()?.coordinate, first)
+        let firstSample = await firstIterator.next()
+        XCTAssertEqual(firstSample?.coordinate, first)
         model.stopJourneyTracking()
 
         adapter.coordinate = second
         var secondIterator = model
             .startJourneyTracking(allowsBackgroundUpdates: false)
             .makeAsyncIterator()
-
-        XCTAssertEqual(await secondIterator.next()?.coordinate, second)
+        let secondSample = await secondIterator.next()
+        XCTAssertEqual(secondSample?.coordinate, second)
         model.stopJourneyTracking()
     }
 }

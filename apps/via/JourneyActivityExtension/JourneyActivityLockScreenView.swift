@@ -14,7 +14,11 @@ struct JourneyActivityLockScreenView: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    if context.state.isOffline {
+                    if context.isStale {
+                        Label("Mise à jour suspendue", systemImage: "pause.circle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.orange)
+                    } else if context.state.isOffline {
                         Label("Hors connexion", systemImage: "wifi.slash")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.orange)
