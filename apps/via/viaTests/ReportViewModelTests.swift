@@ -164,6 +164,31 @@ final class ReportViewModelTests: XCTestCase {
         XCTAssertTrue(submissions.isEmpty)
     }
 
+    func testReloadRefreshesActiveJourneyContext() async {
+        let first = ActiveJourneyContext(
+            journeyID: JourneyID(rawValue: "journey:first"),
+            lineID: RouteID(rawValue: "route:first"),
+            vehicleID: nil
+        )
+        let second = ActiveJourneyContext(
+            journeyID: JourneyID(rawValue: "journey:second"),
+            lineID: RouteID(rawValue: "route:second"),
+            vehicleID: nil
+        )
+        let provider = MutableActiveJourneyProvider(context: first)
+        let model = makeModel(
+            repository: InMemoryReportRepository(),
+            activeJourneyProvider: provider
+        )
+
+        model.loadIfNeeded()
+        await waitForActiveJourney(model, first)
+
+        provider.context = second
+        model.loadIfNeeded()
+        await waitForActiveJourney(model, second)
+    }
+
     func testStationSearchWaitsForTwoCharactersAndFiltersAddresses() async {
         let search = RecordingReportSearchRepository(response: SearchResponse(
             results: [.previewAddress, .previewStation],
@@ -243,6 +268,7 @@ final class ReportViewModelTests: XCTestCase {
     private func makeModel(
         repository: any ReportRepository,
         searchRepository: any SearchRepository = InMemorySearchRepository.preview,
+        activeJourneyProvider: any ActiveJourneyProvider = NoActiveJourneyProvider(),
         makeID: @escaping @Sendable () -> UUID = { UUID() }
     ) -> ReportViewModel {
         let route = RouteBadge(
@@ -270,6 +296,7 @@ final class ReportViewModelTests: XCTestCase {
             contextResolver: resolver,
             repository: repository,
             searchRepository: searchRepository,
+            activeJourneyProvider: activeJourneyProvider,
             makeID: makeID
         )
     }
@@ -311,6 +338,28 @@ final class ReportViewModelTests: XCTestCase {
         }
         XCTFail("Timed out waiting for station search")
     }
+
+    private func waitForActiveJourney(
+        _ model: ReportViewModel,
+        _ expected: ActiveJourneyContext
+    ) async {
+        for _ in 0..<100 {
+            if model.activeJourney == expected { return }
+            await Task.yield()
+        }
+        XCTFail("Timed out waiting for active journey context")
+    }
+}
+
+@MainActor
+private final class MutableActiveJourneyProvider: ActiveJourneyProvider {
+    var context: ActiveJourneyContext?
+
+    init(context: ActiveJourneyContext?) {
+        self.context = context
+    }
+
+    func activeJourney() async -> ActiveJourneyContext? { context }
 }
 
 private actor SlowReportRepository: ReportRepository {

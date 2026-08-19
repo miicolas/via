@@ -20,7 +20,14 @@ enum LocationState: Sendable, Equatable {
 enum LocationAdapterEvent: Sendable, Equatable {
     case authorizationChanged(LocationAuthorization)
     case located(GeoCoordinate)
+    case updated(LocationSample)
     case failed(LocationAuthorization)
+}
+
+struct LocationSample: Codable, Sendable, Equatable {
+    let coordinate: GeoCoordinate
+    let horizontalAccuracy: Double?
+    let recordedAt: Date
 }
 
 /// Shared owner of the single Core Location adapter used by the app.
@@ -33,6 +40,7 @@ enum LocationAdapterEvent: Sendable, Equatable {
 @Observable
 final class LocationModel {
     private(set) var state: LocationState
+    private(set) var latestSample: LocationSample?
 
     /// Stations observes this callback for its existing loading flow. Search
     /// waits through `requestCurrentLocation()` so it can resume a pending
@@ -40,6 +48,7 @@ final class LocationModel {
     @ObservationIgnored var onStateChange: (@MainActor (LocationState) -> Void)?
 
     @ObservationIgnored private let adapter: any LocationAdapter
+    @ObservationIgnored private var trackingContinuations: [UUID: AsyncStream<LocationSample>.Continuation] = [:]
 
     init(adapter: any LocationAdapter) {
         self.adapter = adapter
@@ -65,6 +74,10 @@ final class LocationModel {
         return coordinate
     }
 
+    var backgroundAuthorizationGranted: Bool {
+        adapter.backgroundAuthorizationGranted
+    }
+
     func requestLocation() {
         switch adapter.authorization {
         case .authorized:
@@ -84,6 +97,13 @@ final class LocationModel {
     func requestCurrentLocation() async -> GeoCoordinate? {
         if let coordinate { return coordinate }
 
+        return await requestFreshLocation()
+    }
+
+    /// Requests a new fix even when a previous feature left a coordinate in
+    /// the shared cache. Active journeys use this before calculating progress
+    /// or a replacement itinerary.
+    func requestFreshLocation() async -> GeoCoordinate? {
         let updates = stateUpdates()
         requestLocation()
 
@@ -103,6 +123,28 @@ final class LocationModel {
         return nil
     }
 
+    /// Starts the continuous stream used only while a journey is active.
+    /// The stream is registered before the adapter starts so synchronous
+    /// preview adapters cannot race the first sample.
+    func startJourneyTracking(
+        requestBackgroundAuthorization: Bool
+    ) -> AsyncStream<LocationSample> {
+        let updates = trackingUpdates()
+        if requestBackgroundAuthorization {
+            adapter.requestBackgroundAuthorization()
+        }
+        adapter.startUpdatingLocation()
+        return updates
+    }
+
+    func stopJourneyTracking() {
+        adapter.stopUpdatingLocation()
+        for continuation in trackingContinuations.values {
+            continuation.finish()
+        }
+        trackingContinuations.removeAll()
+    }
+
     @ObservationIgnored private var updateContinuations: [UUID: AsyncStream<LocationState>.Continuation] = [:]
 
     private func stateUpdates() -> AsyncStream<LocationState> {
@@ -118,13 +160,30 @@ final class LocationModel {
         }
     }
 
+    private func trackingUpdates() -> AsyncStream<LocationSample> {
+        let id = UUID()
+        return AsyncStream { continuation in
+            trackingContinuations[id] = continuation
+            if let latestSample { continuation.yield(latestSample) }
+            continuation.onTermination = { @Sendable [weak self] _ in
+                Task { @MainActor in
+                    self?.trackingContinuations.removeValue(forKey: id)
+                }
+            }
+        }
+    }
+
     private func handle(_ event: LocationAdapterEvent) {
         switch event {
         case .authorizationChanged(let authorization):
             switch authorization {
             case .authorized:
                 publish(.locating)
-                adapter.requestLocation()
+                if trackingContinuations.isEmpty {
+                    adapter.requestLocation()
+                } else {
+                    adapter.startUpdatingLocation()
+                }
             case .notDetermined:
                 publish(.idle(authorization: authorization))
             case .restricted, .denied:
@@ -132,6 +191,12 @@ final class LocationModel {
             }
         case .located(let coordinate):
             publish(.located(coordinate))
+        case .updated(let sample):
+            latestSample = sample
+            publish(.located(sample.coordinate))
+            for continuation in trackingContinuations.values {
+                continuation.yield(sample)
+            }
         case .failed(let authorization):
             publish(.failed(authorization))
         }
@@ -149,17 +214,30 @@ final class LocationModel {
 @MainActor
 protocol LocationAdapter: AnyObject {
     var authorization: LocationAuthorization { get }
+    var backgroundAuthorizationGranted: Bool { get }
     var onEvent: (@MainActor (LocationAdapterEvent) -> Void)? { get set }
     func requestAuthorization()
+    func requestBackgroundAuthorization()
     func requestLocation()
+    func startUpdatingLocation()
+    func stopUpdatingLocation()
+}
+
+extension LocationAdapter {
+    var backgroundAuthorizationGranted: Bool { false }
+    func requestBackgroundAuthorization() {}
+    func startUpdatingLocation() { requestLocation() }
+    func stopUpdatingLocation() {}
 }
 
 @MainActor
 final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLocationManagerDelegate {
     var onEvent: (@MainActor (LocationAdapterEvent) -> Void)?
     var authorization: LocationAuthorization { Self.map(manager.authorizationStatus) }
+    var backgroundAuthorizationGranted: Bool { manager.authorizationStatus == .authorizedAlways }
 
     private let manager: CLLocationManager
+    private var isTrackingJourney = false
 
     override init() {
         manager = CLLocationManager()
@@ -172,8 +250,33 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
         manager.requestWhenInUseAuthorization()
     }
 
+    func requestBackgroundAuthorization() {
+        guard manager.authorizationStatus == .authorizedWhenInUse else { return }
+        manager.requestAlwaysAuthorization()
+    }
+
     func requestLocation() {
         manager.requestLocation()
+    }
+
+    func startUpdatingLocation() {
+        isTrackingJourney = true
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.distanceFilter = 25
+        manager.activityType = .otherNavigation
+        manager.pausesLocationUpdatesAutomatically = true
+        manager.allowsBackgroundLocationUpdates = true
+        manager.showsBackgroundLocationIndicator = true
+        manager.startUpdatingLocation()
+    }
+
+    func stopUpdatingLocation() {
+        manager.stopUpdatingLocation()
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.distanceFilter = kCLDistanceFilterNone
+        manager.allowsBackgroundLocationUpdates = false
+        manager.showsBackgroundLocationIndicator = false
+        isTrackingJourney = false
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -182,10 +285,19 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let value = locations.last else { return }
-        onEvent?(.located(GeoCoordinate(
+        let coordinate = GeoCoordinate(
             latitude: value.coordinate.latitude,
             longitude: value.coordinate.longitude
-        )))
+        )
+        if isTrackingJourney {
+            onEvent?(.updated(LocationSample(
+                coordinate: coordinate,
+                horizontalAccuracy: value.horizontalAccuracy >= 0 ? value.horizontalAccuracy : nil,
+                recordedAt: value.timestamp
+            )))
+        } else {
+            onEvent?(.located(coordinate))
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {
@@ -209,13 +321,17 @@ final class InMemoryLocationAdapter: LocationAdapter {
     var authorization: LocationAuthorization
     var onEvent: (@MainActor (LocationAdapterEvent) -> Void)?
     var coordinate: GeoCoordinate?
+    var horizontalAccuracy: Double?
+    var backgroundAuthorizationGranted = false
 
     init(
         authorization: LocationAuthorization = .authorized,
-        coordinate: GeoCoordinate? = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        coordinate: GeoCoordinate? = GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
+        horizontalAccuracy: Double? = 20
     ) {
         self.authorization = authorization
         self.coordinate = coordinate
+        self.horizontalAccuracy = horizontalAccuracy
     }
 
     func requestAuthorization() {
@@ -229,5 +345,35 @@ final class InMemoryLocationAdapter: LocationAdapter {
             return
         }
         onEvent?(.located(coordinate))
+    }
+
+    func requestBackgroundAuthorization() {
+        backgroundAuthorizationGranted = authorization == .authorized
+    }
+
+    func startUpdatingLocation() {
+        guard authorization == .authorized, let coordinate else {
+            onEvent?(.failed(authorization))
+            return
+        }
+        onEvent?(.updated(LocationSample(
+            coordinate: coordinate,
+            horizontalAccuracy: horizontalAccuracy,
+            recordedAt: .now
+        )))
+    }
+
+    func updateJourneyLocation(
+        _ coordinate: GeoCoordinate,
+        horizontalAccuracy: Double? = 20,
+        recordedAt: Date = .now
+    ) {
+        self.coordinate = coordinate
+        self.horizontalAccuracy = horizontalAccuracy
+        onEvent?(.updated(LocationSample(
+            coordinate: coordinate,
+            horizontalAccuracy: horizontalAccuracy,
+            recordedAt: recordedAt
+        )))
     }
 }

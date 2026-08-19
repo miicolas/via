@@ -88,8 +88,7 @@ final class ReportViewModel {
 
     func loadIfNeeded() {
         contextResolver.loadIfNeeded()
-        guard activeJourneyTask == nil else { return }
-
+        activeJourneyTask?.cancel()
         let activeJourneyProvider = self.activeJourneyProvider
         activeJourneyTask = Task { [weak self] in
             let journey = await activeJourneyProvider.activeJourney()

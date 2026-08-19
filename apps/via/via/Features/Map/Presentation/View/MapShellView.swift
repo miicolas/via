@@ -17,6 +17,7 @@ struct MapShellView: View {
     let linesViewModel: LinesViewModel
     let selectedStationModel: SelectedStationModel
     let searchViewModel: SearchViewModel
+    let activeJourneyModel: ActiveJourneyModel
     let reportViewModel: ReportViewModel
     let onboardingModel: OnboardingModel
 
@@ -38,6 +39,7 @@ struct MapShellView: View {
         linesViewModel: LinesViewModel,
         selectedStationModel: SelectedStationModel,
         searchViewModel: SearchViewModel,
+        activeJourneyModel: ActiveJourneyModel,
         reportViewModel: ReportViewModel,
         onboardingModel: OnboardingModel
     ) {
@@ -46,6 +48,7 @@ struct MapShellView: View {
         self.linesViewModel = linesViewModel
         self.selectedStationModel = selectedStationModel
         self.searchViewModel = searchViewModel
+        self.activeJourneyModel = activeJourneyModel
         self.reportViewModel = reportViewModel
         self.onboardingModel = onboardingModel
     }
@@ -54,8 +57,9 @@ struct MapShellView: View {
         NetworkMapView(
             viewModel: networkViewModel,
             position: $position,
-            stationSelectionEnabled: activeTab != .search,
-            journeyPresentation: activeTab == .search ? searchViewModel.mapPresentation : nil,
+            stationSelectionEnabled: !activeJourneyModel.isActive && activeTab != .search,
+            journeyPresentation: displayedJourneyPresentation,
+            highlightedJourneySegmentID: displayedHighlightedSectionID,
             selectedStation: $selectedMapStation
         )
             // Keeps the Apple legal attribution above the collapsed sheet.
@@ -65,44 +69,7 @@ struct MapShellView: View {
                     .frame(height: 65)
             }
             .sheet(isPresented: $showTabSheet) {
-                SheetTabView(
-                    selection: $activeTab,
-                    activeDetent: $activeDetent,
-                    isLargeScreen: isLargeScreen,
-                    isAnotherSheetPresenting: selectedStationModel.overview != nil ||
-                        reportViewModel.isPresentingAnotherSheet
-                ) {
-                    Tab(value: .stations) {
-                        StationsView(
-                            viewModel: stationsViewModel,
-                            selectedStation: selectedStationModel,
-                            isLargeScreen: $isLargeScreen,
-                            detailDetent: $detailSheetDetent,
-                            onOpenSearch: { activeTab = .search }
-                        )
-                    } label: {
-                        MapShellTab.stations.tabLabel
-                    }
-
-                    Tab(value: .lines) {
-                        LinesView(viewModel: linesViewModel)
-                    } label: {
-                        MapShellTab.lines.tabLabel
-                    }
-
-                    Tab(value: .report) {
-                        ReportView(viewModel: reportViewModel)
-                    } label: {
-                        MapShellTab.report.tabLabel
-                    }
-
-                    Tab(value: MapShellTab.search, role: .search) {
-                        SearchView(
-                            viewModel: searchViewModel,
-                            onClose: closeSearch
-                        )
-                    }
-                }
+                sheetContent
                 .adaptiveSheet(380, isActive: isLargeScreen)
                 .sheet(isPresented: $isOnboardingPresented) {
                     OnboardingView(model: onboardingModel)
@@ -116,9 +83,22 @@ struct MapShellView: View {
                 detailSheetDetent = isLargeScreen ? .fraction(0.97) : .large
                 selectedStationModel.select(newValue)
             }
-            .onChange(of: searchViewModel.mapPresentation) { _, presentation in
-                guard activeTab == .search, let mapRect = presentation?.mapRect else { return }
+            .onChange(of: displayedJourneyPresentation) { _, presentation in
+                guard let mapRect = presentation?.mapRect else { return }
                 position = .rect(mapRect)
+            }
+            .onChange(of: displayedHighlightedSectionID) { _, sectionID in
+                guard let mapRect = displayedJourneyPresentation?.mapRect(for: sectionID) else { return }
+                position = .rect(mapRect)
+            }
+            .onChange(of: activeJourneyModel.session?.journey.id) { _, journeyID in
+                if journeyID != nil {
+                    activeDetent = isLargeScreen ? .fraction(0.97) : .height(260)
+                } else if isLargeScreen {
+                    activeDetent = .fraction(0.97)
+                } else {
+                    activeDetent = activeTab == .search ? .large : .fraction(0.45)
+                }
             }
             .onChange(of: activeTab) { oldValue, newValue in
                 if newValue == .search, oldValue != .search {
@@ -159,6 +139,79 @@ struct MapShellView: View {
     private func closeSearch() {
         activeTab = previousTab
     }
+
+    @ViewBuilder
+    private var sheetContent: some View {
+        if let arrival = activeJourneyModel.arrival {
+            JourneyArrivalView(
+                arrival: arrival,
+                isLargeScreen: isLargeScreen,
+                onComplete: activeJourneyModel.completeArrival
+            )
+        } else if activeJourneyModel.isActive {
+            ActiveJourneyPanelView(
+                model: activeJourneyModel,
+                reportViewModel: reportViewModel,
+                isLargeScreen: isLargeScreen,
+                activeDetent: $activeDetent
+            )
+        } else {
+            SheetTabView(
+                selection: $activeTab,
+                activeDetent: $activeDetent,
+                isLargeScreen: isLargeScreen,
+                isAnotherSheetPresenting: selectedStationModel.overview != nil ||
+                    reportViewModel.isPresentingAnotherSheet
+            ) {
+                Tab(value: .stations) {
+                    StationsView(
+                        viewModel: stationsViewModel,
+                        selectedStation: selectedStationModel,
+                        isLargeScreen: $isLargeScreen,
+                        detailDetent: $detailSheetDetent,
+                        onOpenSearch: { activeTab = .search }
+                    )
+                } label: {
+                    MapShellTab.stations.tabLabel
+                }
+
+                Tab(value: .lines) {
+                    LinesView(viewModel: linesViewModel)
+                } label: {
+                    MapShellTab.lines.tabLabel
+                }
+
+                Tab(value: .report) {
+                    ReportView(viewModel: reportViewModel)
+                } label: {
+                    MapShellTab.report.tabLabel
+                }
+
+                Tab(value: MapShellTab.search, role: .search) {
+                    SearchView(
+                        viewModel: searchViewModel,
+                        activeJourneyModel: activeJourneyModel,
+                        onClose: closeSearch,
+                        onExpandJourneyMap: expandJourneyMap
+                    )
+                }
+            }
+        }
+    }
+
+    private var displayedJourneyPresentation: JourneyMapPresentation? {
+        activeJourneyModel.mapPresentation
+            ?? (activeTab == .search ? searchViewModel.mapPresentation : nil)
+    }
+
+    private var displayedHighlightedSectionID: String? {
+        activeJourneyModel.highlightedSectionID
+            ?? (activeTab == .search ? searchViewModel.highlightedJourneySectionID : nil)
+    }
+
+    private func expandJourneyMap() {
+        activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
+    }
 }
 
 #Preview {
@@ -195,6 +248,10 @@ struct MapShellView: View {
             journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
             locationModel: locationModel,
             account: accountModel
+        ),
+        activeJourneyModel: ActiveJourneyModel(
+            locationModel: locationModel,
+            journeyRepository: InMemoryJourneyRepository(result: .mapPreview)
         ),
         reportViewModel: ReportViewModel(
             contextResolver: ReportContextResolver(

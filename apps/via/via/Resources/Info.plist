@@ -29,6 +29,14 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Via utilise votre position pour trouver les gares et itinéraires proches.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Via utilise votre position pendant un trajet actif pour mettre à jour les étapes et proposer un nouvel itinéraire même lorsque l’écran est verrouillé.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>
@@ -41,4 +49,3 @@
 	<string>$(VIA_API_BASE_URL)</string>
 </dict>
 </plist>
-

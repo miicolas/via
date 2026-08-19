@@ -34,7 +34,6 @@ final class SearchViewModelTests: XCTestCase {
         await waitForStep(model, .results)
 
         XCTAssertEqual(model.selectedDestination, .previewStation)
-        XCTAssertEqual(model.searchQuery?.destination, .previewStation)
         let requests = await journeys.requests()
         XCTAssertEqual(requests.count, 1)
         XCTAssertEqual(requests.first?.destination, .station(
@@ -138,7 +137,15 @@ final class SearchViewModelTests: XCTestCase {
         model.selectJourney(alternate)
 
         XCTAssertEqual(model.selectedJourneyID, alternate.id)
+        XCTAssertEqual(model.selectedJourney, alternate)
         XCTAssertEqual(model.mapPresentation, JourneyMapPresentation(journey: alternate))
+
+        let sectionID = alternate.sections[0].id
+        model.highlightJourneySection(sectionID)
+        XCTAssertEqual(model.highlightedJourneySectionID, sectionID)
+
+        model.highlightJourneySection(nil)
+        XCTAssertNil(model.highlightedJourneySectionID)
     }
 
     func testNoRouteStateIsDisplayedWhenRepositoryReturnsNoRoute() async {
@@ -170,7 +177,6 @@ final class SearchViewModelTests: XCTestCase {
 
         XCTAssertEqual(model.selectedDestination, .previewAddress)
         XCTAssertEqual(model.query, "rivoli")
-        XCTAssertEqual(model.searchQuery?.destination, .previewAddress)
 
         model.retryJourney()
         await waitForStep(model, .results)

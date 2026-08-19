@@ -3,14 +3,19 @@ import SwiftUI
 
 struct JourneyRouteMapContent: MapContent {
     let presentation: JourneyMapPresentation
+    var highlightedSegmentID: String?
 
     var body: some MapContent {
         ForEach(presentation.segments) { segment in
+            let opacity = highlightedSegmentID == nil || highlightedSegmentID == segment.id
+                ? 1.0
+                : 0.24
             MapPolyline(coordinates: segment.coordinates.map(\.clLocationCoordinate))
                 .stroke(
                     segment.isWalking
-                        ? Color.secondary.opacity(0.75)
-                        : Color(transitHex: segment.colorHex ?? "", fallback: .accentColor),
+                        ? Color.secondary.opacity(0.75 * opacity)
+                        : Color(transitHex: segment.colorHex ?? "", fallback: .accentColor)
+                            .opacity(opacity),
                     style: StrokeStyle(
                         lineWidth: segment.isWalking ? 4 : 7,
                         lineCap: .round,

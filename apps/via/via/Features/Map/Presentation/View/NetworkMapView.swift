@@ -5,6 +5,7 @@ struct NetworkMapView: View {
     let viewModel: NetworkViewModel
     let stationSelectionEnabled: Bool
     let journeyPresentation: JourneyMapPresentation?
+    let highlightedJourneySegmentID: String?
     @Binding var position: MapCameraPosition
     @Binding var selectedStation: StationMapItem?
     @Namespace private var mapScope
@@ -15,11 +16,13 @@ struct NetworkMapView: View {
         position: Binding<MapCameraPosition>,
         stationSelectionEnabled: Bool = true,
         journeyPresentation: JourneyMapPresentation? = nil,
+        highlightedJourneySegmentID: String? = nil,
         selectedStation: Binding<StationMapItem?> = .constant(nil)
     ) {
         self.viewModel = viewModel
         self.stationSelectionEnabled = stationSelectionEnabled
         self.journeyPresentation = journeyPresentation
+        self.highlightedJourneySegmentID = highlightedJourneySegmentID
         _position = position
         _selectedStation = selectedStation
     }
@@ -42,7 +45,10 @@ struct NetworkMapView: View {
                     }
 
                     if let journeyPresentation {
-                        JourneyRouteMapContent(presentation: journeyPresentation)
+                        JourneyRouteMapContent(
+                            presentation: journeyPresentation,
+                            highlightedSegmentID: highlightedJourneySegmentID
+                        )
                     }
 
                     UserAnnotation()

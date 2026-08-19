@@ -56,6 +56,25 @@ final class LocationModelTests: XCTestCase {
         XCTAssertEqual(model.coordinate, coordinate)
         XCTAssertNotNil(search)
     }
+
+    func testJourneyTrackingRequestsBackgroundAccessAndPublishesAccuracy() async {
+        let coordinate = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let adapter = InMemoryLocationAdapter(
+            coordinate: coordinate,
+            horizontalAccuracy: 18
+        )
+        let model = LocationModel(adapter: adapter)
+
+        let updates = model.startJourneyTracking(requestBackgroundAuthorization: true)
+        var iterator = updates.makeAsyncIterator()
+        let sample = await iterator.next()
+
+        XCTAssertEqual(sample?.coordinate, coordinate)
+        XCTAssertEqual(sample?.horizontalAccuracy, 18)
+        XCTAssertTrue(model.backgroundAuthorizationGranted)
+
+        model.stopJourneyTracking()
+    }
 }
 
 @MainActor

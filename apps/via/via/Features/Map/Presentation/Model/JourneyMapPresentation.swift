@@ -28,9 +28,19 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
     }
 
     var mapRect: MKMapRect? {
-        let points = segments
-            .flatMap(\.coordinates)
-            .map { MKMapPoint($0.clLocationCoordinate) }
+        mapRect(for: segments.flatMap(\.coordinates))
+    }
+
+    func mapRect(for segmentID: String?) -> MKMapRect? {
+        guard let segmentID,
+              let segment = segments.first(where: { $0.id == segmentID }) else {
+            return mapRect
+        }
+        return mapRect(for: segment.coordinates)
+    }
+
+    private func mapRect(for coordinates: [GeoCoordinate]) -> MKMapRect? {
+        let points = coordinates.map { MKMapPoint($0.clLocationCoordinate) }
         guard let first = points.first else { return nil }
 
         let rect = points.dropFirst().reduce(

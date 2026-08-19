@@ -7,9 +7,11 @@ struct ActiveJourneyContext: Sendable, Hashable {
 }
 
 protocol ActiveJourneyProvider: Sendable {
+    @MainActor
     func activeJourney() async -> ActiveJourneyContext?
 }
 
 struct NoActiveJourneyProvider: ActiveJourneyProvider {
+    @MainActor
     func activeJourney() async -> ActiveJourneyContext? { nil }
 }

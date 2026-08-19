@@ -5,19 +5,26 @@ import SwiftUI
 @MainActor
 struct SearchView: View {
     let viewModel: SearchViewModel
+    let activeJourneyModel: ActiveJourneyModel
     let onClose: () -> Void
+    let onExpandJourneyMap: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var inputTransitionNamespace
     @State private var isDeparturePickerPresented = false
+    @State private var inspectedJourney: Journey?
 
     init(
         viewModel: SearchViewModel,
-        onClose: @escaping () -> Void = {}
+        activeJourneyModel: ActiveJourneyModel,
+        onClose: @escaping () -> Void = {},
+        onExpandJourneyMap: @escaping () -> Void = {}
     ) {
         self.viewModel = viewModel
+        self.activeJourneyModel = activeJourneyModel
         self.onClose = onClose
+        self.onExpandJourneyMap = onExpandJourneyMap
     }
 
     var body: some View {
@@ -39,6 +46,18 @@ struct SearchView: View {
                         Button(role: .close) {
                             onClose()
                         }
+                    }
+                }
+                .navigationDestination(item: $inspectedJourney) { journey in
+                    if let destination = viewModel.journeyDestination {
+                        JourneyDetailView(
+                            journey: journey,
+                            destination: destination,
+                            source: viewModel.journeyResult?.source,
+                            activeJourneyModel: activeJourneyModel,
+                            onHighlightSection: viewModel.highlightJourneySection,
+                            onExpandMap: onExpandJourneyMap
+                        )
                     }
                 }
         }
@@ -100,7 +119,10 @@ struct SearchView: View {
                         destinationName: destination.name,
                         departureTitle: viewModel.wrappedValue.selectedDeparture.title,
                         selectedJourneyID: viewModel.wrappedValue.selectedJourneyID,
-                        onSelectJourney: viewModel.wrappedValue.selectJourney,
+                        onSelectJourney: { journey in
+                            viewModel.wrappedValue.selectJourney(journey)
+                            inspectedJourney = journey
+                        },
                         onRetry: viewModel.wrappedValue.retryJourney,
                         onEdit: viewModel.wrappedValue.editDestination
                     )
@@ -195,6 +217,10 @@ private extension SearchResult {
             repository: InMemorySearchRepository.preview,
             journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
             locationModel: locationModel
+        ),
+        activeJourneyModel: ActiveJourneyModel(
+            locationModel: locationModel,
+            journeyRepository: InMemoryJourneyRepository(result: .mapPreview)
         )
     )
 }
