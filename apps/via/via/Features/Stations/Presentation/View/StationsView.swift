@@ -201,11 +201,14 @@ struct StationsView: View {
             coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
         )
     )
-    let accountModel = AccountModel(
-        remote: InMemoryAccountRemote(),
-        synchronizationEnabled: false
-    )
-    accountModel.activateAnonymous()
+    let accountModel: AccountModel = {
+        let model = AccountModel(
+            remote: InMemoryAccountRemote(),
+            synchronizationEnabled: false
+        )
+        model.activateAnonymous()
+        return model
+    }()
 
     StationsView(
         viewModel: StationsViewModel(
