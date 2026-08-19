@@ -5,7 +5,7 @@ struct AccountResetSection: View {
     @Binding var isEraseDeviceConfirmationPresented: Bool
 
     var body: some View {
-        Section("Réinitialiser") {
+        Section {
             Button("Réinitialiser toutes les préférences", role: .destructive) {
                 isResetPreferencesConfirmationPresented = true
             }
@@ -13,6 +13,8 @@ struct AccountResetSection: View {
             Button("Effacer les données de cet appareil", role: .destructive) {
                 isEraseDeviceConfirmationPresented = true
             }
+        } header: {
+            Text("Réinitialiser")
         } footer: {
             Text("Les favoris, lieux et l’historique sont conservés lors de la réinitialisation des préférences.")
         }
