@@ -302,6 +302,18 @@ export const transitShapes = pgTable('transit_shapes', {
   geometry: lineStringWgs84('geometry'),
 });
 
+/**
+ * Importer bookkeeping. The GTFS worker stores the hash of the last fully
+ * imported feed here and skips the reload when the feed has not changed —
+ * a full reload rewrites millions of rows, so an unchanged feed must cost
+ * nothing.
+ */
+export const importMeta = pgTable('import_meta', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const transitTransfers = pgTable(
   'transit_transfers',
   {

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -5,6 +6,7 @@ import { join } from 'node:path';
 import { client, db } from '@via/db';
 import {
   ROUTE_TYPE,
+  importMeta,
   networkMode,
   transitLineDirections,
   transitLineSchemaStops,
@@ -26,7 +28,7 @@ import { computeDrawnGeometry } from '@via/db/drawn-geometry';
 import { networkRouteCondition } from '@via/db/network-scope';
 import { projectStopsOntoPatterns } from '@via/db/projection';
 import { parse } from 'csv-parse';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { RedisClient as BunRedisClient } from 'bun';
 
 import { importLineSchemas } from './line-schema/import-line-schemas';
@@ -64,6 +66,40 @@ type SourceStop = {
 const INSERT_BATCH = 5_000;
 const PATTERN_INSERT_BATCH = 1_000;
 const TRANSIT_NETWORK_VERSION_KEY = 'transit:network:version';
+const GTFS_FEED_HASH_KEY = 'gtfs:feed:sha256';
+
+/**
+ * Every file the import reads. Absent optional files still stamp the hash so
+ * that adding transfers.txt to an otherwise identical feed counts as a change.
+ */
+const HASHED_FILES = [
+  'routes.txt',
+  'trips.txt',
+  'shapes.txt',
+  'stops.txt',
+  'stop_times.txt',
+  'transfers.txt',
+  'calendar.txt',
+  'calendar_dates.txt',
+];
+
+async function hashGtfsFeed(gtfsPath: string): Promise<string> {
+  const hash = createHash('sha256');
+  for (const filename of HASHED_FILES) {
+    const path = join(gtfsPath, filename);
+    try {
+      await access(path);
+    } catch {
+      hash.update(`${filename}:absent\n`);
+      continue;
+    }
+    hash.update(`${filename}\n`);
+    for await (const chunk of createReadStream(path)) {
+      hash.update(chunk as Buffer);
+    }
+  }
+  return hash.digest('hex');
+}
 
 async function* readCsv(path: string): AsyncGenerator<CsvRow> {
   const parser = createReadStream(path).pipe(
@@ -207,20 +243,20 @@ async function importTransitNetwork(gtfsPath: string) {
     /**
      * Replace exactly what this importer owns. TER, airport rail shuttles and
      * guided special modes remain untouched if another importer adds them later.
+     *
+     * TRUNCATE rather than DELETE: a full reload used to delete millions of
+     * rows, and DELETE WAL-logs and leaves a dead tuple for every one of them —
+     * each run wrote gigabytes of WAL and doubled the physical table size until
+     * vacuum caught up. TRUNCATE resets the underlying files outright, is
+     * transactional, and leaves nothing for autovacuum to chew on.
      */
-    await tx.delete(transitServiceDates);
-    await tx.delete(transitShapes);
-    await tx.delete(transitTransfers);
-    // Before the stop sweep below: its stop_id FK is ON DELETE RESTRICT.
-    await tx.delete(transitLineSchemaStops);
-    await tx.delete(transitLineDirections);
-    await tx.delete(transitRoutePatternStops);
-    await tx.delete(transitRoutePatterns);
-    await tx.delete(transitTrips);
-    // Only after trips: their profile_key FK restricts the profile delete.
-    await tx.delete(transitProfileStops);
-    await tx.delete(transitTimeProfiles);
-    await tx.delete(transitStopRoutes);
+    await tx.execute(sql`
+      TRUNCATE ${transitServiceDates}, ${transitShapes}, ${transitTransfers},
+        ${transitLineSchemaStops}, ${transitLineDirections},
+        ${transitRoutePatternStops}, ${transitRoutePatterns},
+        ${transitTrips}, ${transitProfileStops}, ${transitTimeProfiles},
+        ${transitStopRoutes}
+    `);
     await tx.delete(transitRoutes).where(networkRouteCondition());
 
     /**
@@ -230,8 +266,11 @@ async function importTransitNetwork(gtfsPath: string) {
      * only worked because metro was the sole mode.
      */
     await tx.execute(sql`
-      DELETE FROM ${transitStops}
-      WHERE id NOT IN (SELECT stop_id FROM ${transitRoutePatternStops})
+      DELETE FROM ${transitStops} AS stops
+      WHERE NOT EXISTS (
+        SELECT 1 FROM ${transitRoutePatternStops} AS pattern_stops
+        WHERE pattern_stops.stop_id = stops.id
+      )
     `);
 
     await tx.insert(transitRoutes).values(
@@ -316,18 +355,6 @@ async function importTransitNetwork(gtfsPath: string) {
       readCsv,
     });
 
-    await importLineSchemas({
-      tx,
-      stopIdByKey: new Map([...stopKeyById].map(([stopId, stopKey]) => [stopKey, stopId])),
-      stopNameById: (stopId) => journeyStops.get(stopId)?.name ?? stopId,
-    });
-
-    await tx.execute(projectStopsOntoPatterns());
-    await tx.execute(computeDrawnGeometry());
-    await tx.execute(sql`ANALYZE ${transitRoutePatterns}`);
-    await tx.execute(sql`ANALYZE ${transitStops}`);
-    await tx.execute(sql`ANALYZE ${transitStopRoutes}`);
-    await tx.execute(sql`ANALYZE ${transitTransfers}`);
   });
 
   const counts = Map.groupBy(routes, (route) => route.mode);
@@ -339,6 +366,49 @@ async function importTransitNetwork(gtfsPath: string) {
       `${counts.get('bus')?.length ?? 0} bus lines, ` +
       `${patterns.length} representative patterns, ${journeyStops.size} shared stops.`
   );
+}
+
+/**
+ * Derived data runs after the network commit: every step is a pure function of
+ * the committed base tables, idempotent and re-runnable. Keeping them out of
+ * the bulk transaction keeps its lock window short and lets each step's memory
+ * spike happen alone. Until this finishes, patterns briefly lack drawn
+ * geometry — a degraded map, never broken schedules.
+ */
+async function deriveNetworkData() {
+  await db.execute(projectStopsOntoPatterns());
+  await db.execute(computeDrawnGeometry());
+
+  const stops = await db
+    .select({
+      numericId: transitStops.numericId,
+      id: transitStops.id,
+      name: transitStops.name,
+    })
+    .from(transitStops);
+  const stopNameById = new Map(stops.map((stop) => [stop.id, stop.name]));
+  await db.transaction(async (tx) => {
+    await importLineSchemas({
+      tx,
+      stopIdByKey: new Map(stops.map((stop) => [stop.numericId, stop.id])),
+      stopNameById: (stopId) => stopNameById.get(stopId) ?? stopId,
+    });
+  });
+}
+
+/**
+ * Fresh planner statistics right after the reload; with TRUNCATE there are no
+ * dead tuples, so this is cheap. VACUUM cannot run inside a transaction, hence
+ * the raw client.
+ */
+async function vacuumAnalyzeTransitTables() {
+  await client.unsafe(`
+    VACUUM ANALYZE transit_routes, transit_stops, transit_route_patterns,
+      transit_route_pattern_stops, transit_trips, transit_time_profiles,
+      transit_profile_stops, transit_service_dates, transit_stop_routes,
+      transit_transfers, transit_shapes, transit_line_directions,
+      transit_line_schema_stops
+  `);
 }
 
 /** Move API station metadata to a fresh Redis namespace after a successful import. */
@@ -357,14 +427,38 @@ async function bumpTransitNetworkCacheVersion() {
   }
 }
 
-const gtfsPath = process.argv[2] ?? process.env.GTFS_PATH;
+const args = process.argv.slice(2);
+const force = args.includes('--force');
+const gtfsPath = args.find((arg) => !arg.startsWith('--')) ?? process.env.GTFS_PATH;
 if (!gtfsPath) {
   throw new Error('Pass the extracted GTFS directory as an argument or set GTFS_PATH');
 }
 
 try {
-  await importTransitNetwork(gtfsPath);
-  await bumpTransitNetworkCacheVersion();
+  const feedHash = await hashGtfsFeed(gtfsPath);
+  const [stored] = await db
+    .select()
+    .from(importMeta)
+    .where(eq(importMeta.key, GTFS_FEED_HASH_KEY));
+  if (!force && stored?.value === feedHash) {
+    console.log('GTFS feed unchanged since the last completed import — nothing to do (--force to reimport).');
+  } else {
+    await importTransitNetwork(gtfsPath);
+    await deriveNetworkData();
+    await vacuumAnalyzeTransitTables();
+    /**
+     * Only a fully completed import records its hash: a crash in any phase
+     * above leaves the previous value, so the next run redoes everything.
+     */
+    await db
+      .insert(importMeta)
+      .values({ key: GTFS_FEED_HASH_KEY, value: feedHash })
+      .onConflictDoUpdate({
+        target: importMeta.key,
+        set: { value: feedHash, updatedAt: new Date() },
+      });
+    await bumpTransitNetworkCacheVersion();
+  }
 } finally {
   await client.end();
 }
