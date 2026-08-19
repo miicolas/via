@@ -13,86 +13,27 @@ struct AccountDataView: View {
 
     var body: some View {
         List {
-            Section("Synchronisation") {
-                HStack {
-                    SyncStatusLabel(state: account.syncState)
-                    Spacer()
-                    if account.syncState == .syncing {
-                        ProgressView()
-                    }
+            AccountSynchronizationSection(
+                state: account.syncState,
+                isSignedIn: authSession.isSignedIn,
+                onSynchronize: account.synchronize
+            )
+            AccountStorageSection(
+                account: account,
+                isClearHistoryConfirmationPresented: $isClearHistoryConfirmationPresented
+            )
+            AccountIdentitySection(
+                session: authSession.session,
+                isDeleteAccountConfirmationPresented: $isDeleteAccountConfirmationPresented,
+                onSignOut: {
+                    Task { await authSession.signOut() }
                 }
-                .frame(minHeight: 44)
-
-                Button {
-                    account.synchronize()
-                } label: {
-                    Label("Synchroniser maintenant", systemImage: "arrow.triangle.2.circlepath")
-                }
-                .disabled(!authSession.isSignedIn)
-
-                if case .failed(let error) = account.syncState {
-                    Text(message(for: error))
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                }
-            }
-
-            Section("Données") {
-                NavigationLink {
-                    RecentSearchesView(account: account)
-                } label: {
-                    Label("Historique des recherches", systemImage: "clock.arrow.circlepath")
-                }
-
-                AccountExportLink(export: account.makeExport())
-
-                Button("Effacer l’historique", role: .destructive) {
-                    isClearHistoryConfirmationPresented = true
-                }
-            }
-
-            if let session = authSession.session {
-                Section("Compte Apple") {
-                    LabeledContent("Nom", value: session.user.displayName)
-                    LabeledContent("E-mail", value: session.user.email)
-
-                    Button("Se déconnecter", role: .destructive) {
-                        Task { await authSession.signOut() }
-                    }
-
-                    Button("Supprimer le compte", role: .destructive) {
-                        isDeleteAccountConfirmationPresented = true
-                    }
-                }
-            } else {
-                Section {
-                    Text("Les données de cet appareil restent disponibles sans compte.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } header: {
-                    Text("Espace local")
-                }
-            }
-
-            Section("Réinitialiser") {
-                Button("Réinitialiser toutes les préférences", role: .destructive) {
-                    isResetPreferencesConfirmationPresented = true
-                }
-
-                Button("Effacer les données de cet appareil", role: .destructive) {
-                    isEraseDeviceConfirmationPresented = true
-                }
-            } footer: {
-                Text("Les favoris, lieux et l’historique sont conservés lors de la réinitialisation des préférences.")
-            }
-
-            if let errorMessage = authSession.errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                }
-            }
+            )
+            AccountResetSection(
+                isResetPreferencesConfirmationPresented: $isResetPreferencesConfirmationPresented,
+                isEraseDeviceConfirmationPresented: $isEraseDeviceConfirmationPresented
+            )
+            AccountAuthenticationErrorSection(message: authSession.errorMessage)
         }
         .navigationTitle("Compte et données")
         .toolbarTitleDisplayMode(.inlineLarge)
@@ -146,47 +87,18 @@ struct AccountDataView: View {
             Text("Cette action supprime le compte distant et ses données synchronisées. Une confirmation Apple récente est requise.")
         }
         .sheet(isPresented: $isAppleReauthorizationPresented) {
-            NavigationStack {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Confirmer avec Apple")
-                        .font(.title2.weight(.semibold))
-                    Text("Apple doit confirmer ton identité avant la suppression définitive du compte.")
-                        .foregroundStyle(.secondary)
-                    AppleDeletionButton { outcome in
-                        Task {
-                            await authSession.completeAccountDeletion(outcome)
-                            isAppleReauthorizationPresented = false
-                        }
+            AccountDeletionSheet(
+                isDeletingAccount: authSession.isDeletingAccount,
+                onOutcome: { outcome in
+                    Task {
+                        await authSession.completeAccountDeletion(outcome)
+                        isAppleReauthorizationPresented = false
                     }
-                    if authSession.isDeletingAccount {
-                        ProgressView("Suppression en cours…")
-                    }
-                    Spacer()
+                },
+                onCancel: {
+                    isAppleReauthorizationPresented = false
                 }
-                .padding(24)
-                .navigationTitle("Suppression")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Annuler") {
-                            isAppleReauthorizationPresented = false
-                        }
-                    }
-                }
-            }
-            .presentationDetents([.medium])
-        }
-    }
-
-    private func message(for error: ViaError) -> String {
-        switch error {
-        case .transport:
-            "Connexion indisponible. Les modifications restent en attente."
-        case .unavailable:
-            "Le service est momentanément indisponible."
-        case .unauthorized:
-            "Reconnecte-toi pour synchroniser ce compte."
-        default:
-            "La synchronisation a échoué. Réessaie plus tard."
+            )
         }
     }
 }
