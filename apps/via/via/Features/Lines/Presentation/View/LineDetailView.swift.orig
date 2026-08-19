@@ -50,16 +50,7 @@ struct LineDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .overlay {
             if case .loading(nil) = viewModel.detail {
-                SkeletonGate(isLoading: true) {
-                    SkeletonList(
-                        count: 10,
-                        label: "Chargement de la ligne…",
-                        row: .schemaStop
-                    )
-                    .padding(.horizontal, 20)
-                }
-                .frame(maxHeight: .infinity, alignment: .top)
-                .background(.background)
+                ProgressView("Chargement de la ligne…")
             } else if case .failed(_, nil) = viewModel.detail {
                 ContentUnavailableView(
                     "Ligne indisponible",

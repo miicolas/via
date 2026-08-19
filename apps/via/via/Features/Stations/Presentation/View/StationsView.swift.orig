@@ -49,34 +49,16 @@ struct StationsView: View {
         }
     }
 
-    private var content: some View {
-        SkeletonGate(isLoading: isInitialLoading) {
-            loadingContent
-        } content: {
-            settledContent
-        }
-    }
-
-    /// Only the first load gets a skeleton — a refresh keeps the stations on
-    /// screen and says so inline instead.
-    private var isInitialLoading: Bool {
-        switch viewModel.state {
-        case .idle, .locating: true
-        case .loading(let previous): previous == nil
-        case .loaded, .empty, .locationUnavailable, .failed: false
-        }
-    }
-
     @ViewBuilder
-    private var settledContent: some View {
+    private var content: some View {
         switch viewModel.state {
         case .idle, .locating:
-            EmptyView()
+            loadingContent
         case .loading(let previous):
             if let previous {
                 stationList(previous, isRefreshing: true)
             } else {
-                EmptyView()
+                loadingContent
             }
         case .loaded(let station):
             stationList(station)
@@ -94,14 +76,12 @@ struct StationsView: View {
     }
 
     private var loadingContent: some View {
-        SkeletonList(
-            count: 5,
-            label: "Recherche de stations…",
-            row: .departure,
-            separator: .divider(leadingInset: 52)
-        )
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        VStack {
+            Spacer()
+            ViaLoadingStatus(label: "Recherche de stations…")
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
