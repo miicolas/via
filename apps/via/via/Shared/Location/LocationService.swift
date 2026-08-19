@@ -245,12 +245,15 @@ extension LocationAdapter {
 
 @MainActor
 final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLocationManagerDelegate {
+    private static let maximumCachedLocationAge: TimeInterval = 15
+
     var onEvent: (@MainActor (LocationAdapterEvent) -> Void)?
     var authorization: LocationAuthorization { Self.map(manager.authorizationStatus) }
     var backgroundAuthorizationGranted: Bool { manager.authorizationStatus == .authorizedAlways }
 
     private let manager: CLLocationManager
     private var isTrackingJourney = false
+    private var isLocatingOnce = false
 
     override init() {
         manager = CLLocationManager()
@@ -269,10 +272,12 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
     }
 
     func requestLocation() {
-        manager.requestLocation()
+        isLocatingOnce = true
+        manager.startUpdatingLocation()
     }
 
     func startUpdatingLocation(allowsBackgroundUpdates: Bool) {
+        isLocatingOnce = false
         isTrackingJourney = true
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.distanceFilter = 25
@@ -289,6 +294,7 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
         manager.distanceFilter = kCLDistanceFilterNone
         manager.allowsBackgroundLocationUpdates = false
         manager.showsBackgroundLocationIndicator = false
+        isLocatingOnce = false
         isTrackingJourney = false
     }
 
@@ -308,12 +314,19 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
                 horizontalAccuracy: value.horizontalAccuracy >= 0 ? value.horizontalAccuracy : nil,
                 recordedAt: value.timestamp
             )))
-        } else {
+        } else if isLocatingOnce,
+                  value.timestamp >= Date.now.addingTimeInterval(-Self.maximumCachedLocationAge) {
+            manager.stopUpdatingLocation()
+            isLocatingOnce = false
             onEvent?(.located(coordinate))
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: any Error) {
+        if isLocatingOnce {
+            manager.stopUpdatingLocation()
+            isLocatingOnce = false
+        }
         AppLog.location.error("Location failed: \(String(describing: error), privacy: .private(mask: .hash))")
         onEvent?(.failed(Self.map(manager.authorizationStatus)))
     }
