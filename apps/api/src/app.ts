@@ -42,10 +42,13 @@ app.get('/api/openapi.json', async (c) => c.json(await getOpenApiDocument()));
  */
 function mount(handler: FetchHandler<ApiContext>, prefix: '/api' | '/rpc') {
   return async (c: Context<AppEnv>, next: Next) => {
-    const userId = c.var.authSession?.user.id;
+    const authSession = c.var.authSession;
     const { matched, response } = await handler.handle(c.req.raw, {
       prefix,
-      context: { userId },
+      context: {
+        userId: authSession?.user.id,
+        isAnonymous: authSession?.user.isAnonymous ?? undefined,
+      },
     });
 
     if (matched) return response;

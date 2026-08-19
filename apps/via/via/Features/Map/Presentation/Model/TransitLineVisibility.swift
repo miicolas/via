@@ -14,21 +14,37 @@ enum TransitLineVisibility {
     static let cityOverviewLaneSpacing = 1.5
     static let collapsedLaneSpanMeters = 250_000.0
 
+    /// Zoom-driven styles are quantized: every distinct value republishes the
+    /// map snapshot and rebuilds every polyline, so a continuous curve would
+    /// rebuild on each pinch frame. Steps small enough to read as a fade.
+    static let opacityStep = 0.05
+    static let lineWidthStep = 0.25
+
     static func opacity(for spanMeters: Double) -> Double {
-        piecewiseLinear(spanMeters, through: [
-            (fullyVisibleSpanMeters, 1),
-            (cityOverviewSpanMeters, cityOverviewOpacity),
-            (regionalSpanMeters, regionalOpacity),
-            (maximumVisibleSpanMeters, 0),
-        ])
+        quantized(
+            piecewiseLinear(spanMeters, through: [
+                (fullyVisibleSpanMeters, 1),
+                (cityOverviewSpanMeters, cityOverviewOpacity),
+                (regionalSpanMeters, regionalOpacity),
+                (maximumVisibleSpanMeters, 0),
+            ]),
+            step: opacityStep
+        )
     }
 
     static func lineWidth(for spanMeters: Double) -> Double {
-        piecewiseLinear(spanMeters, through: [
-            (fullyVisibleSpanMeters, localLineWidth),
-            (cityOverviewSpanMeters, cityOverviewLineWidth),
-            (regionalSpanMeters, regionalLineWidth),
-        ])
+        quantized(
+            piecewiseLinear(spanMeters, through: [
+                (fullyVisibleSpanMeters, localLineWidth),
+                (cityOverviewSpanMeters, cityOverviewLineWidth),
+                (regionalSpanMeters, regionalLineWidth),
+            ]),
+            step: lineWidthStep
+        )
+    }
+
+    static func quantized(_ value: Double, step: Double) -> Double {
+        (value / step).rounded() * step
     }
 
     static func laneSpacing(for spanMeters: Double) -> Double {

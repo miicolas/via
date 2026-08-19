@@ -2,7 +2,8 @@ import SwiftUI
 
 struct SearchDeparturePickerView: View {
     let repository: any SearchRepository
-    let selection: SearchDepartureSelection?
+    let savedPlaces: [SavedPlace]
+    let selection: SearchDepartureSelection
     let onSelect: (SearchDepartureSelection) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -11,13 +12,25 @@ struct SearchDeparturePickerView: View {
 
     init(
         repository: any SearchRepository,
-        selection: SearchDepartureSelection?,
+        savedPlaces: [SavedPlace] = [],
+        selection: SearchDepartureSelection = .currentLocation,
         onSelect: @escaping (SearchDepartureSelection) -> Void
     ) {
         self.repository = repository
+        self.savedPlaces = savedPlaces
         self.selection = selection
         self.onSelect = onSelect
-        _selectedShortcut = State(initialValue: selection?.shortcut)
+        _selectedShortcut = State(initialValue: selection.shortcut)
+    }
+
+    private var availableShortcuts: [StationPlaceShortcut] {
+        [.currentLocation] + savedPlaces.compactMap { place in
+            switch place.role {
+            case .home: .home
+            case .work: .work
+            case .favorite: nil
+            }
+        }
     }
 
     var body: some View {
@@ -30,7 +43,7 @@ struct SearchDeparturePickerView: View {
 
                     StationPlacePicker(
                         selection: $selectedShortcut,
-                        shortcuts: [.currentLocation, .home, .work],
+                        shortcuts: availableShortcuts,
                         onAddPlace: { isManualSearchPresented = true }
                     )
                     .padding(.horizontal, -20)
@@ -67,8 +80,7 @@ struct SearchDeparturePickerView: View {
         }
         .onChange(of: selectedShortcut) { _, shortcut in
             guard let shortcut else { return }
-            onSelect(shortcut.departureSelection)
-            dismiss()
+            select(shortcut)
         }
         .sheet(isPresented: $isManualSearchPresented) {
             SearchManualDepartureView(repository: repository) { result in
@@ -78,36 +90,28 @@ struct SearchDeparturePickerView: View {
             }
         }
     }
-}
 
-private extension SearchDepartureSelection {
-    var shortcut: StationPlaceShortcut? {
-        switch self {
+    private func select(_ shortcut: StationPlaceShortcut) {
+        switch shortcut {
         case .currentLocation:
-            .currentLocation
-        case .saved(let shortcut):
-            shortcut
-        case .manual:
-            nil
-        }
-    }
-}
-
-private extension StationPlaceShortcut {
-    var departureSelection: SearchDepartureSelection {
-        switch self {
-        case .currentLocation:
-            .currentLocation
+            onSelect(.currentLocation)
         case .home, .work:
-            .saved(self)
+            guard let place = savedPlaces.first(where: { place in
+                switch (shortcut, place.role) {
+                case (.home, .home), (.work, .work): true
+                default: false
+                }
+            }) else { return }
+            onSelect(.saved(place))
         }
+        dismiss()
     }
 }
 
 #Preview {
     SearchDeparturePickerView(
         repository: InMemorySearchRepository.preview,
-        selection: nil,
+        selection: .currentLocation,
         onSelect: { _ in }
     )
 }

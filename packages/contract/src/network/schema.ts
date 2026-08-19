@@ -50,10 +50,12 @@ export const STATIONS_AREA_MAX_SPAN_DEGREES = 0.05;
 
 export const stationsInAreaInputSchema = z
   .object({
-    minLatitude: z.number().min(-90).max(90),
-    maxLatitude: z.number().min(-90).max(90),
-    minLongitude: z.number().min(-180).max(180),
-    maxLongitude: z.number().min(-180).max(180),
+    // Coerced, not plain numbers: see coordinateParamSchema — iOS sends "2.0"
+    // for whole-degree tile edges and the coercion plugin leaves those as strings.
+    minLatitude: z.coerce.number().min(-90).max(90),
+    maxLatitude: z.coerce.number().min(-90).max(90),
+    minLongitude: z.coerce.number().min(-180).max(180),
+    maxLongitude: z.coerce.number().min(-180).max(180),
   })
   .refine(
     (area) => area.minLatitude < area.maxLatitude && area.minLongitude < area.maxLongitude,

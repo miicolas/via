@@ -4,9 +4,9 @@ import SwiftUI
 /// `Tab(role: .search)`, which gives it the detached magnifier slot in the tab bar.
 enum MapShellTab: String, Hashable {
     case stations = "Stations"
-    case lines = "Lines"
-    case me = "Me"
-    case search = "Search"
+    case lines = "Lignes"
+    case me = "Moi"
+    case search = "Recherche"
 
     var symbolImage: String {
         switch self {

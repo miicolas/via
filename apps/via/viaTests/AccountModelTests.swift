@@ -229,6 +229,131 @@ final class AccountModelTests: XCTestCase {
     }
 
     @MainActor
+    func testAnonymousWorkspacePersistsAndMergesNewestValuesOnFirstLogin() {
+        var currentDate = Date(timeIntervalSince1970: 100)
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false,
+            now: { currentDate }
+        )
+
+        model.activate(userID: "user")
+        model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Cloud")
+        model.setPlace(addressResult(id: "cloud-home"), role: .home)
+        model.recordRecentSearch(addressResult(id: "cloud-recent"))
+        model.setPreferred(.metro, enabled: true)
+
+        model.activateAnonymous()
+        currentDate = Date(timeIntervalSince1970: 200)
+        model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Appareil")
+        model.setPlace(addressResult(id: "device-home"), role: .home)
+        model.recordRecentSearch(addressResult(id: "device-recent"))
+        model.setPreferred(.bus, enabled: true)
+
+        let relaunched = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        relaunched.activateAnonymous()
+        XCTAssertEqual(relaunched.favorites.first?.name, "Appareil")
+
+        relaunched.activate(userID: "user")
+        XCTAssertEqual(relaunched.favorites.first?.name, "Appareil")
+        XCTAssertEqual(relaunched.place(for: .home)?.id, "address:device-home")
+        XCTAssertEqual(relaunched.transportPreferences.preferredModes, [.bus])
+        XCTAssertTrue(relaunched.recentSearches.contains { $0.id == "address:device-recent" })
+        XCTAssertNil(defaults.data(forKey: "via.account-data.v1.anonymous"))
+    }
+
+    @MainActor
+    func testResetPreferencesKeepsFavoritesPlacesAndHistory() {
+        let date = Date(timeIntervalSince1970: 100)
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false,
+            now: { date }
+        )
+        model.activateAnonymous()
+        model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Nation")
+        model.setPlace(addressResult(id: "home"), role: .home)
+        model.recordRecentSearch(addressResult(id: "recent"))
+        model.setPreferred(.metro, enabled: true)
+
+        model.resetPreferences()
+
+        XCTAssertTrue(model.transportPreferences.preferredModes.isEmpty)
+        XCTAssertEqual(model.favorites.count, 1)
+        XCTAssertEqual(model.place(for: .home)?.id, "address:home")
+        XCTAssertEqual(model.recentSearches.count, 1)
+    }
+
+    @MainActor
+    func testEraseDeviceDataClearsTheLocalWorkspace() {
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        model.activate(userID: "user")
+        model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Nation")
+
+        model.eraseDeviceData()
+
+        XCTAssertTrue(model.isAnonymous)
+        XCTAssertTrue(model.favorites.isEmpty)
+        XCTAssertNil(defaults.data(forKey: "via.account-data.v1.user"))
+        XCTAssertNotNil(defaults.data(forKey: "via.account-data.v1.anonymous"))
+    }
+
+    @MainActor
+    func testEraseDeviceDataDoesNotResurfaceAnOlderAnonymousWorkspace() {
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        model.activateAnonymous()
+        model.toggleFavorite(stationID: StationID(rawValue: "OLD"), name: "Ancien")
+
+        model.activate(userID: "user")
+        model.toggleFavorite(stationID: StationID(rawValue: "CURRENT"), name: "Actuel")
+        model.eraseDeviceData()
+
+        XCTAssertTrue(model.isAnonymous)
+        XCTAssertTrue(model.favorites.isEmpty)
+        XCTAssertNil(defaults.data(forKey: "via.account-data.v1.user"))
+        XCTAssertNotNil(defaults.data(forKey: "via.account-data.v1.anonymous"))
+    }
+
+    @MainActor
+    func testExportContainsOnlyPortableAccountFields() throws {
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        model.activateAnonymous()
+        model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Nation")
+
+        let data = try JSONEncoder.via.encode(
+            model.makeExport(exportedAt: Date(timeIntervalSince1970: 100))
+        )
+        let object = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+
+        XCTAssertEqual(
+            Set(object.keys),
+            ["schemaVersion", "exportedAt", "favorites", "places", "recentSearches", "preferences"]
+        )
+        XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("bearerToken"))
+        XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("appleUserIdentifier"))
+    }
+
+    @MainActor
     private func waitUntil(
         _ predicate: @escaping @MainActor () -> Bool,
         file: StaticString = #filePath,

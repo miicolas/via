@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { bearer } from 'better-auth/plugins/bearer';
+import { anonymous, bearer } from 'better-auth/plugins';
 import { accounts, db, schema, users } from '@via/db';
 
 import { env } from '../env';
@@ -81,7 +81,10 @@ export const auth = betterAuth({
     }),
   },
   trustedOrigins: [env.BETTER_AUTH_URL, 'https://appleid.apple.com'],
-  plugins: [bearer({ requireSignature: true })],
+  plugins: [
+    bearer({ requireSignature: true }),
+    anonymous(),
+  ],
   telemetry: { enabled: false },
 });
 

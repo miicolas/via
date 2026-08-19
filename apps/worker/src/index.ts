@@ -8,6 +8,7 @@ import {
   networkMode,
   transitLineDirections,
   transitLineSchemaStops,
+  transitProfileStops,
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
@@ -15,6 +16,7 @@ import {
   transitServiceDates,
   transitStopRoutes,
   transitStops,
+  transitTimeProfiles,
   transitTrips,
   transitTransfers,
   type LonLat,
@@ -215,6 +217,9 @@ async function importTransitNetwork(gtfsPath: string) {
     await tx.delete(transitRoutePatternStops);
     await tx.delete(transitRoutePatterns);
     await tx.delete(transitTrips);
+    // Only after trips: their profile_key FK restricts the profile delete.
+    await tx.delete(transitProfileStops);
+    await tx.delete(transitTimeProfiles);
     await tx.delete(transitStopRoutes);
     await tx.delete(transitRoutes).where(networkRouteCondition());
 

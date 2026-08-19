@@ -10,12 +10,12 @@ import {
 import { synchronizeAccount } from './sync';
 
 const sync = implementer.account.sync.handler(async ({ input, context }) => {
-  if (!context.userId) throw new ORPCError('UNAUTHORIZED');
+  if (!context.userId || context.isAnonymous) throw new ORPCError('UNAUTHORIZED');
   return synchronizeAccount(context.userId, input);
 });
 
 const deleteAccount = implementer.account.delete.handler(async ({ input, context }) => {
-  if (!context.userId) throw new ORPCError('UNAUTHORIZED');
+  if (!context.userId || context.isAnonymous) throw new ORPCError('UNAUTHORIZED');
 
   const appleAccounts = await db
     .select({ accountId: accounts.accountId })

@@ -173,7 +173,7 @@ final class StationsViewModel {
     /// the nearest-station flow driving `state`.
     private(set) var selectedOverview: StationOverview?
 
-    @ObservationIgnored private let locationAdapter: any LocationAdapter
+    @ObservationIgnored private let locationModel: LocationModel
     @ObservationIgnored private let networkRepository: any NetworkRepository
     @ObservationIgnored private let departuresRepository: any DeparturesRepository
     @ObservationIgnored private let now: @Sendable () -> Date
@@ -191,12 +191,27 @@ final class StationsViewModel {
         departuresRepository: any DeparturesRepository,
         now: @escaping @Sendable () -> Date = { .now }
     ) {
-        self.locationAdapter = locationAdapter
+        self.locationModel = LocationModel(adapter: locationAdapter)
         self.networkRepository = networkRepository
         self.departuresRepository = departuresRepository
         self.now = now
-        locationAdapter.onEvent = { [weak self] event in
-            self?.handle(event)
+        self.locationModel.onStateChange = { [weak self] state in
+            self?.handle(state)
+        }
+    }
+
+    init(
+        locationModel: LocationModel,
+        networkRepository: any NetworkRepository,
+        departuresRepository: any DeparturesRepository,
+        now: @escaping @Sendable () -> Date = { .now }
+    ) {
+        self.locationModel = locationModel
+        self.networkRepository = networkRepository
+        self.departuresRepository = departuresRepository
+        self.now = now
+        self.locationModel.onStateChange = { [weak self] state in
+            self?.handle(state)
         }
     }
 
@@ -297,30 +312,23 @@ final class StationsViewModel {
     private func requestLocation() {
         loadTask?.cancel()
 
-        switch locationAdapter.authorization {
-        case .authorized:
-            state = .locating
-            locationAdapter.requestLocation()
-        case .notDetermined:
-            state = .locating
-            locationAdapter.requestAuthorization()
-        case .restricted, .denied:
-            state = .locationUnavailable(locationAdapter.authorization)
-        }
+        locationModel.requestLocation()
     }
 
-    private func handle(_ event: LocationAdapterEvent) {
-        switch event {
-        case .authorizationChanged(let authorization):
+    private func handle(_ locationState: LocationState) {
+        switch locationState {
+        case .idle(let authorization):
             switch authorization {
             case .authorized:
                 state = .locating
-                locationAdapter.requestLocation()
+                locationModel.requestLocation()
             case .notDetermined:
                 state = .locating
             case .restricted, .denied:
                 state = .locationUnavailable(authorization)
             }
+        case .locating:
+            state = .locating
         case .located(let coordinate):
             lastKnownCoordinate = coordinate
             loadStations(near: coordinate)

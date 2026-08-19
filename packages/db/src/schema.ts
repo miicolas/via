@@ -174,32 +174,50 @@ export const transitTrips = pgTable(
     directionId: integer('direction_id').notNull(),
     headsign: text('headsign').notNull(),
     shapeId: text('shape_id'),
+    profileKey: integer('profile_key')
+      .notNull()
+      .references(() => transitTimeProfiles.id),
+    /** Departure at the trip's first call; absolute times are `startSeconds + offset`. */
+    startSeconds: integer('start_seconds').notNull(),
   },
   (table) => [
     index('transit_trips_service_route_idx').on(table.serviceId, table.routeId),
     index('transit_trips_shape_idx').on(table.shapeId),
+    index('transit_trips_profile_idx').on(table.profileKey),
   ]
 );
 
-export const transitTripStopTimes = pgTable(
-  'transit_trip_stop_times',
+/**
+ * A time profile is the schedule of a trip expressed relative to its first
+ * departure. The IDFM feed's ~14.5M stop-time calls collapse into ~144k
+ * distinct profiles (most trips are the same run at a different clock time),
+ * so storing offsets once per profile instead of absolute times once per trip
+ * shrinks the timetable ~6×. This table only anchors the dense import-assigned
+ * ids; the calls live in `transit_profile_stops`.
+ */
+export const transitTimeProfiles = pgTable('transit_time_profiles', {
+  id: integer('id').primaryKey(),
+});
+
+export const transitProfileStops = pgTable(
+  'transit_profile_stops',
   {
-    tripKey: integer('trip_key')
+    profileKey: integer('profile_key')
       .notNull()
-      .references(() => transitTrips.numericId, { onDelete: 'cascade' }),
+      .references(() => transitTimeProfiles.id, { onDelete: 'cascade' }),
+    /** Dense 0..n-1 call order within the profile. */
+    position: integer('position').notNull(),
     stopKey: integer('stop_key')
       .notNull()
       .references(() => transitStops.numericId, { onDelete: 'cascade' }),
-    stopSequence: integer('stop_sequence').notNull(),
-    arrivalSeconds: integer('arrival_seconds').notNull(),
-    departureSeconds: integer('departure_seconds').notNull(),
+    /** Seconds relative to the trip's first departure; may be ≤ 0 on the first call. */
+    arrivalOffset: integer('arrival_offset').notNull(),
+    /** Seconds relative to the trip's first departure; 0 on the first call. */
+    departureOffset: integer('departure_offset').notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.tripKey, table.stopSequence] }),
-    index('transit_trip_stop_times_stop_departure_idx').on(
-      table.stopKey,
-      table.departureSeconds
-    ),
+    primaryKey({ columns: [table.profileKey, table.position] }),
+    index('transit_profile_stops_stop_idx').on(table.stopKey),
   ]
 );
 
@@ -312,6 +330,7 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
+  isAnonymous: boolean('is_anonymous').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   /**
@@ -459,5 +478,4 @@ export type TransitRoute = typeof transitRoutes.$inferSelect;
 export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
 export type TransitTrip = typeof transitTrips.$inferSelect;
-export type TransitTripStopTime = typeof transitTripStopTimes.$inferSelect;
 export type TransitLineSchemaStop = typeof transitLineSchemaStops.$inferSelect;

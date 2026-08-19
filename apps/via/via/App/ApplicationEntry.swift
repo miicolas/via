@@ -3,20 +3,28 @@ import SwiftUI
 @main
 @MainActor
 struct ApplicationEntry: App {
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var locationModel: LocationModel
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
     @State private var linesViewModel: LinesViewModel
+    @State private var accountModel: AccountModel
+    @State private var authSessionViewModel: AuthSessionViewModel
+    @State private var onboardingModel: OnboardingModel
     private let searchRepository: any SearchRepository
+    private let journeyRepository: any JourneyRepository
     private let lineStatusRepository: any LineStatusRepository
+    private let supportDestinations: SupportDestinations
 
     init() {
         let dependencies = Self.makeDependencies()
+        _locationModel = State(initialValue: dependencies.locationModel)
         _networkViewModel = State(
             initialValue: NetworkViewModel(repository: dependencies.networkRepository)
         )
         _stationsViewModel = State(
             initialValue: StationsViewModel(
-                locationAdapter: dependencies.locationAdapter,
+                locationModel: dependencies.locationModel,
                 networkRepository: dependencies.networkRepository,
                 departuresRepository: dependencies.departuresRepository
             )
@@ -24,8 +32,13 @@ struct ApplicationEntry: App {
         _linesViewModel = State(
             initialValue: LinesViewModel(repository: dependencies.lineStatusRepository)
         )
+        _accountModel = State(initialValue: dependencies.accountModel)
+        _authSessionViewModel = State(initialValue: dependencies.authSessionViewModel)
+        _onboardingModel = State(initialValue: dependencies.onboardingModel)
         searchRepository = dependencies.searchRepository
+        journeyRepository = dependencies.journeyRepository
         lineStatusRepository = dependencies.lineStatusRepository
+        supportDestinations = dependencies.supportDestinations
     }
 
     var body: some Scene {
@@ -34,46 +47,110 @@ struct ApplicationEntry: App {
                 networkViewModel: networkViewModel,
                 stationsViewModel: stationsViewModel,
                 linesViewModel: linesViewModel,
+                locationModel: locationModel,
+                accountModel: accountModel,
+                authSessionViewModel: authSessionViewModel,
+                onboardingModel: onboardingModel,
+                supportDestinations: supportDestinations,
                 searchRepository: searchRepository,
+                journeyRepository: journeyRepository,
                 lineStatusRepository: lineStatusRepository
             )
+            .task {
+                await authSessionViewModel.restore()
+            }
+            .task(id: scenePhase) {
+                guard scenePhase == .active else { return }
+                await authSessionViewModel.sceneBecameActive()
+            }
         }
     }
 
     private static func makeDependencies() -> Dependencies {
         guard let configuration = try? AppConfiguration.bundled() else {
+            let accountModel = AccountModel(
+                remote: InMemoryAccountRemote(),
+                synchronizationEnabled: false
+            )
+            accountModel.activateAnonymous()
+            let previewSession = StoredAuthSession(
+                bearerToken: "preview.token",
+                user: AuthUser(
+                    id: "preview",
+                    appleUserIdentifier: "preview",
+                    name: "Preview",
+                    email: "preview@example.com"
+                ),
+                expiresAt: .distantFuture,
+                lastValidatedAt: .now
+            )
+
             return Dependencies(
-                locationAdapter: InMemoryLocationAdapter(
-                    coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
+                locationModel: LocationModel(
+                    adapter: InMemoryLocationAdapter(
+                        coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
+                    )
                 ),
                 networkRepository: InMemoryNetworkRepository.mapPreview,
                 departuresRepository: InMemoryDeparturesRepository.stationsPreview,
                 searchRepository: InMemorySearchRepository.preview,
-                lineStatusRepository: PreviewLineStatusRepository()
+                journeyRepository: PreferenceAwareJourneyRepository(
+                    base: InMemoryJourneyRepository(result: .mapPreview),
+                    account: accountModel
+                ),
+                lineStatusRepository: PreviewLineStatusRepository(),
+                accountModel: accountModel,
+                authSessionViewModel: AuthSessionViewModel(
+                    client: InMemoryAuthenticationClient(session: previewSession),
+                    vault: InMemoryAuthSessionVault(),
+                    account: accountModel
+                ),
+                onboardingModel: OnboardingModel(),
+                supportDestinations: .preview
             )
         }
 
         // The network endpoints are public; unauthorized responses keep the default no-op handler.
+        let authSessionVault = KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
         let transport = APITransport(
             baseURL: configuration.apiBaseURL,
-            authSessionVault: KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
+            authSessionVault: authSessionVault
         )
-        let networkRepository = LiveNetworkRepository(transport: transport)
+        let accountModel = AccountModel(remote: LiveAccountRemote(transport: transport))
+        accountModel.activateAnonymous()
+        let journeyRepository = PreferenceAwareJourneyRepository(
+            base: LiveJourneyRepository(transport: transport),
+            account: accountModel
+        )
 
         return Dependencies(
-            locationAdapter: CoreLocationAdapter(),
-            networkRepository: networkRepository,
+            locationModel: LocationModel(adapter: CoreLocationAdapter()),
+            networkRepository: LiveNetworkRepository(transport: transport),
             departuresRepository: LiveDeparturesRepository(transport: transport),
             searchRepository: LiveSearchRepository(transport: transport),
-            lineStatusRepository: LiveLineStatusRepository(transport: transport)
+            journeyRepository: journeyRepository,
+            lineStatusRepository: LiveLineStatusRepository(transport: transport),
+            accountModel: accountModel,
+            authSessionViewModel: AuthSessionViewModel(
+                client: BetterAuthClient(baseURL: configuration.apiBaseURL),
+                vault: authSessionVault,
+                account: accountModel
+            ),
+            onboardingModel: OnboardingModel(),
+            supportDestinations: .app
         )
     }
 
     private struct Dependencies {
-        let locationAdapter: any LocationAdapter
+        let locationModel: LocationModel
         let networkRepository: any NetworkRepository
         let departuresRepository: any DeparturesRepository
         let searchRepository: any SearchRepository
+        let journeyRepository: any JourneyRepository
         let lineStatusRepository: any LineStatusRepository
+        let accountModel: AccountModel
+        let authSessionViewModel: AuthSessionViewModel
+        let onboardingModel: OnboardingModel
+        let supportDestinations: SupportDestinations
     }
 }

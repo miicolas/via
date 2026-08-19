@@ -21,6 +21,7 @@ function authenticatedSession(): AuthSession {
       emailVerified: true,
       name: "Person",
       image: null,
+      isAnonymous: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
