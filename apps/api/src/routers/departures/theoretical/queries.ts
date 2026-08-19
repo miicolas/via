@@ -1,21 +1,22 @@
 import { db } from '@via/db';
 import {
+  transitProfileStops,
   transitServiceDates,
   transitStops,
-  transitTripStopTimes,
   transitTrips,
 } from '@via/db/schema';
-import { and, asc, eq, gt } from 'drizzle-orm';
+import { and, asc, eq, gt, sql } from 'drizzle-orm';
 
 import type { TheoreticalDepartureRow } from './next-departures';
 
 /**
  * Next scheduled departures at a stop on a service day, after a time of that
- * day. The day's services resolve in a subquery rather than a prior
- * round-trip — their ids would only travel out of Postgres to come straight
- * back in an `IN` list. Ordered and capped in SQL so the normalized stop-time
- * index does the work; route and headsign come from the trip row, avoiding a
- * second flat copy of every GTFS stop-time call.
+ * day. Absolute times are reconstructed from the trip's start and its time
+ * profile's offset, so the filter and sort run on a computed column — the
+ * candidate set is bounded by the profiles calling at one stop, which keeps
+ * the top-N sort cheap without a dedicated index. The day's services resolve
+ * in a subquery rather than a prior round-trip — their ids would only travel
+ * out of Postgres to come straight back in an `IN` list.
  */
 export async function selectNextTheoreticalDepartures(
   stopId: string,
@@ -23,23 +24,26 @@ export async function selectNextTheoreticalDepartures(
   afterSeconds: number,
   limit: number
 ): Promise<TheoreticalDepartureRow[]> {
+  const departureSeconds = sql<number>`${transitTrips.startSeconds} + ${transitProfileStops.departureOffset}`.mapWith(
+    Number
+  );
   return db
     .select({
       routeId: transitTrips.routeId,
       headsign: transitTrips.headsign,
-      departureSeconds: transitTripStopTimes.departureSeconds,
+      departureSeconds,
     })
-    .from(transitTripStopTimes)
-    .innerJoin(transitTrips, eq(transitTrips.numericId, transitTripStopTimes.tripKey))
-    .innerJoin(transitStops, eq(transitStops.numericId, transitTripStopTimes.stopKey))
+    .from(transitProfileStops)
+    .innerJoin(transitTrips, eq(transitTrips.profileKey, transitProfileStops.profileKey))
+    .innerJoin(transitStops, eq(transitStops.numericId, transitProfileStops.stopKey))
     .innerJoin(transitServiceDates, eq(transitServiceDates.serviceId, transitTrips.serviceId))
     .where(
       and(
         eq(transitStops.id, stopId),
         eq(transitServiceDates.date, serviceDate),
-        gt(transitTripStopTimes.departureSeconds, afterSeconds)
+        gt(departureSeconds, afterSeconds)
       )
     )
-    .orderBy(asc(transitTripStopTimes.departureSeconds))
+    .orderBy(asc(departureSeconds))
     .limit(limit);
 }
