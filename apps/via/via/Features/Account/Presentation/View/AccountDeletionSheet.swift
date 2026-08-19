@@ -12,7 +12,7 @@ struct AccountDeletionSheet: View {
                     .font(.title2.weight(.semibold))
                 Text("Apple doit confirmer ton identité avant la suppression définitive du compte.")
                     .foregroundStyle(.secondary)
-                AppleDeletionButton(onCompletion: onOutcome)
+                AppleDeletionButton(onOutcome: onOutcome)
                 if isDeletingAccount {
                     ProgressView("Suppression en cours…")
                 }
