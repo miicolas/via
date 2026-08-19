@@ -17,7 +17,7 @@ struct MapShellView: View {
     let linesViewModel: LinesViewModel
     let selectedStationModel: SelectedStationModel
     let searchViewModel: SearchViewModel
-    let accountHubModel: AccountHubModel
+    let onboardingModel: OnboardingModel
 
     @State private var showTabSheet: Bool = true
     @State private var activeTab: MapShellTab = .stations
@@ -37,14 +37,14 @@ struct MapShellView: View {
         linesViewModel: LinesViewModel,
         selectedStationModel: SelectedStationModel,
         searchViewModel: SearchViewModel,
-        accountHubModel: AccountHubModel
+        onboardingModel: OnboardingModel
     ) {
         self.networkViewModel = networkViewModel
         self.stationsViewModel = stationsViewModel
         self.linesViewModel = linesViewModel
         self.selectedStationModel = selectedStationModel
         self.searchViewModel = searchViewModel
-        self.accountHubModel = accountHubModel
+        self.onboardingModel = onboardingModel
     }
 
     var body: some View {
@@ -74,8 +74,7 @@ struct MapShellView: View {
                             selectedStation: selectedStationModel,
                             isLargeScreen: $isLargeScreen,
                             detailDetent: $detailSheetDetent,
-                            onOpenSearch: { activeTab = .search },
-                            onOpenProfile: { activeTab = .me }
+                            onOpenSearch: { activeTab = .search }
                         )
                     } label: {
                         MapShellTab.stations.tabLabel
@@ -88,7 +87,7 @@ struct MapShellView: View {
                     }
 
                     Tab(value: .me) {
-                        MeView(model: accountHubModel, onOpenSearch: { activeTab = .search })
+                        EmptyView()
                     } label: {
                         MapShellTab.me.tabLabel
                     }
@@ -102,7 +101,7 @@ struct MapShellView: View {
                 }
                 .adaptiveSheet(380, isActive: isLargeScreen)
                 .sheet(isPresented: $isOnboardingPresented) {
-                    OnboardingView(model: accountHubModel.onboarding)
+                    OnboardingView(model: onboardingModel)
                 }
             }
             .onChange(of: selectedMapStation) { _, newValue in
@@ -148,7 +147,7 @@ struct MapShellView: View {
                 isLargeScreen = newValue
             }
             .task {
-                guard !accountHubModel.onboarding.isCompleted else { return }
+                guard !onboardingModel.isCompleted else { return }
                 isOnboardingPresented = true
             }
     }
@@ -172,23 +171,6 @@ struct MapShellView: View {
         model.activateAnonymous()
         return model
     }()
-    let authSession = AuthSessionViewModel(
-        client: InMemoryAuthenticationClient(
-            session: StoredAuthSession(
-                bearerToken: "preview.token",
-                user: AuthUser(
-                    id: "preview",
-                    appleUserIdentifier: "preview",
-                    name: "Preview",
-                    email: "preview@example.com"
-                ),
-                expiresAt: .distantFuture,
-                lastValidatedAt: .now
-            )
-        ),
-        vault: InMemoryAuthSessionVault(),
-        account: accountModel
-    )
     let departures = InMemoryDeparturesRepository.stationsPreview
 
     MapShellView(
@@ -210,12 +192,6 @@ struct MapShellView: View {
             locationModel: locationModel,
             account: accountModel
         ),
-        accountHubModel: AccountHubModel(
-            account: accountModel,
-            authSession: authSession,
-            onboarding: OnboardingModel(store: OnboardingStore(defaults: .standard)),
-            supportDestinations: .preview,
-            searchRepository: InMemorySearchRepository.preview
-        )
+        onboardingModel: OnboardingModel(store: OnboardingStore(defaults: .standard))
     )
 }

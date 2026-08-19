@@ -9,7 +9,8 @@ struct ApplicationEntry: App {
     @State private var linesViewModel: LinesViewModel
     @State private var selectedStationModel: SelectedStationModel
     @State private var searchViewModel: SearchViewModel
-    @State private var accountHubModel: AccountHubModel
+    @State private var authSessionViewModel: AuthSessionViewModel
+    @State private var onboardingModel: OnboardingModel
 
     init() {
         let dependencies = Self.makeDependencies()
@@ -41,14 +42,11 @@ struct ApplicationEntry: App {
                 account: dependencies.accountModel
             )
         )
-        _accountHubModel = State(
-            initialValue: AccountHubModel(
-                account: dependencies.accountModel,
-                authSession: dependencies.authSessionViewModel,
-                onboarding: dependencies.onboardingModel,
-                supportDestinations: dependencies.supportDestinations,
-                searchRepository: dependencies.searchRepository
-            )
+        _authSessionViewModel = State(
+            initialValue: dependencies.authSessionViewModel
+        )
+        _onboardingModel = State(
+            initialValue: dependencies.onboardingModel
         )
     }
 
@@ -60,14 +58,14 @@ struct ApplicationEntry: App {
                 linesViewModel: linesViewModel,
                 selectedStationModel: selectedStationModel,
                 searchViewModel: searchViewModel,
-                accountHubModel: accountHubModel
+                onboardingModel: onboardingModel
             )
             .task {
-                await accountHubModel.restoreSession()
+                await authSessionViewModel.restore()
             }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
-                await accountHubModel.sceneBecameActive()
+                await authSessionViewModel.sceneBecameActive()
             }
         }
     }
@@ -112,7 +110,6 @@ struct ApplicationEntry: App {
                     account: accountModel
                 ),
                 onboardingModel: OnboardingModel(),
-                supportDestinations: .preview
             )
         }
 
@@ -143,7 +140,6 @@ struct ApplicationEntry: App {
                 account: accountModel
             ),
             onboardingModel: OnboardingModel(),
-            supportDestinations: .app
         )
     }
 
@@ -157,6 +153,5 @@ struct ApplicationEntry: App {
         let accountModel: AccountModel
         let authSessionViewModel: AuthSessionViewModel
         let onboardingModel: OnboardingModel
-        let supportDestinations: SupportDestinations
     }
 }
