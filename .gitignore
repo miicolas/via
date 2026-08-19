@@ -43,3 +43,6 @@ xcuserdata/
 
 # App Store Connect build artifacts
 .asc/artifacts/
+
+# agent worktrees
+.claude/worktrees/
