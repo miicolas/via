@@ -4,12 +4,14 @@ enum JourneyActivationAction: String, Sendable, Equatable {
     case go
     case activate
     case resume
+    case active
 
     var title: String {
         switch self {
         case .go: "Go"
         case .activate: "Activer le trajet"
         case .resume: "Reprendre"
+        case .active: "Trajet actif"
         }
     }
 }
@@ -32,10 +34,8 @@ enum ActiveJourneyRules {
 
     static func activationAction(
         for journey: Journey,
-        activeJourneyID: JourneyID?,
         now: Date
     ) -> JourneyActivationAction {
-        if activeJourneyID == journey.id { return .resume }
         return journey.departureAt.timeIntervalSince(now) <= imminentDepartureInterval
             ? .go
             : .activate
@@ -64,15 +64,26 @@ enum ActiveJourneyRules {
         return sections.lastIndex(where: { now >= $0.startsAt }) ?? 0
     }
 
-    static func monitoringInterval(in journey: Journey, at now: Date) -> TimeInterval {
-        let closeToTransition = schedule(for: journey).contains { section in
-            abs(section.endsAt.timeIntervalSince(now)) <= transitionWindow
+    static func nextMonitoringDelay(in journey: Journey, at now: Date) -> TimeInterval {
+        let schedule = schedule(for: journey)
+        let closeToTransition = schedule.contains { section in
+            abs(section.startsAt.timeIntervalSince(now)) <= transitionWindow ||
+                abs(section.endsAt.timeIntervalSince(now)) <= transitionWindow
         }
-        return closeToTransition ? transitionMonitoringInterval : standardMonitoringInterval
+        let cadence = closeToTransition
+            ? transitionMonitoringInterval
+            : standardMonitoringInterval
+        let expiration = journey.arrivalAt.addingTimeInterval(restorationGracePeriod)
+        let nextTransition = (schedule
+            .flatMap { [$0.startsAt, $0.endsAt] } + [expiration])
+            .map { $0.timeIntervalSince(now) }
+            .filter { $0 > 0 }
+            .min()
+        return min(cadence, nextTransition ?? cadence)
     }
 
     static func isExpired(_ journey: Journey, at now: Date) -> Bool {
-        now > journey.arrivalAt.addingTimeInterval(restorationGracePeriod)
+        now >= journey.arrivalAt.addingTimeInterval(restorationGracePeriod)
     }
 
     static func arrivalRadius(horizontalAccuracy: Double?) -> Double {
@@ -100,7 +111,7 @@ enum ActiveJourneyRules {
         now: Date
     ) -> Bool {
         guard schedule.section.kind == .transit,
-              now > schedule.startsAt.addingTimeInterval(missedConnectionGracePeriod) else {
+              now >= schedule.startsAt.addingTimeInterval(missedConnectionGracePeriod) else {
             return false
         }
         return distance(from: coordinate, to: schedule.section.from.coordinate) > 250

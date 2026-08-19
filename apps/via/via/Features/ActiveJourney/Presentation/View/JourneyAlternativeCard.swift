@@ -15,7 +15,7 @@ struct JourneyAlternativeCard: View {
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Un itinéraire plus rapide est disponible")
+                    Text(title)
                         .font(.headline)
                     Text(summary)
                         .font(.subheadline)
@@ -61,5 +61,11 @@ struct JourneyAlternativeCard: View {
             return "Actuel \(currentArrival) → nouveau \(arrival) · \(gain) · \(transfers)"
         }
         return "Actuel \(currentArrival) → nouveau \(arrival) · \(transfers)"
+    }
+
+    private var title: String {
+        alternative.minutesSaved > 0
+            ? "Un itinéraire plus rapide est disponible"
+            : "Un nouvel itinéraire est disponible"
     }
 }

@@ -6,7 +6,7 @@ enum JourneyFormatting {
     }
 
     static func duration(_ seconds: Int) -> String {
-        let minutes = max(1, Int(ceil(Double(seconds) / 60)))
+        let minutes = max(0, Int(ceil(Double(seconds) / 60)))
         guard minutes >= 60 else { return "\(minutes) min" }
         let hours = minutes / 60
         let remaining = minutes % 60

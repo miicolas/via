@@ -10,11 +10,9 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
         let routeShortName: String?
         let routeColorHex: String?
         let arrivalAt: Date
-        let updatedAt: Date
         let isOffline: Bool
         let isArrived: Bool
     }
 
     let journeyID: String
-    let destinationName: String
 }

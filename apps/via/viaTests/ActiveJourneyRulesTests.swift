@@ -9,16 +9,12 @@ final class ActiveJourneyRulesTests: XCTestCase {
         let future = makeJourney(departureAt: referenceDate.addingTimeInterval(10 * 60 + 1))
 
         XCTAssertEqual(
-            ActiveJourneyRules.activationAction(for: imminent, activeJourneyID: nil, now: referenceDate),
+            ActiveJourneyRules.activationAction(for: imminent, now: referenceDate),
             .go
         )
         XCTAssertEqual(
-            ActiveJourneyRules.activationAction(for: future, activeJourneyID: nil, now: referenceDate),
+            ActiveJourneyRules.activationAction(for: future, now: referenceDate),
             .activate
-        )
-        XCTAssertEqual(
-            ActiveJourneyRules.activationAction(for: imminent, activeJourneyID: imminent.id, now: referenceDate),
-            .resume
         )
     }
 
@@ -35,7 +31,7 @@ final class ActiveJourneyRulesTests: XCTestCase {
         XCTAssertEqual(schedule.last?.endsAt, referenceDate.addingTimeInterval(20 * 60))
     }
 
-    func testProgressAndMonitoringCadenceFollowSectionTransitions() {
+    func testProgressAndMonitoringCadenceWakeAtTheExactTransition() {
         let journey = makeJourney(departureAt: referenceDate)
 
         XCTAssertEqual(
@@ -43,24 +39,36 @@ final class ActiveJourneyRulesTests: XCTestCase {
             1
         )
         XCTAssertEqual(
-            ActiveJourneyRules.monitoringInterval(in: journey, at: referenceDate.addingTimeInterval(11 * 60)),
+            ActiveJourneyRules.nextMonitoringDelay(in: journey, at: referenceDate.addingTimeInterval(11 * 60)),
             120
         )
         XCTAssertEqual(
-            ActiveJourneyRules.monitoringInterval(in: journey, at: referenceDate.addingTimeInterval(13 * 60)),
+            ActiveJourneyRules.nextMonitoringDelay(in: journey, at: referenceDate.addingTimeInterval(13 * 60)),
             30
+        )
+        XCTAssertEqual(
+            ActiveJourneyRules.nextMonitoringDelay(in: journey, at: referenceDate.addingTimeInterval(4 * 60 + 50)),
+            10
         )
     }
 
     func testRestorationExpiresThirtyMinutesAfterPlannedArrival() {
         let journey = makeJourney(departureAt: referenceDate)
 
-        XCTAssertFalse(
+        XCTAssertTrue(
             ActiveJourneyRules.isExpired(journey, at: journey.arrivalAt.addingTimeInterval(30 * 60))
         )
-        XCTAssertTrue(
-            ActiveJourneyRules.isExpired(journey, at: journey.arrivalAt.addingTimeInterval(30 * 60 + 1))
+        XCTAssertEqual(
+            ActiveJourneyRules.nextMonitoringDelay(
+                in: journey,
+                at: journey.arrivalAt.addingTimeInterval(30 * 60 - 10)
+            ),
+            10
         )
+    }
+
+    func testZeroDurationIsNotPresentedAsOneMinute() {
+        XCTAssertEqual(JourneyFormatting.duration(0), "0 min")
     }
 
     func testArrivalRadiusAdaptsToAccuracyWithoutExceedingTwoHundredMeters() {
@@ -89,7 +97,7 @@ final class ActiveJourneyRulesTests: XCTestCase {
         XCTAssertTrue(ActiveJourneyRules.isConnectionCompromised(
             schedule: transit,
             coordinate: farAway,
-            now: transit.startsAt.addingTimeInterval(121)
+            now: transit.startsAt.addingTimeInterval(120)
         ))
     }
 

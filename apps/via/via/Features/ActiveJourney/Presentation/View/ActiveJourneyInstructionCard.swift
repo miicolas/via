@@ -27,12 +27,16 @@ struct ActiveJourneyInstructionCard: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Text(
-                        "\(JourneyFormatting.time(instruction.startsAt)) – " +
-                            JourneyFormatting.time(instruction.endsAt)
-                    )
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                    if let timeLabel {
+                        Text(timeLabel)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !instruction.stops.isEmpty {
+                        JourneyStopListView(stops: instruction.stops)
+                            .padding(.top, 3)
+                    }
                 }
 
                 Spacer(minLength: 0)
@@ -44,7 +48,7 @@ struct ActiveJourneyInstructionCard: View {
             emphasized ? Color.accentColor.opacity(0.10) : Color.secondary.opacity(0.065),
             in: RoundedRectangle(cornerRadius: 20, style: .continuous)
         )
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: instruction.stops.isEmpty ? .combine : .contain)
     }
 
     @ViewBuilder
@@ -61,7 +65,7 @@ struct ActiveJourneyInstructionCard: View {
                 size: 32
             )
         } else {
-            Image(systemName: systemImage)
+            Image(systemName: instruction.sectionKind.systemImage)
                 .font(.headline.weight(.semibold))
                 .foregroundStyle(emphasized ? Color.accentColor : .secondary)
                 .frame(width: 32, height: 32)
@@ -70,12 +74,16 @@ struct ActiveJourneyInstructionCard: View {
         }
     }
 
-    private var systemImage: String {
-        switch instruction.sectionKind {
-        case .walk: "figure.walk"
-        case .wait: "clock"
-        case .transfer: "arrow.triangle.turn.up.right.diamond"
-        case .transit: "tram.fill"
+    private var timeLabel: String? {
+        switch (instruction.startsAt, instruction.endsAt) {
+        case (.some(let startsAt), .some(let endsAt)):
+            "\(JourneyFormatting.time(startsAt)) – \(JourneyFormatting.time(endsAt))"
+        case (.some(let startsAt), nil):
+            "Départ à \(JourneyFormatting.time(startsAt))"
+        case (nil, .some(let endsAt)):
+            "Arrivée à \(JourneyFormatting.time(endsAt))"
+        case (nil, nil):
+            nil
         }
     }
 }

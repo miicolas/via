@@ -59,6 +59,12 @@ struct JourneyDetailSummaryView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
+
+            if journey.status == .disrupted {
+                Label("Trajet perturbé", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.red)
+            }
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,7 +84,9 @@ struct JourneyDetailSummaryView: View {
     private var summaryFacts: some View {
         Label(JourneyFormatting.duration(journey.durationSeconds), systemImage: "clock")
         Label(transferText, systemImage: "arrow.triangle.branch")
-        Label(JourneyFormatting.duration(journey.walkingDurationSeconds), systemImage: "figure.walk")
+        if journey.walkingDurationSeconds > 0 {
+            Label(JourneyFormatting.duration(journey.walkingDurationSeconds), systemImage: "figure.walk")
+        }
     }
 
     private var routeBadges: [RouteBadge] {

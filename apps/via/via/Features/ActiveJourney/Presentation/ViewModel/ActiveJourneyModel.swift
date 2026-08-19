@@ -9,43 +9,54 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     private(set) var arrival: JourneyArrival?
     private(set) var recalculationState: ActiveJourneyRecalculationState = .idle
     private(set) var referenceDate: Date
+    private(set) var requiresResume = false
+    private(set) var isConnected: Bool
 
     @ObservationIgnored private let locationModel: LocationModel
     @ObservationIgnored private let journeyRepository: any JourneyRepository
     @ObservationIgnored private let store: any ActiveJourneyStore
     @ObservationIgnored private let activityManager: any JourneyActivityManaging
+    @ObservationIgnored private let connectivity: any ConnectivityMonitoring
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private var locationTask: Task<Void, Never>?
     @ObservationIgnored private var monitoringTask: Task<Void, Never>?
     @ObservationIgnored private var recalculationTask: Task<Void, Never>?
+    @ObservationIgnored private var recalculationID: UUID?
+    @ObservationIgnored private var isRestoring = false
 
     init(
         locationModel: LocationModel,
         journeyRepository: any JourneyRepository,
         store: any ActiveJourneyStore = InMemoryActiveJourneyStore(),
         activityManager: any JourneyActivityManaging = NoOpJourneyActivityManager(),
+        connectivity: any ConnectivityMonitoring = InMemoryConnectivityMonitor(),
         now: @escaping @Sendable () -> Date = { .now }
     ) {
         self.locationModel = locationModel
         self.journeyRepository = journeyRepository
         self.store = store
         self.activityManager = activityManager
+        self.connectivity = connectivity
         self.now = now
         referenceDate = now()
+        isConnected = connectivity.isConnected
+        connectivity.onChange = { [weak self] isConnected in
+            self?.connectivityChanged(isConnected)
+        }
+        connectivity.start()
     }
 
     var isActive: Bool { session != nil }
+    var isTracking: Bool { session?.isTrackingStarted == true && !requiresResume }
     var journey: Journey? { session?.journey }
     var mapPresentation: JourneyMapPresentation? {
-        journey.map { JourneyMapPresentation(journey: $0) }
+        journey.map(JourneyMapPresentation.init)
     }
     var highlightedSectionID: String? { session?.currentSection?.id }
     var destinationName: String { session?.destination.name ?? "Destination" }
-
-    var phase: ActiveJourneyPhase {
-        guard let journey else { return .underway }
-        let interval = journey.departureAt.timeIntervalSince(referenceDate)
-        return interval > 0 ? .scheduled(interval) : .underway
+    var phase: ActiveJourneyPhase { phase(at: referenceDate) }
+    var usesTheoreticalTimes: Bool {
+        session?.source == .theoretical || journey?.status == .theoretical
     }
 
     var currentInstruction: ActiveJourneyInstruction? {
@@ -57,16 +68,27 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         return instruction(at: session.currentSectionIndex + 1)
     }
 
-    var isOffline: Bool {
-        recalculationState == .offline
-    }
-
+    var isOffline: Bool { !isConnected || recalculationState == .offline }
+    var canRecalculate: Bool { isConnected }
     var hasBackgroundLocationAuthorization: Bool {
         locationModel.backgroundAuthorizationGranted
     }
+    var expectsBackgroundTracking: Bool {
+        session?.allowsBackgroundTracking == true
+    }
+    var hasLocationFix: Bool { session?.lastCoordinate != nil }
 
-    var hasLocationFix: Bool {
-        session?.lastCoordinate != nil
+    func phase(at date: Date) -> ActiveJourneyPhase {
+        guard let journey else { return .underway }
+        let interval = journey.departureAt.timeIntervalSince(date)
+        return interval > 0 ? .scheduled(interval) : .underway
+    }
+
+    func activationAction(for journey: Journey, at date: Date) -> JourneyActivationAction {
+        guard session?.journey.id == journey.id else {
+            return ActiveJourneyRules.activationAction(for: journey, now: date)
+        }
+        return requiresResume ? .resume : .active
     }
 
     func activeJourney() async -> ActiveJourneyContext? {
@@ -78,49 +100,68 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         )
     }
 
+    /// Remembers a future journey and starts its countdown without requesting location.
     func activate(
         journey: Journey,
         destination: JourneyDestination,
-        source: JourneyResult.Source?,
-        requestBackgroundAuthorization: Bool
+        source: JourneyResult.Source?
     ) async {
-        if session?.journey.id == journey.id {
-            referenceDate = now()
-            startMonitoring(requestBackgroundAuthorization: requestBackgroundAuthorization)
+        await begin(journey: journey, destination: destination, source: source)
+    }
+
+    /// Starts a journey immediately, after the UI has explained location usage.
+    func go(
+        journey: Journey,
+        destination: JourneyDestination,
+        source: JourneyResult.Source?,
+        allowsBackgroundTracking: Bool
+    ) async {
+        if session?.journey.id != journey.id {
+            await begin(journey: journey, destination: destination, source: source)
+        }
+        await startTracking(allowsBackgroundTracking: allowsBackgroundTracking)
+    }
+
+    func startTracking(allowsBackgroundTracking: Bool) async {
+        guard var session else { return }
+        let journeyID = session.journey.id
+        referenceDate = now()
+        guard !ActiveJourneyRules.isExpired(session.journey, at: referenceDate) else {
+            await expireJourney()
             return
         }
 
-        let activatedAt = now()
-        referenceDate = activatedAt
-        let coordinate = await locationModel.requestFreshLocation()
-        session = ActiveJourneySession(
-            journey: journey,
-            destination: destination,
-            source: source,
-            currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: activatedAt),
-            lastCoordinate: coordinate,
-            horizontalAccuracy: locationModel.latestSample?.horizontalAccuracy,
-            manualOverrideUntil: nil
-        )
-        alternative = nil
-        arrival = nil
-        recalculationState = .idle
+        requiresResume = false
+        session.isTrackingStarted = true
+        session.allowsBackgroundTracking = allowsBackgroundTracking
+        self.session = session
         await persist()
-        startMonitoring(requestBackgroundAuthorization: requestBackgroundAuthorization)
-        await activityManager.start(
-            attributes: activityAttributes(for: journey, destination: destination),
-            state: activityState(isArrived: false),
-            staleAt: nextStaleDate
-        )
+
+        let coordinate = await locationModel.requestFreshLocation()
+        guard var current = self.session, current.journey.id == journeyID else { return }
+        current.lastCoordinate = coordinate
+        current.horizontalAccuracy = locationModel.latestSample?.horizontalAccuracy
+        self.session = current
+
+        startLocationTracking(allowsBackgroundUpdates: allowsBackgroundTracking)
+        startTimeMonitoring()
+        await persist()
+        await startActivity()
     }
 
     func restore() async {
-        guard session == nil else {
-            await sceneBecameActive()
+        guard session == nil, !isRestoring else { return }
+        isRestoring = true
+        defer { isRestoring = false }
+
+        let restored: ActiveJourneySession?
+        do {
+            restored = try await store.load()
+        } catch {
+            await store.clear()
             return
         }
-        guard let restored = try? await store.load() else { return }
-
+        guard let restored, session == nil else { return }
         referenceDate = now()
         guard !ActiveJourneyRules.isExpired(restored.journey, at: referenceDate) else {
             await store.clear()
@@ -130,13 +171,30 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         session = restored
         alternative = nil
         arrival = nil
+        recalculationState = .idle
+        requiresResume = true
         evaluateProgress(at: referenceDate)
-        startMonitoring(requestBackgroundAuthorization: false)
-        await activityManager.start(
-            attributes: activityAttributes(for: restored.journey, destination: restored.destination),
-            state: activityState(isArrived: false),
-            staleAt: nextStaleDate
-        )
+        startTimeMonitoring()
+    }
+
+    func resume() async {
+        guard let session else { return }
+        referenceDate = now()
+        guard !ActiveJourneyRules.isExpired(session.journey, at: referenceDate) else {
+            await expireJourney()
+            return
+        }
+
+        requiresResume = false
+        evaluateProgress(at: referenceDate)
+        startTimeMonitoring()
+        if session.isTrackingStarted {
+            startLocationTracking(
+                allowsBackgroundUpdates: session.allowsBackgroundTracking
+            )
+        }
+        await persist()
+        await startActivity()
     }
 
     func sceneBecameActive() async {
@@ -144,8 +202,24 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             await restore()
             return
         }
+
         referenceDate = now()
+        guard let session, !ActiveJourneyRules.isExpired(session.journey, at: referenceDate) else {
+            await expireJourney()
+            return
+        }
+        guard !requiresResume else {
+            startTimeMonitoring()
+            return
+        }
+
         evaluateProgress(at: referenceDate)
+        startTimeMonitoring()
+        if session.isTrackingStarted {
+            startLocationTracking(
+                allowsBackgroundUpdates: session.allowsBackgroundTracking
+            )
+        }
         await persist()
         await updateActivity()
     }
@@ -153,7 +227,9 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     func moveToPreviousSection() async {
         guard var session else { return }
         session.currentSectionIndex = max(0, session.currentSectionIndex - 1)
-        session.manualOverrideUntil = now().addingTimeInterval(ActiveJourneyRules.standardMonitoringInterval)
+        session.manualOverrideUntil = now().addingTimeInterval(
+            ActiveJourneyRules.standardMonitoringInterval
+        )
         self.session = session
         referenceDate = now()
         await persist()
@@ -166,7 +242,9 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             max(0, session.journey.sections.count - 1),
             session.currentSectionIndex + 1
         )
-        session.manualOverrideUntil = now().addingTimeInterval(ActiveJourneyRules.standardMonitoringInterval)
+        session.manualOverrideUntil = now().addingTimeInterval(
+            ActiveJourneyRules.standardMonitoringInterval
+        )
         self.session = session
         referenceDate = now()
         await persist()
@@ -201,10 +279,9 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             destinationName: session.destination.name,
             arrivedAt: finishedAt
         )
-        let finalState = activityState(isArrived: true)
         await activityManager.end(
             journeyID: session.journey.id,
-            finalState: finalState,
+            finalState: activityState(isArrived: true),
             dismissAt: finishedAt.addingTimeInterval(60)
         )
         await clearSession()
@@ -212,22 +289,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
     func cancelJourney() async {
         guard let session else { return }
-        let finalState = JourneyActivityAttributes.ContentState(
-            phaseTitle: "Trajet arrêté",
-            instructionTitle: session.destination.name,
-            instructionDetail: nil,
-            nextAction: nil,
-            routeShortName: nil,
-            routeColorHex: nil,
-            arrivalAt: session.journey.arrivalAt,
-            updatedAt: now(),
-            isOffline: isOffline,
-            isArrived: false
-        )
+        let stoppedAt = now()
         await activityManager.end(
             journeyID: session.journey.id,
-            finalState: finalState,
-            dismissAt: now()
+            finalState: terminalActivityState(
+                title: "Trajet arrêté",
+                session: session
+            ),
+            dismissAt: stoppedAt
         )
         arrival = nil
         await clearSession()
@@ -239,8 +308,13 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
     func receive(_ sample: LocationSample, at date: Date? = nil) async {
         guard var session else { return }
-        let previousSectionIndex = session.currentSectionIndex
         referenceDate = date ?? now()
+        guard !ActiveJourneyRules.isExpired(session.journey, at: referenceDate) else {
+            await expireJourney()
+            return
+        }
+
+        let previousSectionIndex = session.currentSectionIndex
         session.lastCoordinate = sample.coordinate
         session.horizontalAccuracy = sample.horizontalAccuracy
         self.session = session
@@ -259,19 +333,59 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
         if didChangeSection {
             await updateActivity()
-        }
-        if didChangeSection || isCurrentConnectionCompromised(at: referenceDate) {
-            scheduleRecalculation(force: false)
+            if isCurrentConnectionCompromised(at: referenceDate) {
+                scheduleRecalculation(force: false)
+            }
         }
         await persist()
     }
 
-    private func startMonitoring(requestBackgroundAuthorization: Bool) {
-        locationTask?.cancel()
-        monitoringTask?.cancel()
+    private func begin(
+        journey: Journey,
+        destination: JourneyDestination,
+        source: JourneyResult.Source?
+    ) async {
+        let activatedAt = now()
+        let previousSession = session
+        referenceDate = activatedAt
+        requiresResume = false
+        stopTasks()
+        locationModel.stopJourneyTracking()
 
+        if let previousSession, previousSession.journey.id != journey.id {
+            await activityManager.end(
+                journeyID: previousSession.journey.id,
+                finalState: terminalActivityState(
+                    title: "Itinéraire remplacé",
+                    session: previousSession
+                ),
+                dismissAt: activatedAt
+            )
+        }
+
+        session = ActiveJourneySession(
+            journey: journey,
+            destination: destination,
+            source: source,
+            currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: activatedAt),
+            lastCoordinate: nil,
+            horizontalAccuracy: nil,
+            manualOverrideUntil: nil,
+            isTrackingStarted: false,
+            allowsBackgroundTracking: false
+        )
+        alternative = nil
+        arrival = nil
+        recalculationState = .idle
+        await persist()
+        startTimeMonitoring()
+        await startActivity()
+    }
+
+    private func startLocationTracking(allowsBackgroundUpdates: Bool) {
+        locationTask?.cancel()
         let updates = locationModel.startJourneyTracking(
-            requestBackgroundAuthorization: requestBackgroundAuthorization
+            allowsBackgroundUpdates: allowsBackgroundUpdates
         )
         locationTask = Task { [weak self] in
             for await sample in updates {
@@ -279,32 +393,41 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
                 await self.receive(sample)
             }
         }
+    }
 
+    private func startTimeMonitoring() {
+        monitoringTask?.cancel()
         monitoringTask = Task { [weak self] in
             while !Task.isCancelled {
-                guard let self, let journey = self.session?.journey else { return }
-                let interval = ActiveJourneyRules.monitoringInterval(
-                    in: journey,
-                    at: self.referenceDate
-                )
+                guard let journey = self?.session?.journey,
+                      let currentDate = self?.now() else { return }
+                let delay = ActiveJourneyRules.nextMonitoringDelay(in: journey, at: currentDate)
                 do {
-                    try await Task.sleep(for: .seconds(interval))
+                    try await Task.sleep(for: .seconds(delay))
                 } catch {
                     return
                 }
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, let self else { return }
                 await self.monitoringTick()
             }
         }
     }
 
     private func monitoringTick() async {
-        guard session != nil else { return }
+        guard let session else { return }
         referenceDate = now()
+        guard !ActiveJourneyRules.isExpired(session.journey, at: referenceDate) else {
+            await expireJourney()
+            return
+        }
+        guard !requiresResume else { return }
+
         evaluateProgress(at: referenceDate)
         await persist()
         await updateActivity()
-        scheduleRecalculation(force: false)
+        if isCurrentConnectionCompromised(at: referenceDate) {
+            scheduleRecalculation(force: false)
+        }
     }
 
     private func evaluateProgress(at date: Date) {
@@ -321,7 +444,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
            date >= currentSchedule.startsAt,
            ActiveJourneyRules.distance(from: coordinate, to: current.to.coordinate)
             <= ActiveJourneyRules.arrivalRadius(horizontalAccuracy: session.horizontalAccuracy) {
-            nextIndex = min(session.journey.sections.count - 1, max(nextIndex, session.currentSectionIndex + 1))
+            nextIndex = min(
+                session.journey.sections.count - 1,
+                max(nextIndex, session.currentSectionIndex + 1)
+            )
         }
         session.currentSectionIndex = max(0, nextIndex)
         self.session = session
@@ -330,16 +456,26 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     private func scheduleRecalculation(force: Bool) {
         guard recalculationTask == nil,
               session != nil,
-              force || !isOffline else { return }
+              isConnected else { return }
+        guard force || (alternative == nil && recalculationState != .offline) else { return }
+
+        let identifier = UUID()
+        recalculationID = identifier
         recalculationTask = Task { [weak self] in
             await self?.recalculate(force: force)
-            self?.recalculationTask = nil
+            guard let self, self.recalculationID == identifier else { return }
+            self.recalculationTask = nil
+            self.recalculationID = nil
         }
     }
 
     private func recalculate(force: Bool) async {
-        guard let session,
-              let coordinate = session.lastCoordinate ?? locationModel.coordinate else { return }
+        guard let session else { return }
+        let journeyID = session.journey.id
+        guard let coordinate = session.lastCoordinate ?? locationModel.coordinate else {
+            recalculationState = .failed(.invalidRequest("Position indisponible"))
+            return
+        }
         recalculationState = .checking
 
         var request = JourneyRequest(origin: coordinate, destination: session.destination)
@@ -349,23 +485,28 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
         do {
             let result = try await journeyRepository.plan(request)
+            try Task.checkCancellation()
+            guard self.session?.journey.id == journeyID else { return }
             guard result.status == .ready else {
-                recalculationState = .idle
-                await updateActivity()
-                return
-            }
-            let candidates = result.journeys
-                .filter { $0.id != session.journey.id }
-                .sorted { $0.arrivalAt < $1.arrivalAt }
-            guard !candidates.isEmpty else {
                 alternative = nil
-                recalculationState = .idle
+                recalculationState = result.status == .noRoute
+                    ? .noRoute
+                    : .failed(.unavailable)
                 await updateActivity()
                 return
             }
 
-            let isCompromised = isCurrentConnectionCompromised(at: referenceDate)
-            if force || isCompromised {
+            let candidates = result.journeys
+                .filter { $0.id != journeyID }
+                .sorted { $0.arrivalAt < $1.arrivalAt }
+            guard !candidates.isEmpty else {
+                alternative = nil
+                recalculationState = .noRoute
+                await updateActivity()
+                return
+            }
+
+            if force || isCurrentConnectionCompromised(at: referenceDate) {
                 alternative = ActiveJourneyAlternative(
                     journeys: candidates,
                     source: result.source,
@@ -374,9 +515,29 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             }
             recalculationState = .idle
             await updateActivity()
+        } catch is CancellationError {
+            return
         } catch {
-            recalculationState = error.via == .transport ? .offline : .idle
+            guard self.session?.journey.id == journeyID else { return }
+            let error = error.via
+            recalculationState = error == .transport ? .offline : .failed(error)
             await updateActivity()
+        }
+    }
+
+    private func connectivityChanged(_ isConnected: Bool) {
+        self.isConnected = isConnected
+        if isConnected {
+            guard recalculationState == .offline else { return }
+            recalculationState = .idle
+        } else {
+            recalculationTask?.cancel()
+            recalculationTask = nil
+            recalculationID = nil
+            recalculationState = .offline
+        }
+        Task { [weak self] in
+            await self?.updateActivity()
         }
     }
 
@@ -393,7 +554,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
     private func accept(_ journey: Journey, source: JourneyResult.Source?) async {
         guard let previous = session else { return }
-        let previousID = previous.journey.id
         let acceptedAt = now()
         session = ActiveJourneySession(
             journey: journey,
@@ -402,75 +562,92 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: acceptedAt),
             lastCoordinate: previous.lastCoordinate,
             horizontalAccuracy: previous.horizontalAccuracy,
-            manualOverrideUntil: nil
+            manualOverrideUntil: nil,
+            isTrackingStarted: previous.isTrackingStarted,
+            allowsBackgroundTracking: previous.allowsBackgroundTracking
         )
         referenceDate = acceptedAt
         alternative = nil
+        recalculationState = .idle
 
-        let endedState = JourneyActivityAttributes.ContentState(
-            phaseTitle: "Itinéraire remplacé",
-            instructionTitle: previous.destination.name,
-            instructionDetail: nil,
-            nextAction: nil,
-            routeShortName: nil,
-            routeColorHex: nil,
-            arrivalAt: previous.journey.arrivalAt,
-            updatedAt: acceptedAt,
-            isOffline: false,
-            isArrived: false
-        )
         await activityManager.end(
-            journeyID: previousID,
-            finalState: endedState,
+            journeyID: previous.journey.id,
+            finalState: terminalActivityState(
+                title: "Itinéraire remplacé",
+                session: previous
+            ),
             dismissAt: acceptedAt
         )
         await persist()
-        if let session {
-            await activityManager.start(
-                attributes: activityAttributes(for: journey, destination: session.destination),
-                state: activityState(isArrived: false),
-                staleAt: nextStaleDate
-            )
-        }
+        await startActivity()
+    }
+
+    private func expireJourney() async {
+        guard let session else { return }
+        let expiredAt = now()
+        await activityManager.end(
+            journeyID: session.journey.id,
+            finalState: terminalActivityState(
+                title: "Trajet terminé",
+                session: session
+            ),
+            dismissAt: expiredAt
+        )
+        arrival = nil
+        await clearSession()
     }
 
     private func clearSession() async {
+        stopTasks()
+        locationModel.stopJourneyTracking()
+        session = nil
+        alternative = nil
+        requiresResume = false
+        recalculationState = .idle
+        await store.clear()
+    }
+
+    private func stopTasks() {
         locationTask?.cancel()
         monitoringTask?.cancel()
         recalculationTask?.cancel()
         locationTask = nil
         monitoringTask = nil
         recalculationTask = nil
-        locationModel.stopJourneyTracking()
-        session = nil
-        alternative = nil
-        recalculationState = .idle
-        await store.clear()
+        recalculationID = nil
     }
 
     private func persist() async {
         guard let session else { return }
-        try? await store.save(session)
+        var persistedSession = session
+        persistedSession.lastCoordinate = nil
+        persistedSession.horizontalAccuracy = nil
+        try? await store.save(persistedSession)
     }
 
     private func instruction(at index: Int?) -> ActiveJourneyInstruction? {
         guard let session, let index,
               session.journey.sections.indices.contains(index) else { return nil }
-        let schedule = ActiveJourneyRules.schedule(for: session.journey)[index]
-        let section = schedule.section
+        let section = session.journey.sections[index]
         let title: String
         let detail: String?
 
         switch section.kind {
         case .walk:
             title = "Marchez jusqu’à \(section.to.name)"
-            detail = durationText(section.durationSeconds)
+            detail = section.durationSeconds > 0
+                ? JourneyFormatting.duration(section.durationSeconds)
+                : nil
         case .wait:
             title = "Patientez à \(section.from.name)"
-            detail = durationText(section.durationSeconds)
+            detail = section.durationSeconds > 0
+                ? JourneyFormatting.duration(section.durationSeconds)
+                : nil
         case .transfer:
             title = "Rejoignez \(section.to.name)"
-            detail = "Correspondance · \(durationText(section.durationSeconds))"
+            detail = section.durationSeconds > 0
+                ? "Correspondance · \(JourneyFormatting.duration(section.durationSeconds))"
+                : "Correspondance"
         case .transit:
             title = section.route.map { "Prenez \($0.longName)" } ?? "Prenez le transport"
             let direction = section.direction.map { "Direction \($0)" }
@@ -482,19 +659,21 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             title: title,
             detail: detail,
             route: section.route,
-            startsAt: schedule.startsAt,
-            endsAt: schedule.endsAt,
+            startsAt: section.departureAt,
+            endsAt: section.arrivalAt,
+            stops: section.stops,
             sectionKind: section.kind
         )
     }
 
-    private func activityAttributes(
-        for journey: Journey,
-        destination: JourneyDestination
-    ) -> JourneyActivityAttributes {
-        JourneyActivityAttributes(
-            journeyID: journey.id.rawValue,
-            destinationName: destination.name
+    private func startActivity() async {
+        guard let session else { return }
+        await activityManager.start(
+            attributes: JourneyActivityAttributes(
+                journeyID: session.journey.id.rawValue
+            ),
+            state: activityState(isArrived: false),
+            staleAt: nextStaleDate
         )
     }
 
@@ -503,7 +682,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         let phaseTitle: String
         switch phase {
         case .scheduled(let interval):
-            phaseTitle = "Départ dans \(max(1, Int(ceil(interval / 60)))) min"
+            phaseTitle = "Départ dans \(JourneyFormatting.countdown(interval))"
         case .underway:
             phaseTitle = isArrived ? "Vous êtes arrivé" : "En route"
         }
@@ -515,9 +694,25 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             routeShortName: isArrived ? nil : instruction?.route?.shortName,
             routeColorHex: isArrived ? nil : instruction?.route?.colorHex,
             arrivalAt: journey?.arrivalAt ?? referenceDate,
-            updatedAt: referenceDate,
             isOffline: isOffline,
             isArrived: isArrived
+        )
+    }
+
+    private func terminalActivityState(
+        title: String,
+        session: ActiveJourneySession
+    ) -> JourneyActivityAttributes.ContentState {
+        JourneyActivityAttributes.ContentState(
+            phaseTitle: title,
+            instructionTitle: session.destination.name,
+            instructionDetail: nil,
+            nextAction: nil,
+            routeShortName: nil,
+            routeColorHex: nil,
+            arrivalAt: session.journey.arrivalAt,
+            isOffline: false,
+            isArrived: false
         )
     }
 
@@ -531,12 +726,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
 
     private var nextStaleDate: Date {
-        referenceDate.addingTimeInterval(ActiveJourneyRules.standardMonitoringInterval * 1.5)
-    }
-
-    private func durationText(_ seconds: Int) -> String {
-        let minutes = max(1, Int(ceil(Double(seconds) / 60)))
-        return "\(minutes) min"
+        let interval = journey.map {
+            ActiveJourneyRules.nextMonitoringDelay(in: $0, at: referenceDate)
+        } ?? ActiveJourneyRules.standardMonitoringInterval
+        return referenceDate.addingTimeInterval(max(45, interval * 1.5))
     }
 }
 

@@ -12,15 +12,15 @@ struct JourneyRouteMapContent: MapContent {
                 : 0.24
             MapPolyline(coordinates: segment.coordinates.map(\.clLocationCoordinate))
                 .stroke(
-                    segment.isWalking
+                    segment.isPedestrian
                         ? Color.secondary.opacity(0.75 * opacity)
                         : Color(transitHex: segment.colorHex ?? "", fallback: .accentColor)
                             .opacity(opacity),
                     style: StrokeStyle(
-                        lineWidth: segment.isWalking ? 4 : 7,
+                        lineWidth: segment.isPedestrian ? 4 : 7,
                         lineCap: .round,
                         lineJoin: .round,
-                        dash: segment.isWalking ? [3, 7] : []
+                        dash: segment.isPedestrian ? [3, 7] : []
                     )
                 )
                 .mapOverlayLevel(level: .aboveRoads)

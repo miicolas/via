@@ -4,7 +4,7 @@ struct JourneyMapSegment: Identifiable, Sendable, Hashable {
     let id: String
     let coordinates: [GeoCoordinate]
     let colorHex: String?
-    let isWalking: Bool
+    let isPedestrian: Bool
 }
 
 /// Map-ready projection of a selected journey. The map never needs to learn
@@ -15,14 +15,15 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
 
     init(journey: Journey) {
         id = journey.id
-        segments = journey.sections.map { section in
-            JourneyMapSegment(
+        segments = journey.sections.compactMap { section in
+            guard section.kind != .wait else { return nil }
+            return JourneyMapSegment(
                 id: section.id,
                 coordinates: section.geometry.isEmpty
                     ? [section.from.coordinate, section.to.coordinate]
                     : section.geometry,
                 colorHex: section.route?.colorHex,
-                isWalking: section.kind == .walk
+                isPedestrian: section.kind == .walk || section.kind == .transfer
             )
         }
     }

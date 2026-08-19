@@ -2,12 +2,6 @@ import SwiftUI
 
 struct ReportView: View {
     let viewModel: ReportViewModel
-    var onClose: (() -> Void)?
-
-    init(viewModel: ReportViewModel, onClose: (() -> Void)? = nil) {
-        self.viewModel = viewModel
-        self.onClose = onClose
-    }
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
@@ -26,13 +20,6 @@ struct ReportView: View {
             .navigationTitle(isShowingConfirmation ? "" : "Signaler")
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbarVisibility(isShowingConfirmation ? .hidden : .visible, for: .navigationBar)
-            .toolbar {
-                if let onClose {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .close, action: onClose)
-                    }
-                }
-            }
         }
         .opacity(tabVisibilityProgress)
         .task {

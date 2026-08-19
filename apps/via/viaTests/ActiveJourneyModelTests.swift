@@ -6,19 +6,21 @@ final class ActiveJourneyModelTests: XCTestCase {
     func testActivationPersistsAndRestoresTheSelectedJourney() async throws {
         let journey = JourneyResult.mapPreview.journeys[0]
         let store = InMemoryActiveJourneyStore()
-        let location = LocationModel(adapter: InMemoryLocationAdapter())
+        let adapter = InMemoryLocationAdapter()
+        let location = LocationModel(adapter: adapter)
         let now = journey.departureAt.addingTimeInterval(-5 * 60)
         let first = makeModel(location: location, store: store, now: now)
 
-        await first.activate(
+        await first.go(
             journey: journey,
             destination: destination,
             source: .realtime,
-            requestBackgroundAuthorization: true
+            allowsBackgroundTracking: true
         )
 
         XCTAssertEqual(first.session?.journey.id, journey.id)
         XCTAssertTrue(location.backgroundAuthorizationGranted)
+        XCTAssertEqual(first.activationAction(for: journey, at: now), .active)
 
         let restored = makeModel(location: location, store: store, now: now)
         await restored.restore()
@@ -26,17 +28,55 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertEqual(restored.session?.journey, journey)
         XCTAssertEqual(restored.session?.destination, destination)
         XCTAssertEqual(restored.phase, .scheduled(5 * 60))
+        XCTAssertTrue(restored.requiresResume)
+        XCTAssertFalse(restored.isTracking)
+        XCTAssertTrue(restored.session?.allowsBackgroundTracking == true)
+        XCTAssertEqual(restored.activationAction(for: journey, at: now), .resume)
+
+        await restored.resume()
+
+        XCTAssertFalse(restored.requiresResume)
+        XCTAssertTrue(restored.isTracking)
+        XCTAssertTrue(adapter.allowsBackgroundUpdates)
+    }
+
+    func testFutureActivationDoesNotRequestLocationUntilGo() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let adapter = InMemoryLocationAdapter()
+        let location = LocationModel(adapter: adapter)
+        let model = makeModel(
+            location: location,
+            now: journey.departureAt.addingTimeInterval(-20 * 60)
+        )
+
+        await model.activate(
+            journey: journey,
+            destination: destination,
+            source: .realtime
+        )
+
+        XCTAssertFalse(model.session?.isTrackingStarted == true)
+        XCTAssertFalse(model.isTracking)
+        XCTAssertNil(model.session?.lastCoordinate)
+        XCTAssertFalse(adapter.backgroundAuthorizationGranted)
+
+        await model.startTracking(allowsBackgroundTracking: true)
+
+        XCTAssertTrue(model.session?.isTrackingStarted == true)
+        XCTAssertTrue(model.isTracking)
+        XCTAssertNotNil(model.session?.lastCoordinate)
+        XCTAssertTrue(adapter.backgroundAuthorizationGranted)
     }
 
     func testManualProgressControlsRemainInsideJourneyBounds() async {
         let journey = JourneyResult.mapPreview.journeys[0]
         let now = journey.departureAt
         let model = makeModel(now: now)
-        await model.activate(
+        await model.go(
             journey: journey,
             destination: destination,
             source: .realtime,
-            requestBackgroundAuthorization: false
+            allowsBackgroundTracking: false
         )
 
         await model.moveToPreviousSection()
@@ -52,11 +92,11 @@ final class ActiveJourneyModelTests: XCTestCase {
         let journey = JourneyResult.mapPreview.journeys[0]
         let store = InMemoryActiveJourneyStore()
         let model = makeModel(store: store, now: journey.arrivalAt)
-        await model.activate(
+        await model.go(
             journey: journey,
             destination: destination,
             source: .realtime,
-            requestBackgroundAuthorization: false
+            allowsBackgroundTracking: false
         )
 
         await model.finishJourney()
@@ -79,11 +119,11 @@ final class ActiveJourneyModelTests: XCTestCase {
             store: store,
             now: journey.departureAt
         )
-        await model.activate(
+        await model.go(
             journey: journey,
             destination: destination,
             source: .realtime,
-            requestBackgroundAuthorization: false
+            allowsBackgroundTracking: false
         )
 
         let finalCoordinate = try XCTUnwrap(journey.sections.last?.to.coordinate)
@@ -109,11 +149,11 @@ final class ActiveJourneyModelTests: XCTestCase {
             repository: InMemoryJourneyRepository(result: result),
             now: current.departureAt
         )
-        await model.activate(
+        await model.go(
             journey: current,
             destination: destination,
             source: .realtime,
-            requestBackgroundAuthorization: false
+            allowsBackgroundTracking: false
         )
 
         model.checkForAlternative()
@@ -132,6 +172,114 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertNil(model.alternative)
     }
 
+    func testExpiredActiveJourneyIsClearedWhenTheAppBecomesActive() async throws {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let store = InMemoryActiveJourneyStore()
+        let clock = ActiveJourneyTestClock(journey.departureAt)
+        let model = makeModel(store: store, now: { clock.value })
+        await model.activate(
+            journey: journey,
+            destination: destination,
+            source: .realtime
+        )
+
+        clock.value = journey.arrivalAt.addingTimeInterval(30 * 60 + 1)
+        await model.sceneBecameActive()
+
+        XCTAssertNil(model.session)
+        let persisted = await store.load()
+        XCTAssertNil(persisted)
+    }
+
+    func testCancelledRecalculationCannotPublishAnAlternative() async {
+        let current = JourneyResult.mapPreview.journeys[0]
+        let repository = SuspendedJourneyRepository()
+        let model = makeModel(repository: repository, now: current.departureAt)
+        await model.go(
+            journey: current,
+            destination: destination,
+            source: .realtime,
+            allowsBackgroundTracking: false
+        )
+
+        model.checkForAlternative()
+        await repository.waitUntilRequested()
+        await model.cancelJourney()
+        await repository.resolve(with: .mapPreview)
+        await Task.yield()
+
+        XCTAssertNil(model.session)
+        XCTAssertNil(model.alternative)
+        XCTAssertEqual(model.recalculationState, .idle)
+    }
+
+    func testUnavailableRecalculationRemainsVisibleForRetry() async {
+        let current = JourneyResult.mapPreview.journeys[0]
+        let result = JourneyResult(
+            status: .unavailable,
+            source: nil,
+            generatedAt: current.departureAt,
+            journeys: []
+        )
+        let model = makeModel(
+            repository: InMemoryJourneyRepository(result: result),
+            now: current.departureAt
+        )
+        await model.go(
+            journey: current,
+            destination: destination,
+            source: .realtime,
+            allowsBackgroundTracking: false
+        )
+
+        model.checkForAlternative()
+        await waitUntil { model.recalculationState == .failed(.unavailable) }
+
+        XCTAssertEqual(model.recalculationState, .failed(.unavailable))
+    }
+
+    func testConnectivityLossMarksTheCachedJourneyOfflineWithoutReplanning() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let connectivity = InMemoryConnectivityMonitor(isConnected: true)
+        let model = makeModel(connectivity: connectivity, now: journey.departureAt)
+        await model.activate(
+            journey: journey,
+            destination: destination,
+            source: .realtime
+        )
+
+        connectivity.update(isConnected: false)
+
+        XCTAssertTrue(model.isOffline)
+    }
+
+    func testConnectivityLossCancelsAnInFlightRecalculation() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let repository = SuspendedJourneyRepository()
+        let connectivity = InMemoryConnectivityMonitor(isConnected: true)
+        let model = makeModel(
+            repository: repository,
+            connectivity: connectivity,
+            now: journey.departureAt
+        )
+        await model.go(
+            journey: journey,
+            destination: destination,
+            source: .realtime,
+            allowsBackgroundTracking: false
+        )
+
+        model.checkForAlternative()
+        await repository.waitUntilRequested()
+        connectivity.update(isConnected: false)
+        await repository.resolve(with: .mapPreview)
+        await Task.yield()
+
+        XCTAssertTrue(model.isOffline)
+        XCTAssertNil(model.alternative)
+        XCTAssertEqual(model.recalculationState, .offline)
+    }
+
     private var destination: JourneyDestination {
         .address(
             id: "test:destination",
@@ -145,14 +293,32 @@ final class ActiveJourneyModelTests: XCTestCase {
         location: LocationModel = LocationModel(adapter: InMemoryLocationAdapter()),
         repository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
         store: any ActiveJourneyStore = InMemoryActiveJourneyStore(),
+        connectivity: any ConnectivityMonitoring = InMemoryConnectivityMonitor(),
         now: Date
+    ) -> ActiveJourneyModel {
+        makeModel(
+            location: location,
+            repository: repository,
+            store: store,
+            connectivity: connectivity,
+            now: { now }
+        )
+    }
+
+    private func makeModel(
+        location: LocationModel = LocationModel(adapter: InMemoryLocationAdapter()),
+        repository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
+        store: any ActiveJourneyStore = InMemoryActiveJourneyStore(),
+        connectivity: any ConnectivityMonitoring = InMemoryConnectivityMonitor(),
+        now: @escaping @Sendable () -> Date
     ) -> ActiveJourneyModel {
         ActiveJourneyModel(
             locationModel: location,
             journeyRepository: repository,
             store: store,
             activityManager: NoOpJourneyActivityManager(),
-            now: { now }
+            connectivity: connectivity,
+            now: now
         )
     }
 
@@ -167,5 +333,40 @@ final class ActiveJourneyModelTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(5))
         }
         XCTFail("Timed out waiting for active journey state", file: file, line: line)
+    }
+}
+
+private final class ActiveJourneyTestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedValue: Date
+
+    init(_ value: Date) {
+        storedValue = value
+    }
+
+    var value: Date {
+        get { lock.withLock { storedValue } }
+        set { lock.withLock { storedValue = newValue } }
+    }
+}
+
+private actor SuspendedJourneyRepository: JourneyRepository {
+    private var continuation: CheckedContinuation<JourneyResult, Never>?
+    private var requestWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func plan(_ request: JourneyRequest) async -> JourneyResult {
+        for waiter in requestWaiters { waiter.resume() }
+        requestWaiters.removeAll()
+        return await withCheckedContinuation { continuation = $0 }
+    }
+
+    func waitUntilRequested() async {
+        if continuation != nil { return }
+        await withCheckedContinuation { requestWaiters.append($0) }
+    }
+
+    func resolve(with result: JourneyResult) {
+        continuation?.resume(returning: result)
+        continuation = nil
     }
 }

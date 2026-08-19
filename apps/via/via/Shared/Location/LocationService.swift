@@ -49,6 +49,7 @@ final class LocationModel {
 
     @ObservationIgnored private let adapter: any LocationAdapter
     @ObservationIgnored private var trackingContinuations: [UUID: AsyncStream<LocationSample>.Continuation] = [:]
+    @ObservationIgnored private var allowsJourneyBackgroundUpdates = false
 
     init(adapter: any LocationAdapter) {
         self.adapter = adapter
@@ -127,13 +128,14 @@ final class LocationModel {
     /// The stream is registered before the adapter starts so synchronous
     /// preview adapters cannot race the first sample.
     func startJourneyTracking(
-        requestBackgroundAuthorization: Bool
+        allowsBackgroundUpdates: Bool
     ) -> AsyncStream<LocationSample> {
         let updates = trackingUpdates()
-        if requestBackgroundAuthorization {
+        allowsJourneyBackgroundUpdates = allowsBackgroundUpdates
+        if allowsBackgroundUpdates {
             adapter.requestBackgroundAuthorization()
         }
-        adapter.startUpdatingLocation()
+        adapter.startUpdatingLocation(allowsBackgroundUpdates: allowsBackgroundUpdates)
         return updates
     }
 
@@ -143,6 +145,7 @@ final class LocationModel {
             continuation.finish()
         }
         trackingContinuations.removeAll()
+        allowsJourneyBackgroundUpdates = false
     }
 
     @ObservationIgnored private var updateContinuations: [UUID: AsyncStream<LocationState>.Continuation] = [:]
@@ -182,7 +185,9 @@ final class LocationModel {
                 if trackingContinuations.isEmpty {
                     adapter.requestLocation()
                 } else {
-                    adapter.startUpdatingLocation()
+                    adapter.startUpdatingLocation(
+                        allowsBackgroundUpdates: allowsJourneyBackgroundUpdates
+                    )
                 }
             case .notDetermined:
                 publish(.idle(authorization: authorization))
@@ -219,14 +224,14 @@ protocol LocationAdapter: AnyObject {
     func requestAuthorization()
     func requestBackgroundAuthorization()
     func requestLocation()
-    func startUpdatingLocation()
+    func startUpdatingLocation(allowsBackgroundUpdates: Bool)
     func stopUpdatingLocation()
 }
 
 extension LocationAdapter {
     var backgroundAuthorizationGranted: Bool { false }
     func requestBackgroundAuthorization() {}
-    func startUpdatingLocation() { requestLocation() }
+    func startUpdatingLocation(allowsBackgroundUpdates: Bool) { requestLocation() }
     func stopUpdatingLocation() {}
 }
 
@@ -259,14 +264,14 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
         manager.requestLocation()
     }
 
-    func startUpdatingLocation() {
+    func startUpdatingLocation(allowsBackgroundUpdates: Bool) {
         isTrackingJourney = true
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.distanceFilter = 25
         manager.activityType = .otherNavigation
         manager.pausesLocationUpdatesAutomatically = true
-        manager.allowsBackgroundLocationUpdates = true
-        manager.showsBackgroundLocationIndicator = true
+        manager.allowsBackgroundLocationUpdates = allowsBackgroundUpdates
+        manager.showsBackgroundLocationIndicator = allowsBackgroundUpdates
         manager.startUpdatingLocation()
     }
 
@@ -323,6 +328,7 @@ final class InMemoryLocationAdapter: LocationAdapter {
     var coordinate: GeoCoordinate?
     var horizontalAccuracy: Double?
     var backgroundAuthorizationGranted = false
+    private(set) var allowsBackgroundUpdates = false
 
     init(
         authorization: LocationAuthorization = .authorized,
@@ -351,7 +357,8 @@ final class InMemoryLocationAdapter: LocationAdapter {
         backgroundAuthorizationGranted = authorization == .authorized
     }
 
-    func startUpdatingLocation() {
+    func startUpdatingLocation(allowsBackgroundUpdates: Bool) {
+        self.allowsBackgroundUpdates = allowsBackgroundUpdates
         guard authorization == .authorized, let coordinate else {
             onEvent?(.failed(authorization))
             return

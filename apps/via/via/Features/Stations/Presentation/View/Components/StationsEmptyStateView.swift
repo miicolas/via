@@ -36,9 +36,7 @@ struct StationsEmptyStateView: View {
             }
 
             Button(action: onOpenSearch) {
-                Text("Touchez ")
-                + Text(Image(systemName: "magnifyingglass.circle.fill"))
-                + Text(" Recherche pour trouver une station près de vous")
+                Text("Touchez \(Image(systemName: "magnifyingglass.circle.fill")) Recherche pour trouver une station près de vous")
             }
             .font(.body)
             .foregroundStyle(.secondary)

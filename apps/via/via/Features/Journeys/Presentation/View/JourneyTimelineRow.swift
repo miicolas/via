@@ -12,16 +12,16 @@ struct JourneyTimelineRow: View {
                 .padding(.top, 12)
         } label: {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: systemImage)
-                    .font(.body.weight(.semibold))
+                Image(systemName: schedule.section.kind.systemImage)
+                    .font(isSecondary ? .subheadline.weight(.semibold) : .body.weight(.semibold))
                     .foregroundStyle(iconColor)
-                    .frame(width: 28, height: 28)
+                    .frame(width: isSecondary ? 24 : 28, height: isSecondary ? 24 : 28)
                     .background(iconColor.opacity(0.12), in: Circle())
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.headline)
+                        .font(isSecondary ? .subheadline.weight(.semibold) : .headline)
                         .foregroundStyle(.primary)
                     Text(subtitle)
                         .font(.subheadline)
@@ -31,15 +31,20 @@ struct JourneyTimelineRow: View {
 
                 Spacer(minLength: 8)
 
-                Text(JourneyFormatting.duration(schedule.section.durationSeconds))
-                    .font(.caption.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.secondary)
+                if schedule.section.durationSeconds > 0 {
+                    Text(JourneyFormatting.duration(schedule.section.durationSeconds))
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
             .contentShape(.rect)
         }
         .tint(.primary)
-        .padding(16)
-        .background(Color.secondary.opacity(0.065), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(isSecondary ? 13 : 16)
+        .background(
+            Color.secondary.opacity(isSecondary ? 0.035 : 0.065),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
         .overlay {
             if isHighlighted {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -55,8 +60,12 @@ struct JourneyTimelineRow: View {
     @ViewBuilder
     private var details: some View {
         VStack(alignment: .leading, spacing: 10) {
-            LabeledContent("Départ", value: JourneyFormatting.time(schedule.startsAt))
-            LabeledContent("Arrivée", value: JourneyFormatting.time(schedule.endsAt))
+            if let departureAt = schedule.section.departureAt {
+                LabeledContent("Départ", value: JourneyFormatting.time(departureAt))
+            }
+            if let arrivalAt = schedule.section.arrivalAt {
+                LabeledContent("Arrivée", value: JourneyFormatting.time(arrivalAt))
+            }
 
             if let direction = schedule.section.direction {
                 LabeledContent("Direction", value: direction)
@@ -94,17 +103,12 @@ struct JourneyTimelineRow: View {
         }
     }
 
-    private var systemImage: String {
-        switch schedule.section.kind {
-        case .walk: "figure.walk"
-        case .wait: "clock"
-        case .transfer: "arrow.triangle.turn.up.right.diamond"
-        case .transit: "tram.fill"
-        }
-    }
-
     private var iconColor: Color {
         guard let route = schedule.section.route else { return .gray }
         return Color(transitHex: route.colorHex, fallback: .accentColor)
+    }
+
+    private var isSecondary: Bool {
+        schedule.section.kind.isVisuallySecondary
     }
 }

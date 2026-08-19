@@ -65,13 +65,28 @@ final class LocationModelTests: XCTestCase {
         )
         let model = LocationModel(adapter: adapter)
 
-        let updates = model.startJourneyTracking(requestBackgroundAuthorization: true)
+        let updates = model.startJourneyTracking(allowsBackgroundUpdates: true)
         var iterator = updates.makeAsyncIterator()
         let sample = await iterator.next()
 
         XCTAssertEqual(sample?.coordinate, coordinate)
         XCTAssertEqual(sample?.horizontalAccuracy, 18)
         XCTAssertTrue(model.backgroundAuthorizationGranted)
+        XCTAssertTrue(adapter.allowsBackgroundUpdates)
+
+        model.stopJourneyTracking()
+    }
+
+    func testForegroundJourneyTrackingDoesNotEnableBackgroundUpdates() async {
+        let adapter = InMemoryLocationAdapter()
+        let model = LocationModel(adapter: adapter)
+
+        let updates = model.startJourneyTracking(allowsBackgroundUpdates: false)
+        var iterator = updates.makeAsyncIterator()
+        _ = await iterator.next()
+
+        XCTAssertFalse(model.backgroundAuthorizationGranted)
+        XCTAssertFalse(adapter.allowsBackgroundUpdates)
 
         model.stopJourneyTracking()
     }

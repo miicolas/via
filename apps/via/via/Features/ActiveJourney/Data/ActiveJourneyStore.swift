@@ -14,7 +14,7 @@ actor UserDefaultsActiveJourneyStore: ActiveJourneyStore {
 
     init(
         defaults: UserDefaults = .standard,
-        key: String = "active-journey-session-v1"
+        key: String = "active-journey-session-v2"
     ) {
         self.defaults = defaults
         self.key = key

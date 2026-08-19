@@ -8,6 +8,8 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
     var lastCoordinate: GeoCoordinate?
     var horizontalAccuracy: Double?
     var manualOverrideUntil: Date?
+    var isTrackingStarted: Bool
+    var allowsBackgroundTracking: Bool
 
     var id: JourneyID { journey.id }
 
@@ -15,7 +17,6 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         guard journey.sections.indices.contains(currentSectionIndex) else { return nil }
         return journey.sections[currentSectionIndex]
     }
-
 }
 
 struct ActiveJourneyAlternative: Sendable, Hashable, Identifiable {
@@ -57,13 +58,16 @@ enum ActiveJourneyRecalculationState: Sendable, Equatable {
     case idle
     case checking
     case offline
+    case noRoute
+    case failed(ViaError)
 }
 
 struct ActiveJourneyInstruction: Sendable, Hashable {
     let title: String
     let detail: String?
     let route: JourneyRoute?
-    let startsAt: Date
-    let endsAt: Date
+    let startsAt: Date?
+    let endsAt: Date?
+    let stops: [JourneyStop]
     let sectionKind: JourneySection.Kind
 }

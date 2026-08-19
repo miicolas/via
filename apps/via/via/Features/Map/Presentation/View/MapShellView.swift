@@ -93,17 +93,25 @@ struct MapShellView: View {
             }
             .onChange(of: activeJourneyModel.session?.journey.id) { _, journeyID in
                 if journeyID != nil {
-                    activeDetent = isLargeScreen ? .fraction(0.97) : .height(260)
+                    showActiveJourney()
+                } else if activeJourneyModel.arrival != nil {
+                    activeDetent = guidanceDetent
                 } else if isLargeScreen {
                     activeDetent = .fraction(0.97)
                 } else {
                     activeDetent = activeTab == .search ? .large : .fraction(0.45)
                 }
             }
+            .onChange(of: activeJourneyModel.arrival?.journeyID) { _, journeyID in
+                guard journeyID != nil else { return }
+                showActiveJourney()
+            }
             .onChange(of: activeTab) { oldValue, newValue in
                 if newValue == .search, oldValue != .search {
-                    previousTab = oldValue
-                    activeDetent = isLargeScreen ? .fraction(0.97) : .large
+                    if !activeJourneyModel.isActive, activeJourneyModel.arrival == nil {
+                        previousTab = oldValue
+                    }
+                    activeDetent = hasJourneySurface ? guidanceDetent : expandedDetent
                 } else if newValue == .report, oldValue != .report {
                     activeDetent = isLargeScreen ? .fraction(0.97) : .large
                 } else if oldValue == .search, newValue != .search {
@@ -134,6 +142,11 @@ struct MapShellView: View {
                 guard !onboardingModel.isCompleted else { return }
                 isOnboardingPresented = true
             }
+            .onOpenURL { url in
+                guard url.scheme == "via", url.host == "journey" else { return }
+                showActiveJourney()
+                Task { await activeJourneyModel.restore() }
+            }
     }
 
     private func closeSearch() {
@@ -142,59 +155,45 @@ struct MapShellView: View {
 
     @ViewBuilder
     private var sheetContent: some View {
-        if let arrival = activeJourneyModel.arrival {
-            JourneyArrivalView(
-                arrival: arrival,
-                isLargeScreen: isLargeScreen,
-                onComplete: activeJourneyModel.completeArrival
-            )
-        } else if activeJourneyModel.isActive {
-            ActiveJourneyPanelView(
-                model: activeJourneyModel,
-                reportViewModel: reportViewModel,
-                isLargeScreen: isLargeScreen,
-                activeDetent: $activeDetent
-            )
-        } else {
-            SheetTabView(
-                selection: $activeTab,
-                activeDetent: $activeDetent,
-                isLargeScreen: isLargeScreen,
-                isAnotherSheetPresenting: selectedStationModel.overview != nil ||
-                    reportViewModel.isPresentingAnotherSheet
-            ) {
-                Tab(value: .stations) {
-                    StationsView(
-                        viewModel: stationsViewModel,
-                        selectedStation: selectedStationModel,
-                        isLargeScreen: $isLargeScreen,
-                        detailDetent: $detailSheetDetent,
-                        onOpenSearch: { activeTab = .search }
-                    )
-                } label: {
-                    MapShellTab.stations.tabLabel
-                }
+        SheetTabView(
+            selection: $activeTab,
+            activeDetent: $activeDetent,
+            isLargeScreen: isLargeScreen,
+            isAnotherSheetPresenting: selectedStationModel.overview != nil ||
+                reportViewModel.isPresentingAnotherSheet
+        ) {
+            Tab(value: .stations) {
+                StationsView(
+                    viewModel: stationsViewModel,
+                    selectedStation: selectedStationModel,
+                    isLargeScreen: $isLargeScreen,
+                    detailDetent: $detailSheetDetent,
+                    onOpenSearch: { activeTab = .search }
+                )
+            } label: {
+                MapShellTab.stations.tabLabel
+            }
 
-                Tab(value: .lines) {
-                    LinesView(viewModel: linesViewModel)
-                } label: {
-                    MapShellTab.lines.tabLabel
-                }
+            Tab(value: .lines) {
+                LinesView(viewModel: linesViewModel)
+            } label: {
+                MapShellTab.lines.tabLabel
+            }
 
-                Tab(value: .report) {
-                    ReportView(viewModel: reportViewModel)
-                } label: {
-                    MapShellTab.report.tabLabel
-                }
+            Tab(value: .report) {
+                ReportView(viewModel: reportViewModel)
+            } label: {
+                MapShellTab.report.tabLabel
+            }
 
-                Tab(value: MapShellTab.search, role: .search) {
-                    SearchView(
-                        viewModel: searchViewModel,
-                        activeJourneyModel: activeJourneyModel,
-                        onClose: closeSearch,
-                        onExpandJourneyMap: expandJourneyMap
-                    )
-                }
+            Tab(value: MapShellTab.search, role: .search) {
+                SearchView(
+                    viewModel: searchViewModel,
+                    activeJourneyModel: activeJourneyModel,
+                    onClose: closeSearch,
+                    onExpandJourneyMap: expandJourneyMap,
+                    onOpenReport: { activeTab = .report }
+                )
             }
         }
     }
@@ -210,7 +209,24 @@ struct MapShellView: View {
     }
 
     private func expandJourneyMap() {
-        activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
+        activeDetent = guidanceDetent
+    }
+
+    private func showActiveJourney() {
+        activeTab = .search
+        activeDetent = guidanceDetent
+    }
+
+    private var hasJourneySurface: Bool {
+        activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+    }
+
+    private var guidanceDetent: PresentationDetent {
+        isLargeScreen ? .fraction(0.97) : .fraction(0.45)
+    }
+
+    private var expandedDetent: PresentationDetent {
+        isLargeScreen ? .fraction(0.97) : .large
     }
 }
 

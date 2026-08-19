@@ -14,9 +14,15 @@ struct JourneyActivityLockScreenView: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    Text(context.state.phaseTitle)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(context.state.isOffline ? .orange : .secondary)
+                    if context.state.isOffline {
+                        Label("Hors connexion", systemImage: "wifi.slash")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text(context.state.phaseTitle)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                     Spacer(minLength: 8)
                     Text(context.state.arrivalAt, style: .time)
                         .font(.subheadline.weight(.bold).monospacedDigit())
@@ -44,5 +50,10 @@ struct JourneyActivityLockScreenView: View {
         .padding(16)
         .foregroundStyle(.white)
         .accessibilityElement(children: .combine)
+        .widgetURL(journeyURL)
+    }
+
+    private var journeyURL: URL? {
+        URL(string: "via://journey/\(context.attributes.journeyID)")
     }
 }

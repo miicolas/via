@@ -77,20 +77,8 @@ struct JourneyDetailView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             actionBar
         }
-        .alert("Suivre ce trajet en temps réel ?", isPresented: $isActivationExplanationPresented) {
-            Button("Continuer") {
-                activate(requestBackgroundAuthorization: true)
-            }
-            Button("Sans suivi en arrière-plan") {
-                activate(requestBackgroundAuthorization: false)
-            }
-            Button("Annuler", role: .cancel) {}
-        } message: {
-            Text(
-                "Via utilise votre position pendant le trajet pour afficher la bonne étape, " +
-                    "détecter l’arrivée et proposer rapidement un nouvel itinéraire. " +
-                    "Vous pourrez continuer manuellement si vous refusez."
-            )
+        .journeyTrackingAlert(isPresented: $isActivationExplanationPresented) {
+            go(allowsBackgroundTracking: $0)
         }
         .onAppear {
             onHighlightSection(highlightedSectionID)
@@ -102,12 +90,9 @@ struct JourneyDetailView: View {
 
     private var actionBar: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
+            let action = action(at: context.date)
             Button {
-                if activeJourneyModel.session?.journey.id == journey.id {
-                    activate(requestBackgroundAuthorization: false)
-                } else {
-                    isActivationExplanationPresented = true
-                }
+                handleAction(action)
             } label: {
                 HStack(spacing: 9) {
                     if isActivating {
@@ -115,7 +100,7 @@ struct JourneyDetailView: View {
                             .controlSize(.small)
                             .tint(.white)
                     }
-                    Text(action(at: context.date).title)
+                    Text(action.title)
                         .font(.headline)
                 }
                 .frame(maxWidth: .infinity)
@@ -123,20 +108,20 @@ struct JourneyDetailView: View {
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.capsule)
-            .disabled(isActivating)
+            .disabled(isActivating || action == .active)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(.bar)
-            .accessibilityHint("Active le guidage étape par étape dans Via")
+            .accessibilityHint(
+                action == .active
+                    ? "Ce trajet est déjà actif"
+                    : "Active le guidage étape par étape dans Via"
+            )
         }
     }
 
     private func action(at date: Date) -> JourneyActivationAction {
-        ActiveJourneyRules.activationAction(
-            for: journey,
-            activeJourneyID: activeJourneyModel.session?.journey.id,
-            now: date
-        )
+        activeJourneyModel.activationAction(for: journey, at: date)
     }
 
     private func selectSection(_ sectionID: String) {
@@ -149,15 +134,40 @@ struct JourneyDetailView: View {
         onExpandMap()
     }
 
-    private func activate(requestBackgroundAuthorization: Bool) {
-        isActivating = true
-        Task {
-            await activeJourneyModel.activate(
+    private func handleAction(_ action: JourneyActivationAction) {
+        switch action {
+        case .go:
+            isActivationExplanationPresented = true
+        case .activate:
+            perform {
+                await activeJourneyModel.activate(
+                    journey: journey,
+                    destination: destination,
+                    source: source
+                )
+            }
+        case .resume:
+            perform { await activeJourneyModel.resume() }
+        case .active:
+            break
+        }
+    }
+
+    private func go(allowsBackgroundTracking: Bool) {
+        perform {
+            await activeJourneyModel.go(
                 journey: journey,
                 destination: destination,
                 source: source,
-                requestBackgroundAuthorization: requestBackgroundAuthorization
+                allowsBackgroundTracking: allowsBackgroundTracking
             )
+        }
+    }
+
+    private func perform(_ operation: @escaping @MainActor () async -> Void) {
+        isActivating = true
+        Task {
+            await operation()
             isActivating = false
         }
     }

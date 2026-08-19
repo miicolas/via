@@ -48,7 +48,8 @@ struct ApplicationEntry: App {
             locationModel: dependencies.locationModel,
             journeyRepository: dependencies.journeyRepository,
             store: dependencies.activeJourneyStore,
-            activityManager: dependencies.activityManager
+            activityManager: dependencies.activityManager,
+            connectivity: dependencies.connectivityMonitor
         )
         _activeJourneyModel = State(initialValue: activeJourneyModel)
         _reportViewModel = State(
@@ -127,6 +128,7 @@ struct ApplicationEntry: App {
                 reportRepository: InMemoryReportRepository(),
                 activeJourneyStore: InMemoryActiveJourneyStore(),
                 activityManager: NoOpJourneyActivityManager(),
+                connectivityMonitor: InMemoryConnectivityMonitor(),
                 journeyRepository: PreferenceAwareJourneyRepository(
                     base: InMemoryJourneyRepository(result: .mapPreview),
                     account: accountModel
@@ -163,6 +165,7 @@ struct ApplicationEntry: App {
             reportRepository: InMemoryReportRepository(),
             activeJourneyStore: UserDefaultsActiveJourneyStore(),
             activityManager: JourneyActivityManager(),
+            connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
             lineStatusRepository: LiveLineStatusRepository(transport: transport),
             accountModel: accountModel,
@@ -183,6 +186,7 @@ struct ApplicationEntry: App {
         let reportRepository: any ReportRepository
         let activeJourneyStore: any ActiveJourneyStore
         let activityManager: any JourneyActivityManaging
+        let connectivityMonitor: any ConnectivityMonitoring
         let journeyRepository: any JourneyRepository
         let lineStatusRepository: any LineStatusRepository
         let accountModel: AccountModel

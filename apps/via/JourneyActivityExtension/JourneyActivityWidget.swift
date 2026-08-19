@@ -26,9 +26,15 @@ struct JourneyActivityWidget: Widget {
                         .font(.headline.monospacedDigit())
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    Text(context.state.phaseTitle)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(context.state.isOffline ? .orange : .secondary)
+                    if context.state.isOffline {
+                        Label("Hors connexion", systemImage: "wifi.slash")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text(context.state.phaseTitle)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -45,15 +51,28 @@ struct JourneyActivityWidget: Widget {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                routeBadge(context.state)
+                if context.state.isOffline {
+                    Image(systemName: "wifi.slash")
+                        .foregroundStyle(.orange)
+                        .accessibilityLabel("Hors connexion")
+                } else {
+                    routeBadge(context.state)
+                }
             } compactTrailing: {
                 Text(context.state.arrivalAt, style: .time)
                     .font(.caption2.monospacedDigit())
             } minimal: {
-                Image(systemName: context.state.isArrived ? "checkmark" : "location.fill")
-                    .foregroundStyle(context.state.isArrived ? .green : .blue)
+                if context.state.isOffline {
+                    Image(systemName: "wifi.slash")
+                        .foregroundStyle(.orange)
+                        .accessibilityLabel("Hors connexion")
+                } else {
+                    Image(systemName: context.state.isArrived ? "checkmark" : "location.fill")
+                        .foregroundStyle(context.state.isArrived ? .green : .blue)
+                }
             }
             .keylineTint(routeColor(context.state))
+            .widgetURL(URL(string: "via://journey/\(context.attributes.journeyID)"))
         }
     }
 

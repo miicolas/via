@@ -8,23 +8,27 @@ struct SearchView: View {
     let activeJourneyModel: ActiveJourneyModel
     let onClose: () -> Void
     let onExpandJourneyMap: () -> Void
+    let onOpenReport: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var inputTransitionNamespace
     @State private var isDeparturePickerPresented = false
     @State private var inspectedJourney: Journey?
+    @State private var isActiveJourneyPresented = false
 
     init(
         viewModel: SearchViewModel,
         activeJourneyModel: ActiveJourneyModel,
         onClose: @escaping () -> Void = {},
-        onExpandJourneyMap: @escaping () -> Void = {}
+        onExpandJourneyMap: @escaping () -> Void = {},
+        onOpenReport: @escaping () -> Void = {}
     ) {
         self.viewModel = viewModel
         self.activeJourneyModel = activeJourneyModel
         self.onClose = onClose
         self.onExpandJourneyMap = onExpandJourneyMap
+        self.onOpenReport = onOpenReport
     }
 
     var body: some View {
@@ -41,6 +45,13 @@ struct SearchView: View {
                     }
                     ToolbarItem(placement: .subtitle) {
                         departureMenu(viewModel: $viewModel)
+                    }
+                    if hasActiveJourneySurface {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Trajet actif", systemImage: "location.fill") {
+                                isActiveJourneyPresented = true
+                            }
+                        }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(role: .close) {
@@ -60,6 +71,9 @@ struct SearchView: View {
                         )
                     }
                 }
+                .navigationDestination(isPresented: $isActiveJourneyPresented) {
+                    activeJourneyDestination
+                }
         }
         .opacity(tabVisibilityProgress)
         .scrollEdgeEffectStyle(.soft, for: .vertical)
@@ -71,6 +85,36 @@ struct SearchView: View {
                 onSelect: viewModel.selectDeparture
             )
         }
+        .onAppear(perform: synchronizeActiveJourneyPresentation)
+        .onChange(of: activeJourneyModel.session?.journey.id) { _, _ in
+            synchronizeActiveJourneyPresentation()
+        }
+        .onChange(of: activeJourneyModel.arrival?.journeyID) { _, _ in
+            synchronizeActiveJourneyPresentation()
+        }
+    }
+
+    @ViewBuilder
+    private var activeJourneyDestination: some View {
+        if let arrival = activeJourneyModel.arrival {
+            JourneyArrivalView(
+                arrival: arrival,
+                onComplete: activeJourneyModel.completeArrival
+            )
+        } else if activeJourneyModel.isActive {
+            ActiveJourneyPanelView(
+                model: activeJourneyModel,
+                onOpenReport: onOpenReport
+            )
+        }
+    }
+
+    private var hasActiveJourneySurface: Bool {
+        activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+    }
+
+    private func synchronizeActiveJourneyPresentation() {
+        isActiveJourneyPresented = hasActiveJourneySurface
     }
 
     private func departureMenu(viewModel: Bindable<SearchViewModel>) -> some View {
