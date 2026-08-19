@@ -5,11 +5,12 @@ import { pipeline } from 'node:stream/promises';
 
 import type { db } from '@via/db';
 import {
+  transitProfileStops,
   transitRoutePatternStops,
   transitServiceDates,
   transitStopRoutes,
   transitStops,
-  transitTripStopTimes,
+  transitTimeProfiles,
   transitTrips,
 } from '@via/db/schema';
 import { sql } from 'drizzle-orm';
@@ -19,7 +20,7 @@ import {
   type CalendarDateRow,
   type CalendarRow,
 } from './expand-service-dates';
-import { parseGtfsTime } from './gtfs-time';
+import { buildTimeProfiles } from './time-profiles';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -57,15 +58,16 @@ type ImportSchedulesOptions = {
 };
 
 // Keep every statement under Postgres' 65k parameter limit while reducing
-// round-trips for the full feed. A stop-time row has five parameters; a trip
-// row has seven, so 8k is safe for both.
+// round-trips for the full feed. A trip row has nine parameters, so 7k stays
+// safe; two-parameter rows get more headroom.
+const TRIP_INSERT_BATCH = 7_000;
 const INSERT_BATCH = 8_000;
 
 /**
- * The theoretical half of the import: streams `stop_times.txt` once into the
- * compact normalized timetable and expands the calendar files into explicit
- * service days. It shares the network transaction so a crash cannot expose a
- * half-written fallback.
+ * The theoretical half of the import: streams `stop_times.txt` once, collapses
+ * every trip into a deduplicated time profile (see `buildTimeProfiles`), and
+ * expands the calendar files into explicit service days. It shares the network
+ * transaction so a crash cannot expose a half-written fallback.
  */
 export async function importSchedules({
   gtfsPath,
@@ -76,62 +78,84 @@ export async function importSchedules({
   representativeTrips,
   readCsv,
 }: ImportSchedulesOptions) {
-  const tripRows = [...trips.values()].map((trip) => ({
-    numericId: trip.numericId,
-    id: trip.id,
-    routeId: trip.routeId,
-    serviceId: trip.serviceId,
-    directionId: trip.directionId,
-    headsign: trip.headsign,
-    shapeId: trip.shapeId,
-  }));
-  for (let start = 0; start < tripRows.length; start += INSERT_BATCH) {
-    await tx.insert(transitTrips).values(tripRows.slice(start, start + INSERT_BATCH));
-  }
-
   const stopRoutePairs = new Map<string, { stopId: string; routeId: string }>();
   const counters = { departureCount: 0, skippedStops: 0 };
-  const stopTimeRows = streamStopTimes({
-    gtfsPath,
+  const { profiles, profileKeyByTrip, startSecondsByTrip } = await buildTimeProfiles({
+    stopTimes: readCsv(join(gtfsPath, 'stop_times.txt')),
     trips,
     canonicalStopIdOf,
     stopKeyById,
     stopRoutePairs,
     counters,
-    readCsv,
   });
+
+  // Profiles must exist before the COPY below and the trips insert satisfy
+  // their foreign keys; ids are dense 1..N by construction.
+  if (profiles.length > 0) {
+    await tx.execute(
+      sql`INSERT INTO ${transitTimeProfiles} (id) SELECT generate_series(1, ${profiles.length}::integer)`
+    );
+  }
+
   const copyClient = (tx as TransactionWithClient).session.client;
   const copyWriter = await copyClient`
-    COPY transit_trip_stop_times
-      (trip_key, stop_key, stop_sequence, arrival_seconds, departure_seconds)
-    FROM STDIN WITH (FORMAT text, DELIMITER E'\\t', NULL '\\N')
+    COPY transit_profile_stops
+      (profile_key, position, stop_key, arrival_offset, departure_offset)
+    FROM STDIN WITH (FORMAT text, DELIMITER E'\\t')
   `.writable();
-  await pipeline(Readable.from(stopTimeRows), copyWriter);
-  console.log(`Copied ${counters.departureCount} stop-times; deriving route patterns…`);
+  await pipeline(Readable.from(streamProfileStops(profiles)), copyWriter);
+  const profileStopCount = profiles.reduce((total, vector) => total + vector.length / 3, 0);
+  console.log(
+    `Copied ${profileStopCount} calls of ${profiles.length} time profiles; deriving route patterns…`
+  );
+
+  /** A trip whose every call was skipped has no profile to reference. */
+  const tripRows = [...trips.values()].flatMap((trip) => {
+    const profileKey = profileKeyByTrip[trip.numericId];
+    if (profileKey === 0) return [];
+    return [
+      {
+        numericId: trip.numericId,
+        id: trip.id,
+        routeId: trip.routeId,
+        serviceId: trip.serviceId,
+        directionId: trip.directionId,
+        headsign: trip.headsign,
+        shapeId: trip.shapeId,
+        profileKey,
+        startSeconds: startSecondsByTrip[trip.numericId],
+      },
+    ];
+  });
+  for (let start = 0; start < tripRows.length; start += TRIP_INSERT_BATCH) {
+    await tx.insert(transitTrips).values(tripRows.slice(start, start + TRIP_INSERT_BATCH));
+  }
 
   /**
-   * Derive map calls from the normalized stream in SQL. This avoids a second
-   * full `stop_times.txt` pass and avoids duplicating every call in the legacy
-   * flat departure table. Consecutive platform aliases were canonicalized
-   * before insertion, so the window query can collapse them cheaply.
+   * Derive map calls from each pattern's representative profile in SQL.
+   * Consecutive platform aliases were canonicalized before profiles were
+   * built, so the window query can collapse them cheaply. The stored
+   * stop_sequence is the profile's dense position, which only has to order
+   * the calls — no consumer expects raw GTFS sequence values.
    */
-  const patternValues = [...representativeTrips].map(
-    ([patternId, tripKey]) => sql`(${patternId}, ${tripKey}::integer)`
-  );
+  const patternValues = [...representativeTrips].flatMap(([patternId, tripKey]) => {
+    const profileKey = profileKeyByTrip[tripKey];
+    return profileKey === 0 ? [] : [sql`(${patternId}, ${profileKey}::integer)`];
+  });
   if (patternValues.length > 0) {
     await tx.execute(sql`
       INSERT INTO ${transitRoutePatternStops} (pattern_id, stop_id, stop_sequence)
-      SELECT collapsed.pattern_id, collapsed.stop_id, collapsed.stop_sequence
+      SELECT collapsed.pattern_id, collapsed.stop_id, collapsed.position
       FROM (
         SELECT representatives.pattern_id,
                stops.id AS stop_id,
-               calls.stop_sequence,
+               calls.position,
                lag(stops.id) OVER (
-                 PARTITION BY calls.trip_key ORDER BY calls.stop_sequence
+                 PARTITION BY representatives.pattern_id ORDER BY calls.position
                ) AS previous_stop_id
-        FROM (VALUES ${sql.join(patternValues, sql`, `)}) AS representatives(pattern_id, trip_key)
-        INNER JOIN ${transitTripStopTimes} AS calls
-          ON calls.trip_key = representatives.trip_key
+        FROM (VALUES ${sql.join(patternValues, sql`, `)}) AS representatives(pattern_id, profile_key)
+        INNER JOIN ${transitProfileStops} AS calls
+          ON calls.profile_key = representatives.profile_key
         INNER JOIN ${transitStops} AS stops
           ON stops.numeric_id = calls.stop_key
       ) AS collapsed
@@ -179,69 +203,28 @@ export async function importSchedules({
   // The next request must get production query plans immediately after the
   // atomic swap; waiting for autovacuum would make a fresh import look broken.
   await tx.execute(sql`ANALYZE ${transitTrips}`);
-  await tx.execute(sql`ANALYZE ${transitTripStopTimes}`);
+  await tx.execute(sql`ANALYZE ${transitTimeProfiles}`);
+  await tx.execute(sql`ANALYZE ${transitProfileStops}`);
   await tx.execute(sql`ANALYZE ${transitServiceDates}`);
 
+  const droppedTrips = trips.size - tripRows.length;
   console.log(
-    `Imported ${counters.departureCount} normalized stop-times over ${serviceDates.length} service days` +
+    `Imported ${counters.departureCount} calls as ${profiles.length} time profiles ` +
+      `over ${serviceDates.length} service days` +
+      (droppedTrips > 0 ? ` (${droppedTrips} trips without usable calls dropped)` : '') +
       (counters.skippedStops > 0 ? ` (${counters.skippedStops} calls on unknown stops skipped).` : '.')
   );
 }
 
-type StopTimeStreamOptions = {
-  gtfsPath: string;
-  trips: Map<string, ScheduledTrip>;
-  canonicalStopIdOf: (stopId: string) => string;
-  stopKeyById: ReadonlyMap<string, number>;
-  stopRoutePairs: Map<string, { stopId: string; routeId: string }>;
-  counters: { departureCount: number; skippedStops: number };
-  readCsv: ImportSchedulesOptions['readCsv'];
-};
-
-/**
- * Convert GTFS rows directly to PostgreSQL COPY text. COPY keeps one database
- * round-trip for the complete 14.8 M-row feed while the generator preserves
- * backpressure, so the worker never builds the timetable in memory.
- */
-async function* streamStopTimes({
-  gtfsPath,
-  trips,
-  canonicalStopIdOf,
-  stopKeyById,
-  stopRoutePairs,
-  counters,
-  readCsv,
-}: StopTimeStreamOptions) {
-  for await (const stopTime of readCsv(join(gtfsPath, 'stop_times.txt'))) {
-    const trip = trips.get(stopTime.trip_id);
-    if (!trip || (!stopTime.departure_time && !stopTime.arrival_time)) continue;
-
-    const stopId = canonicalStopIdOf(stopTime.stop_id);
-    const stopKey = stopKeyById.get(stopId);
-    if (stopKey === undefined) {
-      counters.skippedStops += 1;
-      continue;
+/** COPY text rows; every cell is an integer, so no escaping is needed. */
+function* streamProfileStops(profiles: readonly Int32Array[]) {
+  for (let index = 0; index < profiles.length; index += 1) {
+    const vector = profiles[index];
+    const profileKey = index + 1;
+    for (let call = 0; call < vector.length; call += 3) {
+      yield `${profileKey}\t${call / 3}\t${vector[call]}\t${vector[call + 1]}\t${vector[call + 2]}\n`;
     }
-
-    const arrivalSeconds = parseGtfsTime(stopTime.arrival_time || stopTime.departure_time);
-    const departureSeconds = parseGtfsTime(stopTime.departure_time || stopTime.arrival_time);
-    stopRoutePairs.set(`${stopId}\u0000${trip.routeId}`, { stopId, routeId: trip.routeId });
-    counters.departureCount += 1;
-    if (counters.departureCount % 1_000_000 === 0) {
-      console.log(`Streamed ${counters.departureCount} stop-times…`);
-    }
-    yield [trip.numericId, stopKey, Number(stopTime.stop_sequence), arrivalSeconds, departureSeconds]
-      .map(copyTextCell)
-      .join('\t') + '\n';
   }
-}
-
-function copyTextCell(value: string | number) {
-  return String(value)
-    .replaceAll('\\', '\\\\')
-    .replaceAll('\t', '\\t')
-    .replaceAll('\n', '\\n')
-    .replaceAll('\r', '\\r');
 }
 
 async function exists(path: string): Promise<boolean> {

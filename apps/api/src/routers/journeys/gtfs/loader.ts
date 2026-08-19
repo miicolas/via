@@ -2,13 +2,13 @@ import type { Coordinate } from '@via/contract';
 import { db } from '@via/db';
 import {
   networkMode,
+  transitProfileStops,
   transitRoutes,
   transitServiceDates,
   transitShapes,
   transitStopRoutes,
   transitStops,
   transitTransfers,
-  transitTripStopTimes,
   transitTrips,
 } from '@via/db/schema';
 import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
@@ -220,25 +220,30 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
       const callRows = numericIds.length
         ? await db
             .select({
-              tripKey: transitTripStopTimes.tripKey,
+              tripKey: transitTrips.numericId,
               stopId: transitStops.id,
               stopNumericId: transitStops.numericId,
-              stopSequence: transitTripStopTimes.stopSequence,
-              arrivalSeconds: transitTripStopTimes.arrivalSeconds,
-              departureSeconds: transitTripStopTimes.departureSeconds,
+              stopSequence: transitProfileStops.position,
+              arrivalSeconds: sql<number>`${transitTrips.startSeconds} + ${transitProfileStops.arrivalOffset}`.mapWith(
+                Number
+              ),
+              departureSeconds: sql<number>`${transitTrips.startSeconds} + ${transitProfileStops.departureOffset}`.mapWith(
+                Number
+              ),
               name: transitStops.name,
               coordinate: sql<Coordinate>`json_build_object(
                 'latitude', ST_Y(${transitStops.location}),
                 'longitude', ST_X(${transitStops.location})
               )`,
             })
-            .from(transitTripStopTimes)
-            .innerJoin(transitStops, eq(transitStops.numericId, transitTripStopTimes.stopKey))
-            .where(inArray(transitTripStopTimes.tripKey, numericIds))
-            .orderBy(
-              asc(transitTripStopTimes.tripKey),
-              asc(transitTripStopTimes.stopSequence)
+            .from(transitTrips)
+            .innerJoin(
+              transitProfileStops,
+              eq(transitProfileStops.profileKey, transitTrips.profileKey)
             )
+            .innerJoin(transitStops, eq(transitStops.numericId, transitProfileStops.stopKey))
+            .where(inArray(transitTrips.numericId, numericIds))
+            .orderBy(asc(transitTrips.numericId), asc(transitProfileStops.position))
         : [];
 
       const callsByTrip = Map.groupBy(callRows, (call) => call.tripKey);
@@ -352,21 +357,22 @@ async function loadStopTimeCandidates(
   offset: number
 ): Promise<StopTimeCandidate[]> {
   if (activeServiceIds.length === 0) return [];
-  const column =
+  const offsetColumn =
     direction === 'board'
-      ? transitTripStopTimes.departureSeconds
-      : transitTripStopTimes.arrivalSeconds;
+      ? transitProfileStops.departureOffset
+      : transitProfileStops.arrivalOffset;
+  const column = sql<number>`${transitTrips.startSeconds} + ${offsetColumn}`.mapWith(Number);
   const rows = await db
     .select({
       tripId: transitTrips.id,
-      stopKey: transitTripStopTimes.stopKey,
+      stopKey: transitProfileStops.stopKey,
       seconds: column,
     })
-    .from(transitTripStopTimes)
-    .innerJoin(transitTrips, eq(transitTrips.numericId, transitTripStopTimes.tripKey))
+    .from(transitProfileStops)
+    .innerJoin(transitTrips, eq(transitTrips.profileKey, transitProfileStops.profileKey))
     .where(
       and(
-        inArray(transitTripStopTimes.stopKey, stopKeys),
+        inArray(transitProfileStops.stopKey, stopKeys),
         inArray(transitTrips.serviceId, activeServiceIds),
         direction === 'board' ? gte(column, boundSeconds) : lte(column, boundSeconds)
       )
