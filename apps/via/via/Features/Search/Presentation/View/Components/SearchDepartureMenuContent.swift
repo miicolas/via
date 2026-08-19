@@ -2,20 +2,36 @@ import SwiftUI
 
 /// Actions shown by the navigation title menu for choosing a journey origin.
 struct SearchDepartureMenuContent: View {
-    let selection: SearchDepartureSelection?
+    let selection: SearchDepartureSelection
+    let savedPlaces: [SavedPlace]
     let onSelect: (SearchDepartureSelection) -> Void
     let onChooseManual: () -> Void
 
-    var body: some View {
-        ForEach(StationPlaceShortcut.allCases) { shortcut in
-            let isSelected = isSelected(shortcut)
+    private var configuredPlaces: [SavedPlace] {
+        savedPlaces.filter { $0.role == .home || $0.role == .work }
+    }
 
+    var body: some View {
+        Button {
+            onSelect(.currentLocation)
+        } label: {
+            menuItem(
+                title: "Ma position",
+                systemImage: StationPlaceShortcut.currentLocation.systemImage,
+                isSelected: selection == .currentLocation
+            )
+        }
+        .accessibilityValue(selection == .currentLocation ? "Sélectionné" : "Non sélectionné")
+        .accessibilityAddTraits(selection == .currentLocation ? .isSelected : [])
+
+        ForEach(configuredPlaces) { place in
+            let isSelected = selection == .saved(place)
             Button {
-                onSelect(selection(for: shortcut))
+                onSelect(.saved(place))
             } label: {
                 menuItem(
-                    title: shortcut.title,
-                    systemImage: shortcut.systemImage,
+                    title: place.role.displayTitle,
+                    systemImage: place.role.systemImage,
                     isSelected: isSelected
                 )
             }
@@ -26,7 +42,9 @@ struct SearchDepartureMenuContent: View {
         if case .manual(let result) = selection {
             Divider()
 
-            Button(action: onChooseManual) {
+            Button {
+                onChooseManual()
+            } label: {
                 menuItem(
                     title: result.name,
                     systemImage: "mappin.and.ellipse",
@@ -41,26 +59,6 @@ struct SearchDepartureMenuContent: View {
 
         Button(action: onChooseManual) {
             Label("Choisir une station ou une adresse", systemImage: "magnifyingglass")
-        }
-    }
-
-    private func selection(for shortcut: StationPlaceShortcut) -> SearchDepartureSelection {
-        switch shortcut {
-        case .currentLocation:
-            .currentLocation
-        case .home, .work:
-            .saved(shortcut)
-        }
-    }
-
-    private func isSelected(_ shortcut: StationPlaceShortcut) -> Bool {
-        switch (selection, shortcut) {
-        case (.currentLocation, .currentLocation):
-            true
-        case (.saved(let selected), let shortcut):
-            selected == shortcut
-        default:
-            false
         }
     }
 
@@ -84,6 +82,7 @@ struct SearchDepartureMenuContent: View {
 #Preview {
     SearchDepartureMenuContent(
         selection: .currentLocation,
+        savedPlaces: [],
         onSelect: { _ in },
         onChooseManual: {}
     )

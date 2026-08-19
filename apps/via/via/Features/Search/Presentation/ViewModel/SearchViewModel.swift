@@ -1,12 +1,14 @@
 import Foundation
 import Observation
 
-enum SearchViewStep: Int, Sendable, Equatable {
+enum SearchViewStep: Sendable, Equatable {
     case destination
-    case date
-    case departure
-    case ready
-    case noResults
+    case planning
+    case results
+    case noRoute
+    case unavailable
+    case locationBlocked(LocationAuthorization)
+    case failed(ViaError)
 }
 
 enum SearchLoadState: Sendable, Equatable {
@@ -19,15 +21,15 @@ enum SearchLoadState: Sendable, Equatable {
 
 enum SearchDepartureSelection: Sendable, Hashable {
     case currentLocation
-    case saved(StationPlaceShortcut)
+    case saved(SavedPlace)
     case manual(SearchResult)
 
     var title: String {
         switch self {
         case .currentLocation:
             "Ma position"
-        case .saved(let shortcut):
-            shortcut.title
+        case .saved(let place):
+            place.role.displayTitle
         case .manual(let result):
             result.name
         }
@@ -37,17 +39,39 @@ enum SearchDepartureSelection: Sendable, Hashable {
         switch self {
         case .currentLocation:
             "Position actuelle"
-        case .saved:
-            "Lieu enregistré"
+        case .saved(let place):
+            place.name == place.role.displayTitle ? "Lieu enregistré" : place.name
         case .manual(let result):
             result.departureSearchSubtitle
+        }
+    }
+
+    var coordinate: GeoCoordinate? {
+        switch self {
+        case .currentLocation:
+            nil
+        case .saved(let place):
+            place.coordinate
+        case .manual(let result):
+            result.coordinate
+        }
+    }
+
+    var shortcut: StationPlaceShortcut? {
+        guard case .saved(let place) = self else {
+            return self == .currentLocation ? StationPlaceShortcut.currentLocation : nil
+        }
+
+        switch place.role {
+        case .home: return .home
+        case .work: return .work
+        case .favorite: return nil
         }
     }
 }
 
 struct SearchQuery: Sendable, Hashable {
     let destination: SearchResult
-    let date: Date
     let departure: SearchDepartureSelection
 }
 
@@ -57,45 +81,37 @@ final class SearchViewModel {
     private(set) var step: SearchViewStep = .destination
     private(set) var results: [SearchResult] = []
     private(set) var loadState: SearchLoadState = .idle
+    private(set) var journeyResult: JourneyResult?
     private(set) var selectedDestination: SearchResult?
-    private(set) var selectedDate: Date?
-    private(set) var selectedDeparture: SearchDepartureSelection? = .currentLocation
-    private(set) var isDateConfirmed = false
+    private(set) var selectedDeparture: SearchDepartureSelection = .currentLocation
 
     var query = ""
 
     @ObservationIgnored private let repository: any SearchRepository
-    @ObservationIgnored private let now: @Sendable () -> Date
+    @ObservationIgnored private let journeyRepository: any JourneyRepository
+    @ObservationIgnored private let locationModel: LocationModel
     @ObservationIgnored private var searchTask: Task<Void, Never>?
+    @ObservationIgnored private var journeyTask: Task<Void, Never>?
     @ObservationIgnored private var lastSearchedQuery = ""
 
     init(
         repository: any SearchRepository,
-        now: @escaping @Sendable () -> Date = { .now }
+        journeyRepository: any JourneyRepository,
+        locationModel: LocationModel
     ) {
         self.repository = repository
-        self.now = now
+        self.journeyRepository = journeyRepository
+        self.locationModel = locationModel
     }
 
     var subtitle: String {
-        "Depuis \(selectedDeparture?.title ?? "Ma position")"
-    }
-
-    var suggestedDate: Date {
-        Calendar.current.startOfDay(for: now())
+        "Depuis \(selectedDeparture.title)"
     }
 
     var searchQuery: SearchQuery? {
-        guard let selectedDestination,
-              let selectedDate,
-              let selectedDeparture,
-              isDateConfirmed else {
-            return nil
-        }
-
+        guard let selectedDestination else { return nil }
         return SearchQuery(
             destination: selectedDestination,
-            date: selectedDate,
             departure: selectedDeparture
         )
     }
@@ -126,8 +142,16 @@ final class SearchViewModel {
         }
     }
 
+    /// Enter chooses the first loaded destination. If suggestions are still
+    /// pending, it finishes that destination search and selects its first
+    /// result as soon as it arrives.
     func searchImmediately() {
         guard step == .destination else { return }
+
+        if loadState == .loaded, let firstResult = results.first {
+            selectDestination(firstResult)
+            return
+        }
 
         searchTask?.cancel()
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -136,6 +160,11 @@ final class SearchViewModel {
         searchTask = Task { [weak self] in
             guard !Task.isCancelled, let self else { return }
             await self.performSearch(normalized)
+
+            guard !Task.isCancelled,
+                  self.loadState == .loaded,
+                  let firstResult = self.results.first else { return }
+            self.selectDestination(firstResult)
         }
     }
 
@@ -144,7 +173,7 @@ final class SearchViewModel {
             ? query.trimmingCharacters(in: .whitespacesAndNewlines)
             : lastSearchedQuery
 
-        guard retryQuery.count >= 2 else { return }
+        guard retryQuery.count >= 2, step == .destination else { return }
         searchTask?.cancel()
         searchTask = Task { [weak self] in
             guard !Task.isCancelled, let self else { return }
@@ -159,63 +188,108 @@ final class SearchViewModel {
     func selectDestination(_ result: SearchResult) {
         searchTask?.cancel()
         selectedDestination = result
-        query = ""
         results = []
         loadState = .idle
-        selectedDate = suggestedDate
-        isDateConfirmed = false
-        step = .date
+        planJourney()
     }
 
     func editDestination() {
+        searchTask?.cancel()
+        journeyTask?.cancel()
+        let editingQuery = query.isEmpty
+            ? (lastSearchedQuery.isEmpty ? selectedDestination?.name ?? "" : lastSearchedQuery)
+            : query
         selectedDestination = nil
-        selectedDate = nil
-        isDateConfirmed = false
-        query = ""
+        journeyResult = nil
+        query = editingQuery
         results = []
         loadState = .idle
         step = .destination
     }
 
-    func confirmDate(_ date: Date) {
-        guard selectedDestination != nil else { return }
-
-        selectedDate = date
-        isDateConfirmed = true
-        selectedDeparture = selectedDeparture ?? .currentLocation
-        step = .ready
-    }
-
-    func editDate() {
-        guard selectedDestination != nil else { return }
-
-        isDateConfirmed = false
-        step = .date
-    }
-
     func selectDeparture(_ departure: SearchDepartureSelection) {
         selectedDeparture = departure
-        if selectedDestination != nil, isDateConfirmed {
-            step = .ready
-        }
+        guard selectedDestination != nil, step != .destination else { return }
+        planJourney()
     }
 
     func editDeparture() {
-        guard selectedDestination != nil, isDateConfirmed else { return }
-
         selectedDeparture = .currentLocation
-        step = .ready
+        guard selectedDestination != nil, step != .destination else { return }
+        planJourney()
     }
 
+    func retryJourney() {
+        guard selectedDestination != nil else { return }
+        planJourney()
+    }
+
+    /// Kept as a small compatibility seam for callers that submit an already
+    /// selected query. New UI submits from the destination result directly.
+    @discardableResult
     func submitSearch() -> SearchQuery? {
         guard let searchQuery else { return nil }
-        step = .noResults
+        planJourney()
         return searchQuery
     }
 
     func editSubmittedSearch() {
-        guard step == .noResults, searchQuery != nil else { return }
-        step = .ready
+        guard selectedDestination != nil else { return }
+        editDestination()
+    }
+
+    private func planJourney() {
+        guard let selectedDestination else { return }
+
+        journeyTask?.cancel()
+        journeyResult = nil
+        step = .planning
+
+        journeyTask = Task { [weak self] in
+            guard let self else { return }
+
+            guard let origin = await self.resolveOrigin() else {
+                guard !Task.isCancelled else { return }
+                self.step = .locationBlocked(self.locationModel.authorization)
+                return
+            }
+
+            guard !Task.isCancelled else { return }
+
+            var request = JourneyRequest(
+                origin: origin,
+                destination: JourneyPlaceSelection(selectedDestination).journeyDestination
+            )
+            request.limit = 4
+
+            do {
+                let result = try await self.journeyRepository.plan(request)
+                guard !Task.isCancelled else { return }
+
+                journeyResult = result
+                switch result.status {
+                case .ready where !result.journeys.isEmpty:
+                    step = .results
+                case .noRoute, .ready:
+                    step = .noRoute
+                case .unavailable:
+                    step = .unavailable
+                }
+            } catch is CancellationError {
+            } catch {
+                guard !Task.isCancelled else { return }
+                step = .failed(error.via)
+            }
+        }
+    }
+
+    private func resolveOrigin() async -> GeoCoordinate? {
+        switch selectedDeparture {
+        case .currentLocation:
+            return await locationModel.requestCurrentLocation()
+        case .saved, .manual:
+            return selectedDeparture.coordinate
+        }
     }
 
     private func performSearch(_ normalizedQuery: String) async {
@@ -223,13 +297,15 @@ final class SearchViewModel {
         lastSearchedQuery = normalizedQuery
 
         do {
-            let response = try await repository.search(query: normalizedQuery, near: nil)
+            let response = try await repository.search(
+                query: normalizedQuery,
+                near: locationModel.coordinate
+            )
             guard !Task.isCancelled else { return }
 
             results = response.results
             loadState = response.results.isEmpty ? .empty : .loaded
         } catch is CancellationError {
-            return
         } catch {
             guard !Task.isCancelled else { return }
             loadState = .failed(error.via)
