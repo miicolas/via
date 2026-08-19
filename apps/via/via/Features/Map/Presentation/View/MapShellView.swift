@@ -10,13 +10,14 @@ extension MKCoordinateRegion {
 }
 
 /// Root screen: full-screen map with a persistent bottom sheet hosting the
-/// Stations / Lignes / Moi / Recherche tabs, Find My style.
+/// Stations / Lignes / Signaler / Recherche tabs, Find My style.
 struct MapShellView: View {
     let networkViewModel: NetworkViewModel
     let stationsViewModel: StationsViewModel
     let linesViewModel: LinesViewModel
     let selectedStationModel: SelectedStationModel
     let searchViewModel: SearchViewModel
+    let reportViewModel: ReportViewModel
     let onboardingModel: OnboardingModel
 
     @State private var showTabSheet: Bool = true
@@ -37,6 +38,7 @@ struct MapShellView: View {
         linesViewModel: LinesViewModel,
         selectedStationModel: SelectedStationModel,
         searchViewModel: SearchViewModel,
+        reportViewModel: ReportViewModel,
         onboardingModel: OnboardingModel
     ) {
         self.networkViewModel = networkViewModel
@@ -44,6 +46,7 @@ struct MapShellView: View {
         self.linesViewModel = linesViewModel
         self.selectedStationModel = selectedStationModel
         self.searchViewModel = searchViewModel
+        self.reportViewModel = reportViewModel
         self.onboardingModel = onboardingModel
     }
 
@@ -66,7 +69,8 @@ struct MapShellView: View {
                     selection: $activeTab,
                     activeDetent: $activeDetent,
                     isLargeScreen: isLargeScreen,
-                    isAnotherSheetPresenting: selectedStationModel.overview != nil
+                    isAnotherSheetPresenting: selectedStationModel.overview != nil ||
+                        reportViewModel.isPresentingAnotherSheet
                 ) {
                     Tab(value: .stations) {
                         StationsView(
@@ -86,10 +90,10 @@ struct MapShellView: View {
                         MapShellTab.lines.tabLabel
                     }
 
-                    Tab(value: .me) {
-                        EmptyView()
+                    Tab(value: .report) {
+                        ReportView(viewModel: reportViewModel)
                     } label: {
-                        MapShellTab.me.tabLabel
+                        MapShellTab.report.tabLabel
                     }
 
                     Tab(value: MapShellTab.search, role: .search) {
@@ -120,11 +124,11 @@ struct MapShellView: View {
                 if newValue == .search, oldValue != .search {
                     previousTab = oldValue
                     activeDetent = isLargeScreen ? .fraction(0.97) : .large
-                } else if newValue == .me, oldValue != .me {
+                } else if newValue == .report, oldValue != .report {
                     activeDetent = isLargeScreen ? .fraction(0.97) : .large
                 } else if oldValue == .search, newValue != .search {
                     activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
-                } else if oldValue == .me, newValue != .me {
+                } else if oldValue == .report, newValue != .report {
                     activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
                 }
             }
@@ -191,6 +195,14 @@ struct MapShellView: View {
             journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
             locationModel: locationModel,
             account: accountModel
+        ),
+        reportViewModel: ReportViewModel(
+            contextResolver: ReportContextResolver(
+                locationModel: locationModel,
+                networkRepository: InMemoryNetworkRepository.mapPreview
+            ),
+            repository: InMemoryReportRepository(),
+            searchRepository: InMemorySearchRepository.preview
         ),
         onboardingModel: OnboardingModel(store: OnboardingStore(defaults: .standard))
     )
