@@ -5,6 +5,21 @@ struct AuthUser: Codable, Sendable, Hashable, Identifiable {
     let appleUserIdentifier: String
     let name: String
     let email: String
+    let isAnonymous: Bool
+
+    init(
+        id: String,
+        appleUserIdentifier: String,
+        name: String,
+        email: String,
+        isAnonymous: Bool = false
+    ) {
+        self.id = id
+        self.appleUserIdentifier = appleUserIdentifier
+        self.name = name
+        self.email = email
+        self.isAnonymous = isAnonymous
+    }
 
     var displayName: String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -15,6 +30,23 @@ struct AuthUser: Codable, Sendable, Hashable, Identifiable {
         let words = name.split(whereSeparator: { $0.isWhitespace })
         let value = words.prefix(2).compactMap(\.first).map(String.init).joined().uppercased()
         return value.isEmpty ? nil : value
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case appleUserIdentifier
+        case name
+        case email
+        case isAnonymous
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        appleUserIdentifier = try container.decode(String.self, forKey: .appleUserIdentifier)
+        name = try container.decode(String.self, forKey: .name)
+        email = try container.decode(String.self, forKey: .email)
+        isAnonymous = try container.decodeIfPresent(Bool.self, forKey: .isAnonymous) ?? false
     }
 }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StationsView: View {
     let viewModel: StationsViewModel
+    let account: AccountModel?
 
     @Binding var isLargeScreen: Bool
     @Binding var selectedStation: StationOverview?
@@ -42,6 +43,7 @@ struct StationsView: View {
             StationDetailView(
                 station: station,
                 viewModel: viewModel,
+                account: account,
                 isLargeScreen: isLargeScreen,
                 detailDetent: $detailDetent
             )
@@ -192,6 +194,7 @@ struct StationsView: View {
             networkRepository: InMemoryNetworkRepository.mapPreview,
             departuresRepository: InMemoryDeparturesRepository.stationsPreview
         ),
+        account: nil,
         isLargeScreen: .constant(false),
         selectedStation: .constant(nil),
         detailDetent: .constant(.large),

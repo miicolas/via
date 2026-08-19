@@ -107,6 +107,16 @@ struct TransportPreferences: Codable, Sendable, Hashable {
     )
 }
 
+enum AccountScope: Codable, Sendable, Hashable, Equatable {
+    case anonymous
+    case user(String)
+
+    var userID: String? {
+        guard case .user(let userID) = self else { return nil }
+        return userID
+    }
+}
+
 struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
     enum Kind: String, Codable, Sendable {
         case favoriteUpsert = "favorite.upsert"
@@ -245,6 +255,7 @@ enum AccountSyncState: Sendable, Equatable {
 
 enum AccountState: Sendable, Equatable {
     case inactive
+    case local(AccountSnapshot)
     case active(AccountSnapshot, AccountSyncState)
 }
 

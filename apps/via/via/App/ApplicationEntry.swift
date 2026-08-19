@@ -3,15 +3,18 @@ import SwiftUI
 @main
 @MainActor
 struct ApplicationEntry: App {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var locationModel: LocationModel
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
     @State private var linesViewModel: LinesViewModel
     @State private var accountModel: AccountModel
     @State private var authSessionViewModel: AuthSessionViewModel
+    @State private var onboardingModel: OnboardingModel
     private let searchRepository: any SearchRepository
     private let journeyRepository: any JourneyRepository
     private let lineStatusRepository: any LineStatusRepository
+    private let supportDestinations: SupportDestinations
 
     init() {
         let dependencies = Self.makeDependencies()
@@ -31,9 +34,11 @@ struct ApplicationEntry: App {
         )
         _accountModel = State(initialValue: dependencies.accountModel)
         _authSessionViewModel = State(initialValue: dependencies.authSessionViewModel)
+        _onboardingModel = State(initialValue: dependencies.onboardingModel)
         searchRepository = dependencies.searchRepository
         journeyRepository = dependencies.journeyRepository
         lineStatusRepository = dependencies.lineStatusRepository
+        supportDestinations = dependencies.supportDestinations
     }
 
     var body: some Scene {
@@ -44,12 +49,19 @@ struct ApplicationEntry: App {
                 linesViewModel: linesViewModel,
                 locationModel: locationModel,
                 accountModel: accountModel,
+                authSessionViewModel: authSessionViewModel,
+                onboardingModel: onboardingModel,
+                supportDestinations: supportDestinations,
                 searchRepository: searchRepository,
                 journeyRepository: journeyRepository,
                 lineStatusRepository: lineStatusRepository
             )
             .task {
                 await authSessionViewModel.restore()
+            }
+            .task(id: scenePhase) {
+                guard scenePhase == .active else { return }
+                await authSessionViewModel.sceneBecameActive()
             }
         }
     }
@@ -60,6 +72,7 @@ struct ApplicationEntry: App {
                 remote: InMemoryAccountRemote(),
                 synchronizationEnabled: false
             )
+            accountModel.activateAnonymous()
             let previewSession = StoredAuthSession(
                 bearerToken: "preview.token",
                 user: AuthUser(
@@ -91,7 +104,9 @@ struct ApplicationEntry: App {
                     client: InMemoryAuthenticationClient(session: previewSession),
                     vault: InMemoryAuthSessionVault(),
                     account: accountModel
-                )
+                ),
+                onboardingModel: OnboardingModel(),
+                supportDestinations: .preview
             )
         }
 
@@ -102,6 +117,7 @@ struct ApplicationEntry: App {
             authSessionVault: authSessionVault
         )
         let accountModel = AccountModel(remote: LiveAccountRemote(transport: transport))
+        accountModel.activateAnonymous()
         let journeyRepository = PreferenceAwareJourneyRepository(
             base: LiveJourneyRepository(transport: transport),
             account: accountModel
@@ -119,7 +135,9 @@ struct ApplicationEntry: App {
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
                 vault: authSessionVault,
                 account: accountModel
-            )
+            ),
+            onboardingModel: OnboardingModel(),
+            supportDestinations: .app
         )
     }
 
@@ -132,5 +150,7 @@ struct ApplicationEntry: App {
         let lineStatusRepository: any LineStatusRepository
         let accountModel: AccountModel
         let authSessionViewModel: AuthSessionViewModel
+        let onboardingModel: OnboardingModel
+        let supportDestinations: SupportDestinations
     }
 }
