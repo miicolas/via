@@ -112,6 +112,21 @@ final class LocationModelTests: XCTestCase {
         XCTAssertEqual(secondSample?.coordinate, second)
         model.stopJourneyTracking()
     }
+
+    func testFreshLocationIgnoresTheCachedCoordinate() async {
+        let cached = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let fresh = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let adapter = InMemoryLocationAdapter(coordinate: cached)
+        let model = LocationModel(adapter: adapter)
+
+        let initialCoordinate = await model.requestCurrentLocation()
+        XCTAssertEqual(initialCoordinate, cached)
+
+        adapter.coordinate = fresh
+        let freshCoordinate = await model.requestFreshLocation()
+
+        XCTAssertEqual(freshCoordinate, fresh)
+    }
 }
 
 @MainActor

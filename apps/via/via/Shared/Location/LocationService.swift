@@ -104,7 +104,7 @@ final class LocationModel {
     /// the shared cache. Active journeys use this before calculating progress
     /// or a replacement itinerary.
     func requestFreshLocation() async -> GeoCoordinate? {
-        let updates = stateUpdates()
+        let updates = stateUpdates(replaysCurrentState: false)
         requestLocation()
 
         for await update in updates {
@@ -149,11 +149,15 @@ final class LocationModel {
 
     @ObservationIgnored private var updateContinuations: [UUID: AsyncStream<LocationState>.Continuation] = [:]
 
-    private func stateUpdates() -> AsyncStream<LocationState> {
+    private func stateUpdates(
+        replaysCurrentState: Bool = true
+    ) -> AsyncStream<LocationState> {
         let id = UUID()
         return AsyncStream { continuation in
             updateContinuations[id] = continuation
-            continuation.yield(state)
+            if replaysCurrentState {
+                continuation.yield(state)
+            }
             continuation.onTermination = { @Sendable [weak self] _ in
                 Task { @MainActor in
                     self?.updateContinuations.removeValue(forKey: id)
