@@ -49,6 +49,7 @@ final class LocationModel {
     @ObservationIgnored private let adapter: any LocationAdapter
     @ObservationIgnored private var trackingContinuations: [UUID: AsyncStream<LocationSample>.Continuation] = [:]
     @ObservationIgnored private var allowsJourneyBackgroundUpdates = false
+    @ObservationIgnored private var journeyTrackingStartedAt: Date?
 
     init(adapter: any LocationAdapter) {
         self.adapter = adapter
@@ -131,6 +132,7 @@ final class LocationModel {
     ) -> AsyncStream<LocationSample> {
         let updates = trackingUpdates()
         allowsJourneyBackgroundUpdates = allowsBackgroundUpdates
+        journeyTrackingStartedAt = .now
         if allowsBackgroundUpdates {
             adapter.requestBackgroundAuthorization()
         }
@@ -145,6 +147,7 @@ final class LocationModel {
         }
         trackingContinuations.removeAll()
         allowsJourneyBackgroundUpdates = false
+        journeyTrackingStartedAt = nil
     }
 
     @ObservationIgnored private var updateContinuations: [UUID: AsyncStream<LocationState>.Continuation] = [:]
@@ -199,6 +202,10 @@ final class LocationModel {
         case .located(let coordinate):
             publish(.located(coordinate))
         case .updated(let sample):
+            guard let journeyTrackingStartedAt,
+                  sample.recordedAt >= journeyTrackingStartedAt.addingTimeInterval(-5) else {
+                return
+            }
             publish(.located(sample.coordinate))
             for continuation in trackingContinuations.values {
                 continuation.yield(sample)

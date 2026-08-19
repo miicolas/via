@@ -127,6 +127,26 @@ final class LocationModelTests: XCTestCase {
 
         XCTAssertEqual(freshCoordinate, fresh)
     }
+
+    func testJourneyTrackingDropsSamplesFromBeforeTheSession() async {
+        let initial = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let stale = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let fresh = GeoCoordinate(latitude: 48.8766, longitude: 2.3722)
+        let adapter = InMemoryLocationAdapter(coordinate: initial)
+        let model = LocationModel(adapter: adapter)
+
+        var iterator = model
+            .startJourneyTracking(allowsBackgroundUpdates: false)
+            .makeAsyncIterator()
+        _ = await iterator.next()
+
+        adapter.updateJourneyLocation(stale, recordedAt: .distantPast)
+        adapter.updateJourneyLocation(fresh)
+        let nextSample = await iterator.next()
+
+        XCTAssertEqual(nextSample?.coordinate, fresh)
+        model.stopJourneyTracking()
+    }
 }
 
 @MainActor
