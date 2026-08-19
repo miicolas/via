@@ -11,6 +11,8 @@ struct ApplicationEntry: App {
     @State private var searchViewModel: SearchViewModel
     @State private var authSessionViewModel: AuthSessionViewModel
     @State private var onboardingModel: OnboardingModel
+    private let locationModel: LocationModel
+    private let reportRepository: any ReportRepository
 
     init() {
         let dependencies = Self.makeDependencies()
@@ -48,6 +50,8 @@ struct ApplicationEntry: App {
         _onboardingModel = State(
             initialValue: dependencies.onboardingModel
         )
+        locationModel = dependencies.locationModel
+        reportRepository = dependencies.reportRepository
     }
 
     var body: some Scene {
@@ -58,7 +62,9 @@ struct ApplicationEntry: App {
                 linesViewModel: linesViewModel,
                 selectedStationModel: selectedStationModel,
                 searchViewModel: searchViewModel,
-                onboardingModel: onboardingModel
+                onboardingModel: onboardingModel,
+                locationModel: locationModel,
+                reportRepository: reportRepository
             )
             .task {
                 await authSessionViewModel.restore()
@@ -110,6 +116,7 @@ struct ApplicationEntry: App {
                     account: accountModel
                 ),
                 onboardingModel: OnboardingModel(),
+                reportRepository: InMemoryReportRepository(),
             )
         }
 
@@ -140,6 +147,7 @@ struct ApplicationEntry: App {
                 account: accountModel
             ),
             onboardingModel: OnboardingModel(),
+            reportRepository: InMemoryReportRepository(),
         )
     }
 
@@ -153,5 +161,6 @@ struct ApplicationEntry: App {
         let accountModel: AccountModel
         let authSessionViewModel: AuthSessionViewModel
         let onboardingModel: OnboardingModel
+        let reportRepository: any ReportRepository
     }
 }

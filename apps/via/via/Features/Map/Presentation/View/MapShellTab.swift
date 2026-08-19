@@ -5,14 +5,14 @@ import SwiftUI
 enum MapShellTab: String, Hashable {
     case stations = "Stations"
     case lines = "Lignes"
-    case me = "Moi"
+    case report = "Signaler"
     case search = "Recherche"
 
     var symbolImage: String {
         switch self {
         case .stations: return "tram.fill"
         case .lines: return "point.3.connected.trianglepath.dotted"
-        case .me: return "person.crop.circle"
+        case .report: return "exclamationmark.bubble.fill"
         case .search: return "magnifyingglass"
         }
     }
