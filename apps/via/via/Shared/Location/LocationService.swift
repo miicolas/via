@@ -167,7 +167,6 @@ final class LocationModel {
         let id = UUID()
         return AsyncStream { continuation in
             trackingContinuations[id] = continuation
-            if let latestSample { continuation.yield(latestSample) }
             continuation.onTermination = { @Sendable [weak self] _ in
                 Task { @MainActor in
                     self?.trackingContinuations.removeValue(forKey: id)

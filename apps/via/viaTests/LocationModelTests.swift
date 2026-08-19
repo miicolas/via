@@ -90,6 +90,27 @@ final class LocationModelTests: XCTestCase {
 
         model.stopJourneyTracking()
     }
+
+    func testJourneyTrackingDoesNotReplayPreviousJourneySample() async {
+        let first = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let second = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let adapter = InMemoryLocationAdapter(coordinate: first)
+        let model = LocationModel(adapter: adapter)
+
+        var firstIterator = model
+            .startJourneyTracking(allowsBackgroundUpdates: false)
+            .makeAsyncIterator()
+        XCTAssertEqual(await firstIterator.next()?.coordinate, first)
+        model.stopJourneyTracking()
+
+        adapter.coordinate = second
+        var secondIterator = model
+            .startJourneyTracking(allowsBackgroundUpdates: false)
+            .makeAsyncIterator()
+
+        XCTAssertEqual(await secondIterator.next()?.coordinate, second)
+        model.stopJourneyTracking()
+    }
 }
 
 @MainActor

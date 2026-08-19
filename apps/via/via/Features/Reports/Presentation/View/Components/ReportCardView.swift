@@ -14,10 +14,7 @@ struct ReportCardView: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(tint)
-
+                Group {
                     if isLoading {
                         ProgressView()
                             .tint(.white)
@@ -29,6 +26,10 @@ struct ReportCardView: View {
                     }
                 }
                 .frame(width: 56, height: 56)
+                .glassEffect(
+                    .regular.tint(tint),
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                )
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(title)

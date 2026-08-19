@@ -140,7 +140,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         let coordinate = await locationModel.requestFreshLocation()
         guard var current = self.session, current.journey.id == journeyID else { return }
         current.lastCoordinate = coordinate
-        current.horizontalAccuracy = locationModel.latestSample?.horizontalAccuracy
+        current.horizontalAccuracy = nil
         self.session = current
 
         startLocationTracking(allowsBackgroundUpdates: allowsBackgroundTracking)

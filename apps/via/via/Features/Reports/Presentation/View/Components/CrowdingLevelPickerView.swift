@@ -15,16 +15,12 @@ struct CrowdingLevelPickerView: View {
                             onSelect(level)
                         } label: {
                             HStack(alignment: .top, spacing: 14) {
-                                ZStack {
-                                    Circle()
-                                        .fill(level.tint)
-
-                                    Image(systemName: level.systemImage)
-                                        .font(.headline.weight(.semibold))
-                                        .foregroundStyle(.white)
-                                        .accessibilityHidden(true)
-                                }
-                                .frame(width: 48, height: 48)
+                                Image(systemName: level.systemImage)
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .accessibilityHidden(true)
+                                    .frame(width: 48, height: 48)
+                                    .glassEffect(.regular.tint(level.tint), in: .circle)
 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(level.title)

@@ -69,15 +69,17 @@ struct ReportView: View {
                     Text("Dans mon train")
                         .font(.title3.weight(.bold))
 
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ReportCardView(
-                            title: "Climatisation présente",
-                            systemImage: "snowflake",
-                            tint: .cyan,
-                            subtitle: "Disponible pendant un trajet en direct",
-                            isEnabled: false,
-                            action: {}
-                        )
+                    GlassEffectContainer(spacing: 12) {
+                        LazyVGrid(columns: columns, spacing: 12) {
+                            ReportCardView(
+                                title: "Climatisation présente",
+                                systemImage: "snowflake",
+                                tint: .cyan,
+                                subtitle: "Disponible pendant un trajet en direct",
+                                isEnabled: false,
+                                action: {}
+                            )
+                        }
                     }
                 }
 
@@ -97,16 +99,18 @@ struct ReportView: View {
             Text(group.title)
                 .font(.title3.weight(.bold))
 
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(group.categories, id: \.self) { category in
-                    ReportCardView(
-                        title: category.title,
-                        systemImage: category.systemImage,
-                        tint: category.tint,
-                        isEnabled: viewModel.canSubmit,
-                        isLoading: viewModel.submissionState.submittingCategory == category
-                    ) {
-                        viewModel.selectCategory(category)
+            GlassEffectContainer(spacing: 12) {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(group.categories, id: \.self) { category in
+                        ReportCardView(
+                            title: category.title,
+                            systemImage: category.systemImage,
+                            tint: category.tint,
+                            isEnabled: viewModel.canSubmit,
+                            isLoading: viewModel.submissionState.submittingCategory == category
+                        ) {
+                            viewModel.selectCategory(category)
+                        }
                     }
                 }
             }
