@@ -1,9 +1,14 @@
 import Foundation
 
 protocol AuthenticationClient: Sendable {
-    func signIn(with credentials: AppleSignInCredentials) async throws -> StoredAuthSession
+    func signIn(
+        with credentials: AppleSignInCredentials,
+        existingBearerToken: String?
+    ) async throws -> StoredAuthSession
+    func signInAnonymously() async throws -> StoredAuthSession
     func validate(_ session: StoredAuthSession) async throws -> StoredAuthSession
     func signOut(bearerToken: String) async throws
+    func deleteAnonymousUser(bearerToken: String) async throws
 }
 
 final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
@@ -23,7 +28,10 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
         }
     }
 
-    func signIn(with credentials: AppleSignInCredentials) async throws -> StoredAuthSession {
+    func signIn(
+        with credentials: AppleSignInCredentials,
+        existingBearerToken: String? = nil
+    ) async throws -> StoredAuthSession {
         let name = SignInBody.IDToken.User.Name(
             firstName: credentials.givenName,
             lastName: credentials.familyName
@@ -40,13 +48,19 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
                 user: appleUser.isEmpty ? nil : appleUser
             )
         )
-        var request = try request(path: "auth/sign-in/social", method: "POST")
+        var request = try request(
+            path: "auth/sign-in/social",
+            method: "POST",
+            bearerToken: existingBearerToken
+        )
         request.httpBody = try JSONEncoder.via.encode(body)
 
         let (data, response) = try await perform(request)
         let bearer = try signedBearer(from: response)
         let signedIn = try JSONDecoder.via.decode(SignInResponse.self, from: data)
-        guard !signedIn.user.id.isEmpty else { throw AuthenticationClientError.invalidResponse }
+        guard !signedIn.user.id.isEmpty, signedIn.user.isAnonymous != true else {
+            throw AuthenticationClientError.invalidResponse
+        }
 
         let provisional = StoredAuthSession(
             bearerToken: bearer,
@@ -54,7 +68,28 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
                 id: signedIn.user.id,
                 appleUserIdentifier: credentials.appleUserIdentifier,
                 name: signedIn.user.name,
-                email: signedIn.user.email
+                email: signedIn.user.email,
+                isAnonymous: signedIn.user.isAnonymous ?? false
+            ),
+            expiresAt: .now.addingTimeInterval(30 * 24 * 60 * 60),
+            lastValidatedAt: .now
+        )
+        return try await validate(provisional)
+    }
+
+    func signInAnonymously() async throws -> StoredAuthSession {
+        let request = try request(path: "auth/sign-in/anonymous", method: "POST")
+        let (data, response) = try await perform(request)
+        let anonymous = try JSONDecoder.via.decode(AnonymousSignInResponse.self, from: data)
+        let bearer = try signedBearer(from: response, fallback: anonymous.token)
+        let provisional = StoredAuthSession(
+            bearerToken: bearer,
+            user: AuthUser(
+                id: anonymous.user.id,
+                appleUserIdentifier: "",
+                name: anonymous.user.name,
+                email: anonymous.user.email,
+                isAnonymous: true
             ),
             expiresAt: .now.addingTimeInterval(30 * 24 * 60 * 60),
             lastValidatedAt: .now
@@ -80,7 +115,8 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
                 id: envelope.user.id,
                 appleUserIdentifier: storedSession.user.appleUserIdentifier,
                 name: envelope.user.name,
-                email: envelope.user.email
+                email: envelope.user.email,
+                isAnonymous: envelope.user.isAnonymous ?? storedSession.user.isAnonymous
             ),
             expiresAt: envelope.session.expiresAt,
             lastValidatedAt: .now
@@ -90,6 +126,15 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
     func signOut(bearerToken: String) async throws {
         let request = try request(
             path: "auth/sign-out",
+            method: "POST",
+            bearerToken: bearerToken
+        )
+        _ = try await perform(request)
+    }
+
+    func deleteAnonymousUser(bearerToken: String) async throws {
+        let request = try request(
+            path: "auth/delete-anonymous-user",
             method: "POST",
             bearerToken: bearerToken
         )
@@ -137,9 +182,9 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
         }
     }
 
-    private func signedBearer(from response: HTTPURLResponse) throws -> String {
-        guard let bearer = response.value(forHTTPHeaderField: "set-auth-token"),
-              bearer.contains(".") else {
+    private func signedBearer(from response: HTTPURLResponse, fallback: String? = nil) throws -> String {
+        let bearer = response.value(forHTTPHeaderField: "set-auth-token") ?? fallback
+        guard let bearer, bearer.contains(".") else {
             throw AuthenticationClientError.invalidResponse
         }
         return bearer
@@ -175,9 +220,15 @@ private struct AuthResponseUser: Decodable {
     let id: String
     let name: String
     let email: String
+    let isAnonymous: Bool?
 }
 
 private struct SignInResponse: Decodable {
+    let user: AuthResponseUser
+}
+
+private struct AnonymousSignInResponse: Decodable {
+    let token: String?
     let user: AuthResponseUser
 }
 

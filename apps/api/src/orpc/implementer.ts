@@ -10,6 +10,8 @@ import { contract } from '@via/contract';
 export type ApiContext = ResponseHeadersPluginContext & {
   /** Better Auth user id; absent only for the public health procedure. */
   userId?: string;
+  /** Anonymous Better Auth sessions may use public product routes, never account sync. */
+  isAnonymous?: boolean;
 };
 
 /**

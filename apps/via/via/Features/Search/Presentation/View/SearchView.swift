@@ -8,6 +8,7 @@ struct SearchView: View {
     let journeyRepository: any JourneyRepository
     let locationModel: LocationModel
     let savedPlaces: [SavedPlace]
+    let account: AccountModel?
     let onClose: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
@@ -21,12 +22,14 @@ struct SearchView: View {
         journeyRepository: any JourneyRepository,
         locationModel: LocationModel,
         savedPlaces: [SavedPlace] = [],
+        account: AccountModel? = nil,
         onClose: @escaping () -> Void = {}
     ) {
         self.repository = repository
         self.journeyRepository = journeyRepository
         self.locationModel = locationModel
         self.savedPlaces = savedPlaces
+        self.account = account
         self.onClose = onClose
         _viewModel = State(initialValue: SearchViewModel(
             repository: repository,
@@ -106,7 +109,10 @@ struct SearchView: View {
                         state: viewModel.wrappedValue.loadState,
                         results: viewModel.wrappedValue.results,
                         onRetry: viewModel.wrappedValue.retry,
-                        onSelect: viewModel.wrappedValue.selectDestination
+                        onSelect: { result in
+                            account?.recordRecentSearch(result)
+                            viewModel.wrappedValue.selectDestination(result)
+                        }
                     )
                 } else if let destination = viewModel.wrappedValue.selectedDestination {
                     SearchJourneyResultsView(
