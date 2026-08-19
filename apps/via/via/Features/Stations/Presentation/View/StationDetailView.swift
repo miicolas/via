@@ -156,17 +156,23 @@ struct StationDetailView: View {
 #Preview {
     @Previewable @State var detailDetent: PresentationDetent = .large
     let locationModel = LocationModel(adapter: InMemoryLocationAdapter())
-    let accountModel = AccountModel(
-        remote: InMemoryAccountRemote(),
-        synchronizationEnabled: false
-    )
-    accountModel.activateAnonymous()
-    let selection = SelectedStationModel(
-        departuresRepository: InMemoryDeparturesRepository.stationsPreview,
-        account: accountModel,
-        locationModel: locationModel
-    )
-    selection.select(StationOverview.preview)
+    let accountModel: AccountModel = {
+        let model = AccountModel(
+            remote: InMemoryAccountRemote(),
+            synchronizationEnabled: false
+        )
+        model.activateAnonymous()
+        return model
+    }()
+    let selection: SelectedStationModel = {
+        let model = SelectedStationModel(
+            departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+            account: accountModel,
+            locationModel: locationModel
+        )
+        model.select(StationOverview.preview)
+        return model
+    }()
 
     StationDetailView(
         selection: selection,
