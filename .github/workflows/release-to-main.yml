@@ -1,0 +1,45 @@
+# Promotion d'une release : pousser un tag `v*` sur staging fusionne le
+# contenu de staging dans main. Le déploiement (Railway suit main) part de là.
+#
+#   git tag v1.2.0 staging && git push origin v1.2.0
+#
+# Le workflow refuse un tag posé ailleurs que sur staging, pour que main ne
+# reçoive jamais autre chose que ce qui a été validé en staging.
+name: Release staging to main
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-to-main
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Vérifier que le tag est sur staging
+        run: |
+          git fetch origin staging "${GITHUB_SHA}"
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/staging; then
+            echo "::error::Le tag ${GITHUB_REF_NAME} ne pointe pas sur un commit de staging."
+            exit 1
+          fi
+
+      - name: Fusionner staging dans main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-ff "${GITHUB_SHA}" -m "release: ${GITHUB_REF_NAME} — promote staging to main"
+          git push origin main
