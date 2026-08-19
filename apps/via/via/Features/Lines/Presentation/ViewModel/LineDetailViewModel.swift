@@ -5,7 +5,10 @@ import Observation
 @Observable
 final class LineDetailViewModel {
     private(set) var detail: Loadable<LineDetail> = .idle
-    var selectedBranchID: String?
+    var selectedDirectionID: String?
+    /// Collapsed "⋯ N gares" runs the user opened; ids are stable across
+    /// refreshes, so an expansion survives the automatic reload.
+    private(set) var expandedRunIDs: Set<String> = []
 
     @ObservationIgnored private let repository: any LineStatusRepository
     @ObservationIgnored let lineID: RouteID
@@ -43,35 +46,31 @@ final class LineDetailViewModel {
         }
     }
 
-    /// The branch the schema draws: the user's choice, else the canonical
-    /// pattern of the first direction, else the first branch.
-    var selectedBranch: LineBranch? {
-        guard let branches = detail.value?.branches, !branches.isEmpty else { return nil }
-        if let selectedBranchID, let chosen = branches.first(where: { $0.id == selectedBranchID }) {
+    /// The direction the schema draws: the user's choice, else the first one.
+    var selectedDirection: LineDirection? {
+        guard let directions = detail.value?.schemaDirections, !directions.isEmpty else {
+            return nil
+        }
+        if let selectedDirectionID,
+           let chosen = directions.first(where: { $0.id == selectedDirectionID }) {
             return chosen
         }
-        return branches.first(where: \.isCanonical) ?? branches.first
+        return directions.first
     }
 
-    /// Inter-station segments of the selected branch inside an active cut.
-    var cutSegments: Set<Int> {
-        guard let branch = selectedBranch, let detail = detail.value else { return [] }
-        return branch.cutSegmentIndexes(for: detail.disruptions)
+    /// Display rows of the selected direction: sections, stops, folded runs.
+    var schemaRows: [LineSchemaLayout.Row] {
+        guard let direction = selectedDirection, let detail = detail.value else { return [] }
+        return LineSchemaLayout.rows(
+            for: direction,
+            disruptions: detail.disruptions,
+            expandedRunIDs: expandedRunIDs
+        )
     }
 
-    /// Stops the active disruptions call out on the selected branch.
-    var affectedStopIDs: Set<String> {
-        guard let branch = selectedBranch, let detail = detail.value else { return [] }
-        let branchStopIDs = Set(branch.stops.map(\.id))
-        var affected: Set<String> = []
-        for disruption in detail.activeDisruptions {
-            for section in disruption.impactedSections {
-                for stopID in [section.fromStopID, section.toStopID]
-                where branchStopIDs.contains(stopID) {
-                    affected.insert(stopID)
-                }
-            }
+    func toggleRun(_ runID: String) {
+        if !expandedRunIDs.insert(runID).inserted {
+            expandedRunIDs.remove(runID)
         }
-        return affected
     }
 }

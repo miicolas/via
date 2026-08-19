@@ -41,9 +41,51 @@ struct LineDisruption: Identifiable, Sendable, Hashable {
     let updatedAt: Date?
 }
 
+/// A station of the complete line schema.
+struct LineSchemaStop: Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+    /// Served by at least one other metro, RER, Transilien or tram line.
+    let isInterchange: Bool
+}
+
+/// A run of consecutive stations sharing the same service: the trunk every
+/// train of the direction serves, or a named branch.
+struct LineSchemaSection: Sendable, Hashable {
+    enum Role: String, Sendable {
+        case trunk
+        case branch
+    }
+
+    let role: Role
+    /// "Branche Cergy-le-Haut"; nil for the trunk.
+    let label: String?
+    /// Origin/terminus group stops whose trains call in this section — the
+    /// trunk lists every group, a branch only its own. Two sections lie on
+    /// one physical path iff their groups intersect on both sides; that is
+    /// how a disruption spanning several sections projects onto the schema.
+    let origins: [String]
+    let termini: [String]
+    let stops: [LineSchemaStop]
+}
+
+/// One direction of the line, complete: every station merged from all trips
+/// at import time, not one mission's calls.
+struct LineDirection: Identifiable, Sendable, Hashable {
+    let id: String
+    let directionId: Int
+    /// Real termini riders know the direction by: "Boissy / Marne-la-Vallée".
+    let label: String
+    /// Sections in travel order: origin branches, trunk, destination branches.
+    let sections: [LineSchemaSection]
+}
+
 struct LineDetail: Sendable, Hashable {
     let route: RouteBadge
+    /// Legacy strips: one mission's calls per pattern. Only the fallback for
+    /// `schemaDirections` until the schema tables are populated server-side.
     let branches: [LineBranch]
+    let directions: [LineDirection]
     let source: LineStatusBoard.Source
     let fetchedAt: Date?
     /// Active disruptions first, then upcoming ones by start time.
@@ -54,16 +96,43 @@ struct LineDetail: Sendable, Hashable {
 
     /// The worst active condition, for the detail header badge.
     var condition: LineCondition {
-        activeDisruptions.map(\.condition).max { severityRank($0) < severityRank($1) } ?? .normal
+        activeDisruptions.map(\.condition).max { $0.severityRank < $1.severityRank } ?? .normal
+    }
+
+    /// The schema the screen draws: the complete merged directions, degrading
+    /// to the legacy branch strips while the server tables are still empty.
+    var schemaDirections: [LineDirection] {
+        if !directions.isEmpty { return directions }
+        return branches.map { branch in
+            LineDirection(
+                id: "branch-\(branch.id)",
+                directionId: branch.directionId,
+                label: branch.headsign,
+                sections: [
+                    LineSchemaSection(
+                        role: .trunk,
+                        label: nil,
+                        origins: [],
+                        termini: [],
+                        stops: branch.stops.map {
+                            LineSchemaStop(id: $0.id, name: $0.name, isInterchange: false)
+                        }
+                    )
+                ]
+            )
+        }
     }
 }
 
-private func severityRank(_ condition: LineCondition) -> Int {
-    switch condition {
-    case .normal: 0
-    case .attention: 1
-    case .disrupted: 2
-    case .suspended: 3
+extension LineCondition {
+    /// Orders conditions from healthy to blocking, for worst-of reductions.
+    var severityRank: Int {
+        switch self {
+        case .normal: 0
+        case .attention: 1
+        case .disrupted: 2
+        case .suspended: 3
+        }
     }
 }
 

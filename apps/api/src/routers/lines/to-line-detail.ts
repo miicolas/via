@@ -1,8 +1,8 @@
-import type { LineBranch, LineDisruption } from '@via/contract';
+import type { LineBranch, LineDirection, LineDisruption } from '@via/contract';
 
 import { activityOf } from './disruptions/activity';
 import type { DisruptionSeverity, NormalizedDisruption } from './disruptions/parse';
-import type { LineBranchStopRow } from './queries';
+import type { LineBranchStopRow, LineSchemaStopRow } from './queries';
 
 const SEVERITY_RANK: Record<DisruptionSeverity, number> = {
   attention: 1,
@@ -29,6 +29,38 @@ export function toLineBranches(rows: LineBranchStopRow[]): LineBranch[] {
     current.stops.push({ id: row.stopId, name: row.stopName });
   }
   return branches;
+}
+
+/** Schema rows, already in direction-section-position order, → directions. */
+export function toLineDirections(rows: LineSchemaStopRow[]): LineDirection[] {
+  const directions: LineDirection[] = [];
+  let sectionKey: string | undefined;
+
+  for (const row of rows) {
+    let direction = directions.at(-1);
+    if (direction?.directionId !== row.directionId) {
+      direction = { directionId: row.directionId, label: row.directionLabel, sections: [] };
+      directions.push(direction);
+      sectionKey = undefined;
+    }
+    const rowKey = `${row.directionId} ${row.sectionIndex}`;
+    if (sectionKey !== rowKey) {
+      direction.sections.push({
+        role: row.sectionRole,
+        ...(row.sectionLabel === null ? {} : { label: row.sectionLabel }),
+        origins: row.sectionOrigins,
+        termini: row.sectionTermini,
+        stops: [],
+      });
+      sectionKey = rowKey;
+    }
+    direction.sections.at(-1)!.stops.push({
+      id: row.stopId,
+      name: row.stopName,
+      isInterchange: row.isInterchange,
+    });
+  }
+  return directions;
 }
 
 /**

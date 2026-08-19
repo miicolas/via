@@ -39,8 +39,10 @@ export const lineDetailRelation = oc
     path: '/lines/detail',
     summary: 'Détail d’une ligne',
     description:
-      'Les branches de la ligne avec leurs stations en ordre de parcours, et ses perturbations ' +
-      'actives puis à venir sous sept jours — tronçons impactés compris, résolubles contre les stations.',
+      'Le schéma complet de la ligne par direction — tronc commun et branches, toutes stations ' +
+      'confondues avec leurs correspondances — et ses perturbations actives puis à venir sous ' +
+      'sept jours, tronçons impactés compris, résolubles contre les stations. ' +
+      '`branches` est conservé pour les anciens clients et ne montre que les arrêts d’une mission.',
     tags: ['lines'],
   })
   .input(lineDetailInputSchema)

@@ -6,6 +6,8 @@ import { client, db } from '@via/db';
 import {
   ROUTE_TYPE,
   networkMode,
+  transitLineDirections,
+  transitLineSchemaStops,
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
@@ -25,6 +27,7 @@ import { parse } from 'csv-parse';
 import { sql } from 'drizzle-orm';
 import { RedisClient as BunRedisClient } from 'bun';
 
+import { importLineSchemas } from './line-schema/import-line-schemas';
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
 import { addScheduledTrip } from './schedule/scheduled-trips';
@@ -206,6 +209,9 @@ async function importTransitNetwork(gtfsPath: string) {
     await tx.delete(transitServiceDates);
     await tx.delete(transitShapes);
     await tx.delete(transitTransfers);
+    // Before the stop sweep below: its stop_id FK is ON DELETE RESTRICT.
+    await tx.delete(transitLineSchemaStops);
+    await tx.delete(transitLineDirections);
     await tx.delete(transitRoutePatternStops);
     await tx.delete(transitRoutePatterns);
     await tx.delete(transitTrips);
@@ -303,6 +309,12 @@ async function importTransitNetwork(gtfsPath: string) {
         ])
       ),
       readCsv,
+    });
+
+    await importLineSchemas({
+      tx,
+      stopIdByKey: new Map([...stopKeyById].map(([stopId, stopKey]) => [stopKey, stopId])),
+      stopNameById: (stopId) => journeyStops.get(stopId)?.name ?? stopId,
     });
 
     await tx.execute(projectStopsOntoPatterns());
