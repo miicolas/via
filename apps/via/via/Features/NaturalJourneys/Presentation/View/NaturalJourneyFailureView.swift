@@ -9,24 +9,18 @@ struct NaturalJourneyFailureView: View {
 
     var body: some View {
         NaturalJourneyStateCard(
+            systemImage: "wifi.exclamationmark",
             title: "Recherche impossible",
-            systemImage: "wifi.exclamationmark"
+            message: message,
         ) {
-            Text(message)
-                .naturalJourneyMessage()
             if let criteria {
                 NaturalJourneyPreservedCriteriaView(criteria: criteria)
             } else if let unresolvedDraft {
                 NaturalJourneyPreservedCriteriaView(draft: unresolvedDraft)
             }
-            NaturalJourneyRecoveryActions(
-                primarySystemImage: "arrow.clockwise",
-                primaryLabel: "Réessayer",
-                primaryAction: onRetry,
-                secondarySystemImage: "magnifyingglass",
-                secondaryLabel: "Recherche classique",
-                secondaryAction: onClassicSearch
-            )
+            NaturalJourneyRecoveryActions(onClassicSearch: onClassicSearch) {
+                RetryButton(action: onRetry)
+            }
         }
     }
 }

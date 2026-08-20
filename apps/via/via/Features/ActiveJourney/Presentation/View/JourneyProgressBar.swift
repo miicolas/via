@@ -59,7 +59,7 @@ struct JourneyProgressBar: View {
     /// The same badge the rail carries, minus its halo: pinned in a header it
     /// would breathe next to the title all journey long.
     private var knob: some View {
-        ViaMarkBadge(
+        MarkBadge(
             tint: Self.knobTint,
             size: knobSize,
             isEstimated: !progress.isLocationDerived,

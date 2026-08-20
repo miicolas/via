@@ -164,15 +164,11 @@ struct SearchJourneyResultsView: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button(actionTitle, action: onRetry)
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .controlSize(.large)
+            RetryButton(label: LocalizedStringKey(actionTitle), action: onRetry)
+                .primaryAction()
 
-            Button("Modifier la recherche", action: onEdit)
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
-                .controlSize(.large)
+            Button("Modifier la recherche", systemImage: "magnifyingglass", action: onEdit)
+                .secondaryAction()
         }
         .frame(maxWidth: 360)
         .frame(maxWidth: .infinity)

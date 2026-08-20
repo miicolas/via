@@ -28,8 +28,7 @@ struct LiveActivitiesSettingsView: View {
                 Button("Ouvrir les réglages iOS", systemImage: "gearshape") {
                     openSettings()
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
+                .primaryAction()
             }
             .padding(24)
         }

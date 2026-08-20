@@ -4,7 +4,7 @@ struct AboutView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 22) {
-                ViaMarkBadge(tint: .blue, size: 88)
+                MarkBadge(tint: .blue, size: 88)
 
                 VStack(spacing: 6) {
                     Text("Via")

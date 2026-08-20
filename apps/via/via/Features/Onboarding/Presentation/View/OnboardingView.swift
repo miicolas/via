@@ -22,15 +22,10 @@ struct OnboardingView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
 
-            HStack {
-                Button("Passer") {
-                    model.skip()
-                    dismiss()
-                }
-                .frame(minHeight: 44)
-
-                Spacer()
-
+            // Stacked rather than side by side: two buttons sharing a row end
+            // up as a bare word next to a pill, and the word is the one that
+            // dismisses onboarding for good.
+            VStack(spacing: 10) {
                 Button(selectedPage == pages.count - 1 ? "Commencer" : "Continuer") {
                     if selectedPage == pages.count - 1 {
                         model.complete()
@@ -41,8 +36,13 @@ struct OnboardingView: View {
                         }
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .frame(minHeight: 44)
+                .primaryAction()
+
+                Button("Passer") {
+                    model.skip()
+                    dismiss()
+                }
+                .secondaryAction()
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 18)

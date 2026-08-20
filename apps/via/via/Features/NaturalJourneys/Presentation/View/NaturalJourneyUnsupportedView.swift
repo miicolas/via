@@ -8,23 +8,29 @@ struct NaturalJourneyUnsupportedView: View {
 
     var body: some View {
         NaturalJourneyStateCard(
+            systemImage: "text.magnifyingglass",
             title: "Demande non reconnue",
-            systemImage: "text.magnifyingglass"
+            message: message,
         ) {
-            Text(message)
-                .naturalJourneyMessage()
-            ForEach(suggestions, id: \.self) { suggestion in
-                Text("• \(suggestion)")
-                    .font(.subheadline)
+            if !suggestions.isEmpty {
+                VStack(spacing: 8) {
+                    ForEach(suggestions, id: \.self) { suggestion in
+                        Text(suggestion)
+                            .font(.subheadline)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .glassEffect(.regular, in: .rect(cornerRadius: 18))
+                    }
+                }
             }
-            NaturalJourneyRecoveryActions(
-                primarySystemImage: "pencil",
-                primaryLabel: "Modifier la demande",
-                primaryAction: onModify,
-                secondarySystemImage: "magnifyingglass",
-                secondaryLabel: "Recherche classique",
-                secondaryAction: onClassicSearch
-            )
+            NaturalJourneyRecoveryActions(onClassicSearch: onClassicSearch) {
+                // Not a retry: editing the phrase opens the field rather than
+                // redrawing this screen, so it takes no spin and no haptic.
+                Button("Modifier la demande", systemImage: "pencil", action: onModify)
+            }
         }
     }
 }

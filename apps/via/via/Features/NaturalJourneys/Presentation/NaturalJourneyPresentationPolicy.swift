@@ -5,6 +5,14 @@ enum NaturalJourneyPresentationPolicy {
     static func expandsForInput(_ state: NaturalSearchState) -> Bool {
         state == .input
     }
+
+    /// Every state is one short column the sheet centres, except the one the
+    /// traveller types into: a field that drifts down the sheet and then jumps
+    /// when the keyboard arrives reads as broken. Defined as the negation of
+    /// `expandsForInput` so the two can never be edited apart.
+    static func centersContent(_ state: NaturalSearchState) -> Bool {
+        !expandsForInput(state)
+    }
 }
 
 struct NaturalJourneyRecoveryInstruction: Sendable, Hashable {

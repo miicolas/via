@@ -127,8 +127,8 @@ struct ReportView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            Button("Réessayer", action: viewModel.retrySubmission)
-                .buttonStyle(.borderedProminent)
+            RetryButton(action: viewModel.retrySubmission)
+                .primaryAction()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)

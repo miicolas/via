@@ -9,7 +9,7 @@ import SwiftUI
 /// The badge animates itself in on first appearance, delayed by
 /// `\.appearanceDelay`, so a marker inside a staggered list arrives with its own
 /// row rather than popping while the row is still invisible.
-struct ViaMarkBadge: View {
+struct MarkBadge: View {
     let tint: Color
     var size: CGFloat = 30
     /// A dashed collar marks a position read off the timetable rather than
@@ -72,9 +72,9 @@ struct ViaMarkBadge: View {
     }
 
     private var mark: some View {
-        ViaMark()
+        Mark()
             .fill(.white)
-            .frame(width: size * 0.56, height: size * 0.56 / ViaMark.aspectRatio)
+            .frame(width: size * 0.56, height: size * 0.56 / Mark.aspectRatio)
             .opacity(hasAppeared ? 1 : 0)
             .blur(radius: hasAppeared ? 0 : 1.5)
     }
@@ -101,15 +101,15 @@ struct ViaMarkBadge: View {
 #Preview("Marqueur") {
     HStack(spacing: 28) {
         VStack(spacing: 8) {
-            ViaMarkBadge(tint: .blue)
+            MarkBadge(tint: .blue)
             Text("En direct").font(.caption2)
         }
         VStack(spacing: 8) {
-            ViaMarkBadge(tint: .blue, isEstimated: true)
+            MarkBadge(tint: .blue, isEstimated: true)
             Text("Estimé").font(.caption2)
         }
         VStack(spacing: 8) {
-            ViaMarkBadge(tint: .blue, size: 22, showsHalo: false)
+            MarkBadge(tint: .blue, size: 22, showsHalo: false)
             Text("Compact").font(.caption2)
         }
     }

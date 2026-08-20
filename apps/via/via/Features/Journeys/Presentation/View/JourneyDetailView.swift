@@ -94,11 +94,8 @@ struct JourneyDetailView: View {
                     Text(action.title)
                         .font(.headline)
                 }
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 52)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
+            .primaryAction()
             .disabled(isActivating || action == .active)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)

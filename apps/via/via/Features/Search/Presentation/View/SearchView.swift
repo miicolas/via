@@ -258,22 +258,24 @@ struct SearchView: View {
         let step = viewModel.wrappedValue.step
 
         if step == .destination {
-            HStack(spacing: 10) {
-                SearchDestinationField(
-                    text: viewModel.query,
-                    onClear: viewModel.wrappedValue.clearQuery,
-                    onSubmit: viewModel.wrappedValue.searchImmediately,
-                )
-                .onChange(of: viewModel.wrappedValue.query) { _, newValue in
-                    viewModel.wrappedValue.updateQuery(newValue)
-                }
+            GlassEffectContainer(spacing: 10) {
+                HStack(spacing: 10) {
+                    SearchDestinationField(
+                        text: viewModel.query,
+                        onClear: viewModel.wrappedValue.clearQuery,
+                        onSubmit: viewModel.wrappedValue.searchImmediately,
+                    )
+                    .onChange(of: viewModel.wrappedValue.query) { _, newValue in
+                        viewModel.wrappedValue.updateQuery(newValue)
+                    }
 
-                if viewModel.wrappedValue.naturalLanguageAccess != .hidden {
-                    AIEntryButton(
-                        isDiscoverable: viewModel.wrappedValue.showsNaturalSearchDiscovery,
-                    ) {
-                        sheetDetent = .fraction(0.45)
-                        viewModel.wrappedValue.openNaturalSearch()
+                    if viewModel.wrappedValue.naturalLanguageAccess != .hidden {
+                        AIEntryButton(
+                            isDiscoverable: viewModel.wrappedValue.showsNaturalSearchDiscovery,
+                        ) {
+                            sheetDetent = .large
+                            viewModel.wrappedValue.openNaturalSearch()
+                        }
                     }
                 }
             }

@@ -54,7 +54,7 @@ private struct StaggeredAppearance: ViewModifier {
         VStack(spacing: 10) {
             ForEach(0..<6, id: \.self) { rank in
                 HStack(spacing: 12) {
-                    ViaMarkBadge(tint: .blue, size: 26, showsHalo: rank == 0)
+                    MarkBadge(tint: .blue, size: 26, showsHalo: rank == 0)
                     Text("Étape \(rank + 1)")
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }

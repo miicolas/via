@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// Coordinates stay in the icon's 1024 canvas and are aspect-fitted, centred,
 /// into whatever rect the caller hands over.
-struct ViaMark: Shape {
+struct Mark: Shape {
     /// Tight bounds of the transcribed outlines inside the 1024 icon canvas.
     private static let source = CGRect(x: 319.495, y: 382.993, width: 363.205, height: 218.707)
 
@@ -115,13 +115,13 @@ struct ViaMark: Shape {
 
 #Preview("Mark") {
     VStack(spacing: 24) {
-        ViaMark()
+        Mark()
             .fill(Color.accentColor)
-            .frame(width: 160, height: 160 / ViaMark.aspectRatio)
+            .frame(width: 160, height: 160 / Mark.aspectRatio)
 
-        ViaMark()
+        Mark()
             .fill(.white)
-            .frame(width: 60, height: 60 / ViaMark.aspectRatio)
+            .frame(width: 60, height: 60 / Mark.aspectRatio)
             .padding(24)
             .background(Color.blue.gradient, in: Circle())
     }

@@ -31,16 +31,15 @@ struct AIEntryButton: View {
                 .tint(Color.aiAccent)
             case .standalone:
                 Button(action: action) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 17, weight: .semibold))
+                    Image(systemName: "apple.intelligence")
+                        .font(.system(size: 19, weight: .semibold))
                         .foregroundStyle(Color.aiAccent)
-                        .frame(width: 44, height: 44)
-                        .background(Color.aiSurface, in: Circle())
-                        .aiBeam(in: Circle(), isEnabled: isDiscoverable && !reduceMotion)
+                        .frame(width: 48, height: 48)
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .frame(width: 44, height: 44)
+                .glassEffect(.regular.tint(Color.aiSurface).interactive(), in: .circle)
+                .aiBeam(in: Circle(), isEnabled: isDiscoverable && !reduceMotion)
             }
         }
         .accessibilityLabel(NaturalJourneyPresentationPolicy.entryAccessibilityLabel)
@@ -51,7 +50,7 @@ struct AIEntryButton: View {
     /// toolbar item reads as a smudge over the glass, and a breathing glyph
     /// keeps changing size next to the account avatar.
     private var glyph: some View {
-        Image(systemName: "sparkles")
+        Image(systemName: "apple.intelligence")
             .symbolEffect(
                 .pulse,
                 options: .repeat(.continuous),

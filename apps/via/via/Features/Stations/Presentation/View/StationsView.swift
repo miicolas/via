@@ -26,15 +26,21 @@ struct StationsView: View {
                 .navigationTitle("Stations")
                 .toolbarTitleDisplayMode(.inlineLarge)
                 .toolbar {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        if naturalLanguageAccess != .hidden {
+                    // Two glass containers rather than one group: Apple
+                    // Intelligence and the account are unrelated errands, and
+                    // sharing a capsule made the orb read as part of the avatar.
+                    if naturalLanguageAccess != .hidden {
+                        ToolbarItem(placement: .topBarTrailing) {
                             AIEntryButton(
                                 surface: .toolbar,
                                 isDiscoverable: showsNaturalSearchDiscovery,
                                 action: onOpenNaturalSearch,
                             )
                         }
+                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    }
 
+                    ToolbarItem(placement: .topBarTrailing) {
                         AccountMenuButton(
                             profile: profileModel,
                             onOpenProfile: onOpenProfile,
@@ -141,7 +147,7 @@ struct StationsView: View {
             if isRefreshing {
                 HStack {
                     Spacer()
-                    ViaLoadingStatus(label: "Actualisation…")
+                    LoadingStatus(label: "Actualisation…")
                     Spacer()
                 }
                 .listRowSeparator(.hidden)

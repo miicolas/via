@@ -40,13 +40,9 @@ struct ReportConfirmationView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button(action: onDone) {
-                Text("Terminé")
-                    .frame(maxWidth: .infinity)
-            }
+            Button("Terminé", action: onDone)
                 .font(.headline)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .primaryAction()
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
                 .background(.bar)

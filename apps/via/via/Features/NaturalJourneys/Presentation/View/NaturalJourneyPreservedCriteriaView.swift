@@ -14,9 +14,10 @@ struct NaturalJourneyPreservedCriteriaView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(spacing: 10) {
             Text("Critères conservés")
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
 
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
@@ -56,6 +57,7 @@ struct NaturalJourneyPreservedCriteriaView: View {
             }
             .scrollIndicators(.hidden)
         }
+        .frame(maxWidth: .infinity)
         .accessibilityElement(children: .contain)
     }
 

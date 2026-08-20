@@ -52,7 +52,7 @@ struct ReportStationPickerView: View {
         case .loading:
             HStack {
                 Spacer()
-                ViaLoadingStatus(label: "Recherche…")
+                LoadingStatus(label: "Recherche…")
                 Spacer()
             }
             .padding(.vertical, 28)

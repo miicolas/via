@@ -11,6 +11,7 @@ struct ProfileEditorView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var isPhotosPickerPresented = false
     @State private var isCameraPresented = false
     @State private var isContactPickerPresented = false
     @State private var presentedAlert: PresentedAlert?
@@ -59,10 +60,8 @@ struct ProfileEditorView: View {
                         } label: {
                             Text("Terminer")
                                 .font(.headline)
-                                .frame(maxWidth: .infinity, minHeight: 54)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .buttonBorderShape(.capsule)
+                        .primaryAction()
                         .disabled(!model.canSaveDraft)
                         .padding(.top, 8)
                     }
@@ -90,9 +89,18 @@ struct ProfileEditorView: View {
             hasPreparedDraft = true
             model.beginEditing()
         }
+        .photosPicker(
+            isPresented: $isPhotosPickerPresented,
+            selection: $selectedPhoto,
+            matching: .images
+        )
         .onChange(of: selectedPhoto) { _, item in
             guard let item else { return }
-            Task { await importPhoto(item) }
+            Task {
+                await importPhoto(item)
+                // Remis à zéro pour que rechoisir la même photo redéclenche l'import.
+                selectedPhoto = nil
+            }
         }
         .fullScreenCover(isPresented: $isCameraPresented) {
             CameraPicker { image in
@@ -141,7 +149,9 @@ struct ProfileEditorView: View {
             }
             .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
 
-            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+            Button {
+                isPhotosPickerPresented = true
+            } label: {
                 Label("Choisir dans Photos", systemImage: "photo.on.rectangle.angled")
             }
 

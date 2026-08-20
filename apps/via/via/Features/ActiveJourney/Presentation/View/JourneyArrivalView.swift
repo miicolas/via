@@ -25,9 +25,7 @@ struct JourneyArrivalView: View {
                     .multilineTextAlignment(.center)
 
                 Button("Terminer", action: onComplete)
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.large)
+                    .primaryAction()
             }
             .padding(24)
             .frame(maxWidth: .infinity, minHeight: 260)

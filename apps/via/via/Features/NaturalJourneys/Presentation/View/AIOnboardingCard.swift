@@ -5,68 +5,45 @@ struct AIOnboardingCard: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            hero
+            ThinkingOrb(size: 104, period: 10)
+                .background {
+                    Circle()
+                        .fill(Color.aiAccent.opacity(0.12))
+                        .frame(width: 136, height: 136)
+                        .blur(radius: 42)
+                }
 
             VStack(spacing: 10) {
                 Text("Décris simplement ton trajet")
-                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                    .multilineTextAlignment(.center)
-
-                Text("Indique les lieux, l’heure et tes préférences dans une seule phrase.")
-                    .font(.body)
+                    .font(.system(.title2, design: .rounded).weight(.bold))
+                Text("Les lieux, l’heure et tes préférences dans une seule phrase.")
+                    .font(.callout)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
             }
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
 
             Text("« Je veux arriver à Châtelet demain avant 9 h »")
-                .font(.body.weight(.medium))
+                .font(.callout.weight(.medium))
                 .multilineTextAlignment(.center)
-                .padding(16)
-                .frame(maxWidth: .infinity)
-                .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 18))
-
-            Label("La demande est traitée sur cet iPhone et n’est envoyée à aucun service d’IA externe.", systemImage: "lock.shield.fill")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .glassEffect(.regular.tint(Color.aiSurface), in: .rect(cornerRadius: 20))
 
-            Button(action: onTry) {
-                Label("Essayer", systemImage: "sparkles")
-                    .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.glassProminent)
-            .controlSize(.large)
-            .tint(Color.aiAccent)
-            .accessibilityHint("Ouvre le champ de recherche en langage naturel")
+            Button("Essayer", systemImage: "arrow.right", action: onTry)
+                .naturalJourneyPrimaryAction()
+                .accessibilityHint("Ouvre le champ de recherche en langage naturel")
+
+            Label(
+                "La demande est traitée sur cet iPhone et n’est envoyée à aucun service d’IA externe.",
+                systemImage: "lock.shield.fill",
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(24)
-        .frame(maxWidth: 520)
-        .aiSurface(cornerRadius: 32)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 20)
-    }
-
-    private var hero: some View {
-        HStack(spacing: -12) {
-            Image(systemName: "text.bubble.fill")
-                .foregroundStyle(.blue)
-                .frame(width: 62, height: 62)
-                .background(.blue.opacity(0.16), in: Circle())
-
-            Image(systemName: "sparkles")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 76, height: 76)
-                .background(Color.aiAccent.gradient, in: Circle())
-                .zIndex(1)
-
-            Image(systemName: "tram.fill")
-                .foregroundStyle(.green)
-                .frame(width: 62, height: 62)
-                .background(.green.opacity(0.16), in: Circle())
-        }
-        .accessibilityHidden(true)
+        .frame(maxWidth: .infinity)
     }
 }

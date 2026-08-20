@@ -35,15 +35,12 @@ struct JourneyAlternativeCard: View {
 
                 if !alternative.otherJourneys.isEmpty {
                     Button("Autres options", systemImage: "list.bullet", action: onShowOthers)
-                        .buttonStyle(.glass)
+                        .iconAction()
                 }
 
                 Button("Changer de trajet", systemImage: "arrow.triangle.swap", action: onAccept)
-                    .buttonStyle(.glassProminent)
+                    .iconAction(isProminent: true)
             }
-            .labelStyle(.iconOnly)
-            .buttonBorderShape(.circle)
-            .controlSize(.large)
             .tint(.orange)
         }
         .padding(16)

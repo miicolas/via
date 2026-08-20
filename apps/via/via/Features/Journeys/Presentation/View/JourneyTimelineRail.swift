@@ -170,7 +170,7 @@ struct JourneyTimelineRail: View {
     private var cursorView: some View {
         if let cursorFraction {
             GeometryReader { proxy in
-                ViaMarkBadge(
+                MarkBadge(
                     tint: Self.cursorTint,
                     size: Self.cursorSize,
                     isEstimated: !isCursorLive

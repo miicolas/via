@@ -38,8 +38,8 @@ struct SearchEmptyStateView: View {
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
                     .font(.subheadline.weight(.semibold))
-                    .buttonStyle(.borderedProminent)
-                    .padding(.top, 4)
+                    .primaryAction()
+                    .padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity)
