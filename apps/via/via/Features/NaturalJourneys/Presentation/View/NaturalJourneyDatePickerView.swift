@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct NaturalJourneyDatePickerView: View {
-    let initialDate: Date
-    let initialMeaning: JourneyDatetimeRepresents
     let onApply: (Date, JourneyDatetimeRepresents) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -14,8 +12,6 @@ struct NaturalJourneyDatePickerView: View {
         initialMeaning: JourneyDatetimeRepresents,
         onApply: @escaping (Date, JourneyDatetimeRepresents) -> Void,
     ) {
-        self.initialDate = initialDate
-        self.initialMeaning = initialMeaning
         self.onApply = onApply
         _date = State(initialValue: initialDate)
         _meaning = State(initialValue: initialMeaning)

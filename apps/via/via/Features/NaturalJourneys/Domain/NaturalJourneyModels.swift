@@ -247,6 +247,7 @@ enum NaturalJourneyResult: Sendable, Hashable {
     case needsClarification(draft: NaturalJourneyDraft, fields: [NaturalJourneyClarification])
     case needsDecision(draft: NaturalJourneyDraft, decision: NaturalJourneyDecision)
     case networkUnavailable(interpretation: NaturalJourneyInterpretation)
+    case networkUnavailableDraft(draft: NaturalJourneyDraft)
     case unsupported(message: String, examples: [String])
     case unavailable(message: String, guidance: NaturalJourneyUnavailableGuidance?)
 }

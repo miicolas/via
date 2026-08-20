@@ -3,6 +3,7 @@ import SwiftUI
 struct NaturalJourneyFailureView: View {
     let message: String
     let criteria: NaturalJourneyCriteria?
+    let unresolvedDraft: NaturalJourneyDraft?
     let onRetry: () -> Void
     let onClassicSearch: () -> Void
 
@@ -15,6 +16,8 @@ struct NaturalJourneyFailureView: View {
                 .foregroundStyle(.secondary)
             if let criteria {
                 NaturalJourneyPreservedCriteriaView(criteria: criteria)
+            } else if let unresolvedDraft {
+                NaturalJourneyPreservedCriteriaView(draft: unresolvedDraft)
             }
             Button("Réessayer", action: onRetry)
                 .buttonStyle(.borderedProminent)

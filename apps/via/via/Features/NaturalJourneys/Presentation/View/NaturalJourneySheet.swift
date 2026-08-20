@@ -112,6 +112,7 @@ struct NaturalJourneySheet: View {
             NaturalJourneyFailureView(
                 message: message,
                 criteria: viewModel.wrappedValue.naturalJourneyCriteria,
+                unresolvedDraft: viewModel.wrappedValue.naturalJourneyUnresolvedDraft,
                 onRetry: viewModel.wrappedValue.retryNaturalSearch,
                 onClassicSearch: viewModel.wrappedValue.useClassicSearch,
             )

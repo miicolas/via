@@ -95,6 +95,7 @@ final class SearchViewModel {
     private(set) var isNaturalSearchPresented = false
     private(set) var naturalSearchState: NaturalSearchState = .input
     private(set) var naturalJourneyCriteria: NaturalJourneyCriteria?
+    private(set) var naturalJourneyUnresolvedDraft: NaturalJourneyDraft?
 
     var query = ""
     var naturalQuery = ""
@@ -192,6 +193,8 @@ final class SearchViewModel {
 
         naturalSearchStartedAt = metricsNow()
         naturalCorrectionCount = 0
+        naturalJourneyCriteria = nil
+        naturalJourneyUnresolvedDraft = nil
         performNaturalRequest(.submit(
             query: phrase,
             currentLocation: locationModel.coordinate,
@@ -285,6 +288,7 @@ final class SearchViewModel {
     func useClassicSearch() {
         naturalJourneyTask?.cancel()
         naturalJourneyCriteria = nil
+        naturalJourneyUnresolvedDraft = nil
         naturalQuery = ""
         lastNaturalJourneyRequest = nil
         naturalSearchState = .input
@@ -319,6 +323,7 @@ final class SearchViewModel {
         case let .ready(interpretation, journeys):
             recordNaturalMetric(.success)
             naturalJourneyCriteria = NaturalJourneyCriteria(interpretation)
+            naturalJourneyUnresolvedDraft = nil
             selectedDestination = interpretation.destinationResult
             selectedDeparture = interpretation.originResult.map(SearchDepartureSelection.manual)
                 ?? .currentLocation
@@ -351,10 +356,18 @@ final class SearchViewModel {
         case let .networkUnavailable(interpretation):
             recordNaturalMetric(.failure)
             naturalJourneyCriteria = NaturalJourneyCriteria(interpretation)
+            naturalJourneyUnresolvedDraft = nil
             selectedDestination = interpretation.destinationResult
             selectedDeparture = interpretation.originResult.map(SearchDepartureSelection.manual)
                 ?? .currentLocation
             query = interpretation.destinationResult.name
+            naturalSearchState = .failed(
+                message: "Connexion nécessaire pour rechercher les horaires.",
+            )
+        case let .networkUnavailableDraft(draft):
+            recordNaturalMetric(.failure)
+            naturalJourneyCriteria = nil
+            naturalJourneyUnresolvedDraft = draft
             naturalSearchState = .failed(
                 message: "Connexion nécessaire pour rechercher les horaires.",
             )

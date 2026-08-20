@@ -619,6 +619,41 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         XCTAssertEqual(interpretation.excludedModes, [.rer])
     }
 
+    func testGeocodingNetworkFailurePreservesTheLocallyInterpretedDraft() async throws {
+        let fixedNow = now
+        let intent = RouteIntent(
+            scope: .journey,
+            origin: .currentLocation,
+            destinationQuery: "Nation",
+            requestedAt: now,
+            datetimeRepresents: .arrival,
+            requiredModes: [],
+            excludedModes: [.rer],
+            preferredModes: [.bus],
+            originWasExplicit: true,
+        )
+        let service = OnDeviceNaturalJourneyService(
+            parser: InMemoryNaturalIntentParser(intent: intent),
+            places: OnDevicePlaceResolver { _, _ in throw ViaError.transport },
+            journeys: InMemoryJourneyRepository(result: .mapPreview),
+            now: { fixedNow },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "Nation avant 9 h, sans RER, plutôt en bus",
+            currentLocation: GeoCoordinate(latitude: 48.85, longitude: 2.35),
+        ))
+
+        guard case let .networkUnavailableDraft(draft) = result else {
+            return XCTFail("Expected the interpreted draft to survive geocoding failure")
+        }
+        XCTAssertEqual(draft.intent.destinationQuery, "Nation")
+        XCTAssertEqual(draft.intent.requestedAt, now)
+        XCTAssertEqual(draft.intent.datetimeRepresents, .arrival)
+        XCTAssertEqual(draft.intent.excludedModes, [.rer])
+        XCTAssertEqual(draft.intent.preferredModes, [.bus])
+    }
+
     func testMissingArrivalJourneyNeverFallsBackToDepartureNow() async throws {
         let destination = address("nation", "Nation")
         let parser = InMemoryNaturalIntentParser(intent: RouteIntent(

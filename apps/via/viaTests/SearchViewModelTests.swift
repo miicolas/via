@@ -178,6 +178,44 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(model.naturalJourneyCriteria?.excludedModes, [.rer])
     }
 
+    func testNaturalGeocodingFailureKeepsLocallyUnderstoodCriteria() async {
+        let draft = NaturalJourneyDraft(
+            intent: RouteIntent(
+                scope: .journey,
+                origin: .currentLocation,
+                destinationQuery: "Nation",
+                requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+                datetimeRepresents: .arrival,
+                requiredModes: [],
+                excludedModes: [.rer],
+                preferredModes: [.bus],
+                originWasExplicit: true,
+            ),
+            origin: nil,
+            destination: nil,
+        )
+        let model = makeModel(
+            naturalJourneyRepository: NaturalJourneyRepositoryRecorder(
+                result: .networkUnavailableDraft(draft: draft),
+            ),
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true,
+            ),
+        )
+        model.naturalQuery = "Nation demain avant 8 h, sans RER, plutôt en bus"
+
+        model.submitNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .failed = $0 { return true }
+            return false
+        }
+
+        XCTAssertNil(model.naturalJourneyCriteria)
+        XCTAssertEqual(model.naturalJourneyUnresolvedDraft, draft)
+        XCTAssertEqual(model.naturalQuery, "Nation demain avant 8 h, sans RER, plutôt en bus")
+    }
+
     func testSuccessfulNaturalSearchDoesNotKeepAReplayablePhrase() async {
         let interpretation = NaturalJourneyInterpretation(
             originLabel: "Ma position",

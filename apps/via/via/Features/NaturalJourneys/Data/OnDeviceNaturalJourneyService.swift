@@ -58,15 +58,6 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             submittedRequestedAt,
             submittedTime,
         ):
-            let origin = try await verify(
-                submittedOrigin ?? submittedDraft.origin,
-                near: location,
-            )
-            try Task.checkCancellation()
-            let destination = try await verify(
-                submittedDestination ?? submittedDraft.destination,
-                near: location,
-            )
             let intent: RouteIntent = if let submittedTime {
                 submittedDraft.intent.resolvingTime(
                     requestedAt: submittedRequestedAt ?? submittedDraft.intent.requestedAt,
@@ -75,6 +66,22 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 )
             } else {
                 submittedDraft.intent
+            }
+            let unresolvedDraft = NaturalJourneyDraft(
+                intent: intent,
+                origin: submittedOrigin ?? submittedDraft.origin,
+                destination: submittedDestination ?? submittedDraft.destination,
+            )
+            let origin: SearchResult?
+            let destination: SearchResult?
+            do {
+                origin = try await verify(unresolvedDraft.origin, near: location)
+                try Task.checkCancellation()
+                destination = try await verify(unresolvedDraft.destination, near: location)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                return .networkUnavailableDraft(draft: unresolvedDraft)
             }
             draft = NaturalJourneyDraft(
                 intent: intent,
@@ -210,7 +217,14 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             )
         }
 
-        let resolved = try await resolveDraft(draft, currentLocation: currentLocation)
+        let resolved: DraftResolution
+        do {
+            resolved = try await resolveDraft(draft, currentLocation: currentLocation)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return .networkUnavailableDraft(draft: draft)
+        }
         switch resolved {
         case let .clarification(result):
             return result
