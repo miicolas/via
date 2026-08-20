@@ -33,7 +33,7 @@ struct NaturalJourneyOptionsView: View {
             List {
                 Section {
                     ForEach(TransitMode.allCases, id: \.self) { mode in
-                        Picker(mode.naturalLanguageTitle, selection: selection(for: mode)) {
+                        Picker(mode.displayName, selection: selection(for: mode)) {
                             ForEach(ModeSelection.allCases, id: \.self) { value in
                                 Text(value.label).tag(value)
                             }

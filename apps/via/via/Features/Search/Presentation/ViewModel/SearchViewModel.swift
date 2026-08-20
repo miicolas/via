@@ -20,6 +20,7 @@ enum SearchLoadState: Sendable, Equatable {
 }
 
 enum NaturalSearchState: Sendable, Hashable {
+    case dismissed
     case onboarding
     case input
     case loading
@@ -92,8 +93,7 @@ final class SearchViewModel {
     private(set) var selectedDestination: SearchResult?
     private(set) var selectedDeparture: SearchDepartureSelection = .currentLocation
     private(set) var highlightedJourneySectionID: String?
-    private(set) var isNaturalSearchPresented = false
-    private(set) var naturalSearchState: NaturalSearchState = .input
+    private(set) var naturalSearchState: NaturalSearchState = .dismissed
     private(set) var naturalJourneyCriteria: NaturalJourneyCriteria?
     private(set) var naturalJourneyUnresolvedDraft: NaturalJourneyDraft?
 
@@ -147,6 +147,10 @@ final class SearchViewModel {
         naturalLanguageAvailability().access
     }
 
+    var isNaturalSearchPresented: Bool {
+        naturalSearchState != .dismissed
+    }
+
     var showsNaturalSearchDiscovery: Bool {
         naturalLanguageAccess == .active && !naturalJourneyOnboardingStore.hasSeenOnboarding
     }
@@ -162,7 +166,6 @@ final class SearchViewModel {
                 ? .input
                 : .onboarding
         }
-        isNaturalSearchPresented = true
     }
 
     func showNaturalSearchInput() {
@@ -177,7 +180,7 @@ final class SearchViewModel {
         naturalJourneyTask?.cancel()
         naturalQuery = ""
         lastNaturalJourneyRequest = nil
-        isNaturalSearchPresented = false
+        naturalSearchState = .dismissed
     }
 
     func retryNaturalSearch() {
@@ -291,8 +294,7 @@ final class SearchViewModel {
         naturalJourneyUnresolvedDraft = nil
         naturalQuery = ""
         lastNaturalJourneyRequest = nil
-        naturalSearchState = .input
-        isNaturalSearchPresented = false
+        naturalSearchState = .dismissed
         editDestination()
         clearQuery()
     }
@@ -302,7 +304,6 @@ final class SearchViewModel {
         lastNaturalJourneyRequest = request
         naturalJourneyTask?.cancel()
         naturalSearchState = .loading
-        isNaturalSearchPresented = true
         naturalJourneyTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -322,12 +323,7 @@ final class SearchViewModel {
         switch result {
         case let .ready(interpretation, journeys):
             recordNaturalMetric(.success)
-            naturalJourneyCriteria = NaturalJourneyCriteria(interpretation)
-            naturalJourneyUnresolvedDraft = nil
-            selectedDestination = interpretation.destinationResult
-            selectedDeparture = interpretation.originResult.map(SearchDepartureSelection.manual)
-                ?? .currentLocation
-            query = interpretation.destinationResult.name
+            apply(interpretation)
             results = []
             loadState = .idle
             journeyResult = journeys
@@ -339,8 +335,7 @@ final class SearchViewModel {
                 mapPresentation = nil
                 step = journeys.status == .unavailable ? .unavailable : .noRoute
             }
-            naturalSearchState = .input
-            isNaturalSearchPresented = false
+            naturalSearchState = .dismissed
             naturalQuery = ""
             lastNaturalJourneyRequest = nil
         case let .needsClarification(draft, fields):
@@ -355,40 +350,40 @@ final class SearchViewModel {
             naturalSearchState = .decision(draft: draft, decision: decision)
         case let .networkUnavailable(interpretation):
             recordNaturalMetric(.failure)
-            naturalJourneyCriteria = NaturalJourneyCriteria(interpretation)
-            naturalJourneyUnresolvedDraft = nil
-            selectedDestination = interpretation.destinationResult
-            selectedDeparture = interpretation.originResult.map(SearchDepartureSelection.manual)
-                ?? .currentLocation
-            query = interpretation.destinationResult.name
-            naturalSearchState = .failed(
-                message: "Connexion nécessaire pour rechercher les horaires.",
-            )
+            apply(interpretation)
+            naturalSearchState = .failed(message: Self.offlineMessage)
         case let .networkUnavailableDraft(draft):
             recordNaturalMetric(.failure)
             naturalJourneyCriteria = nil
             naturalJourneyUnresolvedDraft = draft
-            naturalSearchState = .failed(
-                message: "Connexion nécessaire pour rechercher les horaires.",
-            )
+            naturalSearchState = .failed(message: Self.offlineMessage)
         case let .unsupported(message, examples):
             recordNaturalMetric(.unsupported)
             naturalSearchState = .unsupported(message: message, examples: examples)
-        case let .unavailable(message, guidance):
+        case let .unavailable(message):
             recordNaturalMetric(.unavailable)
-            if let guidance {
-                naturalSearchState = .availability(guidance)
-            } else {
-                naturalSearchState = .failed(message: message)
-            }
+            naturalSearchState = .failed(message: message)
         }
     }
+
+    /// Hands a finished interpretation to the classic search surface, so the
+    /// sheet and the map agree on what was understood.
+    private func apply(_ interpretation: NaturalJourneyInterpretation) {
+        naturalJourneyCriteria = NaturalJourneyCriteria(interpretation)
+        naturalJourneyUnresolvedDraft = nil
+        selectedDestination = interpretation.destinationResult
+        selectedDeparture = interpretation.originResult.map(SearchDepartureSelection.manual)
+            ?? .currentLocation
+        query = interpretation.destinationResult.name
+    }
+
+    private static let offlineMessage = "Connexion nécessaire pour rechercher les horaires."
 
     private static func naturalSearchErrorMessage(_ error: any Error) -> String {
         if error is NaturalIntentParsingError {
             return "Apple Intelligence n’a pas pu comprendre cette demande."
         }
-        return "Connexion nécessaire pour rechercher les horaires."
+        return Self.offlineMessage
     }
 
     private func recordNaturalMetric(_ outcome: NaturalJourneyMetric.Outcome) {
@@ -608,13 +603,7 @@ final class SearchViewModel {
             )
             request.limit = 4
             if var criteria = naturalJourneyCriteria {
-                criteria.originCoordinate = origin
                 criteria.originLabel = selectedDeparture.title
-                if case let .manual(result) = selectedDeparture {
-                    criteria.originResult = result
-                } else {
-                    criteria.originResult = nil
-                }
                 criteria.destinationResult = selectedDestination
                 naturalJourneyCriteria = criteria
                 request.requestedAt = criteria.requestedAt

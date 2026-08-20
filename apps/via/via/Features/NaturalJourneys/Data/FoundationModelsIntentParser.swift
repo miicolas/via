@@ -44,7 +44,7 @@ struct FoundationModelsIntentParser: NaturalIntentParsing {
                 generating: GeneratedRouteIntent.self
             )
             try Task.checkCancellation()
-            return try response.content.domain(now: now)
+            return try response.content.domain()
         } catch is CancellationError {
             throw .cancelled
         } catch let error as NaturalIntentParsingError {

@@ -75,9 +75,9 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             let origin: SearchResult?
             let destination: SearchResult?
             do {
-                origin = try await verify(unresolvedDraft.origin, near: location)
-                try Task.checkCancellation()
-                destination = try await verify(unresolvedDraft.destination, near: location)
+                async let verifiedOrigin = verify(unresolvedDraft.origin, near: location)
+                async let verifiedDestination = verify(unresolvedDraft.destination, near: location)
+                (origin, destination) = try await (verifiedOrigin, verifiedDestination)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
@@ -90,66 +90,41 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             )
             currentLocation = location
         case let .resolveModeConflict(submittedDraft, location, mode, constraint):
-            var requiredModes = submittedDraft.intent.requiredModes
-            var excludedModes = submittedDraft.intent.excludedModes
-            var preferredModes = submittedDraft.intent.preferredModes
-            switch constraint {
-            case .required:
-                requiredModes.insert(mode)
-                excludedModes.remove(mode)
-                preferredModes.remove(mode)
-            case .excluded:
-                requiredModes.remove(mode)
-                excludedModes.insert(mode)
-                preferredModes.remove(mode)
-            case .preferred:
-                requiredModes.remove(mode)
-                excludedModes.remove(mode)
-                preferredModes.insert(mode)
+            func keeping(
+                _ modes: Set<TransitMode>,
+                when kept: NaturalJourneyModeConstraint,
+            ) -> Set<TransitMode> {
+                var modes = modes
+                if constraint == kept { modes.insert(mode) } else { modes.remove(mode) }
+                return modes
             }
             let intent = submittedDraft.intent.resolvingModes(
-                required: requiredModes,
-                excluded: excludedModes,
-                preferred: preferredModes,
+                required: keeping(submittedDraft.intent.requiredModes, when: .required),
+                excluded: keeping(submittedDraft.intent.excludedModes, when: .excluded),
+                preferred: keeping(submittedDraft.intent.preferredModes, when: .preferred),
             )
-            draft = NaturalJourneyDraft(
-                intent: intent,
-                origin: submittedDraft.origin,
-                destination: submittedDraft.destination,
-            )
+            draft = submittedDraft.replacingIntent(intent)
             currentLocation = location
         case let .continueWithoutUnsupportedConstraints(submittedDraft, location):
             let intent = submittedDraft.intent.ignoringUnsupportedConstraints()
-            draft = NaturalJourneyDraft(
-                intent: intent,
-                origin: submittedDraft.origin,
-                destination: submittedDraft.destination,
-            )
+            draft = submittedDraft.replacingIntent(intent)
             currentLocation = location
         case let .resolveTimeConflict(submittedDraft, location, chosen):
             let primary = submittedDraft.intent.requestedAt.map {
                 RouteTimeConstraint(
                     requestedAt: $0,
-                    meaning: submittedDraft.intent.datetimeRepresents == .arrival ? .arrival : .departure,
+                    meaning: submittedDraft.intent.datetimeRepresents.journeyMeaning,
                 )
             }
             guard chosen == primary || chosen == submittedDraft.intent.alternateTimeConstraint else {
                 throw ViaError.invalidRequest("La contrainte horaire choisie ne correspond pas à la demande")
             }
             let intent = submittedDraft.intent.choosingTimeConstraint(chosen)
-            draft = NaturalJourneyDraft(
-                intent: intent,
-                origin: submittedDraft.origin,
-                destination: submittedDraft.destination,
-            )
+            draft = submittedDraft.replacingIntent(intent)
             currentLocation = location
         case let .confirmCurrentLocation(submittedDraft, location):
             let intent = submittedDraft.intent.confirmingCurrentLocation()
-            draft = NaturalJourneyDraft(
-                intent: intent,
-                origin: submittedDraft.origin,
-                destination: submittedDraft.destination,
-            )
+            draft = submittedDraft.replacingIntent(intent)
             currentLocation = location
         }
 
@@ -205,13 +180,13 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         if let requestedAt = draft.intent.requestedAt,
            let alternate = draft.intent.alternateTimeConstraint
         {
-            let primaryMeaning: JourneyDatetimeRepresents = draft.intent.datetimeRepresents == .arrival
-                ? .arrival
-                : .departure
             return .needsDecision(
                 draft: draft,
                 decision: .timeConflict(
-                    RouteTimeConstraint(requestedAt: requestedAt, meaning: primaryMeaning),
+                    RouteTimeConstraint(
+                        requestedAt: requestedAt,
+                        meaning: draft.intent.datetimeRepresents.journeyMeaning,
+                    ),
                     alternate,
                 ),
             )
@@ -245,10 +220,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         case .place: draft.origin?.coordinate
         }
         guard let origin, let destinationResult = draft.destination else {
-            return .unavailable(
-                message: "J’ai besoin d’un point de départ pour calculer le trajet.",
-                guidance: nil,
-            )
+            return .unavailable(message: "J’ai besoin d’un point de départ pour calculer le trajet.")
         }
         guard draft.intent.datetimeRepresents != .ambiguous else {
             return .needsClarification(
@@ -262,9 +234,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         }
 
         let destination = JourneyPlaceSelection(destinationResult).journeyDestination
-        let timeMeaning: JourneyDatetimeRepresents = draft.intent.datetimeRepresents == .arrival
-            ? .arrival
-            : .departure
+        let timeMeaning = draft.intent.datetimeRepresents.journeyMeaning
         var journeyRequest = JourneyRequest(origin: origin, destination: destination)
         journeyRequest.limit = 4
         journeyRequest.requestedAt = requestedAt
@@ -279,7 +249,6 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         }
         let interpretation = NaturalJourneyInterpretation(
             originLabel: originLabel,
-            originCoordinate: origin,
             originResult: draft.origin,
             destination: destination,
             destinationResult: destinationResult,
@@ -301,10 +270,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         }
 
         guard journeyResult.status == .ready, !journeyResult.journeys.isEmpty else {
-            return .unavailable(
-                message: "Je n’ai pas trouvé d’itinéraire vérifiable.",
-                guidance: nil,
-            )
+            return .unavailable(message: "Je n’ai pas trouvé d’itinéraire vérifiable.")
         }
 
         return .ready(
@@ -321,33 +287,44 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         var origin = draft.origin
         var destination = draft.destination
 
+        let pendingOriginQuery: String? = if case let .place(query) = draft.intent.origin, origin == nil {
+            query
+        } else {
+            nil
+        }
+        let pendingDestinationQuery = destination == nil ? draft.intent.destinationQuery : nil
+
+        // The two lookups are independent network searches: waiting for one
+        // before starting the other doubled the geocoding latency.
+        async let resolvedOrigin = resolve(pendingOriginQuery, near: currentLocation)
+        async let resolvedDestination = resolve(pendingDestinationQuery, near: currentLocation)
+        let (originResolution, destinationResolution) = try await (resolvedOrigin, resolvedDestination)
+        try Task.checkCancellation()
+
         if case .currentLocation = draft.intent.origin, currentLocation == nil {
             fields.append(.init(target: .origin, question: "D’où pars-tu ?", candidates: []))
-        } else if case let .place(query) = draft.intent.origin, origin == nil {
-            let resolution = try await places.resolve(query, near: currentLocation)
-            switch resolution {
+        } else if let originResolution {
+            switch originResolution {
             case let .resolved(result):
                 origin = result
             case .ambiguous, .notFound, .unavailable:
                 fields.append(.init(
                     target: .origin,
                     question: "De quel lieu pars-tu ?",
-                    candidates: resolution.candidates,
+                    candidates: originResolution.candidates,
                 ))
             }
         }
 
-        try Task.checkCancellation()
-        if let query = draft.intent.destinationQuery, destination == nil {
-            let resolution = try await places.resolve(query, near: currentLocation)
-            switch resolution {
+        if let destinationResolution {
+            switch destinationResolution {
             case let .resolved(result):
                 destination = result
             case .ambiguous, .notFound, .unavailable:
                 fields.append(.init(
                     target: .destination,
                     question: "Quel lieu veux-tu choisir ?",
-                    candidates: resolution.candidates,
+                    candidates: destinationResolution.candidates,
                 ))
             }
         } else if draft.intent.destinationQuery == nil {
@@ -376,6 +353,14 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             : .clarification(.needsClarification(draft: next, fields: fields))
     }
 
+    private func resolve(
+        _ query: String?,
+        near currentLocation: GeoCoordinate?,
+    ) async throws -> OnDevicePlaceResolution? {
+        guard let query else { return nil }
+        return try await places.resolve(query, near: currentLocation)
+    }
+
     private func verify(
         _ submitted: SearchResult?,
         near currentLocation: GeoCoordinate?,
@@ -402,6 +387,12 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         metrics.recordInterpretation(durationMilliseconds: Int(duration * 1000))
     }
 
+    private static let parisCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Paris")!
+        return calendar
+    }()
+
     private static func normalizedTime(in intent: RouteIntent, now: Date) -> RouteIntent {
         if intent.requestedAt == nil, !intent.dateWasExplicit, !intent.timeWasExplicit {
             return intent.replacingRequestedAt(now)
@@ -412,9 +403,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         else {
             return intent
         }
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/Paris")!
-        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: requestedAt) else {
+        guard let nextDay = parisCalendar.date(byAdding: .day, value: 1, to: requestedAt) else {
             return intent
         }
         return intent.replacingRequestedAt(nextDay)

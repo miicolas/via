@@ -39,6 +39,9 @@ struct NaturalJourneySheet: View {
     @ViewBuilder
     private func content(viewModel: Bindable<SearchViewModel>) -> some View {
         switch viewModel.wrappedValue.naturalSearchState {
+        case .dismissed:
+            // Unreachable: the sheet is only built while a state is presented.
+            EmptyView()
         case .onboarding:
             AIOnboardingCard(onTry: viewModel.wrappedValue.showNaturalSearchInput)
         case .input:

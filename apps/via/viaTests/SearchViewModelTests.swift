@@ -145,7 +145,6 @@ final class SearchViewModelTests: XCTestCase {
         let requestedAt = ISO8601.parse("2026-08-21T08:00:00+02:00")!
         let interpretation = NaturalJourneyInterpretation(
             originLabel: "Ma position",
-            originCoordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
             destination: JourneyPlaceSelection(.previewStation).journeyDestination,
             destinationResult: .previewStation,
             requestedAt: requestedAt,
@@ -340,7 +339,6 @@ final class SearchViewModelTests: XCTestCase {
         let coordinate = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
         let interpretation = NaturalJourneyInterpretation(
             originLabel: "Ma position",
-            originCoordinate: coordinate,
             destination: JourneyPlaceSelection(.previewStation).journeyDestination,
             destinationResult: .previewStation,
             requestedAt: firstTime,

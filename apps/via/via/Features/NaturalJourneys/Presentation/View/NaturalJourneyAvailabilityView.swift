@@ -6,21 +6,17 @@ struct NaturalJourneyAvailabilityView: View {
     let onClassicSearch: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            AIBadge()
-            Label("Apple Intelligence indisponible", systemImage: "sparkles")
-                .font(.title2.weight(.bold))
+        NaturalJourneyStateCard(
+            title: "Apple Intelligence indisponible",
+            systemImage: "sparkles",
+        ) {
             Text(guidance.message)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .naturalJourneyMessage()
             Button("Réessayer", action: onRetry)
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
+                .naturalJourneyPrimaryAction()
             Button("Recherche classique", action: onClassicSearch)
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
+                .naturalJourneySecondaryAction()
         }
-        .padding(20)
     }
 }
 

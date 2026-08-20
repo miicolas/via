@@ -15,21 +15,36 @@ struct NaturalJourneyCriteriaView: View {
 
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
-                    chip(criteria.originLabel, systemImage: "location.fill", action: onEditOrigin)
-                    chip(criteria.destinationResult.name, systemImage: "mappin.and.ellipse", action: onEditDestination)
-                    chip(timeLabel, systemImage: "calendar.badge.clock", action: onEditTime)
+                    NaturalJourneyCriteriaChip(
+                        title: criteria.originLabel,
+                        systemImage: "location.fill",
+                        action: onEditOrigin,
+                    )
+                    NaturalJourneyCriteriaChip(
+                        title: criteria.destinationResult.name,
+                        systemImage: "mappin.and.ellipse",
+                        action: onEditDestination,
+                    )
+                    NaturalJourneyCriteriaChip(
+                        title: NaturalJourneyCriteria.timeLabel(
+                            criteria.requestedAt,
+                            represents: criteria.datetimeRepresents,
+                        ),
+                        systemImage: "calendar.badge.clock",
+                        action: onEditTime,
+                    )
 
                     ForEach(criteria.requiredModes.sorted(), id: \.self) { mode in
-                        chip("\(mode.naturalLanguageName) uniquement", systemImage: "checkmark.circle", action: onEditOptions)
+                        modeChip("\(mode.naturalLanguageName) uniquement", systemImage: "checkmark.circle")
                     }
                     ForEach(criteria.excludedModes.sorted(), id: \.self) { mode in
-                        chip("Sans \(mode.naturalLanguageName)", systemImage: "nosign", action: onEditOptions)
+                        modeChip("Sans \(mode.naturalLanguageName)", systemImage: "nosign")
                     }
                     ForEach(criteria.preferredModes.sorted(), id: \.self) { mode in
-                        chip("Plutôt \(mode.naturalLanguageName)", systemImage: "heart", action: onEditOptions)
+                        modeChip("Plutôt \(mode.naturalLanguageName)", systemImage: "heart")
                     }
 
-                    chip("Options", systemImage: "slider.horizontal.3", action: onEditOptions)
+                    modeChip("Options", systemImage: "slider.horizontal.3")
                 }
             }
             .scrollIndicators(.hidden)
@@ -38,32 +53,16 @@ struct NaturalJourneyCriteriaView: View {
     }
 
     private var summary: String {
-        let count = journeyCount
-        let noun = count > 1 ? "trajets" : "trajet"
+        let noun = journeyCount > 1 ? "trajets" : "trajet"
         let verb = criteria.datetimeRepresents == .arrival ? "pour arriver avant" : "au départ après"
-        let time = criteria.requestedAt.formatted(date: .omitted, time: .shortened)
-        return "\(count) \(noun) \(verb) \(time)"
+        return "\(journeyCount) \(noun) \(verb) \(JourneyFormatting.time(criteria.requestedAt))"
     }
 
-    private var timeLabel: String {
-        let meaning = criteria.datetimeRepresents == .arrival ? "Arrivée" : "Départ"
-        return "\(meaning) · \(criteria.requestedAt.formatted(date: .abbreviated, time: .shortened))"
-    }
-
-    private func chip(
-        _ title: String,
-        systemImage: String,
-        action: @escaping () -> Void,
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .background(Color.secondary.opacity(0.10), in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint("Modifier ce critère")
+    private func modeChip(_ title: String, systemImage: String) -> some View {
+        NaturalJourneyCriteriaChip(
+            title: title,
+            systemImage: systemImage,
+            action: onEditOptions,
+        )
     }
 }

@@ -9,6 +9,18 @@ extension View {
     func aiSurface(cornerRadius: CGFloat = 24) -> some View {
         modifier(AISurfaceStyle(cornerRadius: cornerRadius))
     }
+
+    /// The Apple Intelligence beam, defined once so every AI surface in the app
+    /// animates with the same palette.
+    func aiBeam(cornerRadius: CGFloat, blur: CGFloat = 15, isEnabled: Bool) -> some View {
+        borderBeam(
+            border: .white,
+            beam: [.purple, .blue, .pink, .indigo],
+            beamBlur: blur,
+            cornerRadius: cornerRadius,
+            isEnabled: isEnabled,
+        )
+    }
 }
 
 struct AISurfaceStyle: ViewModifier {
@@ -18,13 +30,7 @@ struct AISurfaceStyle: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .borderBeam(
-                border: .white,
-                beam: [.purple, .blue, .pink, .indigo],
-                beamBlur: 15,
-                cornerRadius: cornerRadius,
-                isEnabled: !reduceMotion,
-            )
+            .aiBeam(cornerRadius: cornerRadius, isEnabled: !reduceMotion)
             .background(
                 Color.aiSurface,
                 in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
@@ -49,13 +55,7 @@ struct AIBeamButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, minHeight: 52)
             .contentShape(Capsule())
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .borderBeam(
-                border: .white,
-                beam: [.purple, .blue, .pink, .indigo],
-                beamBlur: 15,
-                cornerRadius: 999,
-                isEnabled: isAnimated && !reduceMotion,
-            )
+            .aiBeam(cornerRadius: 999, isEnabled: isAnimated && !reduceMotion)
             .background(Color.aiAccent, in: Capsule())
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.15),

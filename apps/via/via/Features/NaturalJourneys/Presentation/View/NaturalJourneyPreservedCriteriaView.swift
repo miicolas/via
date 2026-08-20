@@ -1,14 +1,16 @@
 import SwiftUI
 
+/// The recap shown when a search could not finish: what Via understood is kept
+/// on screen so the traveller does not have to describe the trip again.
 struct NaturalJourneyPreservedCriteriaView: View {
-    private let source: Source
+    private let fields: Fields
 
     init(criteria: NaturalJourneyCriteria) {
-        source = .resolved(criteria)
+        fields = Fields(criteria)
     }
 
     init(draft: NaturalJourneyDraft) {
-        source = .draft(draft)
+        fields = Fields(draft)
     }
 
     var body: some View {
@@ -18,22 +20,37 @@ struct NaturalJourneyPreservedCriteriaView: View {
 
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
-                    chip(originLabel, systemImage: "location.fill")
-                    if let destinationLabel {
-                        chip(destinationLabel, systemImage: "mappin.and.ellipse")
+                    NaturalJourneyCriteriaChip(
+                        title: fields.origin,
+                        systemImage: "location.fill",
+                    )
+                    if let destination = fields.destination {
+                        NaturalJourneyCriteriaChip(
+                            title: destination,
+                            systemImage: "mappin.and.ellipse",
+                        )
                     }
-                    if let timeLabel {
-                        chip(timeLabel, systemImage: "calendar.badge.clock")
+                    if let time = fields.time {
+                        NaturalJourneyCriteriaChip(title: time, systemImage: "calendar.badge.clock")
                     }
 
-                    if !requiredModes.isEmpty {
-                        chip("Modes obligatoires conservés", systemImage: "checkmark.circle")
+                    if fields.hasRequiredModes {
+                        NaturalJourneyCriteriaChip(
+                            title: "Modes obligatoires conservés",
+                            systemImage: "checkmark.circle",
+                        )
                     }
-                    if !excludedModes.isEmpty {
-                        chip("Modes exclus conservés", systemImage: "nosign")
+                    if fields.hasExcludedModes {
+                        NaturalJourneyCriteriaChip(
+                            title: "Modes exclus conservés",
+                            systemImage: "nosign",
+                        )
                     }
-                    if !preferredModes.isEmpty {
-                        chip("Modes préférés conservés", systemImage: "heart")
+                    if fields.hasPreferredModes {
+                        NaturalJourneyCriteriaChip(
+                            title: "Modes préférés conservés",
+                            systemImage: "heart",
+                        )
                     }
                 }
             }
@@ -42,73 +59,41 @@ struct NaturalJourneyPreservedCriteriaView: View {
         .accessibilityElement(children: .contain)
     }
 
-    private var originLabel: String {
-        switch source {
-        case let .resolved(criteria):
-            criteria.originLabel
-        case let .draft(draft):
-            switch draft.intent.origin {
+    /// A resolved interpretation and a half-resolved draft describe the same
+    /// trip; normalising once here keeps the body free of that distinction.
+    private struct Fields {
+        let origin: String
+        let destination: String?
+        let time: String?
+        let hasRequiredModes: Bool
+        let hasExcludedModes: Bool
+        let hasPreferredModes: Bool
+
+        init(_ criteria: NaturalJourneyCriteria) {
+            origin = criteria.originLabel
+            destination = criteria.destinationResult.name
+            time = NaturalJourneyCriteria.timeLabel(
+                criteria.requestedAt,
+                represents: criteria.datetimeRepresents,
+            )
+            hasRequiredModes = !criteria.requiredModes.isEmpty
+            hasExcludedModes = !criteria.excludedModes.isEmpty
+            hasPreferredModes = !criteria.preferredModes.isEmpty
+        }
+
+        init(_ draft: NaturalJourneyDraft) {
+            let intent = draft.intent
+            origin = switch intent.origin {
             case .currentLocation: "Ma position"
             case let .place(query): draft.origin?.name ?? query
             }
+            destination = draft.destination?.name ?? intent.destinationQuery
+            time = intent.requestedAt.map {
+                NaturalJourneyCriteria.timeLabel($0, represents: intent.datetimeRepresents.journeyMeaning)
+            }
+            hasRequiredModes = !intent.requiredModes.isEmpty
+            hasExcludedModes = !intent.excludedModes.isEmpty
+            hasPreferredModes = !intent.preferredModes.isEmpty
         }
-    }
-
-    private var destinationLabel: String? {
-        switch source {
-        case let .resolved(criteria): criteria.destinationResult.name
-        case let .draft(draft): draft.destination?.name ?? draft.intent.destinationQuery
-        }
-    }
-
-    private var timeLabel: String? {
-        let date: Date
-        let meaning: JourneyDatetimeRepresents
-        switch source {
-        case let .resolved(criteria):
-            date = criteria.requestedAt
-            meaning = criteria.datetimeRepresents
-        case let .draft(draft):
-            guard let requestedAt = draft.intent.requestedAt else { return nil }
-            date = requestedAt
-            meaning = draft.intent.datetimeRepresents == .arrival ? .arrival : .departure
-        }
-        let prefix = meaning == .arrival ? "Arrivée" : "Départ"
-        let value = date.formatted(date: .abbreviated, time: .shortened)
-        return "\(prefix) · \(value)"
-    }
-
-    private var requiredModes: Set<TransitMode> {
-        switch source {
-        case let .resolved(criteria): criteria.requiredModes
-        case let .draft(draft): draft.intent.requiredModes
-        }
-    }
-
-    private var excludedModes: Set<TransitMode> {
-        switch source {
-        case let .resolved(criteria): criteria.excludedModes
-        case let .draft(draft): draft.intent.excludedModes
-        }
-    }
-
-    private var preferredModes: Set<TransitMode> {
-        switch source {
-        case let .resolved(criteria): criteria.preferredModes
-        case let .draft(draft): draft.intent.preferredModes
-        }
-    }
-
-    private func chip(_ title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 12)
-            .frame(minHeight: 44)
-            .background(Color.secondary.opacity(0.10), in: Capsule())
-    }
-
-    private enum Source {
-        case resolved(NaturalJourneyCriteria)
-        case draft(NaturalJourneyDraft)
     }
 }

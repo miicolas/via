@@ -8,24 +8,21 @@ struct NaturalJourneyFailureView: View {
     let onClassicSearch: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            AIBadge()
-            Label("Recherche impossible", systemImage: "wifi.exclamationmark")
-                .font(.title2.weight(.bold))
+        NaturalJourneyStateCard(
+            title: "Recherche impossible",
+            systemImage: "wifi.exclamationmark",
+        ) {
             Text(message)
-                .foregroundStyle(.secondary)
+                .naturalJourneyMessage()
             if let criteria {
                 NaturalJourneyPreservedCriteriaView(criteria: criteria)
             } else if let unresolvedDraft {
                 NaturalJourneyPreservedCriteriaView(draft: unresolvedDraft)
             }
             Button("Réessayer", action: onRetry)
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
+                .naturalJourneyPrimaryAction()
             Button("Recherche classique", action: onClassicSearch)
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
+                .naturalJourneySecondaryAction()
         }
-        .padding(20)
     }
 }

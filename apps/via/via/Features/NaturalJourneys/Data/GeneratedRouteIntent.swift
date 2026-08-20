@@ -78,8 +78,7 @@ struct GeneratedRouteIntent {
     @Guide(description: "Contraintes de trajet comprises mais non prises en charge par Via, au plus trois; par exemple marche maximale, accessibilité, ligne précise, coût ou confort")
     var unsupportedConstraints: [String]
 
-    func domain(now: Date) throws(NaturalIntentParsingError) -> RouteIntent {
-        _ = now
+    func domain() throws(NaturalIntentParsingError) -> RouteIntent {
         let mappedOrigin: RouteOriginIntent
         switch origin.kind {
         case .currentLocation:

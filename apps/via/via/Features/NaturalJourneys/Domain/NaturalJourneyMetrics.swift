@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 struct NaturalJourneyMetric: Sendable, Hashable {
     enum Outcome: String, Sendable, Hashable {

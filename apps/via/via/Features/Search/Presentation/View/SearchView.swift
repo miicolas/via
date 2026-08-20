@@ -245,27 +245,13 @@ struct SearchView: View {
                 }
 
                 if viewModel.wrappedValue.naturalLanguageAccess != .hidden {
-                    Button {
+                    AIEntryButton(
+                        shape: .capsule(title: "IA"),
+                        isDiscoverable: viewModel.wrappedValue.showsNaturalSearchDiscovery,
+                    ) {
                         sheetDetent = .fraction(0.45)
                         viewModel.wrappedValue.openNaturalSearch()
-                    } label: {
-                        Label("IA", systemImage: "sparkles")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(Color.aiAccent)
-                            .padding(.horizontal, 12)
-                            .frame(minHeight: 48)
-                            .background(Color.aiSurface, in: Capsule())
-                            .borderBeam(
-                                border: .white,
-                                beam: [.purple, .blue, .pink, .indigo],
-                                beamBlur: 12,
-                                cornerRadius: 999,
-                                isEnabled: viewModel.wrappedValue.showsNaturalSearchDiscovery && !reduceMotion,
-                            )
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(NaturalJourneyPresentationPolicy.entryAccessibilityLabel)
-                    .accessibilityHint(NaturalJourneyPresentationPolicy.entryAccessibilityHint)
                 }
             }
             .matchedGeometryEffect(

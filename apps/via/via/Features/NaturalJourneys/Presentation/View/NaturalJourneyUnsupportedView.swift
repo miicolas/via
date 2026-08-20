@@ -7,23 +7,20 @@ struct NaturalJourneyUnsupportedView: View {
     let onClassicSearch: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            AIBadge()
-            Label("Demande non reconnue", systemImage: "text.magnifyingglass")
-                .font(.title2.weight(.bold))
+        NaturalJourneyStateCard(
+            title: "Demande non reconnue",
+            systemImage: "text.magnifyingglass",
+        ) {
             Text(message)
-                .foregroundStyle(.secondary)
+                .naturalJourneyMessage()
             ForEach(suggestions, id: \.self) { suggestion in
                 Text("• \(suggestion)")
                     .font(.subheadline)
             }
             Button("Modifier la demande", action: onModify)
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
+                .naturalJourneyPrimaryAction()
             Button("Recherche classique", action: onClassicSearch)
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.capsule)
+                .naturalJourneySecondaryAction()
         }
-        .padding(20)
     }
 }

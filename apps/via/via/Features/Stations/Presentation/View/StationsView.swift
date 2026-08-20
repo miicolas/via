@@ -14,7 +14,6 @@ struct StationsView: View {
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var selectedPlaceShortcut: StationPlaceShortcut?
 
@@ -26,23 +25,11 @@ struct StationsView: View {
                 .toolbar {
                     if naturalLanguageAccess != .hidden {
                         ToolbarItem(placement: .topBarTrailing) {
-                            Button {
-                                onOpenNaturalSearch()
-                            } label: {
-                                Image(systemName: "sparkles")
-                                    .foregroundStyle(Color.aiAccent)
-                                    .frame(width: 36, height: 36)
-                                    .background(Color.aiSurface, in: Circle())
-                                    .borderBeam(
-                                        border: .white,
-                                        beam: [.purple, .blue, .pink, .indigo],
-                                        beamBlur: 10,
-                                        cornerRadius: 18,
-                                        isEnabled: showsNaturalSearchDiscovery && !reduceMotion,
-                                    )
-                            }
-                            .accessibilityLabel(NaturalJourneyPresentationPolicy.entryAccessibilityLabel)
-                            .accessibilityHint(NaturalJourneyPresentationPolicy.entryAccessibilityHint)
+                            AIEntryButton(
+                                shape: .circle,
+                                isDiscoverable: showsNaturalSearchDiscovery,
+                                action: onOpenNaturalSearch,
+                            )
                         }
                     }
                 }

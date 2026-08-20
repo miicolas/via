@@ -12,7 +12,15 @@ struct RouteTimeConstraint: Sendable, Hashable {
 
 struct RouteIntent: Sendable, Hashable {
     enum Scope: String, Sendable, Hashable { case journey, unsupported }
-    enum TimeMeaning: String, Sendable, Hashable { case departure, arrival, ambiguous }
+    enum TimeMeaning: String, Sendable, Hashable {
+        case departure, arrival, ambiguous
+
+        /// The engine only accepts departure or arrival, so `ambiguous` has to
+        /// be resolved before this is read.
+        var journeyMeaning: JourneyDatetimeRepresents {
+            self == .arrival ? .arrival : .departure
+        }
+    }
 
     private(set) var scope: Scope
     private(set) var origin: RouteOriginIntent
@@ -116,6 +124,12 @@ struct NaturalJourneyDraft: Sendable, Hashable {
     let intent: RouteIntent
     let origin: SearchResult?
     let destination: SearchResult?
+
+    /// Answering a decision only revises the intent: the places already
+    /// resolved for this draft survive untouched.
+    func replacingIntent(_ intent: RouteIntent) -> Self {
+        NaturalJourneyDraft(intent: intent, origin: origin, destination: destination)
+    }
 }
 
 enum NaturalJourneyRequest: Sendable, Hashable {
@@ -157,7 +171,6 @@ enum NaturalJourneyModeConstraint: Sendable, Hashable {
 
 struct NaturalJourneyInterpretation: Sendable, Hashable {
     let originLabel: String
-    let originCoordinate: GeoCoordinate?
     let originResult: SearchResult?
     let destination: JourneyDestination
     let destinationResult: SearchResult
@@ -169,7 +182,6 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
 
     init(
         originLabel: String,
-        originCoordinate: GeoCoordinate? = nil,
         originResult: SearchResult? = nil,
         destination: JourneyDestination,
         destinationResult: SearchResult,
@@ -180,7 +192,6 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
         preferredModes: Set<TransitMode>,
     ) {
         self.originLabel = originLabel
-        self.originCoordinate = originCoordinate
         self.originResult = originResult
         self.destination = destination
         self.destinationResult = destinationResult
@@ -194,8 +205,6 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
 
 struct NaturalJourneyCriteria: Sendable, Hashable {
     var originLabel: String
-    var originCoordinate: GeoCoordinate?
-    var originResult: SearchResult?
     var destinationResult: SearchResult
     var requestedAt: Date
     var datetimeRepresents: JourneyDatetimeRepresents
@@ -205,8 +214,6 @@ struct NaturalJourneyCriteria: Sendable, Hashable {
 
     init(_ interpretation: NaturalJourneyInterpretation) {
         originLabel = interpretation.originLabel
-        originCoordinate = interpretation.originCoordinate
-        originResult = interpretation.originResult
         destinationResult = interpretation.destinationResult
         requestedAt = interpretation.requestedAt
         datetimeRepresents = interpretation.datetimeRepresents
@@ -249,7 +256,7 @@ enum NaturalJourneyResult: Sendable, Hashable {
     case networkUnavailable(interpretation: NaturalJourneyInterpretation)
     case networkUnavailableDraft(draft: NaturalJourneyDraft)
     case unsupported(message: String, examples: [String])
-    case unavailable(message: String, guidance: NaturalJourneyUnavailableGuidance?)
+    case unavailable(message: String)
 }
 
 extension TransitMode {
@@ -263,23 +270,5 @@ extension TransitMode {
         }
     }
 
-    var naturalLanguageTitle: String {
-        switch self {
-        case .metro: "Métro"
-        case .rer: "RER"
-        case .transilien: "Transilien"
-        case .tram: "Tram"
-        case .bus: "Bus"
-        }
-    }
-
-    var naturalLanguageNameWithArticle: String {
-        switch self {
-        case .metro: "le métro"
-        case .rer: "le RER"
-        case .transilien: "le Transilien"
-        case .tram: "le tram"
-        case .bus: "le bus"
-        }
-    }
+    var naturalLanguageNameWithArticle: String { "le \(naturalLanguageName)" }
 }
