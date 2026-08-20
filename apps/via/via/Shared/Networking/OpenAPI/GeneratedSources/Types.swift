@@ -4287,8 +4287,6 @@ internal enum Operations {
                 internal var longitude: Swift.Double?
                 /// - Remark: Generated from `#/paths/search/GET/query/limit`.
                 internal var limit: Swift.Int?
-                /// - Remark: Generated from `#/paths/search/GET/query/accessibleStationsOnly`.
-                internal var accessibleStationsOnly: Swift.Bool?
                 /// Creates a new `Query`.
                 ///
                 /// - Parameters:
@@ -4296,19 +4294,16 @@ internal enum Operations {
                 ///   - latitude:
                 ///   - longitude:
                 ///   - limit:
-                ///   - accessibleStationsOnly:
                 internal init(
                     q: Swift.String,
                     latitude: Swift.Double? = nil,
                     longitude: Swift.Double? = nil,
-                    limit: Swift.Int? = nil,
-                    accessibleStationsOnly: Swift.Bool? = nil
+                    limit: Swift.Int? = nil
                 ) {
                     self.q = q
                     self.latitude = latitude
                     self.longitude = longitude
                     self.limit = limit
-                    self.accessibleStationsOnly = accessibleStationsOnly
                 }
             }
             internal var query: Operations.search_period_query.Input.Query

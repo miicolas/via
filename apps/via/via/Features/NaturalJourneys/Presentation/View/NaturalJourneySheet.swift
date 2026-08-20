@@ -23,7 +23,6 @@ struct NaturalJourneySheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     SearchFiltersMenu(
                         filters: viewModel.filters,
-                        onSetAccessibleStationsOnly: viewModel.setAccessibleStationsOnly,
                         onSetRequiresAccessibleStations: viewModel.setRequiresAccessibleStations,
                         onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
                     )

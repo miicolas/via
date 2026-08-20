@@ -498,16 +498,8 @@ final class SearchViewModel {
         updateQuery("")
     }
 
-    func setAccessibleStationsOnly(_ enabled: Bool) {
-        guard !filters.requiresAccessibleStations || enabled else { return }
-        updateFilters { $0.accessibleStationsOnly = enabled }
-    }
-
     func setRequiresAccessibleStations(_ enabled: Bool) {
-        updateFilters {
-            $0.requiresAccessibleStations = enabled
-            if enabled { $0.accessibleStationsOnly = true }
-        }
+        updateFilters { $0.requiresAccessibleStations = enabled }
     }
 
     private func updateFilters(_ update: (inout SearchFilters) -> Void) {
@@ -528,15 +520,6 @@ final class SearchViewModel {
         if selectedDestination != nil, step != .destination {
             planJourney()
             return
-        }
-
-        guard step == .destination else { return }
-        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalized.count >= 2 else { return }
-        searchTask?.cancel()
-        searchTask = Task { [weak self] in
-            guard let self else { return }
-            await self.performSearch(normalized)
         }
     }
 
@@ -628,8 +611,7 @@ final class SearchViewModel {
     func searchPlaces(query: String) async throws -> SearchResponse {
         try await repository.search(
             query: query,
-            near: locationModel.coordinate,
-            accessibleStationsOnly: filters.accessibleStationsOnly
+            near: locationModel.coordinate
         )
     }
 
@@ -727,7 +709,6 @@ final class SearchViewModel {
             let response = try await repository.search(
                 query: normalizedQuery,
                 near: locationModel.coordinate,
-                accessibleStationsOnly: filters.accessibleStationsOnly,
             )
             guard !Task.isCancelled else { return }
 

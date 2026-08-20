@@ -3,22 +3,11 @@ import SwiftUI
 @MainActor
 struct SearchFiltersMenu: View {
     let filters: SearchFilters
-    let onSetAccessibleStationsOnly: @MainActor (Bool) -> Void
     let onSetRequiresAccessibleStations: @MainActor (Bool) -> Void
     let onShowAccessibilityInfo: @MainActor () -> Void
 
     var body: some View {
         Menu {
-            Toggle(
-                isOn: Binding(
-                    get: { filters.accessibleStationsOnly },
-                    set: onSetAccessibleStationsOnly
-                )
-            ) {
-                Label("Gares accessibles PMR", systemImage: "figure.roll")
-            }
-            .disabled(filters.requiresAccessibleStations)
-
             Toggle(
                 isOn: Binding(
                     get: { filters.requiresAccessibleStations },

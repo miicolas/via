@@ -59,16 +59,14 @@ export async function searchPlaces(
     limit,
     origin,
     signal,
-    accessibleStationsOnly = false,
   }: {
     limit: number;
     origin?: Coordinate;
     signal?: AbortSignal;
-    accessibleStationsOnly?: boolean;
   }
 ): Promise<PlaceSearch> {
   const [stationRows, banFeatures, accessibility] = await Promise.all([
-    selectMatchingStations(q, STATION_LIMIT, origin, accessibleStationsOnly),
+    selectMatchingStations(q, STATION_LIMIT, origin),
     searchBan(q, { limit: ADDRESS_LIMIT, origin, signal }),
     readAccessibilitySourceStatus(),
   ]);

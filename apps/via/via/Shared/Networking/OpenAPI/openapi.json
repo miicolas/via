@@ -2271,16 +2271,6 @@
             },
             "allowEmptyValue": true,
             "allowReserved": true
-          },
-          {
-            "name": "accessibleStationsOnly",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "allowEmptyValue": true,
-            "allowReserved": true
           }
         ],
         "responses": {

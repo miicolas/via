@@ -184,11 +184,9 @@ struct ApplicationEntry: App {
         let naturalJourneyRepository = OnDeviceNaturalJourneyService(
             parser: naturalIntentParser,
             places: OnDevicePlaceResolver { query, coordinate in
-                let filters = UserDefaultsSearchFilterStore().load()
                 return try await searchRepository.search(
                     query: query,
-                    near: coordinate,
-                    accessibleStationsOnly: filters.accessibleStationsOnly
+                    near: coordinate
                 )
             },
             journeys: journeyRepository,

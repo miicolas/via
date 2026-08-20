@@ -67,7 +67,6 @@ struct SearchView: View {
                             ToolbarItem(placement: .topBarTrailing) {
                                 SearchFiltersMenu(
                                     filters: viewModel.wrappedValue.filters,
-                                    onSetAccessibleStationsOnly: viewModel.wrappedValue.setAccessibleStationsOnly,
                                     onSetRequiresAccessibleStations: viewModel.wrappedValue.setRequiresAccessibleStations,
                                     onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
                                 )
@@ -214,7 +213,6 @@ struct SearchView: View {
                     SearchResultsSection(
                         state: viewModel.wrappedValue.loadState,
                         results: viewModel.wrappedValue.results,
-                        showsAccessibility: viewModel.wrappedValue.filters.accessibleStationsOnly,
                         onRetry: viewModel.wrappedValue.retry,
                         onSelect: viewModel.wrappedValue.selectDestination,
                     )

@@ -1,11 +1,10 @@
 import Foundation
 
 struct SearchFilters: Codable, Sendable, Hashable {
-    var accessibleStationsOnly = false
     var requiresAccessibleStations = false
 
     var activeCount: Int {
-        (accessibleStationsOnly ? 1 : 0) + (requiresAccessibleStations ? 1 : 0)
+        requiresAccessibleStations ? 1 : 0
     }
 }
 

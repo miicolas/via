@@ -3,18 +3,15 @@ import SwiftUI
 struct SearchResultRow: View {
     let result: SearchResult
     let accessibilityHint: String
-    let showsAccessibility: Bool
     let action: () -> Void
 
     init(
         result: SearchResult,
         accessibilityHint: String = "Sélectionne cette destination",
-        showsAccessibility: Bool = false,
         action: @escaping () -> Void
     ) {
         self.result = result
         self.accessibilityHint = accessibilityHint
-        self.showsAccessibility = showsAccessibility
         self.action = action
     }
 
@@ -91,18 +88,6 @@ struct SearchResultRow: View {
                         }
                     }
                 }
-
-                if showsAccessibility, let accessibility = station.accessibility {
-                    Label(accessibility.label, systemImage: "figure.roll")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tint)
-                    if let comment = accessibility.comment, !comment.isEmpty {
-                        Text(comment)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                    }
-                }
             }
 
         case .address(let address):
@@ -118,9 +103,7 @@ struct SearchResultRow: View {
         case .station(let station):
             let routes = station.routes.map(\.shortName).joined(separator: ", ")
             let base = routes.isEmpty ? "Station \(station.name)" : "Station \(station.name), lignes \(routes)"
-            guard showsAccessibility, let accessibility = station.accessibility else { return base }
-            let comment = accessibility.comment.map { ", \($0)" } ?? ""
-            return "\(base), \(accessibility.label)\(comment)"
+            return base
         case .address(let address):
             return address.context.isEmpty
                 ? "Adresse \(address.name)"

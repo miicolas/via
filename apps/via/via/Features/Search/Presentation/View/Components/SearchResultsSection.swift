@@ -3,7 +3,6 @@ import SwiftUI
 struct SearchResultsSection: View {
     let state: SearchLoadState
     let results: [SearchResult]
-    let showsAccessibility: Bool = false
     let onRetry: () -> Void
     let onSelect: (SearchResult) -> Void
 
@@ -29,7 +28,7 @@ struct SearchResultsSection: View {
 
             case .loaded:
                 ForEach(results) { result in
-                    SearchResultRow(result: result, showsAccessibility: showsAccessibility) {
+                    SearchResultRow(result: result) {
                         onSelect(result)
                     }
 
@@ -41,9 +40,7 @@ struct SearchResultsSection: View {
 
             case .empty:
                 SearchEmptyStateView(
-                    message: showsAccessibility
-                        ? "Aucune gare accessible PMR ne correspond. Essayez un autre nom."
-                        : "Essayez un autre nom de station ou d’adresse."
+                    message: "Essayez un autre nom de station ou d’adresse."
                 )
 
             case .failed:

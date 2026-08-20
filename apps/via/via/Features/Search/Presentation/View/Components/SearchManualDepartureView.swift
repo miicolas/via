@@ -4,7 +4,6 @@ struct SearchManualDepartureView: View {
     let searchPlaces: @MainActor (String) async throws -> SearchResponse
     let onSelect: (SearchResult) -> Void
     let filters: SearchFilters
-    let onSetAccessibleStationsOnly: @MainActor (Bool) -> Void
     let onSetRequiresAccessibleStations: @MainActor (Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -23,13 +22,11 @@ struct SearchManualDepartureView: View {
         searchPlaces: @escaping @MainActor (String) async throws -> SearchResponse,
         onSelect: @escaping (SearchResult) -> Void,
         filters: SearchFilters = .init(),
-        onSetAccessibleStationsOnly: @escaping @MainActor (Bool) -> Void = { _ in },
         onSetRequiresAccessibleStations: @escaping @MainActor (Bool) -> Void = { _ in }
     ) {
         self.searchPlaces = searchPlaces
         self.onSelect = onSelect
         self.filters = filters
-        self.onSetAccessibleStationsOnly = onSetAccessibleStationsOnly
         self.onSetRequiresAccessibleStations = onSetRequiresAccessibleStations
     }
 
@@ -46,7 +43,6 @@ struct SearchManualDepartureView: View {
                     SearchResultsSection(
                         state: loadState,
                         results: results,
-                        showsAccessibility: filters.accessibleStationsOnly,
                         onRetry: { searchRequestID += 1 },
                         onSelect: { result in
                             onSelect(result)
@@ -68,7 +64,6 @@ struct SearchManualDepartureView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     SearchFiltersMenu(
                         filters: filters,
-                        onSetAccessibleStationsOnly: onSetAccessibleStationsOnly,
                         onSetRequiresAccessibleStations: onSetRequiresAccessibleStations,
                         onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
                     )
@@ -78,7 +73,7 @@ struct SearchManualDepartureView: View {
         .sheet(isPresented: $isAccessibilityInfoPresented) {
             SearchAccessibilityInfoView(source: accessibilitySource)
         }
-        .task(id: "\(query)-\(searchRequestID)-\(filters.accessibleStationsOnly)") {
+        .task(id: "\(query)-\(searchRequestID)") {
             await search()
         }
     }

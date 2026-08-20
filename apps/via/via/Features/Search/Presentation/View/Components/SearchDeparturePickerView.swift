@@ -91,7 +91,6 @@ struct SearchDeparturePickerView: View {
                     dismiss()
                 },
                 filters: viewModel.filters,
-                onSetAccessibleStationsOnly: viewModel.setAccessibleStationsOnly,
                 onSetRequiresAccessibleStations: viewModel.setRequiresAccessibleStations
             )
         }

@@ -6,7 +6,7 @@ import {
   transitStopRoutes,
   transitStops,
 } from '@via/db/schema';
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { networkRouteCondition } from '@via/db/network-scope';
 
@@ -24,13 +24,10 @@ import { escapeLikePattern } from './like-pattern';
  * because degrees lie about east-west distances at Paris' latitude, the same
  * rule `stop-projection.ts` documents — alphabetical otherwise.
  */
-export const ACCESSIBLE_LEVEL_IDS = [3, 4, 6] as const;
-
 export function selectMatchingStations(
   query: string,
   limit: number,
-  origin?: Coordinate,
-  accessibleStationsOnly = false
+  origin?: Coordinate
 ) {
   const normalizedName = sql`immutable_unaccent(lower(${transitStops.name}))`;
   // position() searches the literal text; LIKE additionally needs its
@@ -66,10 +63,7 @@ export function selectMatchingStations(
     .where(
       and(
         networkRouteCondition(),
-        sql`${normalizedName} LIKE '%' || ${likeNeedle} || '%'`,
-        accessibleStationsOnly
-          ? inArray(stationAccessibility.levelId, [...ACCESSIBLE_LEVEL_IDS])
-          : undefined
+        sql`${normalizedName} LIKE '%' || ${likeNeedle} || '%'`
       )
     )
     .groupBy(

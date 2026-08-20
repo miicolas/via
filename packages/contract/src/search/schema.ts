@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { coordinateSchema, queryBooleanSchema, routeBadgeSchema } from '../shared/schema';
+import { coordinateSchema, routeBadgeSchema } from '../shared/schema';
 
 export const searchInputSchema = z
   .object({
@@ -13,8 +13,6 @@ export const searchInputSchema = z
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
     limit: z.int().min(1).max(20).default(10),
-    /** Only return stations with a declared PMR accessibility level. */
-    accessibleStationsOnly: queryBooleanSchema.optional(),
   })
   .refine((input) => (input.latitude === undefined) === (input.longitude === undefined), {
     message: 'latitude et longitude vont ensemble',

@@ -19,7 +19,6 @@ export const querySearch = implementer.search.query.handler(
       limit: input.limit,
       origin,
       signal,
-      accessibleStationsOnly: input.accessibleStationsOnly,
     });
 
     context.resHeaders?.set('Cache-Control', SEARCH_CACHE_CONTROL);
