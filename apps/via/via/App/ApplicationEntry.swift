@@ -4,6 +4,9 @@ import SwiftUI
 @MainActor
 struct ApplicationEntry: App {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @State private var isShowingLaunchAnimation = true
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
     @State private var linesViewModel: LinesViewModel
@@ -73,16 +76,29 @@ struct ApplicationEntry: App {
 
     var body: some Scene {
         WindowGroup {
-            MapShellView(
-                networkViewModel: networkViewModel,
-                stationsViewModel: stationsViewModel,
-                linesViewModel: linesViewModel,
-                selectedStationModel: selectedStationModel,
-                searchViewModel: searchViewModel,
-                activeJourneyModel: activeJourneyModel,
-                reportViewModel: reportViewModel,
-                onboardingModel: onboardingModel
-            )
+            ZStack {
+                if isShowingLaunchAnimation {
+                    LaunchAnimationView {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                            isShowingLaunchAnimation = false
+                        }
+                    }
+                    .transition(.opacity)
+                    .zIndex(1)
+                } else {
+                    MapShellView(
+                        networkViewModel: networkViewModel,
+                        stationsViewModel: stationsViewModel,
+                        linesViewModel: linesViewModel,
+                        selectedStationModel: selectedStationModel,
+                        searchViewModel: searchViewModel,
+                        activeJourneyModel: activeJourneyModel,
+                        reportViewModel: reportViewModel,
+                        onboardingModel: onboardingModel
+                    )
+                    .transition(.opacity)
+                }
+            }
             .task {
                 await authSessionViewModel.restore()
             }
