@@ -3,8 +3,6 @@ import SwiftUI
 struct AIOnboardingCard: View {
     let onTry: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         VStack(spacing: 24) {
             hero
@@ -33,9 +31,15 @@ struct AIOnboardingCard: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button("Essayer", systemImage: "sparkles", action: onTry)
-                .buttonStyle(AIBeamButtonStyle(isAnimated: true, reduceMotion: reduceMotion))
-                .accessibilityHint("Ouvre le champ de recherche en langage naturel")
+            Button(action: onTry) {
+                Label("Essayer", systemImage: "sparkles")
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .tint(Color.aiAccent)
+            .accessibilityHint("Ouvre le champ de recherche en langage naturel")
         }
         .padding(24)
         .frame(maxWidth: 520)

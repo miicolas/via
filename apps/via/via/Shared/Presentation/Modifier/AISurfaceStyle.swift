@@ -13,11 +13,21 @@ extension View {
     /// The Apple Intelligence beam, defined once so every AI surface in the app
     /// animates with the same palette.
     func aiBeam(cornerRadius: CGFloat, blur: CGFloat = 15, isEnabled: Bool) -> some View {
+        aiBeam(
+            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            blur: blur,
+            isEnabled: isEnabled,
+        )
+    }
+
+    /// The same beam traced along an arbitrary shape, so round controls keep a
+    /// round halo instead of the rounded rectangle the corner-radius form draws.
+    func aiBeam(in shape: some Shape, blur: CGFloat = 15, isEnabled: Bool) -> some View {
         borderBeam(
             border: .white,
             beam: [.purple, .blue, .pink, .indigo],
             beamBlur: blur,
-            cornerRadius: cornerRadius,
+            shape: shape,
             isEnabled: isEnabled,
         )
     }
@@ -31,8 +41,10 @@ struct AISurfaceStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .aiBeam(cornerRadius: cornerRadius, isEnabled: !reduceMotion)
-            .background(
-                Color.aiSurface,
+            // Glass with a whisper of the accent: a flat purple fill this large
+            // reads as a purple card rather than as an AI surface.
+            .glassEffect(
+                .regular.tint(Color.aiSurface),
                 in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
             )
             .overlay {
@@ -41,25 +53,5 @@ struct AISurfaceStyle: ViewModifier {
                         .strokeBorder(Color.aiAccent.opacity(0.2), lineWidth: 1)
                 }
             }
-    }
-}
-
-struct AIBeamButtonStyle: ButtonStyle {
-    let isAnimated: Bool
-    let reduceMotion: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, minHeight: 52)
-            .contentShape(Capsule())
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .aiBeam(cornerRadius: 999, isEnabled: isAnimated && !reduceMotion)
-            .background(Color.aiAccent, in: Capsule())
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: 0.15),
-                value: configuration.isPressed,
-            )
     }
 }

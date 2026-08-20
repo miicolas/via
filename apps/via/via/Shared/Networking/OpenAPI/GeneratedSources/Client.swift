@@ -388,6 +388,20 @@ internal struct Client: APIProtocol {
                     name: "preferredModes",
                     value: input.query.preferredModes
                 )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "requiresAccessibleStations",
+                    value: input.query.requiresAccessibleStations
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "originStationId",
+                    value: input.query.originStationId
+                )
                 converter.setAcceptHeader(
                     in: &request.headerFields,
                     contentTypes: input.headers.accept

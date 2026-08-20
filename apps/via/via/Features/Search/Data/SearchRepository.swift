@@ -14,7 +14,7 @@ struct LiveSearchRepository: SearchRepository {
                 q: query,
                 latitude: coordinate?.latitude,
                 longitude: coordinate?.longitude,
-                limit: 10
+                limit: 10,
             ))
             switch try await client.search_period_query(input) {
             case .ok(let response):

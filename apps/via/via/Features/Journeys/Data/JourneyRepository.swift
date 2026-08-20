@@ -24,7 +24,9 @@ struct LiveJourneyRepository: JourneyRepository {
                 },
                 requiredModes: Self.modeList(request.requiredModes),
                 excludedModes: Self.modeList(request.excludedModes),
-                preferredModes: Self.modeList(request.preferredModes)
+                preferredModes: Self.modeList(request.preferredModes),
+                requiresAccessibleStations: request.requiresAccessibleStations,
+                originStationId: request.originStationID?.rawValue
             ))
             switch try await client.journeys_period_plan(input) {
             case .ok(let response):

@@ -1,6 +1,11 @@
 import type { Coordinate } from '@via/contract';
 import { db } from '@via/db';
-import { transitRoutes, transitStopRoutes, transitStops } from '@via/db/schema';
+import {
+  stationAccessibility,
+  transitRoutes,
+  transitStopRoutes,
+  transitStops,
+} from '@via/db/schema';
 import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { networkRouteCondition } from '@via/db/network-scope';
@@ -19,7 +24,11 @@ import { escapeLikePattern } from './like-pattern';
  * because degrees lie about east-west distances at Paris' latitude, the same
  * rule `stop-projection.ts` documents — alphabetical otherwise.
  */
-export function selectMatchingStations(query: string, limit: number, origin?: Coordinate) {
+export function selectMatchingStations(
+  query: string,
+  limit: number,
+  origin?: Coordinate
+) {
   const normalizedName = sql`immutable_unaccent(lower(${transitStops.name}))`;
   // position() searches the literal text; LIKE additionally needs its
   // operators escaped. Same query, two spellings.
@@ -43,17 +52,26 @@ export function selectMatchingStations(query: string, limit: number, origin?: Co
         'color', ${transitRoutes.color},
         'textColor', ${transitRoutes.textColor}
       ))`,
+      accessibilityLevelId: stationAccessibility.levelId,
+      accessibilityLevelName: stationAccessibility.levelName,
+      accessibilityComment: stationAccessibility.comment,
     })
     .from(transitStops)
     .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
     .innerJoin(transitRoutes, eq(transitStopRoutes.routeId, transitRoutes.id))
+    .leftJoin(stationAccessibility, eq(stationAccessibility.stopId, transitStops.id))
     .where(
       and(
         networkRouteCondition(),
         sql`${normalizedName} LIKE '%' || ${likeNeedle} || '%'`
       )
     )
-    .groupBy(transitStops.id)
+    .groupBy(
+      transitStops.id,
+      stationAccessibility.levelId,
+      stationAccessibility.levelName,
+      stationAccessibility.comment
+    )
     .orderBy(
       sql`(${normalizedName} LIKE ${likeNeedle} || '%') DESC`,
       sql`position(${needle} in ${normalizedName})`,
@@ -62,4 +80,14 @@ export function selectMatchingStations(query: string, limit: number, origin?: Co
     .limit(limit);
 }
 
-export type MatchingStationRow = Awaited<ReturnType<typeof selectMatchingStations>>[number];
+type MatchingStationRowWithAccessibility = Awaited<ReturnType<typeof selectMatchingStations>>[number];
+export type MatchingStationRow = Omit<
+  MatchingStationRowWithAccessibility,
+  'accessibilityLevelId' | 'accessibilityLevelName' | 'accessibilityComment'
+> &
+  Partial<
+    Pick<
+      MatchingStationRowWithAccessibility,
+      'accessibilityLevelId' | 'accessibilityLevelName' | 'accessibilityComment'
+    >
+  >;

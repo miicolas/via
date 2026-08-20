@@ -33,3 +33,24 @@ test('sends exact arrival time and modal constraints to IDFM', () => {
     'physical_mode:Metro',
   ]);
 });
+
+test('pins a PMR station journey to the selected stop areas', () => {
+  const input: JourneyInput = {
+    origin: { latitude: 48.8566, longitude: 2.3522 },
+    originStationId: 'IDFM:71410',
+    destination: {
+      kind: 'station',
+      id: 'IDFM:71264',
+      name: 'Châtelet',
+      coordinate: { latitude: 48.8584, longitude: 2.347 },
+    },
+    limit: 4,
+    requiresAccessibleStations: true,
+  };
+
+  const url = journeyUrl('https://example.test/journeys', input, new Date('2026-08-20T08:00:00Z'));
+
+  expect(url.searchParams.get('from')).toBe('stop_area:IDFM:71410');
+  expect(url.searchParams.get('to')).toBe('stop_area:IDFM:71264');
+  expect(url.searchParams.get('wheelchair')).toBe('true');
+});

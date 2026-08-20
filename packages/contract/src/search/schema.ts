@@ -28,6 +28,13 @@ export const stationSearchResultSchema = z.object({
   /** The serving lines' badges, ready to render without another fetch. */
   routes: z.array(routeBadgeSchema),
   distanceMeters: z.number().optional(),
+  accessibility: z
+    .object({
+      condition: z.enum(['reservationRequired', 'staffAssistance', 'autonomous']),
+      label: z.string(),
+      comment: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const addressSearchResultSchema = z.object({
@@ -56,5 +63,10 @@ export const searchResponseSchema = z.object({
    */
   sources: z.object({
     ban: z.enum(['ok', 'unavailable']),
+    accessibility: z.object({
+      status: z.enum(['ok', 'unavailable']),
+      sourceUpdatedAt: z.iso.datetime({ offset: true }).optional(),
+      importedAt: z.iso.datetime({ offset: true }).optional(),
+    }),
   }),
 });

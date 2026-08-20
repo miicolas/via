@@ -3,19 +3,31 @@ import SwiftUI
 struct SearchManualDepartureView: View {
     let searchPlaces: @MainActor (String) async throws -> SearchResponse
     let onSelect: (SearchResult) -> Void
+    let filters: SearchFilters
+    let onSetRequiresAccessibleStations: @MainActor (Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var query = ""
     @State private var results: [SearchResult] = []
     @State private var loadState: SearchLoadState = .idle
     @State private var searchRequestID = 0
+    @State private var isAccessibilityInfoPresented = false
+    @State private var accessibilitySource = SearchResponse.AccessibilitySource(
+        status: .unavailable,
+        sourceUpdatedAt: nil,
+        importedAt: nil
+    )
 
     init(
         searchPlaces: @escaping @MainActor (String) async throws -> SearchResponse,
-        onSelect: @escaping (SearchResult) -> Void
+        onSelect: @escaping (SearchResult) -> Void,
+        filters: SearchFilters = .init(),
+        onSetRequiresAccessibleStations: @escaping @MainActor (Bool) -> Void = { _ in }
     ) {
         self.searchPlaces = searchPlaces
         self.onSelect = onSelect
+        self.filters = filters
+        self.onSetRequiresAccessibleStations = onSetRequiresAccessibleStations
     }
 
     var body: some View {
@@ -49,7 +61,17 @@ struct SearchManualDepartureView: View {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    SearchFiltersMenu(
+                        filters: filters,
+                        onSetRequiresAccessibleStations: onSetRequiresAccessibleStations,
+                        onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
+                    )
+                }
             }
+        }
+        .sheet(isPresented: $isAccessibilityInfoPresented) {
+            SearchAccessibilityInfoView(source: accessibilitySource)
         }
         .task(id: "\(query)-\(searchRequestID)") {
             await search()
@@ -77,6 +99,7 @@ struct SearchManualDepartureView: View {
             let response = try await searchPlaces(normalized)
             guard !Task.isCancelled else { return }
             results = response.results
+            accessibilitySource = response.accessibilitySource
             loadState = results.isEmpty ? .empty : .loaded
         } catch is CancellationError {
             return

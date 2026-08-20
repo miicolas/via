@@ -14,7 +14,12 @@ const MAX_ACCESS_STOPS = 8;
 const MAX_FRONTIER_LABELS = 512;
 const ALTERNATIVE_SLACK_SECONDS = 20 * 60;
 
-export type PlannerStop = { id: string; name: string; coordinate: Coordinate };
+export type PlannerStop = {
+  id: string;
+  name: string;
+  coordinate: Coordinate;
+  isAccessible?: boolean;
+};
 export type PlannerRoute = {
   id: string;
   shortName: string;
@@ -61,7 +66,7 @@ export type PlannerReverseTransfer = {
 };
 
 export type GtfsPlannerLoader = {
-  accessStops: (coordinate: Coordinate, limit: number) => Promise<PlannerStop[]>;
+  accessStops: (coordinate: Coordinate, limit: number, stationId?: string) => Promise<PlannerStop[]>;
   boardings: (
     stopIds: string[],
     earliestByStop: Map<string, number>,
@@ -119,11 +124,29 @@ export async function planWithGtfs(
   now: Date,
   limit: number,
   loader: GtfsPlannerLoader,
-  datetimeRepresents: 'departure' | 'arrival' = 'departure'
+  datetimeRepresents: 'departure' | 'arrival' = 'departure',
+  requiresAccessibleStations = false,
+  originStationId?: string
 ): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; source: 'gtfs-theoretical'; journeys: Journey[] }> {
   return datetimeRepresents === 'arrival'
-    ? planArrivalWithGtfs(origin, destination, now, limit, loader)
-    : planDepartureWithGtfs(origin, destination, now, limit, loader);
+    ? planArrivalWithGtfs(
+        origin,
+        destination,
+        now,
+        limit,
+        loader,
+        requiresAccessibleStations,
+        originStationId
+      )
+    : planDepartureWithGtfs(
+        origin,
+        destination,
+        now,
+        limit,
+        loader,
+        requiresAccessibleStations,
+        originStationId
+      );
 }
 
 async function planDepartureWithGtfs(
@@ -131,11 +154,17 @@ async function planDepartureWithGtfs(
   destination: JourneyDestination,
   now: Date,
   limit: number,
-  loader: GtfsPlannerLoader
+  loader: GtfsPlannerLoader,
+  requiresAccessibleStations: boolean,
+  originStationId?: string
 ): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; source: 'gtfs-theoretical'; journeys: Journey[] }> {
   const [originStops, destinationStops] = await Promise.all([
-    loader.accessStops(origin, MAX_ACCESS_STOPS),
-    loader.accessStops(destination.coordinate, MAX_ACCESS_STOPS),
+    loader.accessStops(origin, MAX_ACCESS_STOPS, originStationId),
+    loader.accessStops(
+      destination.coordinate,
+      MAX_ACCESS_STOPS,
+      destination.kind === 'station' ? destination.id : undefined
+    ),
   ]);
   if (originStops.length === 0 || destinationStops.length === 0) {
     return { status: 'unavailable', source: 'gtfs-theoretical', journeys: [] };
@@ -200,6 +229,7 @@ async function planDepartureWithGtfs(
         const waitSeconds = Math.max(0, from.departureSeconds - base.arrivalSeconds);
         for (let toIndex = fromIndex + 1; toIndex < loaded.calls.length; toIndex += 1) {
           const to = loaded.calls[toIndex]!;
+          if (requiresAccessibleStations && !to.stop.isAccessible) continue;
           if (visitedStops.has(to.stop.id)) continue;
           if (to.arrivalSeconds < base.arrivalSeconds) continue;
           const label: Label = {
@@ -287,11 +317,17 @@ async function planArrivalWithGtfs(
   destination: JourneyDestination,
   requestedAt: Date,
   limit: number,
-  loader: GtfsPlannerLoader
+  loader: GtfsPlannerLoader,
+  requiresAccessibleStations: boolean,
+  originStationId?: string
 ): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; source: 'gtfs-theoretical'; journeys: Journey[] }> {
   const [originStops, destinationStops] = await Promise.all([
-    loader.accessStops(origin, MAX_ACCESS_STOPS),
-    loader.accessStops(destination.coordinate, MAX_ACCESS_STOPS),
+    loader.accessStops(origin, MAX_ACCESS_STOPS, originStationId),
+    loader.accessStops(
+      destination.coordinate,
+      MAX_ACCESS_STOPS,
+      destination.kind === 'station' ? destination.id : undefined
+    ),
   ]);
   if (originStops.length === 0 || destinationStops.length === 0) {
     return { status: 'unavailable', source: 'gtfs-theoretical', journeys: [] };
@@ -356,6 +392,7 @@ async function planArrivalWithGtfs(
         const waitSeconds = Math.max(0, base.departureSeconds - to.arrivalSeconds);
         for (let fromIndex = toIndex - 1; fromIndex >= 0; fromIndex -= 1) {
           const from = loaded.calls[fromIndex]!;
+          if (requiresAccessibleStations && !from.stop.isAccessible) continue;
           if (visitedStops.has(from.stop.id)) continue;
           if (from.departureSeconds > to.arrivalSeconds) continue;
           const label: ReverseLabel = {

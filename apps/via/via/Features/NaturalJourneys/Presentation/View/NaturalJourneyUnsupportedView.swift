@@ -9,7 +9,7 @@ struct NaturalJourneyUnsupportedView: View {
     var body: some View {
         NaturalJourneyStateCard(
             title: "Demande non reconnue",
-            systemImage: "text.magnifyingglass",
+            systemImage: "text.magnifyingglass"
         ) {
             Text(message)
                 .naturalJourneyMessage()
@@ -17,10 +17,14 @@ struct NaturalJourneyUnsupportedView: View {
                 Text("• \(suggestion)")
                     .font(.subheadline)
             }
-            Button("Modifier la demande", action: onModify)
-                .naturalJourneyPrimaryAction()
-            Button("Recherche classique", action: onClassicSearch)
-                .naturalJourneySecondaryAction()
+            NaturalJourneyRecoveryActions(
+                primarySystemImage: "pencil",
+                primaryLabel: "Modifier la demande",
+                primaryAction: onModify,
+                secondarySystemImage: "magnifyingglass",
+                secondaryLabel: "Recherche classique",
+                secondaryAction: onClassicSearch
+            )
         }
     }
 }

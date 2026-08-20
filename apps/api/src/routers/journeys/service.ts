@@ -4,10 +4,16 @@ import type { RedisClient } from '../../redis';
 import { tryConsumeDailyIdfmBudget } from '../idfm/daily-budget';
 import { journeyCacheKey, valueThroughCache } from './cache';
 import { tryConsumePersonalJourneyBudget } from './rate-limit';
+import {
+  accessibilitySnapshotAvailable,
+  explicitStationsAreAccessible,
+  filterAndAnnotateAccessibleJourneys,
+} from './accessibility';
 
 type PlannedJourneys = {
   status: 'ready' | 'no-route' | 'unavailable';
   journeys: Journey[];
+  reason?: 'no-accessible-route' | 'accessibility-data-unavailable';
 };
 
 export type IdfmJourneyPlanner = {
@@ -75,14 +81,30 @@ export function createJourneyPlanner({
         requiredModes: input.requiredModes,
         excludedModes: input.excludedModes,
         preferredModes: input.preferredModes,
+        requiresAccessibleStations: input.requiresAccessibleStations,
+        originStationId: input.originStationId,
       });
 
       const gtfsFallback = async () => ({
-        value: await planWithGtfs(gtfs, input, requestedAt, now, signal),
+        value: await planWithGtfsConstraint(gtfs, input, requestedAt, now, signal),
         ttlSeconds: GTFS_TTL_SECONDS,
       });
 
       const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
+        if (input.requiresAccessibleStations) {
+          if (!(await accessibilitySnapshotAvailable())) {
+            return {
+              value: unavailable(now, 'accessibility-data-unavailable'),
+              ttlSeconds: GTFS_TTL_SECONDS,
+            };
+          }
+          if (!(await explicitStationsAreAccessible(input))) {
+            return {
+              value: noRoute(now, 'no-accessible-route'),
+              ttlSeconds: GTFS_TTL_SECONDS,
+            };
+          }
+        }
         if (!idfm) return gtfsFallback();
 
         const personal = await tryConsumePersonalJourneyBudget(
@@ -150,7 +172,7 @@ export function createJourneyPlanner({
           }
         }
         return {
-          value: realtime ?? (await planWithGtfs(gtfs, input, requestedAt, now, signal)),
+          value: realtime ?? (await planWithGtfsConstraint(gtfs, input, requestedAt, now, signal)),
           ttlSeconds: IDFM_TTL_SECONDS,
         };
       });
@@ -169,7 +191,25 @@ async function planWithIdfm(
 ): Promise<JourneysResponse | null> {
   try {
     const response = await idfm.plan(input, requestedAt, signal);
-    return response ? qualify(response, 'idfm-realtime', now, input) : null;
+    if (!response) return null;
+    if (!input.requiresAccessibleStations) return qualify(response, 'idfm-realtime', now, input);
+    const journeys = await filterAndAnnotateAccessibleJourneys(response.journeys);
+    const status: PlannedJourneys['status'] = response.status === 'unavailable'
+      ? 'unavailable'
+      : journeys.length > 0
+        ? 'ready'
+        : 'no-route';
+    return qualify(
+      {
+        ...response,
+        status,
+        journeys,
+        reason: status === 'no-route' ? 'no-accessible-route' : undefined,
+      },
+      'idfm-realtime',
+      now,
+      input
+    );
   } catch (cause) {
     console.error('[journeys] planificateur IDFM indisponible', cause);
     return null;
@@ -194,6 +234,25 @@ async function planWithGtfs(
     console.error('[journeys] planificateur GTFS indisponible', cause);
     return unavailable(now);
   }
+}
+
+async function planWithGtfsConstraint(
+  gtfs: GtfsJourneyPlanner,
+  input: JourneyInput,
+  requestedAt: Date,
+  now: Date,
+  signal?: AbortSignal
+) {
+  const response = await planWithGtfs(gtfs, input, requestedAt, now, signal);
+  if (!input.requiresAccessibleStations) return response;
+  if (response.status === 'unavailable') return response;
+  const journeys = await filterAndAnnotateAccessibleJourneys(response.journeys);
+  return {
+    ...response,
+    status: journeys.length > 0 ? 'ready' as const : 'no-route' as const,
+    reason: journeys.length > 0 ? undefined : 'no-accessible-route' as const,
+    journeys,
+  };
 }
 
 function qualify(
@@ -298,11 +357,22 @@ function dedupeJourneys(journeys: Journey[]) {
   return [...new Map(journeys.map((journey) => [journey.id, journey])).values()];
 }
 
-function unavailable(now: Date): JourneysResponse {
+function noRoute(now: Date, reason?: JourneysResponse['reason']): JourneysResponse {
+  return {
+    status: 'no-route',
+    source: 'gtfs-theoretical',
+    generatedAt: now.toISOString(),
+    reason,
+    journeys: [],
+  };
+}
+
+function unavailable(now: Date, reason?: JourneysResponse['reason']): JourneysResponse {
   return {
     status: 'unavailable',
     source: 'gtfs-theoretical',
     generatedAt: now.toISOString(),
+    reason,
     journeys: [],
   };
 }

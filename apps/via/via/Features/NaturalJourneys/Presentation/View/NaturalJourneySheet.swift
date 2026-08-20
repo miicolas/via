@@ -5,6 +5,7 @@ struct NaturalJourneySheet: View {
     @Binding var detent: PresentationDetent
 
     @FocusState private var isInputFocused: Bool
+    @State private var isAccessibilityInfoPresented = false
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -20,11 +21,21 @@ struct NaturalJourneySheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    SearchFiltersMenu(
+                        filters: viewModel.filters,
+                        onSetRequiresAccessibleStations: viewModel.setRequiresAccessibleStations,
+                        onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
+                    )
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .close) {
                         viewModel.dismissNaturalSearch()
                     }
                 }
             }
+        }
+        .sheet(isPresented: $isAccessibilityInfoPresented) {
+            SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
         }
         .onChange(of: viewModel.naturalSearchState, initial: true) { _, state in
             if NaturalJourneyPresentationPolicy.expandsForInput(state) {
@@ -48,6 +59,8 @@ struct NaturalJourneySheet: View {
             NaturalJourneyInputView(
                 query: viewModel.naturalQuery,
                 isFocused: $isInputFocused,
+                errorMessage: viewModel.wrappedValue.naturalInputErrorMessage,
+                onEdit: viewModel.wrappedValue.naturalQueryDidChange,
                 onSubmit: viewModel.wrappedValue.submitNaturalSearch,
             )
         case .loading:
@@ -108,7 +121,7 @@ struct NaturalJourneySheet: View {
         case let .availability(guidance):
             NaturalJourneyAvailabilityView(
                 guidance: guidance,
-                onRetry: viewModel.wrappedValue.openNaturalSearch,
+                onRetry: viewModel.wrappedValue.retryNaturalAvailability,
                 onClassicSearch: viewModel.wrappedValue.useClassicSearch,
             )
         case let .failed(message):

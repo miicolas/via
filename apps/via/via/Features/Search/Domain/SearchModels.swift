@@ -6,6 +6,43 @@ struct StationSearchResult: Sendable, Hashable, Identifiable {
     let coordinate: GeoCoordinate
     let routes: [RouteBadge]
     let distanceMeters: Double?
+    let accessibility: StationAccessibility?
+
+    init(
+        id: StationID,
+        name: String,
+        coordinate: GeoCoordinate,
+        routes: [RouteBadge],
+        distanceMeters: Double?,
+        accessibility: StationAccessibility? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.coordinate = coordinate
+        self.routes = routes
+        self.distanceMeters = distanceMeters
+        self.accessibility = accessibility
+    }
+}
+
+struct StationAccessibility: Sendable, Hashable, Codable {
+    enum Condition: String, Sendable, Hashable, Codable {
+        case reservationRequired
+        case staffAssistance
+        case autonomous
+
+        var label: String {
+            switch self {
+            case .reservationRequired: "Sur réservation"
+            case .staffAssistance: "Avec un agent"
+            case .autonomous: "En autonomie"
+            }
+        }
+    }
+
+    let condition: Condition
+    let label: String
+    let comment: String?
 }
 
 struct AddressSearchResult: Sendable, Hashable, Identifiable {
@@ -68,8 +105,34 @@ enum SearchResult: Sendable, Hashable, Identifiable {
 struct SearchResponse: Sendable, Hashable {
     enum AddressSource: String, Sendable, Hashable { case ok, unavailable }
 
+    enum AccessibilitySourceStatus: String, Sendable, Hashable {
+        case ok
+        case unavailable
+    }
+
+    struct AccessibilitySource: Sendable, Hashable {
+        let status: AccessibilitySourceStatus
+        let sourceUpdatedAt: Date?
+        let importedAt: Date?
+    }
+
     let results: [SearchResult]
     let addressSource: AddressSource
+    let accessibilitySource: AccessibilitySource
+
+    init(
+        results: [SearchResult],
+        addressSource: AddressSource,
+        accessibilitySource: AccessibilitySource = .init(
+            status: .unavailable,
+            sourceUpdatedAt: nil,
+            importedAt: nil
+        )
+    ) {
+        self.results = results
+        self.addressSource = addressSource
+        self.accessibilitySource = accessibilitySource
+    }
 }
 
 struct RecentSearch: Codable, Sendable, Hashable, Identifiable {

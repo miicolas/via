@@ -1,50 +1,61 @@
 import SwiftUI
 
 /// The way into natural search, shared by the search field and the Stations
-/// toolbar so the beam, the tint and the accessibility copy stay identical.
+/// toolbar so the tint and the accessibility copy stay identical.
 struct AIEntryButton: View {
-    enum Shape {
-        case capsule(title: String)
-        case circle
+    /// A toolbar already draws its own Liquid Glass container, so the button
+    /// there is a bare glyph; next to the search field it brings its own.
+    enum Surface {
+        case toolbar
+        case standalone
     }
 
-    let shape: Shape
+    var surface: Surface = .standalone
     let isDiscoverable: Bool
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button(action: action) {
-            label
-                .foregroundStyle(Color.aiAccent)
-                .aiBeam(cornerRadius: cornerRadius, isEnabled: isDiscoverable && !reduceMotion)
+        Group {
+            switch surface {
+            case .toolbar:
+                Button(action: action) {
+                    glyph
+                        .font(ToolbarGlyphMetrics.glyphFont)
+                        .frame(
+                            width: ToolbarGlyphMetrics.slot,
+                            height: ToolbarGlyphMetrics.slot,
+                        )
+                }
+                .tint(Color.aiAccent)
+            case .standalone:
+                Button(action: action) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Color.aiAccent)
+                        .frame(width: 44, height: 44)
+                        .background(Color.aiSurface, in: Circle())
+                        .aiBeam(in: Circle(), isEnabled: isDiscoverable && !reduceMotion)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .frame(width: 44, height: 44)
+            }
         }
-        .buttonStyle(.plain)
         .accessibilityLabel(NaturalJourneyPresentationPolicy.entryAccessibilityLabel)
         .accessibilityHint(NaturalJourneyPresentationPolicy.entryAccessibilityHint)
     }
 
-    @ViewBuilder
-    private var label: some View {
-        switch shape {
-        case let .capsule(title):
-            Label(title, systemImage: "sparkles")
-                .font(.subheadline.weight(.bold))
-                .padding(.horizontal, 12)
-                .frame(minHeight: 48)
-                .background(Color.aiSurface, in: Capsule())
-        case .circle:
-            Image(systemName: "sparkles")
-                .frame(width: 36, height: 36)
-                .background(Color.aiSurface, in: Circle())
-        }
-    }
-
-    private var cornerRadius: CGFloat {
-        switch shape {
-        case .capsule: 999
-        case .circle: 18
-        }
+    /// Discovery pulses the glyph rather than tracing a halo: a beam behind a
+    /// toolbar item reads as a smudge over the glass, and a breathing glyph
+    /// keeps changing size next to the account avatar.
+    private var glyph: some View {
+        Image(systemName: "sparkles")
+            .symbolEffect(
+                .pulse,
+                options: .repeat(.continuous),
+                isActive: isDiscoverable && !reduceMotion,
+            )
     }
 }

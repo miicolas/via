@@ -991,6 +991,27 @@
             },
             "allowEmptyValue": true,
             "allowReserved": true
+          },
+          {
+            "name": "requiresAccessibleStations",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "originStationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
           }
         ],
         "responses": {
@@ -1019,6 +1040,13 @@
                     "generatedAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "reason": {
+                      "enum": [
+                        "no-accessible-route",
+                        "accessibility-data-unavailable"
+                      ],
+                      "type": "string"
                     },
                     "journeys": {
                       "type": "array",
@@ -1074,6 +1102,26 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "accessibility": {
+                            "type": "object",
+                            "properties": {
+                              "condition": {
+                                "enum": [
+                                  "reservationRequired",
+                                  "staffAssistance",
+                                  "autonomous"
+                                ],
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "condition",
+                              "label"
+                            ]
                           },
                           "sections": {
                             "type": "array",
@@ -2303,6 +2351,29 @@
                               },
                               "distanceMeters": {
                                 "type": "number"
+                              },
+                              "accessibility": {
+                                "type": "object",
+                                "properties": {
+                                  "condition": {
+                                    "enum": [
+                                      "reservationRequired",
+                                      "staffAssistance",
+                                      "autonomous"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "condition",
+                                  "label"
+                                ]
                               }
                             },
                             "required": [
@@ -2367,10 +2438,34 @@
                             "unavailable"
                           ],
                           "type": "string"
+                        },
+                        "accessibility": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "enum": [
+                                "ok",
+                                "unavailable"
+                              ],
+                              "type": "string"
+                            },
+                            "sourceUpdatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "importedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
                         }
                       },
                       "required": [
-                        "ban"
+                        "ban",
+                        "accessibility"
                       ]
                     }
                   },
