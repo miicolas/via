@@ -11,15 +11,6 @@ enum NaturalIntentParsingError: Error, Sendable, Hashable {
     case modelFailed
 }
 
-struct OnDeviceAnswerFacts: Sendable, Hashable {
-    let originLabel: String
-    let destinationLabel: String
-    let requestedAt: Date
-    let datetimeRepresents: JourneyDatetimeRepresents
-    let journey: Journey
-    let preferenceNotice: String?
-}
-
 protocol NaturalIntentParsing: Sendable {
     var availability: NaturalLanguageAvailability { get }
 
@@ -27,10 +18,6 @@ protocol NaturalIntentParsing: Sendable {
         _ phrase: String,
         now: Date
     ) async throws(NaturalIntentParsingError) -> RouteIntent
-
-    /// Returns `nil` whenever generation or fact validation cannot be trusted.
-    /// Callers must then use the deterministic answer.
-    func writeAnswer(_ facts: OnDeviceAnswerFacts) async -> String?
 }
 
 struct InMemoryNaturalIntentParser: NaturalIntentParsing {
@@ -46,15 +33,11 @@ struct InMemoryNaturalIntentParser: NaturalIntentParsing {
         preferredModes: []
     )
     var parsingError: NaturalIntentParsingError?
-    var answer: String?
-
     func parseIntent(
-        _ phrase: String,
-        now: Date
+        _: String,
+        now _: Date
     ) async throws(NaturalIntentParsingError) -> RouteIntent {
         if let parsingError { throw parsingError }
         return intent
     }
-
-    func writeAnswer(_ facts: OnDeviceAnswerFacts) async -> String? { answer }
 }

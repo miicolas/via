@@ -14,7 +14,6 @@ filter:
     - lines.detail
     - lines.search
     - lines.statuses
-    - naturalJourneys.submit
     - network.railMap
     - network.stationsInArea
     - search.query

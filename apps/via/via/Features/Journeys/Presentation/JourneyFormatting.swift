@@ -5,6 +5,10 @@ enum JourneyFormatting {
         date.formatted(date: .omitted, time: .shortened)
     }
 
+    static func dateTime(_ date: Date) -> String {
+        date.formatted(date: .abbreviated, time: .shortened)
+    }
+
     static func duration(_ seconds: Int) -> String {
         let minutes = max(0, Int(ceil(Double(seconds) / 60)))
         guard minutes >= 60 else { return "\(minutes) min" }

@@ -8,7 +8,6 @@ extension MKCoordinateRegion {
         longitudinalMeters: 4000
     )
 }
-
 /// Root screen: full-screen map with a persistent bottom sheet hosting the
 /// Stations / Lignes / Signaler / Recherche tabs, Find My style.
 struct MapShellView: View {
@@ -115,7 +114,9 @@ struct MapShellView: View {
             .onChange(of: activeTab) { oldValue, newValue in
                 if newValue == .search, oldValue != .search {
                     previousTab = oldValue
-                    activeDetent = hasJourneySurface ? guidanceDetent : expandedDetent
+                    activeDetent = searchViewModel.isNaturalSearchPresented
+                        ? guidanceDetent
+                        : (hasJourneySurface ? guidanceDetent : expandedDetent)
                 } else if newValue == .report, oldValue != .report {
                     activeDetent = isLargeScreen ? .fraction(0.97) : .large
                 } else if oldValue == .search, newValue != .search {
@@ -195,7 +196,14 @@ struct MapShellView: View {
                     selectedStation: selectedStationModel,
                     isLargeScreen: $isLargeScreen,
                     detailDetent: $detailSheetDetent,
-                    onOpenSearch: { activeTab = .search }
+                    onOpenSearch: { activeTab = .search },
+                    naturalLanguageAccess: searchViewModel.naturalLanguageAccess,
+                    showsNaturalSearchDiscovery: searchViewModel.showsNaturalSearchDiscovery,
+                    onOpenNaturalSearch: {
+                        searchViewModel.openNaturalSearch()
+                        activeTab = .search
+                        activeDetent = guidanceDetent
+                    }
                 )
                 .sheetTabBarVisibility()
             } label: {
@@ -220,6 +228,7 @@ struct MapShellView: View {
                 SearchView(
                     viewModel: searchViewModel,
                     activeJourneyModel: activeJourneyModel,
+                    sheetDetent: $activeDetent,
                     onClose: closeSearch,
                     onExpandJourneyMap: expandJourneyMap,
                     onOpenReport: { activeTab = .report }

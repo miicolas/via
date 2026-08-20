@@ -20,57 +20,60 @@ struct ApplicationEntry: App {
     init() {
         let dependencies = Self.makeDependencies()
         _networkViewModel = State(
-            initialValue: NetworkViewModel(repository: dependencies.networkRepository)
+            initialValue: NetworkViewModel(repository: dependencies.networkRepository),
         )
         _stationsViewModel = State(
             initialValue: StationsViewModel(
                 locationModel: dependencies.locationModel,
                 networkRepository: dependencies.networkRepository,
-                departuresRepository: dependencies.departuresRepository
-            )
+                departuresRepository: dependencies.departuresRepository,
+            ),
         )
         _linesViewModel = State(
-            initialValue: LinesViewModel(repository: dependencies.lineStatusRepository)
+            initialValue: LinesViewModel(repository: dependencies.lineStatusRepository),
         )
         _selectedStationModel = State(
             initialValue: SelectedStationModel(
                 departuresRepository: dependencies.departuresRepository,
                 account: dependencies.accountModel,
-                locationModel: dependencies.locationModel
-            )
+                locationModel: dependencies.locationModel,
+            ),
         )
         _searchViewModel = State(
             initialValue: SearchViewModel(
                 repository: dependencies.searchRepository,
                 journeyRepository: dependencies.journeyRepository,
                 locationModel: dependencies.locationModel,
-                account: dependencies.accountModel
-            )
+                account: dependencies.accountModel,
+                naturalJourneyRepository: dependencies.naturalJourneyRepository,
+                naturalLanguageAvailability: dependencies.naturalLanguageAvailability,
+                naturalJourneyMetrics: dependencies.naturalJourneyMetrics,
+            ),
         )
         let activeJourneyModel = ActiveJourneyModel(
             locationModel: dependencies.locationModel,
             journeyRepository: dependencies.journeyRepository,
             store: dependencies.activeJourneyStore,
             activityManager: dependencies.activityManager,
-            connectivity: dependencies.connectivityMonitor
+            connectivity: dependencies.connectivityMonitor,
         )
         _activeJourneyModel = State(initialValue: activeJourneyModel)
         _reportViewModel = State(
             initialValue: ReportViewModel(
                 contextResolver: ReportContextResolver(
                     locationModel: dependencies.locationModel,
-                    networkRepository: dependencies.networkRepository
+                    networkRepository: dependencies.networkRepository,
                 ),
                 repository: dependencies.reportRepository,
                 searchRepository: dependencies.searchRepository,
-                activeJourneyProvider: activeJourneyModel
-            )
+                activeJourneyProvider: activeJourneyModel,
+            ),
         )
         _authSessionViewModel = State(
-            initialValue: dependencies.authSessionViewModel
+            initialValue: dependencies.authSessionViewModel,
         )
         _onboardingModel = State(
-            initialValue: dependencies.onboardingModel
+            initialValue: dependencies.onboardingModel,
         )
     }
 
@@ -94,7 +97,7 @@ struct ApplicationEntry: App {
                         searchViewModel: searchViewModel,
                         activeJourneyModel: activeJourneyModel,
                         reportViewModel: reportViewModel,
-                        onboardingModel: onboardingModel
+                        onboardingModel: onboardingModel,
                     )
                     .transition(.opacity)
                 }
@@ -117,7 +120,7 @@ struct ApplicationEntry: App {
         guard let configuration = try? AppConfiguration.bundled() else {
             let accountModel = AccountModel(
                 remote: InMemoryAccountRemote(),
-                synchronizationEnabled: false
+                synchronizationEnabled: false,
             )
             accountModel.activateAnonymous()
             let previewSession = StoredAuthSession(
@@ -126,17 +129,17 @@ struct ApplicationEntry: App {
                     id: "preview",
                     appleUserIdentifier: "preview",
                     name: "Preview",
-                    email: "preview@example.com"
+                    email: "preview@example.com",
                 ),
                 expiresAt: .distantFuture,
-                lastValidatedAt: .now
+                lastValidatedAt: .now,
             )
 
             return Dependencies(
                 locationModel: LocationModel(
                     adapter: InMemoryLocationAdapter(
-                        coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
-                    )
+                        coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470),
+                    ),
                 ),
                 networkRepository: InMemoryNetworkRepository.mapPreview,
                 departuresRepository: InMemoryDeparturesRepository.stationsPreview,
@@ -147,14 +150,17 @@ struct ApplicationEntry: App {
                 connectivityMonitor: InMemoryConnectivityMonitor(),
                 journeyRepository: PreferenceAwareJourneyRepository(
                     base: InMemoryJourneyRepository(result: .mapPreview),
-                    account: accountModel
+                    account: accountModel,
                 ),
+                naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
+                naturalLanguageAvailability: { .available },
+                naturalJourneyMetrics: NoOpNaturalJourneyMetrics(),
                 lineStatusRepository: PreviewLineStatusRepository(),
                 accountModel: accountModel,
                 authSessionViewModel: AuthSessionViewModel(
                     client: InMemoryAuthenticationClient(session: previewSession),
                     vault: InMemoryAuthSessionVault(),
-                    account: accountModel
+                    account: accountModel,
                 ),
                 onboardingModel: OnboardingModel(),
             )
@@ -164,31 +170,45 @@ struct ApplicationEntry: App {
         let authSessionVault = KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
         let transport = APITransport(
             baseURL: configuration.apiBaseURL,
-            authSessionVault: authSessionVault
+            authSessionVault: authSessionVault,
         )
         let accountModel = AccountModel(remote: LiveAccountRemote(transport: transport))
         accountModel.activateAnonymous()
         let journeyRepository = PreferenceAwareJourneyRepository(
             base: LiveJourneyRepository(transport: transport),
-            account: accountModel
+            account: accountModel,
+        )
+        let searchRepository = LiveSearchRepository(transport: transport)
+        let naturalIntentParser = FoundationModelsIntentParser()
+        let naturalJourneyMetrics = AppLogNaturalJourneyMetrics()
+        let naturalJourneyRepository = OnDeviceNaturalJourneyService(
+            parser: naturalIntentParser,
+            places: OnDevicePlaceResolver { query, coordinate in
+                try await searchRepository.search(query: query, near: coordinate)
+            },
+            journeys: journeyRepository,
+            metrics: naturalJourneyMetrics,
         )
 
         return Dependencies(
             locationModel: LocationModel(adapter: CoreLocationAdapter()),
             networkRepository: LiveNetworkRepository(transport: transport),
             departuresRepository: LiveDeparturesRepository(transport: transport),
-            searchRepository: LiveSearchRepository(transport: transport),
+            searchRepository: searchRepository,
             reportRepository: InMemoryReportRepository(),
             activeJourneyStore: UserDefaultsActiveJourneyStore(),
             activityManager: JourneyActivityManager(),
             connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
+            naturalJourneyRepository: naturalJourneyRepository,
+            naturalLanguageAvailability: { naturalIntentParser.availability },
+            naturalJourneyMetrics: naturalJourneyMetrics,
             lineStatusRepository: LiveLineStatusRepository(transport: transport),
             accountModel: accountModel,
             authSessionViewModel: AuthSessionViewModel(
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
                 vault: authSessionVault,
-                account: accountModel
+                account: accountModel,
             ),
             onboardingModel: OnboardingModel(),
         )
@@ -204,6 +224,9 @@ struct ApplicationEntry: App {
         let activityManager: any JourneyActivityManaging
         let connectivityMonitor: any ConnectivityMonitoring
         let journeyRepository: any JourneyRepository
+        let naturalJourneyRepository: any NaturalJourneyRepository
+        let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
+        let naturalJourneyMetrics: any NaturalJourneyMetricsRecording
         let lineStatusRepository: any LineStatusRepository
         let accountModel: AccountModel
         let authSessionViewModel: AuthSessionViewModel

@@ -8,6 +8,9 @@ struct StationsView: View {
     @Binding var detailDetent: PresentationDetent
 
     let onOpenSearch: () -> Void
+    let naturalLanguageAccess: NaturalLanguageAccess
+    let showsNaturalSearchDiscovery: Bool
+    let onOpenNaturalSearch: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.scenePhase) private var scenePhase
@@ -19,6 +22,17 @@ struct StationsView: View {
             content
                 .navigationTitle("Stations")
                 .toolbarTitleDisplayMode(.inlineLarge)
+                .toolbar {
+                    if naturalLanguageAccess != .hidden {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            AIEntryButton(
+                                shape: .circle,
+                                isDiscoverable: showsNaturalSearchDiscovery,
+                                action: onOpenNaturalSearch,
+                            )
+                        }
+                    }
+                }
         }
         .opacity(tabVisibilityProgress)
         .task(id: scenePhase) {
@@ -31,7 +45,7 @@ struct StationsView: View {
                 StationDetailView(
                     selection: selectedStation,
                     isLargeScreen: isLargeScreen,
-                    detailDetent: $detailDetent
+                    detailDetent: $detailDetent,
                 )
             }
         }
@@ -50,7 +64,7 @@ struct StationsView: View {
     private var isInitialLoading: Bool {
         switch viewModel.state {
         case .idle, .locating: true
-        case .loading(let previous): previous == nil
+        case let .loading(previous): previous == nil
         case .loaded, .empty, .locationUnavailable, .failed: false
         }
     }
@@ -60,19 +74,19 @@ struct StationsView: View {
         switch viewModel.state {
         case .idle, .locating:
             EmptyView()
-        case .loading(let previous):
+        case let .loading(previous):
             if let previous {
                 stationList(previous, isRefreshing: true)
             } else {
                 EmptyView()
             }
-        case .loaded(let station):
+        case let .loaded(station):
             stationList(station)
         case .empty:
             StationsEmptyStateView(onOpenSearch: onOpenSearch)
-        case .locationUnavailable(let authorization):
+        case let .locationUnavailable(authorization):
             unavailableContent(for: authorization)
-        case .failed(let error, let previous):
+        case let .failed(error, previous):
             if let previous {
                 stationList(previous, refreshError: error)
             } else {
@@ -86,7 +100,7 @@ struct StationsView: View {
             count: 5,
             label: "Recherche de stations…",
             row: .departure,
-            separator: .divider(leadingInset: 52)
+            separator: .divider(leadingInset: 52),
         )
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -96,7 +110,7 @@ struct StationsView: View {
     private func stationList(
         _ station: StationOverview,
         isRefreshing: Bool = false,
-        refreshError: ViaError? = nil
+        refreshError: ViaError? = nil,
     ) -> some View {
         List {
             StationPlacePicker(selection: $selectedPlaceShortcut)
@@ -128,7 +142,7 @@ struct StationsView: View {
             if let refreshError {
                 StationRefreshStatusView(
                     message: message(for: refreshError),
-                    onRetry: viewModel.retry
+                    onRetry: viewModel.retry,
                 )
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
@@ -146,7 +160,7 @@ struct StationsView: View {
             title: "Localisation indisponible",
             message: message(for: authorization),
             onOpenSearch: onOpenSearch,
-            onRetry: viewModel.retry
+            onRetry: viewModel.retry,
         )
     }
 
@@ -155,7 +169,7 @@ struct StationsView: View {
             title: "Stations indisponibles",
             message: message(for: error),
             onOpenSearch: onOpenSearch,
-            onRetry: viewModel.retry
+            onRetry: viewModel.retry,
         )
     }
 
@@ -198,7 +212,7 @@ struct StationsView: View {
                 if !isPresented {
                     selectedStation.dismiss()
                 }
-            }
+            },
         )
     }
 }
@@ -206,13 +220,13 @@ struct StationsView: View {
 #Preview("Station row") {
     let locationModel = LocationModel(
         adapter: InMemoryLocationAdapter(
-            coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
-        )
+            coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470),
+        ),
     )
     let accountModel: AccountModel = {
         let model = AccountModel(
             remote: InMemoryAccountRemote(),
-            synchronizationEnabled: false
+            synchronizationEnabled: false,
         )
         model.activateAnonymous()
         return model
@@ -222,16 +236,19 @@ struct StationsView: View {
         viewModel: StationsViewModel(
             locationModel: locationModel,
             networkRepository: InMemoryNetworkRepository.mapPreview,
-            departuresRepository: InMemoryDeparturesRepository.stationsPreview
+            departuresRepository: InMemoryDeparturesRepository.stationsPreview,
         ),
         selectedStation: SelectedStationModel(
             departuresRepository: InMemoryDeparturesRepository.stationsPreview,
             account: accountModel,
-            locationModel: locationModel
+            locationModel: locationModel,
         ),
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
-        onOpenSearch: {}
+        onOpenSearch: {},
+        naturalLanguageAccess: .active,
+        showsNaturalSearchDiscovery: true,
+        onOpenNaturalSearch: {},
     )
 }
 
