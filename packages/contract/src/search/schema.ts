@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { coordinateSchema, routeBadgeSchema } from '../shared/schema';
+import { coordinateSchema, queryBooleanSchema, routeBadgeSchema } from '../shared/schema';
 
 export const searchInputSchema = z
   .object({
@@ -13,6 +13,8 @@ export const searchInputSchema = z
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
     limit: z.int().min(1).max(20).default(10),
+    /** Only return stations with a declared PMR accessibility level. */
+    accessibleStationsOnly: queryBooleanSchema.optional(),
   })
   .refine((input) => (input.latitude === undefined) === (input.longitude === undefined), {
     message: 'latitude et longitude vont ensemble',
@@ -28,6 +30,13 @@ export const stationSearchResultSchema = z.object({
   /** The serving lines' badges, ready to render without another fetch. */
   routes: z.array(routeBadgeSchema),
   distanceMeters: z.number().optional(),
+  accessibility: z
+    .object({
+      condition: z.enum(['reservationRequired', 'staffAssistance', 'autonomous']),
+      label: z.string(),
+      comment: z.string().optional(),
+    })
+    .optional(),
 });
 
 export const addressSearchResultSchema = z.object({
@@ -56,5 +65,10 @@ export const searchResponseSchema = z.object({
    */
   sources: z.object({
     ban: z.enum(['ok', 'unavailable']),
+    accessibility: z.object({
+      status: z.enum(['ok', 'unavailable']),
+      sourceUpdatedAt: z.iso.datetime({ offset: true }).optional(),
+      importedAt: z.iso.datetime({ offset: true }).optional(),
+    }),
   }),
 });

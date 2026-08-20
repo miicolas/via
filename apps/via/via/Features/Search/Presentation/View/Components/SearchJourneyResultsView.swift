@@ -55,17 +55,26 @@ struct SearchJourneyResultsView: View {
             if let result, !result.journeys.isEmpty {
                 resultsContent(result)
             } else {
-                noRouteContent
+                noRouteContent(result: result)
             }
         case .noRoute:
-            noRouteContent
+            noRouteContent(result: result)
         case .unavailable:
-            stateContent(
-                title: "Calcul indisponible",
-                message: "Le service d’itinéraires ne répond pas pour le moment. Vérifie ta connexion puis réessaie.",
-                systemImage: "wifi.exclamationmark",
-                actionTitle: "Réessayer"
-            )
+            if result?.reason == .accessibilityDataUnavailable {
+                stateContent(
+                    title: "Données PMR indisponibles",
+                    message: "La source d’accessibilité n’est pas disponible. Modifie le filtre PMR ou réessaie plus tard.",
+                    systemImage: "figure.roll",
+                    actionTitle: "Réessayer"
+                )
+            } else {
+                stateContent(
+                    title: "Calcul indisponible",
+                    message: "Le service d’itinéraires ne répond pas pour le moment. Vérifie ta connexion puis réessaie.",
+                    systemImage: "wifi.exclamationmark",
+                    actionTitle: "Réessayer"
+                )
+            }
         case .locationBlocked(let authorization):
             stateContent(
                 title: "Position indisponible",
@@ -116,11 +125,21 @@ struct SearchJourneyResultsView: View {
         }
     }
 
-    private var noRouteContent: some View {
-        SearchNoResultsView(
-            onChooseAnotherDestination: onEdit,
-            onEditSearch: onEdit
-        )
+    @ViewBuilder
+    private func noRouteContent(result: JourneyResult?) -> some View {
+        if result?.reason == .noAccessibleRoute {
+            stateContent(
+                title: "Aucun trajet PMR vérifié",
+                message: "Aucune combinaison de gares accessibles ne respecte cette recherche. Modifie la destination ou désactive le filtre de trajet PMR.",
+                systemImage: "figure.roll",
+                actionTitle: "Réessayer"
+            )
+        } else {
+            SearchNoResultsView(
+                onChooseAnotherDestination: onEdit,
+                onEditSearch: onEdit
+            )
+        }
     }
 
     private func stateContent(

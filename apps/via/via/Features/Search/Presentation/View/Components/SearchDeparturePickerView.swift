@@ -83,11 +83,17 @@ struct SearchDeparturePickerView: View {
             select(shortcut)
         }
         .sheet(isPresented: $isManualSearchPresented) {
-            SearchManualDepartureView(searchPlaces: viewModel.searchPlaces) { result in
-                onSelect(.manual(result))
-                isManualSearchPresented = false
-                dismiss()
-            }
+            SearchManualDepartureView(
+                searchPlaces: viewModel.searchPlaces,
+                onSelect: { result in
+                    onSelect(.manual(result))
+                    isManualSearchPresented = false
+                    dismiss()
+                },
+                filters: viewModel.filters,
+                onSetAccessibleStationsOnly: viewModel.setAccessibleStationsOnly,
+                onSetRequiresAccessibleStations: viewModel.setRequiresAccessibleStations
+            )
         }
     }
 

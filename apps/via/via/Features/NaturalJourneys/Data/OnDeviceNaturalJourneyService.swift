@@ -13,6 +13,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
     private let now: @Sendable () -> Date
     private let metrics: any NaturalJourneyMetricsRecording
     private let metricsNow: @Sendable () -> Date
+    private let requiresAccessibleStations: @Sendable () -> Bool
 
     init(
         parser: any NaturalIntentParsing,
@@ -21,6 +22,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         now: @escaping @Sendable () -> Date = { .now },
         metrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
         metricsNow: @escaping @Sendable () -> Date = { .now },
+        requiresAccessibleStations: @escaping @Sendable () -> Bool = { false },
     ) {
         self.parser = parser
         self.places = places
@@ -28,6 +30,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         self.now = now
         self.metrics = metrics
         self.metricsNow = metricsNow
+        self.requiresAccessibleStations = requiresAccessibleStations
     }
 
     func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
@@ -242,6 +245,10 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         journeyRequest.requiredModes = draft.intent.requiredModes
         journeyRequest.excludedModes = draft.intent.excludedModes
         journeyRequest.preferredModes = draft.intent.preferredModes
+        journeyRequest.requiresAccessibleStations = requiresAccessibleStations()
+        if let origin = draft.origin, case let .station(station) = origin {
+            journeyRequest.originStationID = station.id
+        }
 
         let originLabel = switch draft.intent.origin {
         case .currentLocation: "Ta position"
@@ -270,7 +277,15 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         }
 
         guard journeyResult.status == .ready, !journeyResult.journeys.isEmpty else {
-            return .unavailable(message: "Je n’ai pas trouvé d’itinéraire vérifiable.")
+            let message = switch journeyResult.reason {
+            case .noAccessibleRoute:
+                "Aucun trajet PMR vérifié ne respecte cette recherche. Modifie la recherche ou désactive le filtre de trajet PMR."
+            case .accessibilityDataUnavailable:
+                "Les données d’accessibilité sont indisponibles. Réessaie plus tard ou désactive le filtre de trajet PMR."
+            case nil:
+                "Je n’ai pas trouvé d’itinéraire vérifiable."
+            }
+            return .unavailable(message: message)
         }
 
         return .ready(

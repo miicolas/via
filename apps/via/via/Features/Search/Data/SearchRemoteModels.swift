@@ -1,14 +1,28 @@
 import Foundation
 
 struct SearchResponseDTO: Decodable {
-    struct Sources: Decodable { let ban: String }
+    struct Sources: Decodable {
+        struct Accessibility: Decodable {
+            let status: String
+            let sourceUpdatedAt: Date?
+            let importedAt: Date?
+        }
+
+        let ban: String
+        let accessibility: Accessibility?
+    }
     let results: [SearchResultDTO]
     let sources: Sources
 
     func domain() throws -> SearchResponse {
         SearchResponse(
             results: try results.map { try $0.domain() },
-            addressSource: sources.ban == "ok" ? .ok : .unavailable
+            addressSource: sources.ban == "ok" ? .ok : .unavailable,
+            accessibilitySource: .init(
+                status: sources.accessibility?.status == "ok" ? .ok : .unavailable,
+                sourceUpdatedAt: sources.accessibility?.sourceUpdatedAt,
+                importedAt: sources.accessibility?.importedAt
+            )
         )
     }
 }
@@ -23,6 +37,13 @@ enum SearchResultDTO: Codable {
         let coordinate: CoordinateDTO
         let routes: [RouteBadgeDTO]
         let distanceMeters: Double?
+        let accessibility: Accessibility?
+
+        struct Accessibility: Codable {
+            let condition: String
+            let label: String
+            let comment: String?
+        }
     }
 
     struct Address: Codable {
@@ -43,7 +64,17 @@ enum SearchResultDTO: Codable {
                 name: station.name,
                 coordinate: .init(station.coordinate),
                 routes: station.routes.map(RouteBadgeDTO.init),
-                distanceMeters: station.distanceMeters
+                distanceMeters: station.distanceMeters,
+                accessibility: station.accessibility.flatMap { value in
+                    guard let condition = StationAccessibility.Condition(rawValue: value.condition) else {
+                        return nil
+                    }
+                    return Station.Accessibility(
+                        condition: condition,
+                        label: value.label,
+                        comment: value.comment
+                    )
+                }
             ))
         case .address(let address):
             self = .address(.init(
@@ -95,7 +126,17 @@ enum SearchResultDTO: Codable {
                 name: value.name,
                 coordinate: value.coordinate.domain,
                 routes: try value.routes.map { try $0.domain() },
-                distanceMeters: value.distanceMeters
+                distanceMeters: value.distanceMeters,
+                accessibility: value.accessibility.flatMap { accessibility in
+                    guard let condition = StationAccessibility.Condition(rawValue: accessibility.condition) else {
+                        return nil
+                    }
+                    return StationAccessibility(
+                        condition: condition,
+                        label: accessibility.label,
+                        comment: accessibility.comment
+                    )
+                }
             ))
         case .address(let value):
             .address(AddressSearchResult(

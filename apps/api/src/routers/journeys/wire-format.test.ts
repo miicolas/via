@@ -98,3 +98,17 @@ test('an unknown mode in the CSV is rejected', async () => {
 
   expect(status).toBe(400);
 });
+
+test('boolean accessibility flags keep the literal false value', async () => {
+  const { status, input } = await planEcho().request(
+    'origin[latitude]=48.881&origin[longitude]=2.155' +
+      '&destination[kind]=station&destination[id]=IDFM%3A71379' +
+      '&destination[name]=Chatou%20-%20Croissy' +
+      '&destination[latitude]=48.8817&destination[longitude]=2.1557' +
+      '&requiresAccessibleStations=false&originStationId=IDFM%3A71410'
+  );
+
+  expect(status).toBe(200);
+  expect(input?.requiresAccessibleStations).toBe(false);
+  expect(input?.originStationId).toBe('IDFM:71410');
+});

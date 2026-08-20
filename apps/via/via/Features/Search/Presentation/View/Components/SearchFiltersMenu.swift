@@ -1,0 +1,57 @@
+import SwiftUI
+
+@MainActor
+struct SearchFiltersMenu: View {
+    let filters: SearchFilters
+    let onSetAccessibleStationsOnly: @MainActor (Bool) -> Void
+    let onSetRequiresAccessibleStations: @MainActor (Bool) -> Void
+    let onShowAccessibilityInfo: @MainActor () -> Void
+
+    var body: some View {
+        Menu {
+            Toggle(
+                isOn: Binding(
+                    get: { filters.accessibleStationsOnly },
+                    set: onSetAccessibleStationsOnly
+                )
+            ) {
+                Label("Gares accessibles PMR", systemImage: "figure.roll")
+            }
+            .disabled(filters.requiresAccessibleStations)
+
+            Toggle(
+                isOn: Binding(
+                    get: { filters.requiresAccessibleStations },
+                    set: onSetRequiresAccessibleStations
+                )
+            ) {
+                Label("Trajet via gares accessibles PMR", systemImage: "figure.roll")
+            }
+
+            Divider()
+
+            Button("À propos de l’accessibilité", systemImage: "info.circle", action: onShowAccessibilityInfo)
+        } label: {
+            HStack(spacing: 4) {
+                Image(
+                    systemName: filters.activeCount > 0
+                        ? "line.3.horizontal.decrease.circle.fill"
+                        : "line.3.horizontal.decrease.circle"
+                )
+
+                if filters.activeCount > 0 {
+                    Text("\(filters.activeCount)")
+                        .font(.caption.weight(.bold))
+                        .monospacedDigit()
+                }
+            }
+        }
+        .accessibilityLabel("Filtres de recherche")
+        .accessibilityValue(
+            filters.activeCount == 0
+                ? "Aucun filtre actif"
+                : "\(filters.activeCount) filtre\(filters.activeCount > 1 ? "s" : "") actif\(filters.activeCount > 1 ? "s" : "")"
+        )
+        .accessibilityHint("Affiche les filtres de recherche")
+    }
+}

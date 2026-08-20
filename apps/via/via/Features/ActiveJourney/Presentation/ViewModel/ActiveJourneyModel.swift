@@ -401,6 +401,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             journey: journey,
             destination: destination,
             source: source,
+            requiresAccessibleStations: journey.accessibility != nil,
             currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: activatedAt),
             lastCoordinate: nil,
             horizontalAccuracy: nil,
@@ -522,6 +523,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         request.limit = 4
         request.requestedAt = now()
         request.datetimeRepresents = .departure
+        request.requiresAccessibleStations = session.requiresAccessibleStations
 
         do {
             let result = try await journeyRepository.plan(request)
@@ -601,6 +603,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             journey: journey,
             destination: previous.destination,
             source: source,
+            requiresAccessibleStations: previous.requiresAccessibleStations,
             currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: acceptedAt),
             lastCoordinate: previous.lastCoordinate,
             horizontalAccuracy: previous.horizontalAccuracy,

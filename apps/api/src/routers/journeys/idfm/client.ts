@@ -44,10 +44,17 @@ export function createIdfmJourneyPlanner({
 
 export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Date) {
   const url = new URL(baseUrl);
-  url.searchParams.set('from', `${input.origin.longitude};${input.origin.latitude}`);
+  url.searchParams.set(
+    'from',
+    input.originStationId
+      ? `stop_area:${input.originStationId}`
+      : `${input.origin.longitude};${input.origin.latitude}`
+  );
   url.searchParams.set(
     'to',
-    `${input.destination.coordinate.longitude};${input.destination.coordinate.latitude}`
+    input.destination.kind === 'station'
+      ? `stop_area:${input.destination.id}`
+      : `${input.destination.coordinate.longitude};${input.destination.coordinate.latitude}`
   );
   url.searchParams.set('count', String(input.limit));
   url.searchParams.set('data_freshness', 'realtime');
@@ -56,6 +63,7 @@ export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Da
   url.searchParams.set('disable_geojson', 'false');
   url.searchParams.set('datetime', compactParisDateTime(requestedAt));
   url.searchParams.set('datetime_represents', input.datetimeRepresents ?? 'departure');
+  if (input.requiresAccessibleStations) url.searchParams.set('wheelchair', 'true');
   for (const mode of input.requiredModes ?? []) {
     url.searchParams.append('allowed_id[]', physicalModeUri(mode));
   }

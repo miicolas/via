@@ -14,6 +14,7 @@ import {
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
+  transitStopAliases,
   transitShapes,
   transitServiceDates,
   transitStopRoutes,
@@ -37,6 +38,7 @@ import { formatCount, formatDuration, logStep, step } from './progress';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
 import { addScheduledTrip } from './schedule/scheduled-trips';
 import { importShapes } from './shapes/import-shapes';
+import { refreshAccessibilitySnapshot } from './accessibility/import-accessibility';
 
 /**
  * A route once its required fields have actually been checked.
@@ -262,6 +264,7 @@ async function importTransitNetwork(gtfsPath: string) {
         ${transitTrips}, ${transitProfileStops}, ${transitTimeProfiles},
         ${transitStopRoutes}
     `);
+    await tx.delete(transitStopAliases);
     await tx.delete(transitRoutes).where(networkRouteCondition());
 
     /**
@@ -303,6 +306,14 @@ async function importTransitNetwork(gtfsPath: string) {
         })
         .returning({ id: transitStops.id, numericId: transitStops.numericId });
       for (const stop of inserted) stopKeyById.set(stop.id, stop.numericId);
+    }
+
+    const aliasValues = [...sourceStops.values()].map((stop) => ({
+      sourceId: stop.id,
+      stopId: canonicalStopOf(stop.id).id,
+    }));
+    for (let start = 0; start < aliasValues.length; start += INSERT_BATCH) {
+      await tx.insert(transitStopAliases).values(aliasValues.slice(start, start + INSERT_BATCH));
     }
 
     logStep(`Inserting ${formatCount(patterns.length)} route patterns`);
@@ -448,6 +459,22 @@ if (!gtfsPath) {
 }
 
 const importStartedAt = performance.now();
+async function refreshAccessibilityData() {
+  await step('Refreshing IDFM station accessibility', async () => {
+    try {
+      const result = await refreshAccessibilitySnapshot();
+      logStep(
+        `Imported ${formatCount(result.imported)} accessibility rows ` +
+          `(source ${result.sourceUpdatedAt ?? 'date inconnue'}).`
+      );
+    } catch (cause) {
+      // Accessibility is a derived snapshot. A source outage must not erase the
+      // last valid declaration or make a complete GTFS import fail.
+      console.error('[worker] accessibility snapshot unchanged', cause);
+    }
+  });
+}
+
 try {
   logStep(`Importing ${gtfsPath}`);
   const feedHash = await hashGtfsFeed(gtfsPath);
@@ -475,6 +502,7 @@ try {
     await bumpTransitNetworkCacheVersion();
     logStep(`Import complete in ${formatDuration(performance.now() - importStartedAt)}.`);
   }
+  await refreshAccessibilityData();
 } finally {
   await client.end();
 }

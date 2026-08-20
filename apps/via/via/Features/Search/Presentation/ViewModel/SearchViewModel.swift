@@ -93,6 +93,12 @@ final class SearchViewModel {
     private(set) var selectedDestination: SearchResult?
     private(set) var selectedDeparture: SearchDepartureSelection = .currentLocation
     private(set) var highlightedJourneySectionID: String?
+    private(set) var filters: SearchFilters
+    private(set) var accessibilitySource = SearchResponse.AccessibilitySource(
+        status: .unavailable,
+        sourceUpdatedAt: nil,
+        importedAt: nil
+    )
     private(set) var naturalSearchState: NaturalSearchState = .dismissed
     private(set) var naturalJourneyCriteria: NaturalJourneyCriteria?
     private(set) var naturalJourneyUnresolvedDraft: NaturalJourneyDraft?
@@ -104,6 +110,7 @@ final class SearchViewModel {
     @ObservationIgnored private let journeyRepository: any JourneyRepository
     @ObservationIgnored private let locationModel: LocationModel
     @ObservationIgnored private let account: AccountModel?
+    @ObservationIgnored private let filterStore: any SearchFilterStoring
     @ObservationIgnored private let naturalJourneyRepository: (any NaturalJourneyRepository)?
     @ObservationIgnored private let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
     @ObservationIgnored private let naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring
@@ -130,11 +137,14 @@ final class SearchViewModel {
         naturalJourneyOnboardingStore: (any NaturalJourneyOnboardingStoring)? = nil,
         naturalJourneyMetrics: any NaturalJourneyMetricsRecording = AppLogNaturalJourneyMetrics(),
         metricsNow: @escaping @Sendable () -> Date = { .now },
+        filterStore: any SearchFilterStoring = UserDefaultsSearchFilterStore(),
     ) {
         self.repository = repository
         self.journeyRepository = journeyRepository
         self.locationModel = locationModel
         self.account = account
+        self.filterStore = filterStore
+        filters = filterStore.load()
         self.naturalJourneyRepository = naturalJourneyRepository
         self.naturalLanguageAvailability = naturalLanguageAvailability
         self.naturalJourneyOnboardingStore = naturalJourneyOnboardingStore
@@ -488,6 +498,48 @@ final class SearchViewModel {
         updateQuery("")
     }
 
+    func setAccessibleStationsOnly(_ enabled: Bool) {
+        guard !filters.requiresAccessibleStations || enabled else { return }
+        updateFilters { $0.accessibleStationsOnly = enabled }
+    }
+
+    func setRequiresAccessibleStations(_ enabled: Bool) {
+        updateFilters {
+            $0.requiresAccessibleStations = enabled
+            if enabled { $0.accessibleStationsOnly = true }
+        }
+    }
+
+    private func updateFilters(_ update: (inout SearchFilters) -> Void) {
+        var next = filters
+        update(&next)
+        guard next != filters else { return }
+        filters = next
+        filterStore.save(next)
+
+        if next.requiresAccessibleStations,
+           let destination = selectedDestination,
+           case .station(let station) = destination,
+           station.accessibility == nil {
+            editDestination()
+            return
+        }
+
+        if selectedDestination != nil, step != .destination {
+            planJourney()
+            return
+        }
+
+        guard step == .destination else { return }
+        let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalized.count >= 2 else { return }
+        searchTask?.cancel()
+        searchTask = Task { [weak self] in
+            guard let self else { return }
+            await self.performSearch(normalized)
+        }
+    }
+
     func selectDestination(_ result: SearchResult) {
         searchTask?.cancel()
         account?.recordRecentSearch(result)
@@ -574,7 +626,11 @@ final class SearchViewModel {
     }
 
     func searchPlaces(query: String) async throws -> SearchResponse {
-        try await repository.search(query: query, near: locationModel.coordinate)
+        try await repository.search(
+            query: query,
+            near: locationModel.coordinate,
+            accessibleStationsOnly: filters.accessibleStationsOnly
+        )
     }
 
     private func planJourney() {
@@ -602,6 +658,10 @@ final class SearchViewModel {
                 destination: JourneyPlaceSelection(selectedDestination).journeyDestination,
             )
             request.limit = 4
+            request.requiresAccessibleStations = filters.requiresAccessibleStations
+            if case .manual(.station(let station)) = selectedDeparture {
+                request.originStationID = station.id
+            }
             if var criteria = naturalJourneyCriteria {
                 criteria.originLabel = selectedDeparture.title
                 criteria.destinationResult = selectedDestination
@@ -667,10 +727,12 @@ final class SearchViewModel {
             let response = try await repository.search(
                 query: normalizedQuery,
                 near: locationModel.coordinate,
+                accessibleStationsOnly: filters.accessibleStationsOnly,
             )
             guard !Task.isCancelled else { return }
 
             results = response.results
+            accessibilitySource = response.accessibilitySource
             loadState = response.results.isEmpty ? .empty : .loaded
         } catch is CancellationError {
         } catch {

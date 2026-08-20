@@ -69,7 +69,13 @@ struct JourneyResultDTO: Decodable {
         let arrivalAt: Date
         let status: String
         let warnings: [String]
+        let accessibility: AccessibilityDTO?
         let sections: [SectionDTO]
+
+        struct AccessibilityDTO: Decodable {
+            let condition: String
+            let label: String
+        }
 
         func domain() throws -> Journey {
             guard
@@ -86,6 +92,12 @@ struct JourneyResultDTO: Decodable {
                 arrivalAt: arrivalAt,
                 status: status,
                 warnings: warnings,
+                accessibility: accessibility.flatMap { value in
+                    guard let condition = Journey.Accessibility.Condition(rawValue: value.condition) else {
+                        return nil
+                    }
+                    return Journey.Accessibility(condition: condition, label: value.label)
+                },
                 sections: try sections.enumerated().map { index, section in
                     try section.domain(id: "\(id):\(index)")
                 }
@@ -173,6 +185,7 @@ struct JourneyResultDTO: Decodable {
     let status: String
     let source: String?
     let generatedAt: Date
+    let reason: String?
     let journeys: [JourneyDTO]
 
     func domain() throws -> JourneyResult {
@@ -189,7 +202,8 @@ struct JourneyResultDTO: Decodable {
             status: status,
             source: mappedSource,
             generatedAt: generatedAt,
-            journeys: try journeys.map { try $0.domain() }
+            journeys: try journeys.map { try $0.domain() },
+            reason: reason.flatMap(JourneyResult.Reason.init(rawValue:))
         )
     }
 }

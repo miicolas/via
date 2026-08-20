@@ -3,15 +3,18 @@ import SwiftUI
 struct SearchResultRow: View {
     let result: SearchResult
     let accessibilityHint: String
+    let showsAccessibility: Bool
     let action: () -> Void
 
     init(
         result: SearchResult,
         accessibilityHint: String = "Sélectionne cette destination",
+        showsAccessibility: Bool = false,
         action: @escaping () -> Void
     ) {
         self.result = result
         self.accessibilityHint = accessibilityHint
+        self.showsAccessibility = showsAccessibility
         self.action = action
     }
 
@@ -76,14 +79,28 @@ struct SearchResultRow: View {
     private var resultDetails: some View {
         switch result {
         case .station(let station):
-            if station.routes.isEmpty {
-                Text("Station")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                HStack(spacing: 6) {
-                    ForEach(station.routes.prefix(3)) { route in
-                        LineBadgeView(route: route, size: 20)
+            VStack(alignment: .leading, spacing: 6) {
+                if station.routes.isEmpty {
+                    Text("Station")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 6) {
+                        ForEach(station.routes.prefix(3)) { route in
+                            LineBadgeView(route: route, size: 20)
+                        }
+                    }
+                }
+
+                if showsAccessibility, let accessibility = station.accessibility {
+                    Label(accessibility.label, systemImage: "figure.roll")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tint)
+                    if let comment = accessibility.comment, !comment.isEmpty {
+                        Text(comment)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
                     }
                 }
             }
@@ -100,7 +117,10 @@ struct SearchResultRow: View {
         switch result {
         case .station(let station):
             let routes = station.routes.map(\.shortName).joined(separator: ", ")
-            return routes.isEmpty ? "Station \(station.name)" : "Station \(station.name), lignes \(routes)"
+            let base = routes.isEmpty ? "Station \(station.name)" : "Station \(station.name), lignes \(routes)"
+            guard showsAccessibility, let accessibility = station.accessibility else { return base }
+            let comment = accessibility.comment.map { ", \($0)" } ?? ""
+            return "\(base), \(accessibility.label)\(comment)"
         case .address(let address):
             return address.context.isEmpty
                 ? "Adresse \(address.name)"

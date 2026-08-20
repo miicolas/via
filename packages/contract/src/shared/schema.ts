@@ -25,6 +25,16 @@ export const coordinateParamSchema = z.object({
 
 export const networkModeSchema = z.enum(['metro', 'rer', 'transilien', 'tram', 'bus']);
 
+/** Boolean values arrive as `"true"`/`"false"` in a GET query string. */
+export const queryBooleanSchema = z.preprocess(
+  (value) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  },
+  z.boolean()
+);
+
 /**
  * Exactly what it takes to draw a line badge, inlined into every response that
  * mentions a route (search results, departure groups, the rail map). Inline

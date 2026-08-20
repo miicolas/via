@@ -15,17 +15,21 @@ export const querySearch = implementer.search.query.handler(
         ? { latitude: input.latitude, longitude: input.longitude }
         : undefined;
 
-    const { results, banAvailable } = await searchPlaces(input.q, {
+    const { results, banAvailable, accessibility } = await searchPlaces(input.q, {
       limit: input.limit,
       origin,
       signal,
+      accessibleStationsOnly: input.accessibleStationsOnly,
     });
 
     context.resHeaders?.set('Cache-Control', SEARCH_CACHE_CONTROL);
 
     return {
       results,
-      sources: { ban: banAvailable ? ('ok' as const) : ('unavailable' as const) },
+      sources: {
+        ban: banAvailable ? ('ok' as const) : ('unavailable' as const),
+        accessibility,
+      },
     };
   }
 );

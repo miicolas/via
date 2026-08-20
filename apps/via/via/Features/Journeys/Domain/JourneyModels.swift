@@ -31,6 +31,8 @@ struct JourneyRequest: Sendable, Hashable {
     var requiredModes: Set<TransitMode> = []
     var excludedModes: Set<TransitMode> = []
     var preferredModes: Set<TransitMode> = []
+    var requiresAccessibleStations = false
+    var originStationID: StationID?
 }
 
 struct JourneyPlace: Codable, Sendable, Hashable {
@@ -83,6 +85,17 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
 
     enum Status: String, Codable, Sendable, Hashable { case normal, disrupted, theoretical }
 
+    struct Accessibility: Codable, Sendable, Hashable {
+        enum Condition: String, Codable, Sendable, Hashable {
+            case reservationRequired
+            case staffAssistance
+            case autonomous
+        }
+
+        let condition: Condition
+        let label: String
+    }
+
     let id: JourneyID
     let qualifier: Qualifier
     let durationSeconds: Int
@@ -92,15 +105,35 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
     let arrivalAt: Date
     let status: Status
     let warnings: [String]
+    let accessibility: Accessibility? = nil
     let sections: [JourneySection]
 }
 
 struct JourneyResult: Sendable, Hashable {
     enum Status: String, Sendable, Hashable { case ready, noRoute = "no-route", unavailable }
     enum Source: String, Codable, Sendable, Hashable { case realtime = "idfm-realtime", theoretical = "gtfs-theoretical" }
+    enum Reason: String, Sendable, Hashable {
+        case noAccessibleRoute = "no-accessible-route"
+        case accessibilityDataUnavailable = "accessibility-data-unavailable"
+    }
 
     let status: Status
     let source: Source?
     let generatedAt: Date
     let journeys: [Journey]
+    let reason: Reason?
+
+    init(
+        status: Status,
+        source: Source?,
+        generatedAt: Date,
+        journeys: [Journey],
+        reason: Reason? = nil
+    ) {
+        self.status = status
+        self.source = source
+        self.generatedAt = generatedAt
+        self.journeys = journeys
+        self.reason = reason
+    }
 }

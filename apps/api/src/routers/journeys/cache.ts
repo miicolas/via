@@ -54,6 +54,8 @@ export function journeyCacheKey(input: {
   requiredModes?: string[];
   excludedModes?: string[];
   preferredModes?: string[];
+  requiresAccessibleStations?: boolean;
+  originStationId?: string;
 }) {
   const round = (value: number) => Math.round(value * 10_000) / 10_000;
   const minute = Math.floor(input.requestedAt.getTime() / 60_000);
@@ -69,5 +71,7 @@ export function journeyCacheKey(input: {
     [...(input.requiredModes ?? [])].sort().join(','),
     [...(input.excludedModes ?? [])].sort().join(','),
     [...(input.preferredModes ?? [])].sort().join(','),
+    input.requiresAccessibleStations ? 'accessible' : 'any',
+    input.originStationId ?? '',
   ].join(':');
 }

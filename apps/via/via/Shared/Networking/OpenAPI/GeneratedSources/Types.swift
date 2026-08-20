@@ -1922,6 +1922,10 @@ internal enum Operations {
                 internal var excludedModes: Swift.String?
                 /// - Remark: Generated from `#/paths/journeys/GET/query/preferredModes`.
                 internal var preferredModes: Swift.String?
+                /// - Remark: Generated from `#/paths/journeys/GET/query/requiresAccessibleStations`.
+                internal var requiresAccessibleStations: Swift.Bool?
+                /// - Remark: Generated from `#/paths/journeys/GET/query/originStationId`.
+                internal var originStationId: Swift.String?
                 /// Creates a new `Query`.
                 ///
                 /// - Parameters:
@@ -1933,6 +1937,8 @@ internal enum Operations {
                 ///   - requiredModes:
                 ///   - excludedModes:
                 ///   - preferredModes:
+                ///   - requiresAccessibleStations:
+                ///   - originStationId:
                 internal init(
                     origin: Operations.journeys_period_plan.Input.Query.originPayload,
                     destination: Operations.journeys_period_plan.Input.Query.destinationPayload,
@@ -1941,7 +1947,9 @@ internal enum Operations {
                     datetimeRepresents: Operations.journeys_period_plan.Input.Query.datetimeRepresentsPayload? = nil,
                     requiredModes: Swift.String? = nil,
                     excludedModes: Swift.String? = nil,
-                    preferredModes: Swift.String? = nil
+                    preferredModes: Swift.String? = nil,
+                    requiresAccessibleStations: Swift.Bool? = nil,
+                    originStationId: Swift.String? = nil
                 ) {
                     self.origin = origin
                     self.destination = destination
@@ -1951,6 +1959,8 @@ internal enum Operations {
                     self.requiredModes = requiredModes
                     self.excludedModes = excludedModes
                     self.preferredModes = preferredModes
+                    self.requiresAccessibleStations = requiresAccessibleStations
+                    self.originStationId = originStationId
                 }
             }
             internal var query: Operations.journeys_period_plan.Input.Query
@@ -2002,6 +2012,13 @@ internal enum Operations {
                         internal var source: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.sourcePayload?
                         /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/generatedAt`.
                         internal var generatedAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/reason`.
+                        internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case no_hyphen_accessible_hyphen_route = "no-accessible-route"
+                            case accessibility_hyphen_data_hyphen_unavailable = "accessibility-data-unavailable"
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/reason`.
+                        internal var reason: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.reasonPayload?
                         /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload`.
                         internal struct journeysPayloadPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/id`.
@@ -2036,6 +2053,37 @@ internal enum Operations {
                             internal var status: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.statusPayload
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/warnings`.
                             internal var warnings: [Swift.String]
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/accessibility`.
+                            internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/accessibility/condition`.
+                                internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case reservationRequired = "reservationRequired"
+                                    case staffAssistance = "staffAssistance"
+                                    case autonomous = "autonomous"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/accessibility/condition`.
+                                internal var condition: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.accessibilityPayload.conditionPayload
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/accessibility/label`.
+                                internal var label: Swift.String
+                                /// Creates a new `accessibilityPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - condition:
+                                ///   - label:
+                                internal init(
+                                    condition: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.accessibilityPayload.conditionPayload,
+                                    label: Swift.String
+                                ) {
+                                    self.condition = condition
+                                    self.label = label
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case condition
+                                    case label
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/accessibility`.
+                            internal var accessibility: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.accessibilityPayload?
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload`.
                             internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/type`.
@@ -2374,6 +2422,7 @@ internal enum Operations {
                             ///   - arrivalAt:
                             ///   - status:
                             ///   - warnings:
+                            ///   - accessibility:
                             ///   - sections:
                             internal init(
                                 id: Swift.String,
@@ -2385,6 +2434,7 @@ internal enum Operations {
                                 arrivalAt: Foundation.Date,
                                 status: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.statusPayload,
                                 warnings: [Swift.String],
+                                accessibility: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.accessibilityPayload? = nil,
                                 sections: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayload
                             ) {
                                 self.id = id
@@ -2396,6 +2446,7 @@ internal enum Operations {
                                 self.arrivalAt = arrivalAt
                                 self.status = status
                                 self.warnings = warnings
+                                self.accessibility = accessibility
                                 self.sections = sections
                             }
                             internal enum CodingKeys: String, CodingKey {
@@ -2408,6 +2459,7 @@ internal enum Operations {
                                 case arrivalAt
                                 case status
                                 case warnings
+                                case accessibility
                                 case sections
                             }
                         }
@@ -2421,22 +2473,26 @@ internal enum Operations {
                         ///   - status:
                         ///   - source:
                         ///   - generatedAt:
+                        ///   - reason:
                         ///   - journeys:
                         internal init(
                             status: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.statusPayload,
                             source: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.sourcePayload? = nil,
                             generatedAt: Foundation.Date,
+                            reason: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.reasonPayload? = nil,
                             journeys: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayload
                         ) {
                             self.status = status
                             self.source = source
                             self.generatedAt = generatedAt
+                            self.reason = reason
                             self.journeys = journeys
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case status
                             case source
                             case generatedAt
+                            case reason
                             case journeys
                         }
                     }
@@ -4231,6 +4287,8 @@ internal enum Operations {
                 internal var longitude: Swift.Double?
                 /// - Remark: Generated from `#/paths/search/GET/query/limit`.
                 internal var limit: Swift.Int?
+                /// - Remark: Generated from `#/paths/search/GET/query/accessibleStationsOnly`.
+                internal var accessibleStationsOnly: Swift.Bool?
                 /// Creates a new `Query`.
                 ///
                 /// - Parameters:
@@ -4238,16 +4296,19 @@ internal enum Operations {
                 ///   - latitude:
                 ///   - longitude:
                 ///   - limit:
+                ///   - accessibleStationsOnly:
                 internal init(
                     q: Swift.String,
                     latitude: Swift.Double? = nil,
                     longitude: Swift.Double? = nil,
-                    limit: Swift.Int? = nil
+                    limit: Swift.Int? = nil,
+                    accessibleStationsOnly: Swift.Bool? = nil
                 ) {
                     self.q = q
                     self.latitude = latitude
                     self.longitude = longitude
                     self.limit = limit
+                    self.accessibleStationsOnly = accessibleStationsOnly
                 }
             }
             internal var query: Operations.search_period_query.Input.Query
@@ -4372,6 +4433,43 @@ internal enum Operations {
                                 internal var routes: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value1Payload.routesPayload
                                 /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1/distanceMeters`.
                                 internal var distanceMeters: Swift.Double?
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1/accessibility`.
+                                internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1/accessibility/condition`.
+                                    internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case reservationRequired = "reservationRequired"
+                                        case staffAssistance = "staffAssistance"
+                                        case autonomous = "autonomous"
+                                    }
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1/accessibility/condition`.
+                                    internal var condition: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value1Payload.accessibilityPayload.conditionPayload
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1/accessibility/label`.
+                                    internal var label: Swift.String
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1/accessibility/comment`.
+                                    internal var comment: Swift.String?
+                                    /// Creates a new `accessibilityPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - condition:
+                                    ///   - label:
+                                    ///   - comment:
+                                    internal init(
+                                        condition: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value1Payload.accessibilityPayload.conditionPayload,
+                                        label: Swift.String,
+                                        comment: Swift.String? = nil
+                                    ) {
+                                        self.condition = condition
+                                        self.label = label
+                                        self.comment = comment
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case condition
+                                        case label
+                                        case comment
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1/accessibility`.
+                                internal var accessibility: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value1Payload.accessibilityPayload?
                                 /// Creates a new `Value1Payload`.
                                 ///
                                 /// - Parameters:
@@ -4381,13 +4479,15 @@ internal enum Operations {
                                 ///   - coordinate:
                                 ///   - routes:
                                 ///   - distanceMeters:
+                                ///   - accessibility:
                                 internal init(
                                     kind: OpenAPIRuntime.OpenAPIValueContainer,
                                     id: Swift.String,
                                     name: Swift.String,
                                     coordinate: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value1Payload.coordinatePayload,
                                     routes: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value1Payload.routesPayload,
-                                    distanceMeters: Swift.Double? = nil
+                                    distanceMeters: Swift.Double? = nil,
+                                    accessibility: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value1Payload.accessibilityPayload? = nil
                                 ) {
                                     self.kind = kind
                                     self.id = id
@@ -4395,6 +4495,7 @@ internal enum Operations {
                                     self.coordinate = coordinate
                                     self.routes = routes
                                     self.distanceMeters = distanceMeters
+                                    self.accessibility = accessibility
                                 }
                                 internal enum CodingKeys: String, CodingKey {
                                     case kind
@@ -4403,6 +4504,7 @@ internal enum Operations {
                                     case coordinate
                                     case routes
                                     case distanceMeters
+                                    case accessibility
                                 }
                             }
                             /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value1`.
@@ -4531,15 +4633,57 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/ban`.
                             internal var ban: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.banPayload
+                            /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/accessibility`.
+                            internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/accessibility/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case ok = "ok"
+                                    case unavailable = "unavailable"
+                                }
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/accessibility/status`.
+                                internal var status: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.accessibilityPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/accessibility/sourceUpdatedAt`.
+                                internal var sourceUpdatedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/accessibility/importedAt`.
+                                internal var importedAt: Foundation.Date?
+                                /// Creates a new `accessibilityPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - status:
+                                ///   - sourceUpdatedAt:
+                                ///   - importedAt:
+                                internal init(
+                                    status: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.accessibilityPayload.statusPayload,
+                                    sourceUpdatedAt: Foundation.Date? = nil,
+                                    importedAt: Foundation.Date? = nil
+                                ) {
+                                    self.status = status
+                                    self.sourceUpdatedAt = sourceUpdatedAt
+                                    self.importedAt = importedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case status
+                                    case sourceUpdatedAt
+                                    case importedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/accessibility`.
+                            internal var accessibility: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.accessibilityPayload
                             /// Creates a new `sourcesPayload`.
                             ///
                             /// - Parameters:
                             ///   - ban:
-                            internal init(ban: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.banPayload) {
+                            ///   - accessibility:
+                            internal init(
+                                ban: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.banPayload,
+                                accessibility: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.accessibilityPayload
+                            ) {
                                 self.ban = ban
+                                self.accessibility = accessibility
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case ban
+                                case accessibility
                             }
                         }
                         /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources`.

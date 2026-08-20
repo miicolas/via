@@ -19,6 +19,7 @@ struct SearchView: View {
     @State private var isActiveJourneyPresented = false
     @State private var isNaturalDatePickerPresented = false
     @State private var isNaturalOptionsPresented = false
+    @State private var isAccessibilityInfoPresented = false
 
     init(
         viewModel: SearchViewModel,
@@ -62,6 +63,14 @@ struct SearchView: View {
                                         isActiveJourneyPresented = true
                                     }
                                 }
+                            }
+                            ToolbarItem(placement: .topBarTrailing) {
+                                SearchFiltersMenu(
+                                    filters: viewModel.wrappedValue.filters,
+                                    onSetAccessibleStationsOnly: viewModel.wrappedValue.setAccessibleStationsOnly,
+                                    onSetRequiresAccessibleStations: viewModel.wrappedValue.setRequiresAccessibleStations,
+                                    onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
+                                )
                             }
                             ToolbarItem(placement: .topBarTrailing) {
                                 Button(role: .close) {
@@ -115,6 +124,9 @@ struct SearchView: View {
                     onApply: viewModel.updateNaturalModes,
                 )
             }
+        }
+        .sheet(isPresented: $isAccessibilityInfoPresented) {
+            SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
         }
         .onAppear(perform: synchronizeActiveJourneyPresentation)
         .onChange(of: activeJourneyModel.session?.journey.id) { _, _ in
@@ -202,6 +214,7 @@ struct SearchView: View {
                     SearchResultsSection(
                         state: viewModel.wrappedValue.loadState,
                         results: viewModel.wrappedValue.results,
+                        showsAccessibility: viewModel.wrappedValue.filters.accessibleStationsOnly,
                         onRetry: viewModel.wrappedValue.retry,
                         onSelect: viewModel.wrappedValue.selectDestination,
                     )

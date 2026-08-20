@@ -2,19 +2,44 @@ import Foundation
 
 protocol SearchRepository: Sendable {
     func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse
+
+    func search(
+        query: String,
+        near coordinate: GeoCoordinate?,
+        accessibleStationsOnly: Bool
+    ) async throws -> SearchResponse
+}
+
+extension SearchRepository {
+    func search(
+        query: String,
+        near coordinate: GeoCoordinate?,
+        accessibleStationsOnly: Bool
+    ) async throws -> SearchResponse {
+        try await search(query: query, near: coordinate)
+    }
 }
 
 struct LiveSearchRepository: SearchRepository {
     let transport: APITransport
 
     func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
+        try await search(query: query, near: coordinate, accessibleStationsOnly: false)
+    }
+
+    func search(
+        query: String,
+        near coordinate: GeoCoordinate?,
+        accessibleStationsOnly: Bool
+    ) async throws -> SearchResponse {
         try await transport.perform("search") { client in
             let coordinate = coordinate?.roundedForSearch
             let input = Operations.search_period_query.Input(query: .init(
                 q: query,
                 latitude: coordinate?.latitude,
                 longitude: coordinate?.longitude,
-                limit: 10
+                limit: 10,
+                accessibleStationsOnly: accessibleStationsOnly
             ))
             switch try await client.search_period_query(input) {
             case .ok(let response):
@@ -29,4 +54,9 @@ struct LiveSearchRepository: SearchRepository {
 struct InMemorySearchRepository: SearchRepository {
     var response: SearchResponse = .init(results: [], addressSource: .ok)
     func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse { response }
+    func search(
+        query: String,
+        near coordinate: GeoCoordinate?,
+        accessibleStationsOnly: Bool
+    ) async throws -> SearchResponse { response }
 }

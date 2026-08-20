@@ -5,6 +5,7 @@ struct NaturalJourneySheet: View {
     @Binding var detent: PresentationDetent
 
     @FocusState private var isInputFocused: Bool
+    @State private var isAccessibilityInfoPresented = false
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -20,11 +21,22 @@ struct NaturalJourneySheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    SearchFiltersMenu(
+                        filters: viewModel.filters,
+                        onSetAccessibleStationsOnly: viewModel.setAccessibleStationsOnly,
+                        onSetRequiresAccessibleStations: viewModel.setRequiresAccessibleStations,
+                        onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
+                    )
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .close) {
                         viewModel.dismissNaturalSearch()
                     }
                 }
             }
+        }
+        .sheet(isPresented: $isAccessibilityInfoPresented) {
+            SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
         }
         .onChange(of: viewModel.naturalSearchState, initial: true) { _, state in
             if NaturalJourneyPresentationPolicy.expandsForInput(state) {
