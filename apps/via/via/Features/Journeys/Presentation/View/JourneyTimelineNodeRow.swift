@@ -63,7 +63,6 @@ struct JourneyTimelineNodeRow: View {
             bead: node.bead,
             state: state,
             cursorFraction: cursorFraction,
-            cursorSymbol: cursorSymbol,
             isCursorLive: isCursorLive
         )
     }
@@ -194,16 +193,7 @@ struct JourneyTimelineNodeRow: View {
         count == 1 ? "1 arrêt" : "\(count) arrêts"
     }
 
-    // MARK: - Cursor and accessibility
-
-    private var cursorSymbol: String {
-        switch node.kind {
-        case .walk, .transfer: "figure.walk"
-        case .wait: "clock.fill"
-        case .ride: node.mode?.chipSystemImage ?? "tram.fill"
-        default: "location.fill"
-        }
-    }
+    // MARK: - Accessibility
 
     private var accessibilityLabel: String {
         let time = JourneyFormatting.time(node.startsAt)

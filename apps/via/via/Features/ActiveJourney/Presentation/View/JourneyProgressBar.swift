@@ -54,24 +54,17 @@ struct JourneyProgressBar: View {
 
     // MARK: - Bubble
 
-    private var knobSize: CGFloat { height + 6 }
+    private var knobSize: CGFloat { height + 10 }
 
+    /// The same badge the rail carries, minus its halo: pinned in a header it
+    /// would breathe next to the title all journey long.
     private var knob: some View {
-        Circle()
-            .fill(Self.knobTint.gradient)
-            .frame(width: knobSize, height: knobSize)
-            .overlay {
-                // Dashed collar when the position is interpolated from the
-                // timetable, so live and estimated differ without colour.
-                Circle().strokeBorder(
-                    Color(.systemBackground),
-                    style: StrokeStyle(
-                        lineWidth: 3,
-                        dash: progress.isLocationDerived ? [] : [2.5, 2.5]
-                    )
-                )
-            }
-            .shadow(color: Self.knobTint.opacity(0.5), radius: 5, y: 1)
+        ViaMarkBadge(
+            tint: Self.knobTint,
+            size: knobSize,
+            isEstimated: !progress.isLocationDerived,
+            showsHalo: false
+        )
     }
 
     /// Walks the same layout the segments use, so the bubble lands exactly on

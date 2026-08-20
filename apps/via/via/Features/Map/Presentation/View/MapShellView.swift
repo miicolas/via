@@ -158,17 +158,17 @@ struct MapShellView: View {
     }
 
     /// Only worth showing once the sheet is out of the way: with the sheet open,
-    /// the guidance header says the same thing and the bar overlaps the timeline.
-    private var isActiveJourneyAccessoryVisible: Bool {
+    /// the guidance header says the same thing and the two overlap.
+    private var isActiveJourneyCompactVisible: Bool {
         activeJourneyModel.isActive && activeDetent == collapsedDetent
     }
 
     @ViewBuilder
-    private var activeJourneyAccessory: some View {
+    private var activeJourneyCompact: some View {
         if let journey = activeJourneyModel.journey,
            let progress = activeJourneyModel.progress,
            let headline = activeJourneyModel.guidanceHeadline {
-            ActiveJourneyAccessoryBar(
+            ActiveJourneyCompactView(
                 journey: journey,
                 headline: headline,
                 progress: progress,
@@ -185,9 +185,9 @@ struct MapShellView: View {
             isLargeScreen: isLargeScreen,
             isAnotherSheetPresenting: selectedStationModel.overview != nil ||
                 reportViewModel.isPresentingAnotherSheet,
-            reservesAccessorySpace: activeJourneyModel.isActive,
-            isAccessoryVisible: isActiveJourneyAccessoryVisible,
-            accessory: { activeJourneyAccessory }
+            reservesCompactSpace: activeJourneyModel.isActive,
+            isCompactVisible: isActiveJourneyCompactVisible,
+            compactContent: { activeJourneyCompact }
         ) {
             Tab(value: .stations) {
                 StationsView(
@@ -197,18 +197,21 @@ struct MapShellView: View {
                     detailDetent: $detailSheetDetent,
                     onOpenSearch: { activeTab = .search }
                 )
+                .sheetTabBarVisibility()
             } label: {
                 MapShellTab.stations.tabLabel
             }
 
             Tab(value: .lines) {
                 LinesView(viewModel: linesViewModel)
+                    .sheetTabBarVisibility()
             } label: {
                 MapShellTab.lines.tabLabel
             }
 
             Tab(value: .report) {
                 ReportView(viewModel: reportViewModel)
+                    .sheetTabBarVisibility()
             } label: {
                 MapShellTab.report.tabLabel
             }
@@ -221,6 +224,7 @@ struct MapShellView: View {
                     onExpandJourneyMap: expandJourneyMap,
                     onOpenReport: { activeTab = .report }
                 )
+                .sheetTabBarVisibility()
             }
         }
     }
@@ -260,7 +264,7 @@ struct MapShellView: View {
     }
 
     private var collapsedDetent: PresentationDetent {
-        SheetTabDetents.collapsed(hasAccessory: activeJourneyModel.isActive)
+        SheetTabDetents.collapsed(hasCompactContent: activeJourneyModel.isActive)
     }
 
     private var guidanceDetent: PresentationDetent {

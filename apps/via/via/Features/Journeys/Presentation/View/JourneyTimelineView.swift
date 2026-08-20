@@ -37,6 +37,11 @@ struct JourneyTimelineView: View {
         let nodes = JourneyTimeline.nodes(for: journey)
         let cursor = JourneyTimeline.cursor(in: nodes, progress: mode.progress)
         let groups = nodeGroups(from: nodes)
+        // Rank in the whole rail, not in the group: the cascade has to run down
+        // the journey once, not restart at every leg.
+        let ranks = Dictionary(
+            uniqueKeysWithValues: nodes.enumerated().map { ($0.element.id, $0.offset) }
+        )
 
         VStack(spacing: 0) {
             ForEach(groups) { group in
@@ -54,6 +59,7 @@ struct JourneyTimelineView: View {
                             onSelect: onSelectSection.map { select in { select(node.sectionID) } }
                         )
                         .id(node.id)
+                        .staggeredAppearance(rank: ranks[node.id] ?? 0)
                     }
                 }
                 .background {

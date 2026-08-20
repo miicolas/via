@@ -49,7 +49,7 @@ struct JourneyTimelineNode: Identifiable, Sendable, Hashable {
     let railAbove: JourneyTimelineRailStyle
     let railBelow: JourneyTimelineRailStyle
     let bead: JourneyTimelineBead
-    /// Mode of the leg this node belongs to, for glyphs and the live cursor.
+    /// Mode of the leg this node belongs to, for callers that glyph it.
     let mode: TransitMode?
 
     var durationSeconds: Int {

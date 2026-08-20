@@ -12,7 +12,7 @@ struct JourneyStopListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(stops) { stop in
+            ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
                 HStack(alignment: .top, spacing: 0) {
                     JourneyTimelineRail(
                         above: rail,
@@ -25,6 +25,7 @@ struct JourneyStopListView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.trailing, 8)
 
                     JourneyTimelineTimeLabel(stop: stop)
                 }
@@ -32,6 +33,9 @@ struct JourneyStopListView: View {
                 .padding(.vertical, 5)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(label(for: stop))
+                // A leg unfolds stop by stop, so expanding it reads as the rail
+                // being drawn rather than as a block of text dropping in.
+                .staggeredAppearance(rank: index, step: 0.03, limit: 0.3)
             }
         }
     }

@@ -2,42 +2,69 @@ import XCTest
 @testable import Via
 
 final class SheetTabPresentationTests: XCTestCase {
-    func testJourneyAccessoryOnlyAppearsForCollapsedActiveJourneySheet() {
+    func testCompactJourneyOnlyAppearsForCollapsedActiveJourneySheet() {
         XCTAssertTrue(
-            SheetTabPresentation.showsAccessory(
+            SheetTabPresentation.showsCompactContent(
                 isEligible: true,
                 measuredContentProgress: 0
             )
         )
         XCTAssertFalse(
-            SheetTabPresentation.showsAccessory(
+            SheetTabPresentation.showsCompactContent(
                 isEligible: true,
                 measuredContentProgress: 0.42
             )
         )
         XCTAssertFalse(
-            SheetTabPresentation.showsAccessory(
+            SheetTabPresentation.showsCompactContent(
                 isEligible: false,
                 measuredContentProgress: 0
             )
         )
     }
 
-    func testCompactJourneyAccessoryHidesTabNavigationContent() {
+    func testEachCollapsedDetentScoresNoContentProgress() {
+        for hasCompactContent in [true, false] {
+            XCTAssertEqual(
+                SheetTabDetents.contentProgress(
+                    sheetHeight: SheetTabDetents.collapsedHeight(hasCompactContent: hasCompactContent),
+                    hasCompactContent: hasCompactContent
+                ),
+                0,
+                "resting collapsed must hide the tab content, compact: \(hasCompactContent)"
+            )
+        }
+    }
+
+    func testTabContentFadesInAsTheSheetGrowsPastItsCollapsedHeight() {
+        let collapsed = SheetTabDetents.collapsedHeight(hasCompactContent: true)
+
+        XCTAssertEqual(
+            SheetTabDetents.contentProgress(sheetHeight: collapsed + 85, hasCompactContent: true),
+            0.5,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            SheetTabDetents.contentProgress(sheetHeight: collapsed + 400, hasCompactContent: true),
+            1
+        )
+    }
+
+    func testCompactJourneyContentHidesTabNavigationContent() {
         XCTAssertEqual(
             SheetTabPresentation.contentVisibilityProgress(
                 measuredProgress: 0,
-                isAccessoryVisible: true
+                isCompactVisible: true
             ),
             0
         )
     }
 
-    func testTabNavigationContentFollowsMeasuredSheetProgressWithoutAccessory() {
+    func testTabNavigationContentFollowsMeasuredSheetProgressWithoutCompactContent() {
         XCTAssertEqual(
             SheetTabPresentation.contentVisibilityProgress(
                 measuredProgress: 0.42,
-                isAccessoryVisible: false
+                isCompactVisible: false
             ),
             0.42
         )

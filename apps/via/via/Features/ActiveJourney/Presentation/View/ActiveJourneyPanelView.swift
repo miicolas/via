@@ -260,41 +260,15 @@ struct ActiveJourneyPanelView: View {
         .background(.bar)
     }
 
+    /// Nothing here asks for `.bottomBar`. This screen is pushed inside a tab of
+    /// the map sheet, and on iOS 26 the tab bar owns the bottom of that sheet: a
+    /// bottom toolbar declared here is laid out underneath it, so its buttons end
+    /// up half-hidden behind the tab bar. The recalculation stays reachable in
+    /// one tap next to the menu; reporting joins the menu, since the sheet
+    /// already carries a Signaler tab.
     @ToolbarContentBuilder
     private var journeyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Button("Étape précédente", systemImage: "backward.end") {
-                    Task { await model.moveToPreviousSection() }
-                }
-                Button("Étape suivante", systemImage: "forward.end") {
-                    Task { await model.moveToNextSection() }
-                }
-                Button("Terminer", systemImage: "checkered.flag") {
-                    Task { await model.finishJourney() }
-                }
-                Divider()
-                Button("Arrêter le trajet", systemImage: "xmark", role: .destructive) {
-                    isStopConfirmationPresented = true
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .accessibilityLabel("Actions du trajet")
-        }
-
-        ToolbarItem(placement: .bottomBar) {
-            Button(action: onOpenReport) {
-                Image(systemName: "exclamationmark.bubble")
-            }
-            .tint(.primary)
-            .accessibilityLabel("Signaler")
-            .accessibilityHint("Ouvre les signalements pour ce trajet")
-        }
-
-        ToolbarSpacer(.fixed, placement: .bottomBar)
-
-        ToolbarItem(placement: .bottomBar) {
             Button(action: model.checkForAlternative) {
                 Image(systemName: alternativeSystemImage)
                     .contentTransition(
@@ -312,7 +286,28 @@ struct ActiveJourneyPanelView: View {
             .accessibilityHint("Recherche l’itinéraire le plus rapide")
         }
 
-        ToolbarSpacer(.flexible, placement: .bottomBar)
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button("Étape précédente", systemImage: "backward.end") {
+                    Task { await model.moveToPreviousSection() }
+                }
+                Button("Étape suivante", systemImage: "forward.end") {
+                    Task { await model.moveToNextSection() }
+                }
+                Button("Terminer", systemImage: "checkered.flag") {
+                    Task { await model.finishJourney() }
+                }
+                Divider()
+                Button("Signaler", systemImage: "exclamationmark.bubble", action: onOpenReport)
+                Divider()
+                Button("Arrêter le trajet", systemImage: "xmark", role: .destructive) {
+                    isStopConfirmationPresented = true
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .accessibilityLabel("Actions du trajet")
+        }
     }
 
     private func shouldOfferGo(at date: Date) -> Bool {

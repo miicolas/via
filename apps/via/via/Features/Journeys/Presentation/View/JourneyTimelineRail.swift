@@ -19,7 +19,6 @@ struct JourneyTimelineRail: View {
     let state: JourneyTimelineNodeState
     /// 0…1 down this row, when the traveller is on it.
     var cursorFraction: Double?
-    var cursorSymbol: String = "location.fill"
     /// A bubble placed from a location fix reads as live; a scheduled one does not.
     var isCursorLive: Bool = false
 
@@ -33,12 +32,12 @@ struct JourneyTimelineRail: View {
 
     /// Deliberately outside the network palette: on a rail already tinted by
     /// every operator colour, only a colour no line uses reads instantly as *me*.
+    /// The bubble is also the only bead on the rail wearing the app mark, for
+    /// the same reason — everything else on the rail is a place, not a person.
     private static let cursorTint = Color.blue
     private static let cursorSize: CGFloat = 30
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ScaledMetric(relativeTo: .headline) private var beadCenter: CGFloat = 14
-    @State private var isPulsing = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -171,47 +170,19 @@ struct JourneyTimelineRail: View {
     private var cursorView: some View {
         if let cursorFraction {
             GeometryReader { proxy in
-                cursorMarker
-                    .position(
-                        x: proxy.size.width / 2,
-                        y: proxy.size.height * min(max(0, cursorFraction), 1)
-                    )
+                ViaMarkBadge(
+                    tint: Self.cursorTint,
+                    size: Self.cursorSize,
+                    isEstimated: !isCursorLive
+                )
+                .position(
+                    x: proxy.size.width / 2,
+                    y: proxy.size.height * min(max(0, cursorFraction), 1)
+                )
             }
             .transition(.scale(scale: 0.4).combined(with: .opacity))
             .animation(.smooth(duration: 0.55), value: cursorFraction)
         }
-    }
-
-    private var cursorMarker: some View {
-        ZStack {
-            if isCursorLive && !reduceMotion {
-                Circle()
-                    .fill(Self.cursorTint.opacity(0.3))
-                    .frame(width: Self.cursorSize, height: Self.cursorSize)
-                    .scaleEffect(isPulsing ? 1.6 : 0.85)
-                    .opacity(isPulsing ? 0 : 1)
-                    .animation(
-                        .easeOut(duration: 1.8).repeatForever(autoreverses: false),
-                        value: isPulsing
-                    )
-            }
-
-            Image(systemName: cursorSymbol)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: Self.cursorSize, height: Self.cursorSize)
-                .background(Self.cursorTint.gradient, in: Circle())
-                .overlay {
-                    // A dashed collar marks a position interpolated from the
-                    // timetable, so live and estimated differ without colour.
-                    Circle().strokeBorder(
-                        Color(.systemBackground),
-                        style: StrokeStyle(lineWidth: 3.5, dash: isCursorLive ? [] : [3, 3])
-                    )
-                }
-                .shadow(color: Self.cursorTint.opacity(0.45), radius: 8, y: 2)
-        }
-        .onAppear { isPulsing = true }
     }
 
     // MARK: - Shared styling
@@ -267,7 +238,6 @@ private struct RailPath: Shape {
             bead: .none,
             state: .current,
             cursorFraction: 0.45,
-            cursorSymbol: "tram.fill",
             isCursorLive: true
         )
         JourneyTimelineRail(
@@ -291,7 +261,6 @@ private struct RailPath: Shape {
             bead: .none,
             state: .current,
             cursorFraction: fraction,
-            cursorSymbol: "tram.fill",
             isCursorLive: true
         )
         .frame(height: 260)

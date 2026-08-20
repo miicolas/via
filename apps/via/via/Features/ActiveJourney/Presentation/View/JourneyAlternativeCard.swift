@@ -31,16 +31,20 @@ struct JourneyAlternativeCard: View {
             }
 
             HStack(spacing: 10) {
-                Button("Changer de trajet", action: onAccept)
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.capsule)
+                Spacer(minLength: 0)
 
                 if !alternative.otherJourneys.isEmpty {
-                    Button("Autres options", action: onShowOthers)
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
+                    Button("Autres options", systemImage: "list.bullet", action: onShowOthers)
+                        .buttonStyle(.glass)
                 }
+
+                Button("Changer de trajet", systemImage: "arrow.triangle.swap", action: onAccept)
+                    .buttonStyle(.glassProminent)
             }
+            .labelStyle(.iconOnly)
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
+            .tint(.orange)
         }
         .padding(16)
         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
