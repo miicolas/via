@@ -24,19 +24,15 @@ struct SearchNoResultsView: View {
                 Label("Choisir une autre destination", systemImage: "plus.circle.fill")
                     .font(.headline)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .controlSize(.large)
+            .primaryAction()
             .padding(.top, 28)
 
             Button(action: onEditSearch) {
                 Label("Modifier la recherche", systemImage: "magnifyingglass")
                     .font(.headline)
             }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .controlSize(.large)
-            .padding(.top, 16)
+            .secondaryAction()
+            .padding(.top, 12)
         }
         .frame(maxWidth: 340)
         .accessibilityElement(children: .contain)

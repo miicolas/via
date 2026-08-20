@@ -1,12 +1,12 @@
 import SwiftUI
 
-struct ViaLoadingStatus: View {
+struct LoadingStatus: View {
     let label: String
 
     var body: some View {
         HStack(spacing: 10) {
             // Plain dots: at 5pt the skeleton shimmer is invisible, and each
-            // ViaSkeleton would run its own never-ending mask animation.
+            // Skeleton would run its own never-ending mask animation.
             HStack(spacing: 4) {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()

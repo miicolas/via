@@ -19,6 +19,7 @@ struct SearchView: View {
     @State private var isActiveJourneyPresented = false
     @State private var isNaturalDatePickerPresented = false
     @State private var isNaturalOptionsPresented = false
+    @State private var isAccessibilityInfoPresented = false
 
     init(
         viewModel: SearchViewModel,
@@ -56,12 +57,9 @@ struct SearchView: View {
                             ToolbarItem(placement: .subtitle) {
                                 departureMenu(viewModel: $viewModel)
                             }
-                            if hasActiveJourneySurface {
-                                ToolbarItem(placement: .topBarLeading) {
-                                    Button("Trajet actif", systemImage: "location.fill") {
-                                        isActiveJourneyPresented = true
-                                    }
-                                }
+                            activeJourneyToolbarItem
+                            ToolbarItem(placement: .topBarTrailing) {
+                                searchFiltersMenu
                             }
                             ToolbarItem(placement: .topBarTrailing) {
                                 Button(role: .close) {
@@ -116,6 +114,9 @@ struct SearchView: View {
                 )
             }
         }
+        .sheet(isPresented: $isAccessibilityInfoPresented) {
+            SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
+        }
         .onAppear(perform: synchronizeActiveJourneyPresentation)
         .onChange(of: activeJourneyModel.session?.journey.id) { _, _ in
             synchronizeActiveJourneyPresentation()
@@ -128,6 +129,18 @@ struct SearchView: View {
                 sheetDetent = .large
             }
         }
+    }
+
+    private var searchFiltersMenu: some View {
+        SearchFiltersMenu(
+            filters: viewModel.filters,
+            onSetRequiresAccessibleStations: { isEnabled in
+                viewModel.setRequiresAccessibleStations(isEnabled)
+            },
+            onShowAccessibilityInfo: {
+                isAccessibilityInfoPresented = true
+            }
+        )
     }
 
     @ViewBuilder
@@ -147,6 +160,17 @@ struct SearchView: View {
 
     private var hasActiveJourneySurface: Bool {
         activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+    }
+
+    @ToolbarContentBuilder
+    private var activeJourneyToolbarItem: some ToolbarContent {
+        if hasActiveJourneySurface {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Trajet actif", systemImage: "location.fill") {
+                    isActiveJourneyPresented = true
+                }
+            }
+        }
     }
 
     private func synchronizeActiveJourneyPresentation() {
@@ -234,23 +258,24 @@ struct SearchView: View {
         let step = viewModel.wrappedValue.step
 
         if step == .destination {
-            HStack(spacing: 10) {
-                SearchDestinationField(
-                    text: viewModel.query,
-                    onClear: viewModel.wrappedValue.clearQuery,
-                    onSubmit: viewModel.wrappedValue.searchImmediately,
-                )
-                .onChange(of: viewModel.wrappedValue.query) { _, newValue in
-                    viewModel.wrappedValue.updateQuery(newValue)
-                }
+            GlassEffectContainer(spacing: 10) {
+                HStack(spacing: 10) {
+                    SearchDestinationField(
+                        text: viewModel.query,
+                        onClear: viewModel.wrappedValue.clearQuery,
+                        onSubmit: viewModel.wrappedValue.searchImmediately,
+                    )
+                    .onChange(of: viewModel.wrappedValue.query) { _, newValue in
+                        viewModel.wrappedValue.updateQuery(newValue)
+                    }
 
-                if viewModel.wrappedValue.naturalLanguageAccess != .hidden {
-                    AIEntryButton(
-                        shape: .capsule(title: "IA"),
-                        isDiscoverable: viewModel.wrappedValue.showsNaturalSearchDiscovery,
-                    ) {
-                        sheetDetent = .fraction(0.45)
-                        viewModel.wrappedValue.openNaturalSearch()
+                    if viewModel.wrappedValue.naturalLanguageAccess != .hidden {
+                        AIEntryButton(
+                            isDiscoverable: viewModel.wrappedValue.showsNaturalSearchDiscovery,
+                        ) {
+                            sheetDetent = .large
+                            viewModel.wrappedValue.openNaturalSearch()
+                        }
                     }
                 }
             }

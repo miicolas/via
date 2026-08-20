@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 
 enum SearchViewStep: Sendable, Equatable {
     case destination
@@ -93,9 +94,16 @@ final class SearchViewModel {
     private(set) var selectedDestination: SearchResult?
     private(set) var selectedDeparture: SearchDepartureSelection = .currentLocation
     private(set) var highlightedJourneySectionID: String?
+    private(set) var filters: SearchFilters
+    private(set) var accessibilitySource = SearchResponse.AccessibilitySource(
+        status: .unavailable,
+        sourceUpdatedAt: nil,
+        importedAt: nil
+    )
     private(set) var naturalSearchState: NaturalSearchState = .dismissed
     private(set) var naturalJourneyCriteria: NaturalJourneyCriteria?
     private(set) var naturalJourneyUnresolvedDraft: NaturalJourneyDraft?
+    private(set) var naturalInputErrorMessage: String?
 
     var query = ""
     var naturalQuery = ""
@@ -104,6 +112,7 @@ final class SearchViewModel {
     @ObservationIgnored private let journeyRepository: any JourneyRepository
     @ObservationIgnored private let locationModel: LocationModel
     @ObservationIgnored private let account: AccountModel?
+    @ObservationIgnored private let filterStore: any SearchFilterStoring
     @ObservationIgnored private let naturalJourneyRepository: (any NaturalJourneyRepository)?
     @ObservationIgnored private let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
     @ObservationIgnored private let naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring
@@ -130,11 +139,14 @@ final class SearchViewModel {
         naturalJourneyOnboardingStore: (any NaturalJourneyOnboardingStoring)? = nil,
         naturalJourneyMetrics: any NaturalJourneyMetricsRecording = AppLogNaturalJourneyMetrics(),
         metricsNow: @escaping @Sendable () -> Date = { .now },
+        filterStore: any SearchFilterStoring = UserDefaultsSearchFilterStore(),
     ) {
         self.repository = repository
         self.journeyRepository = journeyRepository
         self.locationModel = locationModel
         self.account = account
+        self.filterStore = filterStore
+        filters = filterStore.load()
         self.naturalJourneyRepository = naturalJourneyRepository
         self.naturalLanguageAvailability = naturalLanguageAvailability
         self.naturalJourneyOnboardingStore = naturalJourneyOnboardingStore
@@ -156,6 +168,7 @@ final class SearchViewModel {
     }
 
     func openNaturalSearch() {
+        naturalInputErrorMessage = nil
         switch naturalLanguageAccess {
         case .hidden:
             return
@@ -179,6 +192,7 @@ final class SearchViewModel {
         }
         naturalJourneyTask?.cancel()
         naturalQuery = ""
+        naturalInputErrorMessage = nil
         lastNaturalJourneyRequest = nil
         naturalSearchState = .dismissed
     }
@@ -186,6 +200,14 @@ final class SearchViewModel {
     func retryNaturalSearch() {
         guard let lastNaturalJourneyRequest else { return }
         performNaturalRequest(lastNaturalJourneyRequest)
+    }
+
+    func retryNaturalAvailability() {
+        if let lastNaturalJourneyRequest {
+            performNaturalRequest(lastNaturalJourneyRequest)
+        } else {
+            openNaturalSearch()
+        }
     }
 
     func submitNaturalSearch() {
@@ -198,6 +220,7 @@ final class SearchViewModel {
         naturalCorrectionCount = 0
         naturalJourneyCriteria = nil
         naturalJourneyUnresolvedDraft = nil
+        naturalInputErrorMessage = nil
         performNaturalRequest(.submit(
             query: phrase,
             currentLocation: locationModel.coordinate,
@@ -285,7 +308,12 @@ final class SearchViewModel {
 
     func modifyNaturalQuery() {
         lastNaturalJourneyRequest = nil
+        naturalInputErrorMessage = nil
         naturalSearchState = .input
+    }
+
+    func naturalQueryDidChange() {
+        naturalInputErrorMessage = nil
     }
 
     func useClassicSearch() {
@@ -293,6 +321,7 @@ final class SearchViewModel {
         naturalJourneyCriteria = nil
         naturalJourneyUnresolvedDraft = nil
         naturalQuery = ""
+        naturalInputErrorMessage = nil
         lastNaturalJourneyRequest = nil
         naturalSearchState = .dismissed
         editDestination()
@@ -311,10 +340,29 @@ final class SearchViewModel {
                 guard !Task.isCancelled else { return }
                 receiveNaturalJourneyResult(result)
             } catch is CancellationError {
+            } catch let error as NaturalIntentParsingError {
+                guard !Task.isCancelled else { return }
+                AppLog.ai.error(
+                    "natural_interpretation_failed reason=\(String(describing: error), privacy: .public)",
+                )
+                recordNaturalMetric(.failure)
+                switch error {
+                case .modelNotReady:
+                    naturalSearchState = .availability(.modelNotReady)
+                case .modelFailed:
+                    naturalSearchState = .availability(.systemUnavailable)
+                case .cancelled:
+                    lastNaturalJourneyRequest = nil
+                    break
+                default:
+                    lastNaturalJourneyRequest = nil
+                    naturalInputErrorMessage = Self.naturalInputErrorMessage(for: error)
+                    naturalSearchState = .input
+                }
             } catch {
                 guard !Task.isCancelled else { return }
                 recordNaturalMetric(.failure)
-                naturalSearchState = .failed(message: Self.naturalSearchErrorMessage(error))
+                naturalSearchState = .failed(message: Self.offlineMessage)
             }
         }
     }
@@ -379,11 +427,23 @@ final class SearchViewModel {
 
     private static let offlineMessage = "Connexion nécessaire pour rechercher les horaires."
 
-    private static func naturalSearchErrorMessage(_ error: any Error) -> String {
-        if error is NaturalIntentParsingError {
-            return "Apple Intelligence n’a pas pu comprendre cette demande."
+    private static func naturalInputErrorMessage(
+        for error: NaturalIntentParsingError,
+    ) -> String {
+        switch error {
+        case .unsupportedLanguage:
+            "Utilise une phrase en français."
+        case .modelBusy:
+            "Apple Intelligence est occupé. Réessaie dans un instant."
+        case .contextWindowExceeded:
+            "Raccourcis ta demande."
+        case .contentRefused:
+            "Reformule ta demande de trajet."
+        case .invalidResponse, .modelFailed:
+            "Je n’ai pas compris. Vérifie les lieux et l’heure."
+        case .cancelled, .modelNotReady:
+            "La demande n’a pas pu être interprétée."
         }
-        return Self.offlineMessage
     }
 
     private func recordNaturalMetric(_ outcome: NaturalJourneyMetric.Outcome) {
@@ -488,6 +548,35 @@ final class SearchViewModel {
         updateQuery("")
     }
 
+    func setRequiresAccessibleStations(_ enabled: Bool) {
+        updateFilters { $0.requiresAccessibleStations = enabled }
+    }
+
+    func setAccessibleStationsOnly(_ enabled: Bool) {
+        updateFilters { $0.accessibleStationsOnly = enabled }
+    }
+
+    private func updateFilters(_ update: (inout SearchFilters) -> Void) {
+        var next = filters
+        update(&next)
+        guard next != filters else { return }
+        filters = next
+        filterStore.save(next)
+
+        if (next.accessibleStationsOnly || next.requiresAccessibleStations),
+           let destination = selectedDestination,
+           case .station(let station) = destination,
+           station.accessibility == nil {
+            editDestination()
+            return
+        }
+
+        if selectedDestination != nil, step != .destination {
+            planJourney()
+            return
+        }
+    }
+
     func selectDestination(_ result: SearchResult) {
         searchTask?.cancel()
         account?.recordRecentSearch(result)
@@ -574,7 +663,10 @@ final class SearchViewModel {
     }
 
     func searchPlaces(query: String) async throws -> SearchResponse {
-        try await repository.search(query: query, near: locationModel.coordinate)
+        try await repository.search(
+            query: query,
+            near: locationModel.coordinate
+        )
     }
 
     private func planJourney() {
@@ -602,6 +694,10 @@ final class SearchViewModel {
                 destination: JourneyPlaceSelection(selectedDestination).journeyDestination,
             )
             request.limit = 4
+            request.requiresAccessibleStations = filters.requiresAccessibleStations
+            if case .manual(.station(let station)) = selectedDeparture {
+                request.originStationID = station.id
+            }
             if var criteria = naturalJourneyCriteria {
                 criteria.originLabel = selectedDeparture.title
                 criteria.destinationResult = selectedDestination
@@ -670,8 +766,14 @@ final class SearchViewModel {
             )
             guard !Task.isCancelled else { return }
 
-            results = response.results
-            loadState = response.results.isEmpty ? .empty : .loaded
+            let filteredResults = response.results.filter { result in
+                guard filters.accessibleStationsOnly else { return true }
+                guard case .station(let station) = result else { return true }
+                return station.accessibility != nil
+            }
+            results = filteredResults
+            accessibilitySource = response.accessibilitySource
+            loadState = filteredResults.isEmpty ? .empty : .loaded
         } catch is CancellationError {
         } catch {
             guard !Task.isCancelled else { return }

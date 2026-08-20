@@ -4,27 +4,59 @@ struct NaturalJourneySheet: View {
     let viewModel: SearchViewModel
     @Binding var detent: PresentationDetent
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isInputFocused: Bool
+    @State private var isAccessibilityInfoPresented = false
+    @State private var viewportHeight: CGFloat = 0
 
     var body: some View {
         @Bindable var viewModel = viewModel
 
         NavigationStack {
             ScrollView {
+                // A minimum height rather than a fixed one: a state that fits
+                // sits in the middle of the sheet, and one that does not still
+                // scrolls. Alignment rather than spacers, so the view tree keeps
+                // the same shape across states and the blur exchange below has
+                // something stable to transition.
                 content(viewModel: $viewModel)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 24)
                     .frame(maxWidth: 560)
                     .frame(maxWidth: .infinity)
+                    .transition(stateTransition)
+                    .frame(
+                        minHeight: viewportHeight,
+                        alignment: NaturalJourneyPresentationPolicy
+                            .centersContent(viewModel.naturalSearchState) ? .center : .top,
+                    )
             }
             .scrollDismissesKeyboard(.interactively)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height - proxy.safeAreaInsets.top - proxy.safeAreaInsets.bottom
+            } action: { height in
+                viewportHeight = max(0, height)
+            }
+            .animation(stateAnimation, value: viewModel.naturalSearchState)
             .navigationTitle("Recherche intelligente")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    SearchFiltersMenu(
+                        filters: viewModel.filters,
+                        onSetRequiresAccessibleStations: viewModel.setRequiresAccessibleStations,
+                        onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
+                    )
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .close) {
                         viewModel.dismissNaturalSearch()
                     }
                 }
             }
+        }
+        .sheet(isPresented: $isAccessibilityInfoPresented) {
+            SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
         }
         .onChange(of: viewModel.naturalSearchState, initial: true) { _, state in
             if NaturalJourneyPresentationPolicy.expandsForInput(state) {
@@ -34,6 +66,17 @@ struct NaturalJourneySheet: View {
                 isInputFocused = false
             }
         }
+    }
+
+    /// States replace one another rather than slide: the sheet is one surface
+    /// showing successive answers, and a blur exchange is what iOS 26 uses for
+    /// content that is being thought about.
+    private var stateTransition: AnyTransition {
+        reduceMotion ? .opacity : AnyTransition(.blurReplace)
+    }
+
+    private var stateAnimation: Animation? {
+        reduceMotion ? nil : .smooth(duration: 0.35)
     }
 
     @ViewBuilder
@@ -48,6 +91,8 @@ struct NaturalJourneySheet: View {
             NaturalJourneyInputView(
                 query: viewModel.naturalQuery,
                 isFocused: $isInputFocused,
+                errorMessage: viewModel.wrappedValue.naturalInputErrorMessage,
+                onEdit: viewModel.wrappedValue.naturalQueryDidChange,
                 onSubmit: viewModel.wrappedValue.submitNaturalSearch,
             )
         case .loading:
@@ -108,7 +153,7 @@ struct NaturalJourneySheet: View {
         case let .availability(guidance):
             NaturalJourneyAvailabilityView(
                 guidance: guidance,
-                onRetry: viewModel.wrappedValue.openNaturalSearch,
+                onRetry: viewModel.wrappedValue.retryNaturalAvailability,
                 onClassicSearch: viewModel.wrappedValue.useClassicSearch,
             )
         case let .failed(message):

@@ -48,11 +48,9 @@ struct StationsEmptyStateView: View {
             .accessibilityLabel("Ouvrir Recherche pour trouver une station")
 
             if let onRetry {
-                Button("Réessayer", action: onRetry)
-                    .font(.body)
-                    .foregroundStyle(.teal)
-                    .buttonStyle(.plain)
-                    .padding(.vertical, 8)
+                RetryButton(action: onRetry)
+                    .secondaryAction()
+                    .padding(.top, 8)
             }
 
             Spacer(minLength: 0)

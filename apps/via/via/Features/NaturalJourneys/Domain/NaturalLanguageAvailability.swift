@@ -16,7 +16,7 @@ enum NaturalLanguageAvailability: Sendable, Hashable {
         case .unavailable(.appleIntelligenceDisabled):
             .explanation(.enableAppleIntelligence)
         case .unavailable(.modelNotReady):
-            .explanation(.modelDownloading)
+            .explanation(.modelNotReady)
         case .unavailable(.deviceNotEligible), .unavailable(.unsupportedLanguage):
             .hidden
         }

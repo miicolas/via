@@ -59,7 +59,7 @@ final class SearchViewModelTests: XCTestCase {
         model.openNaturalSearch()
 
         XCTAssertTrue(model.isNaturalSearchPresented)
-        XCTAssertEqual(model.naturalSearchState, .availability(.modelDownloading))
+        XCTAssertEqual(model.naturalSearchState, .availability(.modelNotReady))
     }
 
     func testNaturalSearchReadyResultUsesTheExistingJourneyPresentation() async {
@@ -405,6 +405,61 @@ final class SearchViewModelTests: XCTestCase {
         let requests = await naturalRepository.requests
         XCTAssertEqual(requests.count, 2)
         XCTAssertEqual(requests.first, requests.last)
+    }
+
+    func testParsingFailureReturnsToEditableInputWithoutRetryingTheSamePhrase() async {
+        let naturalRepository = ParsingFailureNaturalJourneyRepository()
+        let model = makeModel(
+            naturalJourneyRepository: naturalRepository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true,
+            ),
+        )
+        model.naturalQuery = "Nation demain avant 8 h"
+
+        model.submitNaturalSearch()
+        await waitUntil { await naturalRepository.requestCount == 1 }
+        await waitForNaturalState(model) { $0 == .input }
+
+        XCTAssertEqual(model.naturalQuery, "Nation demain avant 8 h")
+        XCTAssertEqual(
+            model.naturalInputErrorMessage,
+            "Je n’ai pas compris. Vérifie les lieux et l’heure.",
+        )
+
+        model.retryNaturalSearch()
+        await Task.yield()
+
+        let requestCount = await naturalRepository.requestCount
+        XCTAssertEqual(requestCount, 1)
+    }
+
+    func testSystemModelFailureShowsRecoveryGuidanceInsteadOfBlamingThePhrase() async {
+        let naturalRepository = SystemModelFailureNaturalJourneyRepository()
+        let model = makeModel(
+            naturalJourneyRepository: naturalRepository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true,
+            ),
+        )
+        model.naturalQuery = "Nation demain avant 8 h"
+
+        model.submitNaturalSearch()
+        await waitUntil { await naturalRepository.requestCount == 1 }
+        await waitForNaturalState(model) {
+            $0 == .availability(.systemUnavailable)
+        }
+
+        XCTAssertNil(model.naturalInputErrorMessage)
+        var requestCount = await naturalRepository.requestCount
+        XCTAssertEqual(requestCount, 1)
+
+        model.retryNaturalAvailability()
+        await waitUntil { await naturalRepository.requestCount == 2 }
+        requestCount = await naturalRepository.requestCount
+        XCTAssertEqual(requestCount, 2)
     }
 
     func testNaturalModeDecisionSubmitsTheUsersChoice() async {
@@ -884,6 +939,24 @@ private actor NaturalJourneyRepositoryRecorder: NaturalJourneyRepository {
         requests.append(request)
         let response = responses.count > 1 ? responses.removeFirst() : responses[0]
         return try response.get()
+    }
+}
+
+private actor ParsingFailureNaturalJourneyRepository: NaturalJourneyRepository {
+    private(set) var requestCount = 0
+
+    func submit(_: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
+        requestCount += 1
+        throw NaturalIntentParsingError.invalidResponse
+    }
+}
+
+private actor SystemModelFailureNaturalJourneyRepository: NaturalJourneyRepository {
+    private(set) var requestCount = 0
+
+    func submit(_: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
+        requestCount += 1
+        throw NaturalIntentParsingError.modelFailed
     }
 }
 

@@ -6,6 +6,18 @@ struct SearchResultsSection: View {
     let onRetry: () -> Void
     let onSelect: (SearchResult) -> Void
 
+    init(
+        state: SearchLoadState,
+        results: [SearchResult],
+        onRetry: @escaping () -> Void,
+        onSelect: @escaping (SearchResult) -> Void
+    ) {
+        self.state = state
+        self.results = results
+        self.onRetry = onRetry
+        self.onSelect = onSelect
+    }
+
     var body: some View {
         SkeletonGate(isLoading: state == .loading) {
             SkeletonList(

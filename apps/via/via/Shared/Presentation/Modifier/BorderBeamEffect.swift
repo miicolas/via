@@ -8,21 +8,37 @@ extension View {
         cornerRadius: CGFloat,
         isEnabled: Bool,
     ) -> some View {
+        borderBeam(
+            border: border,
+            beam: beam,
+            beamBlur: beamBlur,
+            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            isEnabled: isEnabled,
+        )
+    }
+
+    func borderBeam<S: Shape>(
+        border: Color,
+        beam: [Color],
+        beamBlur: CGFloat,
+        shape: S,
+        isEnabled: Bool,
+    ) -> some View {
         modifier(BorderBeamEffect(
             border: border,
             beam: beam,
             beamBlur: beamBlur,
-            cornerRadius: cornerRadius,
+            shape: shape,
             isEnabled: isEnabled,
         ))
     }
 }
 
-struct BorderBeamEffect: ViewModifier {
+struct BorderBeamEffect<S: Shape>: ViewModifier {
     let border: Color
     let beam: [Color]
     let beamBlur: CGFloat
-    let cornerRadius: CGFloat
+    let shape: S
     let isEnabled: Bool
 
     func body(content: Content) -> some View {
@@ -42,23 +58,23 @@ struct BorderBeamEffect: ViewModifier {
                         endPoint: .bottomTrailing,
                     )
 
-                    RoundedRectangle(cornerRadius: cornerRadius)
+                    shape
                         .fill(beamGradient)
                         .mask {
                             Rectangle().overlay {
-                                RoundedRectangle(cornerRadius: cornerRadius)
+                                shape
                                     .blur(radius: beamBlur)
                                     .blendMode(.destinationOut)
                             }
                         }
                         .mask {
-                            RoundedRectangle(cornerRadius: cornerRadius)
+                            shape
                                 .fill(borderGradient)
                                 .blur(radius: beamBlur / 1.5)
                                 .padding(-beamBlur * 2)
                         }
                         .overlay {
-                            RoundedRectangle(cornerRadius: cornerRadius)
+                            shape
                                 .stroke(borderGradient, lineWidth: 0.8)
                         }
                 } keyframes: { _ in

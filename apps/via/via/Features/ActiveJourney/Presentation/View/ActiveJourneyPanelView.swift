@@ -41,7 +41,7 @@ struct ActiveJourneyPanelView: View {
                         }
 
                         if model.recalculationState == .checking {
-                            ViaLoadingStatus(label: "Recherche de l’itinéraire le plus rapide…")
+                            LoadingStatus(label: "Recherche de l’itinéraire le plus rapide…")
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -249,11 +249,8 @@ struct ActiveJourneyPanelView: View {
                 Text(model.requiresResume ? "Reprendre" : "Go")
                     .font(.headline)
             }
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 52)
         }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.capsule)
+        .primaryAction()
         .disabled(isStarting)
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

@@ -4,6 +4,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
     let journey: Journey
     let destination: JourneyDestination
     let source: JourneyResult.Source?
+    var requiresAccessibleStations = false
     var currentSectionIndex: Int
     var lastCoordinate: GeoCoordinate?
     var horizontalAccuracy: Double?
@@ -16,6 +17,57 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
     var currentSection: JourneySection? {
         guard journey.sections.indices.contains(currentSectionIndex) else { return nil }
         return journey.sections[currentSectionIndex]
+    }
+
+    init(
+        journey: Journey,
+        destination: JourneyDestination,
+        source: JourneyResult.Source?,
+        requiresAccessibleStations: Bool,
+        currentSectionIndex: Int,
+        lastCoordinate: GeoCoordinate?,
+        horizontalAccuracy: Double?,
+        manualOverrideUntil: Date?,
+        isTrackingStarted: Bool,
+        allowsBackgroundTracking: Bool
+    ) {
+        self.journey = journey
+        self.destination = destination
+        self.source = source
+        self.requiresAccessibleStations = requiresAccessibleStations
+        self.currentSectionIndex = currentSectionIndex
+        self.lastCoordinate = lastCoordinate
+        self.horizontalAccuracy = horizontalAccuracy
+        self.manualOverrideUntil = manualOverrideUntil
+        self.isTrackingStarted = isTrackingStarted
+        self.allowsBackgroundTracking = allowsBackgroundTracking
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case journey
+        case destination
+        case source
+        case requiresAccessibleStations
+        case currentSectionIndex
+        case lastCoordinate
+        case horizontalAccuracy
+        case manualOverrideUntil
+        case isTrackingStarted
+        case allowsBackgroundTracking
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        journey = try container.decode(Journey.self, forKey: .journey)
+        destination = try container.decode(JourneyDestination.self, forKey: .destination)
+        source = try container.decodeIfPresent(JourneyResult.Source.self, forKey: .source)
+        requiresAccessibleStations = try container.decodeIfPresent(Bool.self, forKey: .requiresAccessibleStations) ?? false
+        currentSectionIndex = try container.decode(Int.self, forKey: .currentSectionIndex)
+        lastCoordinate = try container.decodeIfPresent(GeoCoordinate.self, forKey: .lastCoordinate)
+        horizontalAccuracy = try container.decodeIfPresent(Double.self, forKey: .horizontalAccuracy)
+        manualOverrideUntil = try container.decodeIfPresent(Date.self, forKey: .manualOverrideUntil)
+        isTrackingStarted = try container.decode(Bool.self, forKey: .isTrackingStarted)
+        allowsBackgroundTracking = try container.decode(Bool.self, forKey: .allowsBackgroundTracking)
     }
 }
 

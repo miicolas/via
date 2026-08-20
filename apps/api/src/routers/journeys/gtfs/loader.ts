@@ -2,6 +2,7 @@ import type { Coordinate } from '@via/contract';
 import { db } from '@via/db';
 import {
   networkMode,
+  stationAccessibility,
   transitProfileStops,
   transitRoutes,
   transitServiceDates,
@@ -41,7 +42,7 @@ type StopTimeCandidate = {
   serviceDate: string;
 };
 
-export function createGtfsLoader(now: Date): GtfsPlannerLoader {
+export function createGtfsLoader(now: Date, requiresAccessibleStations = false): GtfsPlannerLoader {
   const { date } = parisDay(now);
   const yesterday = previousDate(date);
   const stopCache = new Map<string, PlannerStop>();
@@ -130,15 +131,25 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
           'latitude', ST_Y(${transitStops.location}),
           'longitude', ST_X(${transitStops.location})
         )`,
+        isAccessible: stationAccessibility.levelId,
       })
       .from(transitTransfers)
       .innerJoin(transitStops, eq(transitStops.id, hydratedColumn))
-      .where(inArray(anchorColumn, anchorStopIds));
+      .leftJoin(stationAccessibility, eq(stationAccessibility.stopId, hydratedColumn))
+      .where(
+        and(
+          inArray(anchorColumn, anchorStopIds),
+          requiresAccessibleStations
+            ? inArray(stationAccessibility.levelId, [3, 4, 6])
+            : undefined
+        )
+      );
     return rows.map((row) => {
       const stop = {
         id: hydrate === 'to' ? row.toStopId : row.fromStopId,
         name: row.name,
         coordinate: row.coordinate,
+        isAccessible: isAccessibleLevel(row.isAccessible),
       };
       stopCache.set(stop.id, stop);
       stopKeyById.set(stop.id, row.numericId);
@@ -148,7 +159,7 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
   };
 
   return {
-    accessStops: async (coordinate, limit) => {
+    accessStops: async (coordinate, limit, stationId) => {
       const rows = await db
         .select({
           id: transitStops.id,
@@ -161,12 +172,19 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
         })
         .from(transitStops)
         .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
+        .leftJoin(stationAccessibility, eq(stationAccessibility.stopId, transitStops.id))
         .where(
-          sql`ST_DWithin(
-            ${transitStops.location}::geography,
-            ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography,
-            3_000
-          )`
+          and(
+            sql`ST_DWithin(
+              ${transitStops.location}::geography,
+              ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography,
+              3_000
+            )`,
+            stationId ? eq(transitStops.id, stationId) : undefined,
+            requiresAccessibleStations
+              ? inArray(stationAccessibility.levelId, [3, 4, 6])
+              : undefined
+          )
         )
         .groupBy(transitStops.id, transitStops.name, transitStops.location)
         .orderBy(
@@ -178,7 +196,12 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
         .limit(limit);
 
       return rows.map((row) => {
-        const stop = { id: row.id, name: row.name, coordinate: row.coordinate };
+        const stop = {
+          id: row.id,
+          name: row.name,
+          coordinate: row.coordinate,
+          isAccessible: requiresAccessibleStations,
+        };
         stopCache.set(stop.id, stop);
         stopKeyById.set(stop.id, row.numericId);
         stopIdByKey.set(row.numericId, stop.id);
@@ -232,6 +255,7 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
                 'latitude', ST_Y(${transitStops.location}),
                 'longitude', ST_X(${transitStops.location})
               )`,
+              accessibilityLevelId: stationAccessibility.levelId,
             })
             .from(transitTrips)
             .innerJoin(
@@ -239,6 +263,7 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
               eq(transitProfileStops.profileKey, transitTrips.profileKey)
             )
             .innerJoin(transitStops, eq(transitStops.numericId, transitProfileStops.stopKey))
+            .leftJoin(stationAccessibility, eq(stationAccessibility.stopId, transitStops.id))
             .where(inArray(transitTrips.numericId, numericIds))
             .orderBy(asc(transitTrips.numericId), asc(transitProfileStops.position))
         : [];
@@ -260,6 +285,7 @@ export function createGtfsLoader(now: Date): GtfsPlannerLoader {
             id: call.stopId,
             name: call.name,
             coordinate: call.coordinate,
+            isAccessible: isAccessibleLevel(call.accessibilityLevelId),
           };
           stopCache.set(stop.id, stop);
           stopKeyById.set(stop.id, call.stopNumericId);
@@ -336,8 +362,10 @@ export function createGtfsJourneyPlanner(): GtfsJourneyPlanner {
         input.destination,
         now,
         input.limit,
-        createGtfsLoader(now),
-        input.datetimeRepresents ?? 'departure'
+        createGtfsLoader(now, input.requiresAccessibleStations),
+        input.datetimeRepresents ?? 'departure',
+        input.requiresAccessibleStations,
+        input.originStationId
       );
       signal?.throwIfAborted();
       return response;
@@ -385,4 +413,8 @@ async function loadStopTimeCandidates(
 
 function normalizeColor(value: string) {
   return value.startsWith('#') ? value : `#${value}`;
+}
+
+function isAccessibleLevel(value: number | null | undefined) {
+  return value === 3 || value === 4 || value === 6;
 }

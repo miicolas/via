@@ -76,14 +76,16 @@ struct SearchResultRow: View {
     private var resultDetails: some View {
         switch result {
         case .station(let station):
-            if station.routes.isEmpty {
-                Text("Station")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                HStack(spacing: 6) {
-                    ForEach(station.routes.prefix(3)) { route in
-                        LineBadgeView(route: route, size: 20)
+            VStack(alignment: .leading, spacing: 6) {
+                if station.routes.isEmpty {
+                    Text("Station")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 6) {
+                        ForEach(station.routes.prefix(3)) { route in
+                            LineBadgeView(route: route, size: 20)
+                        }
                     }
                 }
             }
@@ -100,7 +102,8 @@ struct SearchResultRow: View {
         switch result {
         case .station(let station):
             let routes = station.routes.map(\.shortName).joined(separator: ", ")
-            return routes.isEmpty ? "Station \(station.name)" : "Station \(station.name), lignes \(routes)"
+            let base = routes.isEmpty ? "Station \(station.name)" : "Station \(station.name), lignes \(routes)"
+            return base
         case .address(let address):
             return address.context.isEmpty
                 ? "Adresse \(address.name)"

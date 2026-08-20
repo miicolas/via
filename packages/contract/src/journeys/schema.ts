@@ -1,6 +1,11 @@
 import * as z from 'zod';
 
-import { coordinateParamSchema, coordinateSchema, networkModeSchema } from '../shared/schema';
+import {
+  coordinateParamSchema,
+  coordinateSchema,
+  networkModeSchema,
+  queryBooleanSchema,
+} from '../shared/schema';
 
 export const journeyModeSchema = networkModeSchema;
 export const journeyDatetimeRepresentsSchema = z.enum(['departure', 'arrival']);
@@ -70,6 +75,10 @@ export const journeyInputSchema = z.object({
   requiredModes: journeyModeListParamSchema.optional(),
   excludedModes: journeyModeListParamSchema.optional(),
   preferredModes: journeyModeListParamSchema.optional(),
+  /** Require every used boarding, alighting, and transfer station to be declared PMR-accessible. */
+  requiresAccessibleStations: queryBooleanSchema.optional(),
+  /** The user explicitly selected this station as origin; preserve that choice when filtering. */
+  originStationId: z.string().min(1).optional(),
 });
 
 export const journeyQualifierSchema = z.enum([
@@ -124,6 +133,12 @@ export const journeySchema = z.object({
   arrivalAt: z.iso.datetime({ offset: true }),
   status: journeyStatusSchema,
   warnings: z.array(z.string()),
+  accessibility: z
+    .object({
+      condition: z.enum(['reservationRequired', 'staffAssistance', 'autonomous']),
+      label: z.string(),
+    })
+    .optional(),
   sections: z.array(journeySectionSchema).min(1),
 });
 
@@ -131,5 +146,6 @@ export const journeysResponseSchema = z.object({
   status: z.enum(['ready', 'no-route', 'unavailable']),
   source: z.enum(['idfm-realtime', 'gtfs-theoretical']).optional(),
   generatedAt: z.iso.datetime({ offset: true }),
+  reason: z.enum(['no-accessible-route', 'accessibility-data-unavailable']).optional(),
   journeys: z.array(journeySchema),
 });

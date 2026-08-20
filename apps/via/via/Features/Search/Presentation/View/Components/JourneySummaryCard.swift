@@ -64,6 +64,12 @@ struct JourneySummaryCard: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let accessibility = journey.accessibility {
+                Label(accessibility.label, systemImage: "figure.roll")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(accessibility.condition == .autonomous ? Color.green : Color.orange)
+            }
+
             if !journey.warnings.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     ForEach(journey.warnings.prefix(2), id: \.self) { warning in
@@ -141,6 +147,7 @@ struct JourneySummaryCard: View {
         var value = "\(journey.qualifier.displayName), départ à \(JourneyFormatting.time(journey.departureAt)), arrivée à \(JourneyFormatting.time(journey.arrivalAt)), \(summaryText)"
         if let status { value += ", \(status.title)" }
         if let sourceLabel { value += ", \(sourceLabel)" }
+        if let accessibility = journey.accessibility { value += ", \(accessibility.label)" }
         if !journey.warnings.isEmpty { value += ", avertissement: \(journey.warnings.joined(separator: ", "))" }
         return value
     }

@@ -9,7 +9,11 @@ struct NaturalJourneyDecisionView: View {
     let onModify: () -> Void
 
     var body: some View {
-        NaturalJourneyStateCard(title: decision.title, systemImage: decision.systemImage) {
+        NaturalJourneyStateCard(
+            systemImage: decision.systemImage,
+            title: decision.title,
+            message: decision.message,
+        ) {
             content
         }
     }
@@ -18,16 +22,12 @@ struct NaturalJourneyDecisionView: View {
     private var content: some View {
         switch decision {
         case .currentLocation:
-            Text("Aucune origine n’est indiquée. Veux-tu partir de ta position actuelle ?")
-                .naturalJourneyMessage()
             Button("Utiliser ma position", systemImage: "location.fill", action: onConfirmCurrentLocation)
                 .naturalJourneyPrimaryAction()
             Button("Indiquer une autre origine", action: onModify)
                 .naturalJourneySecondaryAction()
 
         case let .modeConflict(mode, choices):
-            Text("Deux contraintes se contredisent pour \(mode.naturalLanguageNameWithArticle). Laquelle veux-tu conserver ?")
-                .naturalJourneyMessage()
             ForEach(Array(choices.enumerated()), id: \.offset) { index, choice in
                 if index == 0 {
                     modeChoiceButton(choice, mode: mode)
@@ -39,29 +39,35 @@ struct NaturalJourneyDecisionView: View {
             }
 
         case let .unsupportedConstraints(constraints):
-            Text(constraints.joined(separator: " · "))
-                .font(.headline)
-            Text("Via ne sait pas encore appliquer cette contrainte.")
-                .naturalJourneyMessage()
+            highlight(constraints.joined(separator: " · "))
             Button("Continuer sans cette contrainte", action: onContinueWithoutUnsupported)
                 .naturalJourneyPrimaryAction()
             Button("Modifier la demande", action: onModify)
                 .naturalJourneySecondaryAction()
 
         case let .pastDate(date):
-            Text(JourneyFormatting.dateTime(date))
-                .font(.headline)
-            Text("La date était explicite, Via ne la déplacera pas silencieusement.")
-                .naturalJourneyMessage()
-            Button("Modifier la demande", action: onModify)
+            highlight(JourneyFormatting.dateTime(date))
+            Button("Modifier la demande", systemImage: "pencil", action: onModify)
                 .naturalJourneyPrimaryAction()
 
         case let .timeConflict(first, second):
-            Text("Le moteur accepte une heure de départ ou une heure d’arrivée.")
-                .naturalJourneyMessage()
             timeConstraintButton(first)
+                .naturalJourneyPrimaryAction()
             timeConstraintButton(second)
+                .naturalJourneySecondaryAction()
         }
+    }
+
+    /// The fragment of the request the decision is actually about, set apart so
+    /// the traveller can check it against what they typed.
+    private func highlight(_ text: String) -> some View {
+        Text(text)
+            .font(.headline)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .glassEffect(.regular.tint(Color.aiSurface), in: .capsule)
     }
 
     private func modeChoiceButton(
@@ -73,7 +79,6 @@ struct NaturalJourneyDecisionView: View {
 
     private func timeConstraintButton(_ constraint: RouteTimeConstraint) -> some View {
         Button(constraint.buttonTitle) { onResolveTimeConflict(constraint) }
-            .naturalJourneyPrimaryAction()
     }
 }
 
@@ -85,6 +90,21 @@ private extension NaturalJourneyDecision {
         case .unsupportedConstraints: "Contrainte indisponible"
         case .pastDate: "Cette heure est passée"
         case .timeConflict: "Choisis la contrainte horaire"
+        }
+    }
+
+    var message: String {
+        switch self {
+        case .currentLocation:
+            "Aucune origine n’est indiquée. Veux-tu partir de ta position actuelle ?"
+        case let .modeConflict(mode, _):
+            "Deux contraintes se contredisent pour \(mode.naturalLanguageNameWithArticle). Laquelle veux-tu conserver ?"
+        case .unsupportedConstraints:
+            "Via ne sait pas encore appliquer cette contrainte."
+        case .pastDate:
+            "La date était explicite, Via ne la déplacera pas silencieusement."
+        case .timeConflict:
+            "Le moteur accepte une heure de départ ou une heure d’arrivée."
         }
     }
 

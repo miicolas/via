@@ -6,11 +6,14 @@ struct StationsView: View {
 
     @Binding var isLargeScreen: Bool
     @Binding var detailDetent: PresentationDetent
+    let profileModel: ProfileModel
 
     let onOpenSearch: () -> Void
     let naturalLanguageAccess: NaturalLanguageAccess
     let showsNaturalSearchDiscovery: Bool
     let onOpenNaturalSearch: () -> Void
+    let onOpenProfile: () -> Void
+    let onOpenSettings: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.scenePhase) private var scenePhase
@@ -23,14 +26,26 @@ struct StationsView: View {
                 .navigationTitle("Stations")
                 .toolbarTitleDisplayMode(.inlineLarge)
                 .toolbar {
+                    // Two glass containers rather than one group: Apple
+                    // Intelligence and the account are unrelated errands, and
+                    // sharing a capsule made the orb read as part of the avatar.
                     if naturalLanguageAccess != .hidden {
                         ToolbarItem(placement: .topBarTrailing) {
                             AIEntryButton(
-                                shape: .circle,
+                                surface: .toolbar,
                                 isDiscoverable: showsNaturalSearchDiscovery,
                                 action: onOpenNaturalSearch,
                             )
                         }
+                        ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    }
+
+                    ToolbarItem(placement: .topBarTrailing) {
+                        AccountMenuButton(
+                            profile: profileModel,
+                            onOpenProfile: onOpenProfile,
+                            onOpenSettings: onOpenSettings
+                        )
                     }
                 }
         }
@@ -132,7 +147,7 @@ struct StationsView: View {
             if isRefreshing {
                 HStack {
                     Spacer()
-                    ViaLoadingStatus(label: "Actualisation…")
+                    LoadingStatus(label: "Actualisation…")
                     Spacer()
                 }
                 .listRowSeparator(.hidden)
@@ -245,10 +260,13 @@ struct StationsView: View {
         ),
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
+        profileModel: ProfileModel(store: InMemoryProfileStore()),
         onOpenSearch: {},
         naturalLanguageAccess: .active,
         showsNaturalSearchDiscovery: true,
         onOpenNaturalSearch: {},
+        onOpenProfile: {},
+        onOpenSettings: {}
     )
 }
 

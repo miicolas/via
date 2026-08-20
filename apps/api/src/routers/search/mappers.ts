@@ -12,5 +12,34 @@ export function toStationResults(rows: MatchingStationRow[]): StationSearchResul
     // like the network mapper does.
     coordinate: { latitude: Number(row.latitude), longitude: Number(row.longitude) },
     routes: row.routes.map(toRouteBadge),
+    accessibility: accessibilityOf(row),
   }));
+}
+
+function accessibilityOf(row: MatchingStationRow) {
+  if (row.accessibilityLevelId === undefined || row.accessibilityLevelId === null) {
+    return undefined;
+  }
+  switch (row.accessibilityLevelId) {
+    case 3:
+      return {
+        condition: 'reservationRequired' as const,
+        label: 'Sur réservation',
+        comment: row.accessibilityComment ?? undefined,
+      };
+    case 4:
+      return {
+        condition: 'staffAssistance' as const,
+        label: 'Avec un agent',
+        comment: row.accessibilityComment ?? undefined,
+      };
+    case 6:
+      return {
+        condition: 'autonomous' as const,
+        label: 'En autonomie',
+        comment: row.accessibilityComment ?? undefined,
+      };
+    default:
+      return undefined;
+  }
 }

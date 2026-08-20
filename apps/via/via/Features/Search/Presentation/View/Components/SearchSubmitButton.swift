@@ -6,10 +6,7 @@ struct SearchSubmitButton: View {
     var body: some View {
         Button("Rechercher", action: action)
             .font(.headline)
-            .frame(maxWidth: .infinity)
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.capsule)
-            .controlSize(.large)
+            .primaryAction()
             .accessibilityHint("Lance la recherche avec la destination, la date et le départ choisis")
     }
 }

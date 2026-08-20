@@ -31,16 +31,19 @@ struct NaturalJourneyClarificationView: View {
     }
 
     var body: some View {
-        NaturalJourneyStateCard(title: "Un détail manque", systemImage: "questionmark.bubble") {
-            Text(field.question)
-                .naturalJourneyMessage()
-
+        NaturalJourneyStateCard(
+            systemImage: "questionmark.bubble",
+            title: "Un détail manque",
+            message: field.question,
+        ) {
             if field.target == .time {
                 timeChoices
             } else if field.candidates.isEmpty {
                 Text("Aucune proposition fiable n’a été trouvée.")
-                    .naturalJourneyMessage()
-                Button("Modifier la demande", action: onModify)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button("Modifier la demande", systemImage: "pencil", action: onModify)
                     .naturalJourneyPrimaryAction()
             } else {
                 placeChoices
@@ -56,18 +59,23 @@ struct NaturalJourneyClarificationView: View {
             Button("Arriver à cette heure") { onResolveTime(nil, .arrival) }
                 .naturalJourneySecondaryAction()
         } else {
-            DatePicker(
-                "Heure",
-                selection: $clarificationTime,
-                displayedComponents: .hourAndMinute,
-            )
-            .datePickerStyle(.compact)
-            Picker("Contrainte horaire", selection: $clarificationMeaning) {
-                Text("Départ après").tag(JourneyDatetimeRepresents.departure)
-                Text("Arrivée avant").tag(JourneyDatetimeRepresents.arrival)
+            VStack(spacing: 14) {
+                DatePicker(
+                    "Heure",
+                    selection: $clarificationTime,
+                    displayedComponents: .hourAndMinute,
+                )
+                .datePickerStyle(.compact)
+                Picker("Contrainte horaire", selection: $clarificationMeaning) {
+                    Text("Départ après").tag(JourneyDatetimeRepresents.departure)
+                    Text("Arrivée avant").tag(JourneyDatetimeRepresents.arrival)
+                }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
-            Button("Continuer") {
+            .padding(18)
+            .glassEffect(.regular, in: .rect(cornerRadius: 22))
+
+            Button("Continuer", systemImage: "arrow.right") {
                 onResolveTime(clarificationTime, clarificationMeaning)
             }
             .naturalJourneyPrimaryAction()
@@ -75,9 +83,11 @@ struct NaturalJourneyClarificationView: View {
     }
 
     private var placeChoices: some View {
-        ForEach(field.candidates) { candidate in
-            SearchResultRow(result: candidate, accessibilityHint: "Choisir ce lieu") {
-                onResolvePlace(candidate)
+        VStack(spacing: 8) {
+            ForEach(field.candidates) { candidate in
+                SearchResultRow(result: candidate, accessibilityHint: "Choisir ce lieu") {
+                    onResolvePlace(candidate)
+                }
             }
         }
     }

@@ -15,7 +15,7 @@ export const querySearch = implementer.search.query.handler(
         ? { latitude: input.latitude, longitude: input.longitude }
         : undefined;
 
-    const { results, banAvailable } = await searchPlaces(input.q, {
+    const { results, banAvailable, accessibility } = await searchPlaces(input.q, {
       limit: input.limit,
       origin,
       signal,
@@ -25,7 +25,10 @@ export const querySearch = implementer.search.query.handler(
 
     return {
       results,
-      sources: { ban: banAvailable ? ('ok' as const) : ('unavailable' as const) },
+      sources: {
+        ban: banAvailable ? ('ok' as const) : ('unavailable' as const),
+        accessibility,
+      },
     };
   }
 );

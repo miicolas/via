@@ -53,10 +53,7 @@ struct SearchDestinationField: View {
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 48)
-        .background(
-            Color.secondary.opacity(0.10),
-            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-        )
+        .glassEffect(.regular, in: .rect(cornerRadius: 18))
         .onAppear {
             Task { @MainActor in
                 isFocused = true

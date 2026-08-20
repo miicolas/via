@@ -105,6 +105,34 @@ export const transitStops = pgTable(
   (table) => [index('transit_stops_location_idx').using('gist', table.location)]
 );
 
+/** Raw GTFS/IDFM stop identifiers folded into Via's canonical stop-area id. */
+export const transitStopAliases = pgTable(
+  'transit_stop_aliases',
+  {
+    sourceId: text('source_id').primaryKey(),
+    stopId: text('stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+  },
+  (table) => [index('transit_stop_aliases_stop_idx').on(table.stopId)]
+);
+
+/** Latest station-level accessibility declaration imported from IDFM PRIM. */
+export const stationAccessibility = pgTable(
+  'station_accessibility',
+  {
+    stopId: text('stop_id')
+      .primaryKey()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    sourceStopPointId: text('source_stop_point_id').notNull().unique(),
+    levelId: integer('level_id').notNull(),
+    levelName: text('level_name').notNull(),
+    comment: text('comment'),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [index('station_accessibility_level_idx').on(table.levelId)]
+);
+
 export const transitRoutePatternStops = pgTable(
   'transit_route_pattern_stops',
   {
@@ -489,5 +517,7 @@ export const accountSyncOperations = pgTable(
 export type TransitRoute = typeof transitRoutes.$inferSelect;
 export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
+export type TransitStopAlias = typeof transitStopAliases.$inferSelect;
+export type StationAccessibility = typeof stationAccessibility.$inferSelect;
 export type TransitTrip = typeof transitTrips.$inferSelect;
 export type TransitLineSchemaStop = typeof transitLineSchemaStops.$inferSelect;

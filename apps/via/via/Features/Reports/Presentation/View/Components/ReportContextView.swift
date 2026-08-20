@@ -94,14 +94,14 @@ struct ReportContextView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Button("Choisir une station", action: onChooseStation)
-                    .buttonStyle(.borderedProminent)
+            VStack(spacing: 10) {
+                Button("Choisir une station", systemImage: "mappin.and.ellipse", action: onChooseStation)
+                    .primaryAction()
                     .disabled(!isEditable)
 
                 if showsRetry {
-                    Button("Réessayer", action: onRetry)
-                        .buttonStyle(.bordered)
+                    RetryButton(action: onRetry)
+                        .secondaryAction()
                         .disabled(!isEditable)
                 }
             }

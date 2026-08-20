@@ -9,21 +9,25 @@ struct NaturalJourneyCriteriaChip: View {
 
     var body: some View {
         if let action {
-            Button(action: action) { label }
-                .buttonStyle(.plain)
-                .accessibilityHint("Modifier ce critère")
+            Button(action: action) {
+                label
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .accessibilityHint("Modifier ce critère")
         } else {
             label
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .glassEffect(.regular, in: .capsule)
         }
     }
 
     private var label: some View {
         Label(title, systemImage: systemImage)
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 12)
-            .frame(minHeight: 44)
-            .background(Color.secondary.opacity(0.10), in: Capsule())
+            .lineLimit(1)
     }
 }
 

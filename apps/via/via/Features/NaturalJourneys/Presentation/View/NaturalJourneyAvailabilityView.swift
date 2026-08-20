@@ -7,26 +7,31 @@ struct NaturalJourneyAvailabilityView: View {
 
     var body: some View {
         NaturalJourneyStateCard(
-            title: "Apple Intelligence indisponible",
-            systemImage: "sparkles",
+            systemImage: "apple.intelligence.badge.xmark",
+            title: guidance.title,
+            message: guidance.message,
         ) {
-            Text(guidance.message)
-                .naturalJourneyMessage()
-            Button("Réessayer", action: onRetry)
-                .naturalJourneyPrimaryAction()
-            Button("Recherche classique", action: onClassicSearch)
-                .naturalJourneySecondaryAction()
-        }
-    }
-}
+            // The steps stay left-aligned inside a centred column: a checklist
+            // read as a paragraph of centred lines is a checklist nobody reads.
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(Array(guidance.instructions.enumerated()), id: \.offset) { _, instruction in
+                    Label {
+                        Text(instruction.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: instruction.systemImage)
+                            .foregroundStyle(Color.aiAccent)
+                    }
+                }
+            }
+            .font(.subheadline)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18)
+            .glassEffect(.regular, in: .rect(cornerRadius: 22))
 
-private extension NaturalJourneyUnavailableGuidance {
-    var message: String {
-        switch self {
-        case .enableAppleIntelligence:
-            "Active Apple Intelligence dans Réglages > Apple Intelligence et Siri, puis reviens dans Via."
-        case .modelDownloading:
-            "Le modèle Apple Intelligence est encore en téléchargement. Réessaie lorsqu’il sera prêt."
+            NaturalJourneyRecoveryActions(onClassicSearch: onClassicSearch) {
+                RetryButton(action: onRetry)
+            }
         }
     }
 }

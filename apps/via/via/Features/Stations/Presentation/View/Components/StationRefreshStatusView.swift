@@ -17,9 +17,8 @@ struct StationRefreshStatusView: View {
 
             Spacer(minLength: 4)
 
-            Button("Réessayer", action: onRetry)
-                .font(.caption.weight(.semibold))
-                .buttonStyle(.borderless)
+            RetryButton(action: onRetry)
+                .iconAction(size: .small)
         }
         .padding(.vertical, 4)
     }
