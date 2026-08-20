@@ -11,17 +11,23 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
     private let places: OnDevicePlaceResolver
     private let journeys: any JourneyRepository
     private let now: @Sendable () -> Date
+    private let metrics: any NaturalJourneyMetricsRecording
+    private let metricsNow: @Sendable () -> Date
 
     init(
         parser: any NaturalIntentParsing,
         places: OnDevicePlaceResolver,
         journeys: any JourneyRepository,
         now: @escaping @Sendable () -> Date = { .now },
+        metrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
+        metricsNow: @escaping @Sendable () -> Date = { .now },
     ) {
         self.parser = parser
         self.places = places
         self.journeys = journeys
         self.now = now
+        self.metrics = metrics
+        self.metricsNow = metricsNow
     }
 
     func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
@@ -31,12 +37,17 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
 
         switch request {
         case let .submit(query, location):
+            let interpretationStartedAt = metricsNow()
             do {
                 let parsed = try await parser.parseIntent(query, now: currentTime)
+                recordInterpretation(startedAt: interpretationStartedAt)
                 let intent = Self.normalizedTime(in: parsed, now: currentTime)
                 draft = NaturalJourneyDraft(intent: intent, origin: nil, destination: nil)
             } catch NaturalIntentParsingError.cancelled {
                 throw CancellationError()
+            } catch {
+                recordInterpretation(startedAt: interpretationStartedAt)
+                throw error
             }
             currentLocation = location
         case let .resolve(
@@ -57,22 +68,10 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 near: location,
             )
             let intent: RouteIntent = if let submittedTime {
-                RouteIntent(
-                    scope: submittedDraft.intent.scope,
-                    origin: submittedDraft.intent.origin,
-                    destinationQuery: submittedDraft.intent.destinationQuery,
+                submittedDraft.intent.resolvingTime(
                     requestedAt: submittedRequestedAt ?? submittedDraft.intent.requestedAt,
-                    datetimeRepresents: submittedTime == .arrival ? .arrival : .departure,
-                    requiredModes: submittedDraft.intent.requiredModes,
-                    excludedModes: submittedDraft.intent.excludedModes,
-                    preferredModes: submittedDraft.intent.preferredModes,
-                    unsupportedConstraints: submittedDraft.intent.unsupportedConstraints,
-                    dateWasExplicit: submittedDraft.intent.dateWasExplicit,
-                    timeWasExplicit: submittedRequestedAt == nil
-                        ? submittedDraft.intent.timeWasExplicit
-                        : true,
-                    alternateTimeConstraint: submittedDraft.intent.alternateTimeConstraint,
-                    originWasExplicit: submittedDraft.intent.originWasExplicit,
+                    meaning: submittedTime,
+                    isExplicit: submittedRequestedAt != nil || submittedDraft.intent.timeWasExplicit,
                 )
             } else {
                 submittedDraft.intent
@@ -101,20 +100,10 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 excludedModes.remove(mode)
                 preferredModes.insert(mode)
             }
-            let intent = RouteIntent(
-                scope: submittedDraft.intent.scope,
-                origin: submittedDraft.intent.origin,
-                destinationQuery: submittedDraft.intent.destinationQuery,
-                requestedAt: submittedDraft.intent.requestedAt,
-                datetimeRepresents: submittedDraft.intent.datetimeRepresents,
-                requiredModes: requiredModes,
-                excludedModes: excludedModes,
-                preferredModes: preferredModes,
-                unsupportedConstraints: submittedDraft.intent.unsupportedConstraints,
-                dateWasExplicit: submittedDraft.intent.dateWasExplicit,
-                timeWasExplicit: submittedDraft.intent.timeWasExplicit,
-                alternateTimeConstraint: submittedDraft.intent.alternateTimeConstraint,
-                originWasExplicit: submittedDraft.intent.originWasExplicit,
+            let intent = submittedDraft.intent.resolvingModes(
+                required: requiredModes,
+                excluded: excludedModes,
+                preferred: preferredModes,
             )
             draft = NaturalJourneyDraft(
                 intent: intent,
@@ -123,21 +112,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             )
             currentLocation = location
         case let .continueWithoutUnsupportedConstraints(submittedDraft, location):
-            let intent = RouteIntent(
-                scope: submittedDraft.intent.scope,
-                origin: submittedDraft.intent.origin,
-                destinationQuery: submittedDraft.intent.destinationQuery,
-                requestedAt: submittedDraft.intent.requestedAt,
-                datetimeRepresents: submittedDraft.intent.datetimeRepresents,
-                requiredModes: submittedDraft.intent.requiredModes,
-                excludedModes: submittedDraft.intent.excludedModes,
-                preferredModes: submittedDraft.intent.preferredModes,
-                unsupportedConstraints: [],
-                dateWasExplicit: submittedDraft.intent.dateWasExplicit,
-                timeWasExplicit: submittedDraft.intent.timeWasExplicit,
-                alternateTimeConstraint: submittedDraft.intent.alternateTimeConstraint,
-                originWasExplicit: submittedDraft.intent.originWasExplicit,
-            )
+            let intent = submittedDraft.intent.ignoringUnsupportedConstraints()
             draft = NaturalJourneyDraft(
                 intent: intent,
                 origin: submittedDraft.origin,
@@ -154,21 +129,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             guard chosen == primary || chosen == submittedDraft.intent.alternateTimeConstraint else {
                 throw ViaError.invalidRequest("La contrainte horaire choisie ne correspond pas à la demande")
             }
-            let intent = RouteIntent(
-                scope: submittedDraft.intent.scope,
-                origin: submittedDraft.intent.origin,
-                destinationQuery: submittedDraft.intent.destinationQuery,
-                requestedAt: chosen.requestedAt,
-                datetimeRepresents: chosen.meaning == .arrival ? .arrival : .departure,
-                requiredModes: submittedDraft.intent.requiredModes,
-                excludedModes: submittedDraft.intent.excludedModes,
-                preferredModes: submittedDraft.intent.preferredModes,
-                unsupportedConstraints: submittedDraft.intent.unsupportedConstraints,
-                dateWasExplicit: submittedDraft.intent.dateWasExplicit,
-                timeWasExplicit: submittedDraft.intent.timeWasExplicit,
-                alternateTimeConstraint: nil,
-                originWasExplicit: submittedDraft.intent.originWasExplicit,
-            )
+            let intent = submittedDraft.intent.choosingTimeConstraint(chosen)
             draft = NaturalJourneyDraft(
                 intent: intent,
                 origin: submittedDraft.origin,
@@ -176,21 +137,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             )
             currentLocation = location
         case let .confirmCurrentLocation(submittedDraft, location):
-            let intent = RouteIntent(
-                scope: submittedDraft.intent.scope,
-                origin: .currentLocation,
-                destinationQuery: submittedDraft.intent.destinationQuery,
-                requestedAt: submittedDraft.intent.requestedAt,
-                datetimeRepresents: submittedDraft.intent.datetimeRepresents,
-                requiredModes: submittedDraft.intent.requiredModes,
-                excludedModes: submittedDraft.intent.excludedModes,
-                preferredModes: submittedDraft.intent.preferredModes,
-                unsupportedConstraints: submittedDraft.intent.unsupportedConstraints,
-                dateWasExplicit: submittedDraft.intent.dateWasExplicit,
-                timeWasExplicit: submittedDraft.intent.timeWasExplicit,
-                alternateTimeConstraint: submittedDraft.intent.alternateTimeConstraint,
-                originWasExplicit: true,
-            )
+            let intent = submittedDraft.intent.confirmingCurrentLocation()
             draft = NaturalJourneyDraft(
                 intent: intent,
                 origin: submittedDraft.origin,
@@ -436,23 +383,14 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         case clarification(NaturalJourneyResult)
     }
 
+    private func recordInterpretation(startedAt: Date) {
+        let duration = max(0, metricsNow().timeIntervalSince(startedAt))
+        metrics.recordInterpretation(durationMilliseconds: Int(duration * 1000))
+    }
+
     private static func normalizedTime(in intent: RouteIntent, now: Date) -> RouteIntent {
         if intent.requestedAt == nil, !intent.dateWasExplicit, !intent.timeWasExplicit {
-            return RouteIntent(
-                scope: intent.scope,
-                origin: intent.origin,
-                destinationQuery: intent.destinationQuery,
-                requestedAt: now,
-                datetimeRepresents: intent.datetimeRepresents,
-                requiredModes: intent.requiredModes,
-                excludedModes: intent.excludedModes,
-                preferredModes: intent.preferredModes,
-                unsupportedConstraints: intent.unsupportedConstraints,
-                dateWasExplicit: false,
-                timeWasExplicit: false,
-                alternateTimeConstraint: intent.alternateTimeConstraint,
-                originWasExplicit: intent.originWasExplicit,
-            )
+            return intent.replacingRequestedAt(now)
         }
         guard let requestedAt = intent.requestedAt,
               requestedAt < now,
@@ -465,20 +403,6 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         guard let nextDay = calendar.date(byAdding: .day, value: 1, to: requestedAt) else {
             return intent
         }
-        return RouteIntent(
-            scope: intent.scope,
-            origin: intent.origin,
-            destinationQuery: intent.destinationQuery,
-            requestedAt: nextDay,
-            datetimeRepresents: intent.datetimeRepresents,
-            requiredModes: intent.requiredModes,
-            excludedModes: intent.excludedModes,
-            preferredModes: intent.preferredModes,
-            unsupportedConstraints: intent.unsupportedConstraints,
-            dateWasExplicit: intent.dateWasExplicit,
-            timeWasExplicit: intent.timeWasExplicit,
-            alternateTimeConstraint: intent.alternateTimeConstraint,
-            originWasExplicit: intent.originWasExplicit,
-        )
+        return intent.replacingRequestedAt(nextDay)
     }
 }

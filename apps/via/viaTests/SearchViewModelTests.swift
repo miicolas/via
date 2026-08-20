@@ -8,7 +8,7 @@ final class SearchViewModelTests: XCTestCase {
         let model = makeModel(
             naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
             naturalLanguageAvailability: .available,
-            naturalJourneyOnboardingStore: onboarding
+            naturalJourneyOnboardingStore: onboarding,
         )
 
         model.openNaturalSearch()
@@ -27,7 +27,7 @@ final class SearchViewModelTests: XCTestCase {
         let model = makeModel(
             naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
             naturalLanguageAvailability: .available,
-            naturalJourneyOnboardingStore: onboarding
+            naturalJourneyOnboardingStore: onboarding,
         )
 
         model.openNaturalSearch()
@@ -41,7 +41,7 @@ final class SearchViewModelTests: XCTestCase {
     func testIneligibleDeviceCannotOpenNaturalSearch() {
         let model = makeModel(
             naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
-            naturalLanguageAvailability: .unavailable(.deviceNotEligible)
+            naturalLanguageAvailability: .unavailable(.deviceNotEligible),
         )
 
         model.openNaturalSearch()
@@ -53,7 +53,7 @@ final class SearchViewModelTests: XCTestCase {
     func testTemporarilyUnavailableModelOpensRecoveryExplanation() {
         let model = makeModel(
             naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
-            naturalLanguageAvailability: .unavailable(.modelNotReady)
+            naturalLanguageAvailability: .unavailable(.modelNotReady),
         )
 
         model.openNaturalSearch()
@@ -71,21 +71,21 @@ final class SearchViewModelTests: XCTestCase {
             datetimeRepresents: .arrival,
             requiredModes: [],
             excludedModes: [.rer],
-            preferredModes: []
+            preferredModes: [],
         )
         let naturalRepository = NaturalJourneyRepositoryRecorder(
-            result: .ready(interpretation: interpretation, journeys: .mapPreview)
+            result: .ready(interpretation: interpretation, journeys: .mapPreview),
         )
         let location = LocationModel(adapter: InMemoryLocationAdapter(
-            coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+            coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
         ))
         let model = makeModel(
             location: location,
             naturalJourneyRepository: naturalRepository,
             naturalLanguageAvailability: .available,
             naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
-                hasSeenOnboarding: true
-            )
+                hasSeenOnboarding: true,
+            ),
         )
         model.naturalQuery = "Châtelet demain avant 8 h, sans RER"
 
@@ -102,7 +102,42 @@ final class SearchViewModelTests: XCTestCase {
         let requests = await naturalRepository.requests
         XCTAssertEqual(requests, [.submit(
             query: "Châtelet demain avant 8 h, sans RER",
-            currentLocation: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+            currentLocation: GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
+        )])
+    }
+
+    func testNaturalSearchRecordsAnonymousFirstResultTiming() async {
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: "Ma position",
+            destination: JourneyPlaceSelection(.previewStation).journeyDestination,
+            destinationResult: .previewStation,
+            requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+            datetimeRepresents: .arrival,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+        )
+        let metrics = NaturalJourneyMetricsRecorder()
+        let model = makeModel(
+            naturalJourneyRepository: NaturalJourneyRepositoryRecorder(
+                result: .ready(interpretation: interpretation, journeys: .mapPreview),
+            ),
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true,
+            ),
+            naturalJourneyMetrics: metrics,
+            metricsNow: { Date(timeIntervalSince1970: 42) },
+        )
+        model.naturalQuery = "Nation demain avant 8 h"
+
+        model.submitNaturalSearch()
+        await waitForStep(model, .results)
+
+        XCTAssertEqual(metrics.searches, [NaturalJourneyMetric(
+            outcome: .success,
+            firstResultDurationMilliseconds: 0,
+            correctionCount: 0,
         )])
     }
 
@@ -117,17 +152,17 @@ final class SearchViewModelTests: XCTestCase {
             datetimeRepresents: .arrival,
             requiredModes: [],
             excludedModes: [.rer],
-            preferredModes: []
+            preferredModes: [],
         )
         let naturalRepository = NaturalJourneyRepositoryRecorder(
-            result: .networkUnavailable(interpretation: interpretation)
+            result: .networkUnavailable(interpretation: interpretation),
         )
         let model = makeModel(
             naturalJourneyRepository: naturalRepository,
             naturalLanguageAvailability: .available,
             naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
-                hasSeenOnboarding: true
-            )
+                hasSeenOnboarding: true,
+            ),
         )
         model.naturalQuery = "Nation demain avant 8 h, sans RER"
 
@@ -211,15 +246,15 @@ final class SearchViewModelTests: XCTestCase {
                 datetimeRepresents: .arrival,
                 requiredModes: [],
                 excludedModes: [],
-                preferredModes: []
+                preferredModes: [],
             ),
             origin: nil,
-            destination: nil
+            destination: nil,
         )
         let clarification = NaturalJourneyClarification(
             target: .destination,
             question: "Quel lieu veux-tu choisir ?",
-            candidates: [.previewStation]
+            candidates: [.previewStation],
         )
         let interpretation = NaturalJourneyInterpretation(
             originLabel: "Ma position",
@@ -229,7 +264,7 @@ final class SearchViewModelTests: XCTestCase {
             datetimeRepresents: .arrival,
             requiredModes: [],
             excludedModes: [],
-            preferredModes: []
+            preferredModes: [],
         )
         let naturalRepository = NaturalJourneyRepositoryRecorder(results: [
             .needsClarification(draft: draft, fields: [clarification]),
@@ -239,8 +274,8 @@ final class SearchViewModelTests: XCTestCase {
             naturalJourneyRepository: naturalRepository,
             naturalLanguageAvailability: .available,
             naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
-                hasSeenOnboarding: true
-            )
+                hasSeenOnboarding: true,
+            ),
         )
         model.naturalQuery = "Nation demain avant 8 h"
 
@@ -274,10 +309,10 @@ final class SearchViewModelTests: XCTestCase {
             datetimeRepresents: .arrival,
             requiredModes: [.metro],
             excludedModes: [.rer],
-            preferredModes: [.bus]
+            preferredModes: [.bus],
         )
         let naturalRepository = NaturalJourneyRepositoryRecorder(
-            result: .ready(interpretation: interpretation, journeys: .mapPreview)
+            result: .ready(interpretation: interpretation, journeys: .mapPreview),
         )
         let journeys = JourneyRepositoryRecorder(result: .mapPreview)
         let model = makeModel(
@@ -286,8 +321,8 @@ final class SearchViewModelTests: XCTestCase {
             naturalJourneyRepository: naturalRepository,
             naturalLanguageAvailability: .available,
             naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
-                hasSeenOnboarding: true
-            )
+                hasSeenOnboarding: true,
+            ),
         )
         model.naturalQuery = "Nation avant 8 h sans RER"
         model.submitNaturalSearch()
@@ -313,8 +348,8 @@ final class SearchViewModelTests: XCTestCase {
             naturalJourneyRepository: naturalRepository,
             naturalLanguageAvailability: .available,
             naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
-                hasSeenOnboarding: true
-            )
+                hasSeenOnboarding: true,
+            ),
         )
         model.naturalQuery = "Nation demain avant 8 h"
 
@@ -346,23 +381,23 @@ final class SearchViewModelTests: XCTestCase {
                 datetimeRepresents: .departure,
                 requiredModes: [.metro],
                 excludedModes: [.metro],
-                preferredModes: []
+                preferredModes: [],
             ),
             origin: nil,
-            destination: nil
+            destination: nil,
         )
         let naturalRepository = NaturalJourneyRepositoryRecorder(
-            result: .unsupported(message: "stop", examples: [])
+            result: .unsupported(message: "stop", examples: []),
         )
         let model = makeModel(
             naturalJourneyRepository: naturalRepository,
-            naturalLanguageAvailability: .available
+            naturalLanguageAvailability: .available,
         )
 
         model.resolveNaturalModeConflict(
             draft: draft,
             mode: .metro,
-            keeping: .excluded
+            keeping: .excluded,
         )
         await waitForNaturalState(model) {
             if case .unsupported = $0 { return true }
@@ -374,7 +409,7 @@ final class SearchViewModelTests: XCTestCase {
             draft: draft,
             currentLocation: nil,
             mode: .metro,
-            keeping: .excluded
+            keeping: .excluded,
         )])
     }
 
@@ -394,12 +429,12 @@ final class SearchViewModelTests: XCTestCase {
     func testEnterSelectsTheFirstLoadedDestinationAndPlansImmediately() async {
         let journeys = JourneyRepositoryRecorder(result: .mapPreview)
         let location = LocationModel(adapter: InMemoryLocationAdapter(
-            coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+            coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
         ))
         let model = SearchViewModel(
             repository: InMemorySearchRepository.preview,
             journeyRepository: journeys,
-            locationModel: location
+            locationModel: location,
         )
 
         model.updateQuery("cha")
@@ -414,7 +449,7 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(requests.first?.destination, .station(
             id: StationID(rawValue: "preview:chatelet"),
             name: "Châtelet",
-            coordinate: .init(latitude: 48.8583, longitude: 2.3470)
+            coordinate: .init(latitude: 48.8583, longitude: 2.3470),
         ))
     }
 
@@ -434,7 +469,7 @@ final class SearchViewModelTests: XCTestCase {
             id: "preview:address:rivoli",
             name: "12 rue de Rivoli",
             context: "Paris",
-            coordinate: .init(latitude: 48.8566, longitude: 2.3522)
+            coordinate: .init(latitude: 48.8566, longitude: 2.3522),
         ))
     }
 
@@ -481,7 +516,7 @@ final class SearchViewModelTests: XCTestCase {
         let origin = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
         let model = makeModel(
             journeyRepository: journeys,
-            location: LocationModel(adapter: InMemoryLocationAdapter(coordinate: origin))
+            location: LocationModel(adapter: InMemoryLocationAdapter(coordinate: origin)),
         )
 
         model.selectDestination(.previewStation)
@@ -501,7 +536,7 @@ final class SearchViewModelTests: XCTestCase {
     func testSelectingAnotherJourneyReplacesMapPresentation() async {
         let model = makeModel(
             journeyRepository: JourneyRepositoryRecorder(result: .mapPreview),
-            location: LocationModel(adapter: InMemoryLocationAdapter())
+            location: LocationModel(adapter: InMemoryLocationAdapter()),
         )
         model.selectDestination(.previewStation)
         await waitForStep(model, .results)
@@ -528,7 +563,7 @@ final class SearchViewModelTests: XCTestCase {
             status: .noRoute,
             source: nil,
             generatedAt: .now,
-            journeys: []
+            journeys: [],
         ))
         let model = makeModel(journeyRepository: journeys)
 
@@ -568,7 +603,7 @@ final class SearchViewModelTests: XCTestCase {
             status: .unavailable,
             source: nil,
             generatedAt: .now,
-            journeys: []
+            journeys: [],
         ))
         let model = makeModel(journeyRepository: journeys)
 
@@ -624,7 +659,7 @@ final class SearchViewModelTests: XCTestCase {
     func testTransportPreferencesAreAppliedSilentlyByTheRepository() async {
         let account = AccountModel(
             remote: InMemoryAccountRemote(),
-            synchronizationEnabled: false
+            synchronizationEnabled: false,
         )
         account.activate(userID: "preferences-test")
         account.setPreferred(.metro, enabled: true)
@@ -633,7 +668,7 @@ final class SearchViewModelTests: XCTestCase {
         let repository = PreferenceAwareJourneyRepository(base: base, account: account)
         let model = makeModel(
             journeyRepository: repository,
-            location: LocationModel(adapter: InMemoryLocationAdapter(authorization: .denied, coordinate: nil))
+            location: LocationModel(adapter: InMemoryLocationAdapter(authorization: .denied, coordinate: nil)),
         )
 
         model.selectDeparture(.manual(.previewAddress))
@@ -674,7 +709,9 @@ final class SearchViewModelTests: XCTestCase {
         location: LocationModel = LocationModel(adapter: InMemoryLocationAdapter()),
         naturalJourneyRepository: (any NaturalJourneyRepository)? = nil,
         naturalLanguageAvailability: NaturalLanguageAvailability = .unavailable(.deviceNotEligible),
-        naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring = InMemoryNaturalJourneyOnboardingStore()
+        naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring = InMemoryNaturalJourneyOnboardingStore(),
+        naturalJourneyMetrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
+        metricsNow: @escaping @Sendable () -> Date = { .now },
     ) -> SearchViewModel {
         SearchViewModel(
             repository: repository,
@@ -682,7 +719,9 @@ final class SearchViewModelTests: XCTestCase {
             locationModel: location,
             naturalJourneyRepository: naturalJourneyRepository,
             naturalLanguageAvailability: { naturalLanguageAvailability },
-            naturalJourneyOnboardingStore: naturalJourneyOnboardingStore
+            naturalJourneyOnboardingStore: naturalJourneyOnboardingStore,
+            naturalJourneyMetrics: naturalJourneyMetrics,
+            metricsNow: metricsNow,
         )
     }
 
@@ -690,7 +729,7 @@ final class SearchViewModelTests: XCTestCase {
         _ model: SearchViewModel,
         _ expected: SearchLoadState,
         file: StaticString = #filePath,
-        line: UInt = #line
+        line: UInt = #line,
     ) async {
         for _ in 0 ..< 160 {
             if model.loadState == expected { return }
@@ -704,7 +743,7 @@ final class SearchViewModelTests: XCTestCase {
         _ model: SearchViewModel,
         _ expected: SearchViewStep,
         file: StaticString = #filePath,
-        line: UInt = #line
+        line: UInt = #line,
     ) async {
         for _ in 0 ..< 160 {
             if model.step == expected { return }
@@ -718,7 +757,7 @@ final class SearchViewModelTests: XCTestCase {
         _ model: SearchViewModel,
         matching predicate: (NaturalSearchState) -> Bool,
         file: StaticString = #filePath,
-        line: UInt = #line
+        line: UInt = #line,
     ) async {
         for _ in 0 ..< 160 {
             if predicate(model.naturalSearchState) { return }
@@ -731,7 +770,7 @@ final class SearchViewModelTests: XCTestCase {
     private func waitUntil(
         _ predicate: @escaping @Sendable () async -> Bool,
         file: StaticString = #filePath,
-        line: UInt = #line
+        line: UInt = #line,
     ) async {
         for _ in 0 ..< 200 {
             if await predicate() { return }
@@ -739,6 +778,32 @@ final class SearchViewModelTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(5))
         }
         XCTFail("Timed out waiting for condition", file: file, line: line)
+    }
+}
+
+private final class NaturalJourneyMetricsRecorder: NaturalJourneyMetricsRecording, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedInterpretationDurations: [Int] = []
+    private var recordedSearches: [NaturalJourneyMetric] = []
+
+    var interpretationDurations: [Int] {
+        lock.withLock { recordedInterpretationDurations }
+    }
+
+    var searches: [NaturalJourneyMetric] {
+        lock.withLock { recordedSearches }
+    }
+
+    func recordInterpretation(durationMilliseconds: Int) {
+        lock.withLock {
+            recordedInterpretationDurations.append(durationMilliseconds)
+        }
+    }
+
+    func recordSearch(_ metric: NaturalJourneyMetric) {
+        lock.withLock {
+            recordedSearches.append(metric)
+        }
     }
 }
 

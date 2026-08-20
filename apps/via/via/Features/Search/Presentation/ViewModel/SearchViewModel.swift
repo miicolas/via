@@ -128,7 +128,7 @@ final class SearchViewModel {
         },
         naturalJourneyOnboardingStore: (any NaturalJourneyOnboardingStoring)? = nil,
         naturalJourneyMetrics: any NaturalJourneyMetricsRecording = AppLogNaturalJourneyMetrics(),
-        metricsNow: @escaping @Sendable () -> Date = { .now }
+        metricsNow: @escaping @Sendable () -> Date = { .now },
     ) {
         self.repository = repository
         self.journeyRepository = journeyRepository
@@ -194,14 +194,14 @@ final class SearchViewModel {
         naturalCorrectionCount = 0
         performNaturalRequest(.submit(
             query: phrase,
-            currentLocation: locationModel.coordinate
+            currentLocation: locationModel.coordinate,
         ))
     }
 
     func resolveNaturalPlace(
         draft: NaturalJourneyDraft,
         field: NaturalJourneyClarification,
-        candidate: SearchResult
+        candidate: SearchResult,
     ) {
         guard field.candidates.contains(candidate) else { return }
         let origin = field.target == .origin ? candidate : nil
@@ -214,14 +214,14 @@ final class SearchViewModel {
             origin: origin,
             destination: destination,
             requestedAt: nil,
-            datetimeRepresents: nil
+            datetimeRepresents: nil,
         ))
     }
 
     func resolveNaturalTime(
         draft: NaturalJourneyDraft,
         requestedAt: Date? = nil,
-        represents: JourneyDatetimeRepresents
+        represents: JourneyDatetimeRepresents,
     ) {
         naturalCorrectionCount += 1
         performNaturalRequest(.resolve(
@@ -230,21 +230,21 @@ final class SearchViewModel {
             origin: nil,
             destination: nil,
             requestedAt: requestedAt,
-            datetimeRepresents: represents
+            datetimeRepresents: represents,
         ))
     }
 
     func resolveNaturalModeConflict(
         draft: NaturalJourneyDraft,
         mode: TransitMode,
-        keeping: NaturalJourneyModeConstraint
+        keeping: NaturalJourneyModeConstraint,
     ) {
         naturalCorrectionCount += 1
         performNaturalRequest(.resolveModeConflict(
             draft: draft,
             currentLocation: locationModel.coordinate,
             mode: mode,
-            keeping: keeping
+            keeping: keeping,
         ))
     }
 
@@ -253,19 +253,19 @@ final class SearchViewModel {
         naturalCorrectionCount += 1
         performNaturalRequest(.confirmCurrentLocation(
             draft: draft,
-            currentLocation: coordinate
+            currentLocation: coordinate,
         ))
     }
 
     func resolveNaturalTimeConflict(
         draft: NaturalJourneyDraft,
-        keeping constraint: RouteTimeConstraint
+        keeping constraint: RouteTimeConstraint,
     ) {
         naturalCorrectionCount += 1
         performNaturalRequest(.resolveTimeConflict(
             draft: draft,
             currentLocation: locationModel.coordinate,
-            keeping: constraint
+            keeping: constraint,
         ))
     }
 
@@ -273,7 +273,7 @@ final class SearchViewModel {
         naturalCorrectionCount += 1
         performNaturalRequest(.continueWithoutUnsupportedConstraints(
             draft: draft,
-            currentLocation: locationModel.coordinate
+            currentLocation: locationModel.coordinate,
         ))
     }
 
@@ -356,7 +356,7 @@ final class SearchViewModel {
                 ?? .currentLocation
             query = interpretation.destinationResult.name
             naturalSearchState = .failed(
-                message: "Connexion nécessaire pour rechercher les horaires."
+                message: "Connexion nécessaire pour rechercher les horaires.",
             )
         case let .unsupported(message, examples):
             recordNaturalMetric(.unsupported)
@@ -381,10 +381,12 @@ final class SearchViewModel {
     private func recordNaturalMetric(_ outcome: NaturalJourneyMetric.Outcome) {
         guard let naturalSearchStartedAt else { return }
         let duration = max(0, metricsNow().timeIntervalSince(naturalSearchStartedAt))
-        naturalJourneyMetrics.record(NaturalJourneyMetric(
+        naturalJourneyMetrics.recordSearch(NaturalJourneyMetric(
             outcome: outcome,
-            durationMilliseconds: Int(duration * 1000),
-            correctionCount: naturalCorrectionCount
+            firstResultDurationMilliseconds: outcome == .success
+                ? Int(duration * 1000)
+                : nil,
+            correctionCount: naturalCorrectionCount,
         ))
     }
 
@@ -431,7 +433,7 @@ final class SearchViewModel {
             }
 
             guard !Task.isCancelled, let self else { return }
-            await self.performSearch(normalized)
+            await performSearch(normalized)
         }
     }
 
@@ -452,12 +454,12 @@ final class SearchViewModel {
 
         searchTask = Task { [weak self] in
             guard !Task.isCancelled, let self else { return }
-            await self.performSearch(normalized)
+            await performSearch(normalized)
 
             guard !Task.isCancelled,
-                  self.loadState == .loaded,
-                  let firstResult = self.results.first else { return }
-            self.selectDestination(firstResult)
+                  loadState == .loaded,
+                  let firstResult = results.first else { return }
+            selectDestination(firstResult)
         }
     }
 
@@ -470,7 +472,7 @@ final class SearchViewModel {
         searchTask?.cancel()
         searchTask = Task { [weak self] in
             guard !Task.isCancelled, let self else { return }
-            await self.performSearch(retryQuery)
+            await performSearch(retryQuery)
         }
     }
 
@@ -532,7 +534,7 @@ final class SearchViewModel {
     func updateNaturalModes(
         required: Set<TransitMode>,
         excluded: Set<TransitMode>,
-        preferred: Set<TransitMode>
+        preferred: Set<TransitMode>,
     ) {
         guard required.isDisjoint(with: excluded),
               required.isDisjoint(with: preferred),
@@ -579,9 +581,9 @@ final class SearchViewModel {
         journeyTask = Task { [weak self] in
             guard let self else { return }
 
-            guard let origin = await self.resolveOrigin() else {
+            guard let origin = await resolveOrigin() else {
                 guard !Task.isCancelled else { return }
-                self.step = .locationBlocked(self.locationModel.authorization)
+                step = .locationBlocked(locationModel.authorization)
                 return
             }
 
@@ -589,7 +591,7 @@ final class SearchViewModel {
 
             var request = JourneyRequest(
                 origin: origin,
-                destination: JourneyPlaceSelection(selectedDestination).journeyDestination
+                destination: JourneyPlaceSelection(selectedDestination).journeyDestination,
             )
             request.limit = 4
             if var criteria = naturalJourneyCriteria {
@@ -610,7 +612,7 @@ final class SearchViewModel {
             }
 
             do {
-                let result = try await self.journeyRepository.plan(request)
+                let result = try await journeyRepository.plan(request)
                 guard !Task.isCancelled else { return }
 
                 journeyResult = result
@@ -649,9 +651,9 @@ final class SearchViewModel {
     private func resolveOrigin() async -> GeoCoordinate? {
         switch selectedDeparture {
         case .currentLocation:
-            return await locationModel.requestCurrentLocation()
+            await locationModel.requestCurrentLocation()
         case .saved, .manual:
-            return selectedDeparture.coordinate
+            selectedDeparture.coordinate
         }
     }
 
@@ -662,7 +664,7 @@ final class SearchViewModel {
         do {
             let response = try await repository.search(
                 query: normalizedQuery,
-                near: locationModel.coordinate
+                near: locationModel.coordinate,
             )
             guard !Task.isCancelled else { return }
 

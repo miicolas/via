@@ -38,11 +38,11 @@ struct StationsView: View {
                                         beam: [.purple, .blue, .pink, .indigo],
                                         beamBlur: 10,
                                         cornerRadius: 18,
-                                        isEnabled: showsNaturalSearchDiscovery && !reduceMotion
+                                        isEnabled: showsNaturalSearchDiscovery && !reduceMotion,
                                     )
                             }
-                            .accessibilityLabel("Rechercher avec Apple Intelligence")
-                            .accessibilityHint("Ouvre la recherche en langage naturel")
+                            .accessibilityLabel(NaturalJourneyPresentationPolicy.entryAccessibilityLabel)
+                            .accessibilityHint(NaturalJourneyPresentationPolicy.entryAccessibilityHint)
                         }
                     }
                 }
@@ -58,7 +58,7 @@ struct StationsView: View {
                 StationDetailView(
                     selection: selectedStation,
                     isLargeScreen: isLargeScreen,
-                    detailDetent: $detailDetent
+                    detailDetent: $detailDetent,
                 )
             }
         }
@@ -113,7 +113,7 @@ struct StationsView: View {
             count: 5,
             label: "Recherche de stations…",
             row: .departure,
-            separator: .divider(leadingInset: 52)
+            separator: .divider(leadingInset: 52),
         )
         .padding(.horizontal, 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -123,7 +123,7 @@ struct StationsView: View {
     private func stationList(
         _ station: StationOverview,
         isRefreshing: Bool = false,
-        refreshError: ViaError? = nil
+        refreshError: ViaError? = nil,
     ) -> some View {
         List {
             StationPlacePicker(selection: $selectedPlaceShortcut)
@@ -155,7 +155,7 @@ struct StationsView: View {
             if let refreshError {
                 StationRefreshStatusView(
                     message: message(for: refreshError),
-                    onRetry: viewModel.retry
+                    onRetry: viewModel.retry,
                 )
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
@@ -173,7 +173,7 @@ struct StationsView: View {
             title: "Localisation indisponible",
             message: message(for: authorization),
             onOpenSearch: onOpenSearch,
-            onRetry: viewModel.retry
+            onRetry: viewModel.retry,
         )
     }
 
@@ -182,7 +182,7 @@ struct StationsView: View {
             title: "Stations indisponibles",
             message: message(for: error),
             onOpenSearch: onOpenSearch,
-            onRetry: viewModel.retry
+            onRetry: viewModel.retry,
         )
     }
 
@@ -225,7 +225,7 @@ struct StationsView: View {
                 if !isPresented {
                     selectedStation.dismiss()
                 }
-            }
+            },
         )
     }
 }
@@ -233,13 +233,13 @@ struct StationsView: View {
 #Preview("Station row") {
     let locationModel = LocationModel(
         adapter: InMemoryLocationAdapter(
-            coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470)
-        )
+            coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470),
+        ),
     )
     let accountModel: AccountModel = {
         let model = AccountModel(
             remote: InMemoryAccountRemote(),
-            synchronizationEnabled: false
+            synchronizationEnabled: false,
         )
         model.activateAnonymous()
         return model
@@ -249,19 +249,19 @@ struct StationsView: View {
         viewModel: StationsViewModel(
             locationModel: locationModel,
             networkRepository: InMemoryNetworkRepository.mapPreview,
-            departuresRepository: InMemoryDeparturesRepository.stationsPreview
+            departuresRepository: InMemoryDeparturesRepository.stationsPreview,
         ),
         selectedStation: SelectedStationModel(
             departuresRepository: InMemoryDeparturesRepository.stationsPreview,
             account: accountModel,
-            locationModel: locationModel
+            locationModel: locationModel,
         ),
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
         onOpenSearch: {},
         naturalLanguageAccess: .active,
         showsNaturalSearchDiscovery: true,
-        onOpenNaturalSearch: {}
+        onOpenNaturalSearch: {},
     )
 }
 

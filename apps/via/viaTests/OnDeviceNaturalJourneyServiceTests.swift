@@ -415,6 +415,29 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         XCTAssertEqual(requests[0].preferredModes, [.bus])
     }
 
+    func testSubmitRecordsOnlyAnonymousInterpretationDuration() async throws {
+        let destination = address("nation", "Nation")
+        let parser = InMemoryNaturalIntentParser(intent: intent(
+            destination: "Nation",
+            requestedAt: now,
+        ))
+        let metrics = InterpretationMetricsRecorder()
+        let service = makeService(
+            parser: parser,
+            results: [destination],
+            metrics: metrics,
+            metricsNow: { Date(timeIntervalSince1970: 42) },
+        )
+
+        _ = try await service.submit(.submit(
+            query: "Nation maintenant",
+            currentLocation: GeoCoordinate(latitude: 48.85, longitude: 2.35),
+        ))
+
+        XCTAssertEqual(metrics.interpretationDurations, [0])
+        XCTAssertTrue(metrics.searches.isEmpty)
+    }
+
     func testAmbiguousOriginReturnsCandidateClarification() async throws {
         let first = station("gare-1", "Gare du Nord")
         let second = station("gare-2", "Gare de Lyon")
@@ -602,7 +625,7 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
             scope: .journey,
             origin: .currentLocation,
             destinationQuery: "Nation",
-            requestedAt: now.addingTimeInterval(3_600),
+            requestedAt: now.addingTimeInterval(3600),
             datetimeRepresents: .arrival,
             requiredModes: [],
             excludedModes: [],
@@ -702,17 +725,79 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         XCTAssertEqual(fields.first?.question, "D’où pars-tu ?")
     }
 
+    func testMissingDestinationAlwaysAsksForOne() async throws {
+        let parser = InMemoryNaturalIntentParser(intent: RouteIntent(
+            scope: .journey,
+            origin: .currentLocation,
+            destinationQuery: nil,
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            originWasExplicit: true,
+        ))
+        let service = makeService(parser: parser)
+
+        let result = try await service.submit(.submit(
+            query: "Je veux y aller maintenant",
+            currentLocation: GeoCoordinate(latitude: 48.85, longitude: 2.35),
+        ))
+
+        guard case let .needsClarification(_, fields) = result else {
+            return XCTFail("Expected a destination clarification")
+        }
+        XCTAssertEqual(fields.map(\.target), [.destination])
+        XCTAssertEqual(fields.first?.question, "Où veux-tu aller ?")
+    }
+
+    func testAmbiguousTimeMeaningAlwaysAsksDepartureOrArrival() async throws {
+        let destination = address("nation", "Nation")
+        let parser = InMemoryNaturalIntentParser(intent: RouteIntent(
+            scope: .journey,
+            origin: .currentLocation,
+            destinationQuery: "Nation",
+            requestedAt: now,
+            datetimeRepresents: .ambiguous,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            originWasExplicit: true,
+        ))
+        let service = makeService(parser: parser, results: [destination])
+
+        let result = try await service.submit(.submit(
+            query: "Nation à 10 h",
+            currentLocation: GeoCoordinate(latitude: 48.85, longitude: 2.35),
+        ))
+
+        guard case let .needsClarification(_, fields) = result else {
+            return XCTFail("Expected a time-meaning clarification")
+        }
+        XCTAssertEqual(fields.map(\.target), [.time])
+        XCTAssertEqual(fields.first?.question, "Tu veux partir ou arriver à cette heure ?")
+    }
+
     private func makeService(
         parser: any NaturalIntentParsing,
         results: [SearchResult] = [],
         journeys: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
+        metrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
+        metricsNow: @escaping @Sendable () -> Date = { .now },
     ) -> OnDeviceNaturalJourneyService {
-        makeService(parser: parser, journeys: journeys) { _ in results }
+        makeService(
+            parser: parser,
+            journeys: journeys,
+            metrics: metrics,
+            metricsNow: metricsNow,
+        ) { _ in results }
     }
 
     private func makeService(
         parser: any NaturalIntentParsing,
         journeys: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
+        metrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
+        metricsNow: @escaping @Sendable () -> Date = { .now },
         results: @escaping @Sendable (String) -> [SearchResult],
     ) -> OnDeviceNaturalJourneyService {
         let fixedNow = now
@@ -723,6 +808,8 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
             },
             journeys: journeys,
             now: { fixedNow },
+            metrics: metrics,
+            metricsNow: metricsNow,
         )
     }
 
@@ -761,6 +848,32 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
             coordinate: .init(latitude: 48.86, longitude: 2.36),
             distanceMeters: nil,
         ))
+    }
+}
+
+private final class InterpretationMetricsRecorder: NaturalJourneyMetricsRecording, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedInterpretationDurations: [Int] = []
+    private var recordedSearches: [NaturalJourneyMetric] = []
+
+    var interpretationDurations: [Int] {
+        lock.withLock { recordedInterpretationDurations }
+    }
+
+    var searches: [NaturalJourneyMetric] {
+        lock.withLock { recordedSearches }
+    }
+
+    func recordInterpretation(durationMilliseconds: Int) {
+        lock.withLock {
+            recordedInterpretationDurations.append(durationMilliseconds)
+        }
+    }
+
+    func recordSearch(_ metric: NaturalJourneyMetric) {
+        lock.withLock {
+            recordedSearches.append(metric)
+        }
     }
 }
 

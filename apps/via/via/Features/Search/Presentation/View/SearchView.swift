@@ -26,7 +26,7 @@ struct SearchView: View {
         sheetDetent: Binding<PresentationDetent> = .constant(.large),
         onClose: @escaping () -> Void = {},
         onExpandJourneyMap: @escaping () -> Void = {},
-        onOpenReport: @escaping () -> Void = {}
+        onOpenReport: @escaping () -> Void = {},
     ) {
         self.viewModel = viewModel
         self.activeJourneyModel = activeJourneyModel
@@ -77,16 +77,16 @@ struct SearchView: View {
                                     source: viewModel.journeyResult?.source,
                                     activeJourneyModel: activeJourneyModel,
                                     onHighlightSection: viewModel.highlightJourneySection,
-                                    onExpandMap: onExpandJourneyMap
+                                    onExpandMap: onExpandJourneyMap,
                                 )
                             }
                         }
                         .navigationDestination(isPresented: $isActiveJourneyPresented) {
                             activeJourneyDestination
                         }
-                    }
                 }
             }
+        }
         .opacity(tabVisibilityProgress)
         .scrollEdgeEffectStyle(.soft, for: .vertical)
         .sheet(isPresented: $isDeparturePickerPresented) {
@@ -94,7 +94,7 @@ struct SearchView: View {
                 viewModel: viewModel,
                 savedPlaces: viewModel.savedPlaces,
                 selection: viewModel.selectedDeparture,
-                onSelect: viewModel.selectDeparture
+                onSelect: viewModel.selectDeparture,
             )
         }
         .sheet(isPresented: $isNaturalDatePickerPresented) {
@@ -102,7 +102,7 @@ struct SearchView: View {
                 NaturalJourneyDatePickerView(
                     initialDate: criteria.requestedAt,
                     initialMeaning: criteria.datetimeRepresents,
-                    onApply: viewModel.updateNaturalTime
+                    onApply: viewModel.updateNaturalTime,
                 )
             }
         }
@@ -112,7 +112,7 @@ struct SearchView: View {
                     required: criteria.requiredModes,
                     excluded: criteria.excludedModes,
                     preferred: criteria.preferredModes,
-                    onApply: viewModel.updateNaturalModes
+                    onApply: viewModel.updateNaturalModes,
                 )
             }
         }
@@ -135,12 +135,12 @@ struct SearchView: View {
         if let arrival = activeJourneyModel.arrival {
             JourneyArrivalView(
                 arrival: arrival,
-                onComplete: activeJourneyModel.completeArrival
+                onComplete: activeJourneyModel.completeArrival,
             )
         } else if activeJourneyModel.isActive {
             ActiveJourneyPanelView(
                 model: activeJourneyModel,
-                onOpenReport: onOpenReport
+                onOpenReport: onOpenReport,
             )
         }
     }
@@ -159,7 +159,7 @@ struct SearchView: View {
                 selection: viewModel.wrappedValue.selectedDeparture,
                 savedPlaces: viewModel.wrappedValue.savedPlaces,
                 onSelect: viewModel.wrappedValue.selectDeparture,
-                onChooseManual: { isDeparturePickerPresented = true }
+                onChooseManual: { isDeparturePickerPresented = true },
             )
         } label: {
             HStack(spacing: 4) {
@@ -194,7 +194,7 @@ struct SearchView: View {
                         onEditOrigin: { isDeparturePickerPresented = true },
                         onEditDestination: viewModel.wrappedValue.editDestination,
                         onEditTime: { isNaturalDatePickerPresented = true },
-                        onEditOptions: { isNaturalOptionsPresented = true }
+                        onEditOptions: { isNaturalOptionsPresented = true },
                     )
                 }
 
@@ -203,7 +203,7 @@ struct SearchView: View {
                         state: viewModel.wrappedValue.loadState,
                         results: viewModel.wrappedValue.results,
                         onRetry: viewModel.wrappedValue.retry,
-                        onSelect: viewModel.wrappedValue.selectDestination
+                        onSelect: viewModel.wrappedValue.selectDestination,
                     )
                 } else if let destination = viewModel.wrappedValue.selectedDestination {
                     SearchJourneyResultsView(
@@ -217,7 +217,7 @@ struct SearchView: View {
                             inspectedJourney = journey
                         },
                         onRetry: viewModel.wrappedValue.retryJourney,
-                        onEdit: viewModel.wrappedValue.editDestination
+                        onEdit: viewModel.wrappedValue.editDestination,
                     )
                 }
             }
@@ -238,7 +238,7 @@ struct SearchView: View {
                 SearchDestinationField(
                     text: viewModel.query,
                     onClear: viewModel.wrappedValue.clearQuery,
-                    onSubmit: viewModel.wrappedValue.searchImmediately
+                    onSubmit: viewModel.wrappedValue.searchImmediately,
                 )
                 .onChange(of: viewModel.wrappedValue.query) { _, newValue in
                     viewModel.wrappedValue.updateQuery(newValue)
@@ -260,19 +260,19 @@ struct SearchView: View {
                                 beam: [.purple, .blue, .pink, .indigo],
                                 beamBlur: 12,
                                 cornerRadius: 999,
-                                isEnabled: viewModel.wrappedValue.showsNaturalSearchDiscovery && !reduceMotion
+                                isEnabled: viewModel.wrappedValue.showsNaturalSearchDiscovery && !reduceMotion,
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Rechercher avec Apple Intelligence")
-                    .accessibilityHint("Décris ton trajet dans une phrase")
+                    .accessibilityLabel(NaturalJourneyPresentationPolicy.entryAccessibilityLabel)
+                    .accessibilityHint(NaturalJourneyPresentationPolicy.entryAccessibilityHint)
                 }
             }
             .matchedGeometryEffect(
                 id: destinationInputID,
                 in: inputTransitionNamespace,
                 properties: .frame,
-                anchor: .leading
+                anchor: .leading,
             )
             .transition(.identity)
         } else {
@@ -281,7 +281,7 @@ struct SearchView: View {
                     id: destinationInputID,
                     in: inputTransitionNamespace,
                     properties: .frame,
-                    anchor: .leading
+                    anchor: .leading,
                 )
                 .transition(.identity)
         }
@@ -296,7 +296,7 @@ struct SearchView: View {
                 systemImage: destination.searchTokenSystemImage,
                 accessibilityLabel: "Destination \(destination.name)",
                 expands: true,
-                action: viewModel.wrappedValue.editDestination
+                action: viewModel.wrappedValue.editDestination,
             )
         }
     }
@@ -335,11 +335,11 @@ private extension SearchResult {
         viewModel: SearchViewModel(
             repository: InMemorySearchRepository.preview,
             journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
-            locationModel: locationModel
+            locationModel: locationModel,
         ),
         activeJourneyModel: ActiveJourneyModel(
             locationModel: locationModel,
-            journeyRepository: InMemoryJourneyRepository(result: .mapPreview)
-        )
+            journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+        ),
     )
 }
