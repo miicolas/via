@@ -59,6 +59,7 @@ struct MapShellView: View {
             position: $position,
             stationSelectionEnabled: activeTab != .search,
             journeyPresentation: displayedJourneyPresentation,
+            journeyProgress: activeJourneyModel.progress?.mapQuantized,
             highlightedJourneySegmentID: displayedHighlightedSectionID,
             selectedStation: $selectedMapStation
         )
@@ -88,8 +89,13 @@ struct MapShellView: View {
                 position = .rect(mapRect)
             }
             .onChange(of: displayedHighlightedSectionID) { _, sectionID in
-                guard let mapRect = displayedJourneyPresentation?.mapRect(for: sectionID) else { return }
-                position = .rect(mapRect)
+                frameJourney(sectionID: sectionID)
+            }
+            .onChange(of: activeDetent) { _, detent in
+                // Collapsing the sheet used to leave the running journey off
+                // screen with nothing to bring it back.
+                guard detent == collapsedDetent, activeJourneyModel.isActive else { return }
+                frameJourney(sectionID: displayedHighlightedSectionID)
             }
             .onChange(of: activeJourneyModel.session?.journey.id) { _, journeyID in
                 if journeyID != nil {
@@ -122,7 +128,7 @@ struct MapShellView: View {
                 $0.size.width > 600
             } action: { newValue in
                 // Remap detents before the size class flips so the sheet lands on a valid one.
-                if newValue && activeDetent != .height(90) {
+                if newValue && activeDetent != collapsedDetent {
                     activeDetent = .fraction(0.97)
                 } else if !newValue && activeDetent == .fraction(0.97) {
                     activeDetent = .fraction(0.45)
@@ -151,6 +157,26 @@ struct MapShellView: View {
         activeTab = previousTab
     }
 
+    /// Only worth showing once the sheet is out of the way: with the sheet open,
+    /// the guidance header says the same thing and the bar overlaps the timeline.
+    private var isActiveJourneyAccessoryVisible: Bool {
+        activeJourneyModel.isActive && activeDetent == collapsedDetent
+    }
+
+    @ViewBuilder
+    private var activeJourneyAccessory: some View {
+        if let journey = activeJourneyModel.journey,
+           let progress = activeJourneyModel.progress,
+           let headline = activeJourneyModel.guidanceHeadline {
+            ActiveJourneyAccessoryBar(
+                journey: journey,
+                headline: headline,
+                progress: progress,
+                action: showActiveJourney
+            )
+        }
+    }
+
     @ViewBuilder
     private var sheetContent: some View {
         SheetTabView(
@@ -158,7 +184,10 @@ struct MapShellView: View {
             activeDetent: $activeDetent,
             isLargeScreen: isLargeScreen,
             isAnotherSheetPresenting: selectedStationModel.overview != nil ||
-                reportViewModel.isPresentingAnotherSheet
+                reportViewModel.isPresentingAnotherSheet,
+            reservesAccessorySpace: activeJourneyModel.isActive,
+            isAccessoryVisible: isActiveJourneyAccessoryVisible,
+            accessory: { activeJourneyAccessory }
         ) {
             Tab(value: .stations) {
                 StationsView(
@@ -210,6 +239,17 @@ struct MapShellView: View {
         activeDetent = guidanceDetent
     }
 
+    /// Frames the part of the journey that is still ahead when guidance is
+    /// running, and the current section otherwise.
+    private func frameJourney(sectionID: String?) {
+        guard let presentation = displayedJourneyPresentation else { return }
+        let mapRect = activeJourneyModel.isActive
+            ? presentation.mapRect(remainingFrom: activeJourneyModel.progress)
+            : presentation.mapRect(for: sectionID)
+        guard let mapRect else { return }
+        position = .rect(mapRect)
+    }
+
     private func showActiveJourney() {
         activeTab = .search
         activeDetent = guidanceDetent
@@ -217,6 +257,10 @@ struct MapShellView: View {
 
     private var hasJourneySurface: Bool {
         activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+    }
+
+    private var collapsedDetent: PresentationDetent {
+        SheetTabDetents.collapsed(hasAccessory: activeJourneyModel.isActive)
     }
 
     private var guidanceDetent: PresentationDetent {

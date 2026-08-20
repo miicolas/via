@@ -93,13 +93,7 @@ struct JourneyDetailSummaryView: View {
         var seen = Set<RouteID>()
         return journey.sections.compactMap(\.route).compactMap { route in
             guard seen.insert(route.id).inserted else { return nil }
-            return RouteBadge(
-                id: route.id,
-                shortName: route.shortName,
-                mode: route.mode,
-                colorHex: route.colorHex,
-                textColorHex: route.textColorHex
-            )
+            return route.badge
         }
     }
 }

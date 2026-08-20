@@ -54,16 +54,48 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         journey.map(JourneyMapPresentation.init)
     }
     var highlightedSectionID: String? { session?.currentSection?.id }
+
+    /// Continuous position along the journey, for the timeline cursor, the
+    /// route dimming on the map and the Live Activity.
+    ///
+    /// Recomputed rather than stored: `referenceDate` is already bumped on every
+    /// monitoring tick and every location sample, so the value stays fresh
+    /// without a second source of truth to keep in sync.
+    var progress: JourneyProgress? { progress(at: referenceDate) }
+
+    /// The one sentence describing what to do now, shared by the guidance
+    /// header, the tab bar accessory and the Live Activity.
+    var guidanceHeadline: JourneyGuidanceHeadline? { guidanceHeadline(at: referenceDate) }
+
+    func progress(at date: Date) -> JourneyProgress? {
+        guard let session else { return nil }
+        return JourneyProgressProjector.progress(
+            schedule: ActiveJourneyRules.schedule(for: session.journey),
+            sectionIndex: session.currentSectionIndex,
+            at: date,
+            coordinate: session.lastCoordinate,
+            horizontalAccuracy: session.horizontalAccuracy
+        )
+    }
+
+    func guidanceHeadline(at date: Date) -> JourneyGuidanceHeadline? {
+        guard let session, let progress = progress(at: date) else { return nil }
+        return JourneyGuidance.headline(
+            journey: session.journey,
+            schedule: ActiveJourneyRules.schedule(for: session.journey),
+            progress: progress,
+            at: date,
+            isPaused: requiresResume
+        )
+    }
     var destinationName: String { session?.destination.name ?? "Destination" }
     var phase: ActiveJourneyPhase { phase(at: referenceDate) }
     var usesTheoreticalTimes: Bool {
         session?.source == .theoretical || journey?.status == .theoretical
     }
 
-    var currentInstruction: ActiveJourneyInstruction? {
-        instruction(at: session?.currentSectionIndex)
-    }
-
+    /// The current step is now described by `guidanceHeadline`; only the
+    /// look-ahead survives, for the Live Activity's "Ensuite" line.
     var nextInstruction: ActiveJourneyInstruction? {
         guard let session else { return nil }
         return instruction(at: session.currentSectionIndex + 1)
@@ -690,7 +722,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
 
     private func activityState(isArrived: Bool) -> JourneyActivityAttributes.ContentState {
-        let instruction = currentInstruction
         let phaseTitle: String
         switch phase {
         case .scheduled(let interval):
@@ -698,17 +729,47 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         case .underway:
             phaseTitle = isArrived ? "Vous êtes arrivé" : "En route"
         }
+        // The lock screen says the same sentence as the guidance header and the
+        // tab bar accessory, from the same derivation.
+        let headline = guidanceHeadline
+        let currentProgress = progress
         return JourneyActivityAttributes.ContentState(
             phaseTitle: isArrived ? "Vous êtes arrivé" : phaseTitle,
-            instructionTitle: isArrived ? destinationName : instruction?.title ?? destinationName,
-            instructionDetail: isArrived ? nil : instruction?.detail,
+            instructionTitle: isArrived ? destinationName : headline?.title ?? destinationName,
+            instructionDetail: isArrived ? nil : headline?.detail,
             nextAction: isArrived ? nil : nextInstruction?.title,
-            routeShortName: isArrived ? nil : instruction?.route?.shortName,
-            routeColorHex: isArrived ? nil : instruction?.route?.colorHex,
+            line: isArrived ? nil : activityLine,
+            nextLine: isArrived ? nil : activityNextLine,
             arrivalAt: journey?.arrivalAt ?? referenceDate,
             isOffline: isOffline,
-            isArrived: isArrived
+            isArrived: isArrived,
+            progressFraction: isArrived ? 1 : currentProgress?.overallFraction ?? 0,
+            stopsRemaining: isArrived ? nil : headline?.stopsUntilAlighting,
+            alightStopName: isArrived ? nil : headline?.alightStopName
         )
+    }
+
+    /// The line the Live Activity puts forward: the one being ridden, or the
+    /// one the current walk or wait leads to, so the badge survives the legs
+    /// that have no route of their own.
+    private var activityLine: JourneyActivityAttributes.LineBadge? {
+        (guidanceHeadline?.route ?? upcomingRoute).map { JourneyActivityAttributes.LineBadge(route: $0) }
+    }
+
+    /// Only worth a badge on the "Ensuite" line when it is not the line already
+    /// shown for the current step.
+    private var activityNextLine: JourneyActivityAttributes.LineBadge? {
+        guard let route = nextInstruction?.route else { return nil }
+        let badge = JourneyActivityAttributes.LineBadge(route: route)
+        return badge == activityLine ? nil : badge
+    }
+
+    private var upcomingRoute: JourneyRoute? {
+        guard let session else { return nil }
+        let sections = session.journey.sections
+        let index = max(0, session.currentSectionIndex)
+        guard sections.indices.contains(index) else { return nil }
+        return sections[index...].first { $0.kind == .transit }?.route
     }
 
     private func terminalActivityState(
@@ -720,11 +781,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             instructionTitle: session.destination.name,
             instructionDetail: nil,
             nextAction: nil,
-            routeShortName: nil,
-            routeColorHex: nil,
+            line: nil,
+            nextLine: nil,
             arrivalAt: session.journey.arrivalAt,
             isOffline: false,
-            isArrived: false
+            isArrived: false,
+            progressFraction: 1,
+            stopsRemaining: nil,
+            alightStopName: nil
         )
     }
 
@@ -747,4 +811,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+private extension JourneyActivityAttributes.LineBadge {
+    init(route: JourneyRoute) {
+        self.init(
+            shortName: route.shortName,
+            colorHex: route.colorHex,
+            textColorHex: route.textColorHex
+        )
+    }
 }

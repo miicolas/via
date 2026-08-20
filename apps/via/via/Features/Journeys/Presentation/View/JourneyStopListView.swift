@@ -1,34 +1,80 @@
 import SwiftUI
 
+/// The intermediate stops of one leg, listed on the same rail as the rest of
+/// the timeline.
+///
+/// The previous version nested a `DisclosureGroup` inside another one, which
+/// buried arrival times two taps deep. Here the stops simply continue the rail.
 struct JourneyStopListView: View {
     let stops: [JourneyStop]
-
-    @State private var isExpanded = false
+    let rail: JourneyTimelineRailStyle
+    let state: JourneyTimelineNodeState
 
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            VStack(alignment: .leading, spacing: 9) {
-                ForEach(stops) { stop in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Circle()
-                            .fill(Color.secondary.opacity(0.45))
-                            .frame(width: 6, height: 6)
-                            .accessibilityHidden(true)
-                        Text(stop.name)
-                            .font(.subheadline)
-                        Spacer(minLength: 8)
-                        if let arrivalAt = stop.arrivalAt {
-                            Text(JourneyFormatting.time(arrivalAt))
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+        VStack(spacing: 0) {
+            ForEach(stops) { stop in
+                HStack(alignment: .top, spacing: 0) {
+                    JourneyTimelineRail(
+                        above: rail,
+                        below: rail,
+                        bead: .minor,
+                        state: state
+                    )
+
+                    Text(stop.name)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    JourneyTimelineTimeLabel(stop: stop)
                 }
+                .opacity(state == .done ? 0.45 : 1)
+                .padding(.vertical, 5)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(label(for: stop))
             }
-            .padding(.top, 10)
-        } label: {
-            Text(stops.count == 1 ? "1 arrêt" : "\(stops.count) arrêts")
-                .font(.subheadline.weight(.semibold))
         }
     }
+
+    private func label(for stop: JourneyStop) -> String {
+        guard let time = stop.arrivalAt ?? stop.departureAt else { return stop.name }
+        return "\(stop.name), \(JourneyFormatting.time(time))"
+    }
+}
+
+/// Trailing time column shared by the stop rows.
+private struct JourneyTimelineTimeLabel: View {
+    let stop: JourneyStop
+
+    var body: some View {
+        Group {
+            if let time = stop.arrivalAt ?? stop.departureAt {
+                Text(JourneyFormatting.time(time))
+            } else {
+                Text(verbatim: "")
+            }
+        }
+        .font(.caption.monospacedDigit())
+        .foregroundStyle(.secondary)
+        .frame(width: 54, alignment: .trailing)
+    }
+}
+
+#Preview {
+    let reference = Date(timeIntervalSince1970: 2_000_000_000)
+    let stops = ["Bastille", "Gare de Lyon", "Nation"].enumerated().map { index, name in
+        JourneyStop(
+            id: "preview:\(index)",
+            name: name,
+            coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.36),
+            arrivalAt: reference.addingTimeInterval(Double(index) * 180),
+            departureAt: nil
+        )
+    }
+
+    return VStack(spacing: 24) {
+        JourneyStopListView(stops: stops, rail: .line(colorHex: "FFCE00"), state: .upcoming)
+        JourneyStopListView(stops: stops, rail: .line(colorHex: "E3051C"), state: .done)
+    }
+    .padding()
 }

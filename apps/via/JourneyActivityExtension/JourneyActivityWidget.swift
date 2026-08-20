@@ -41,7 +41,7 @@ struct JourneyActivityWidget: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 5) {
                         Text(context.state.instructionTitle)
                             .font(.headline)
                             .lineLimit(2)
@@ -50,6 +50,9 @@ struct JourneyActivityWidget: Widget {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                        }
+                        if !context.state.isArrived {
+                            JourneyActivityProgressBar(fraction: context.state.progressFraction)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -65,8 +68,26 @@ struct JourneyActivityWidget: Widget {
                     routeBadge(context.state)
                 }
             } compactTrailing: {
-                Text(context.state.arrivalAt, style: .time)
-                    .font(.caption2.monospacedDigit())
+                if let stopsRemaining = context.state.stopsRemaining,
+                   !context.state.isArrived,
+                   stopsRemaining > 0 {
+                    // A bare count would read as a time; the arrow says what it
+                    // counts down to.
+                    Label("\(stopsRemaining)", systemImage: "arrow.down.right")
+                        .font(.caption2.weight(.bold).monospacedDigit())
+                        .labelStyle(.titleAndIcon)
+                        .accessibilityLabel(
+                            stopsRemaining == 1
+                                ? "Descendre au prochain arrêt"
+                                : "Descendre dans \(stopsRemaining) arrêts"
+                        )
+                } else if context.state.stopsRemaining == 0, !context.state.isArrived {
+                    Image(systemName: "arrow.down.right.circle.fill")
+                        .accessibilityLabel("Descendre maintenant")
+                } else {
+                    Text(context.state.arrivalAt, style: .time)
+                        .font(.caption2.monospacedDigit())
+                }
             } minimal: {
                 if context.isStale || context.state.isOffline {
                     Image(systemName: context.isStale ? "pause.circle.fill" : "wifi.slash")
@@ -74,6 +95,15 @@ struct JourneyActivityWidget: Widget {
                         .accessibilityLabel(
                             context.isStale ? "Mise à jour suspendue" : "Hors connexion"
                         )
+                } else if let line = context.state.line,
+                          !context.state.isArrived,
+                          line.shortName.count <= 2 {
+                    // The minimal slot is a circle: only a one or two character
+                    // line name fits, tinted so the line reads without a badge.
+                    Text(line.shortName)
+                        .font(.caption2.weight(.heavy))
+                        .foregroundStyle(Color(activityHex: line.colorHex, fallback: .blue))
+                        .accessibilityLabel("Ligne \(line.shortName)")
                 } else {
                     Image(systemName: context.state.isArrived ? "checkmark" : "location.fill")
                         .foregroundStyle(context.state.isArrived ? .green : .blue)
@@ -87,14 +117,11 @@ struct JourneyActivityWidget: Widget {
         }
     }
 
+    /// The line badge, or a phase symbol when the current leg has no line.
     @ViewBuilder
     private func routeBadge(_ state: JourneyActivityAttributes.ContentState) -> some View {
-        if let shortName = state.routeShortName {
-            Text(shortName)
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(.white)
-                .frame(minWidth: 25, minHeight: 25)
-                .background(routeColor(state), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        if let line = state.line, !state.isArrived {
+            JourneyActivityLineBadgeView(line: line, size: 25)
         } else {
             Image(systemName: state.isArrived ? "checkmark.circle.fill" : "figure.walk")
                 .foregroundStyle(state.isArrived ? .green : .blue)
@@ -102,25 +129,6 @@ struct JourneyActivityWidget: Widget {
     }
 
     private func routeColor(_ state: JourneyActivityAttributes.ContentState) -> Color {
-        Color(activityHex: state.routeColorHex, fallback: .blue)
-    }
-}
-
-private extension Color {
-    init(activityHex: String?, fallback: Color) {
-        guard let activityHex else {
-            self = fallback
-            return
-        }
-        let value = activityHex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        guard value.count == 6, let rgb = UInt64(value, radix: 16) else {
-            self = fallback
-            return
-        }
-        self = Color(
-            red: Double((rgb >> 16) & 0xFF) / 255,
-            green: Double((rgb >> 8) & 0xFF) / 255,
-            blue: Double(rgb & 0xFF) / 255
-        )
+        Color(activityHex: state.line?.colorHex, fallback: .blue)
     }
 }

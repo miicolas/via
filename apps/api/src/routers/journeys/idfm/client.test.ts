@@ -22,6 +22,7 @@ test('sends exact arrival time and modal constraints to IDFM', () => {
 
   expect(url.searchParams.get('datetime')).toBe('20261025T093000');
   expect(url.searchParams.get('datetime_represents')).toBe('arrival');
+  expect(url.searchParams.get('disable_geojson')).toBe('false');
   expect(url.searchParams.getAll('allowed_id[]')).toEqual([
     'physical_mode:Bus',
     'physical_mode:Tramway',

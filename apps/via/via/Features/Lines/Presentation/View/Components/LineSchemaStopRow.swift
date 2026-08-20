@@ -2,13 +2,18 @@ import SwiftUI
 
 /// One station of the schema: rail halves above and below, the bead, the
 /// name, the interchange glyph and the disruption pictogram.
+///
+/// The rail is drawn the same way as the journey timeline's — a solid core in a
+/// soft halo, at the same widths — so a line read from the Lignes tab and a leg
+/// read from a trip look like the same object.
 struct LineSchemaStopRow: View {
     let row: LineSchemaLayout.StopRow
     let lineColor: Color
 
-    private let railWidth: CGFloat = 6
-    private let beadSize: CGFloat = 14
-    private let rowHeight: CGFloat = 34
+    private let railWidth: CGFloat = 11
+    private let haloWidth: CGFloat = 22
+    private let beadSize: CGFloat = 18
+    private let rowHeight: CGFloat = 38
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
@@ -21,12 +26,19 @@ struct LineSchemaStopRow: View {
                 Circle()
                     .strokeBorder(
                         row.condition?.tint ?? lineColor,
-                        lineWidth: row.isSectionEnd || row.condition != nil ? 4 : 3
+                        lineWidth: row.isSectionEnd || row.condition != nil ? 5 : 4
                     )
                     .background(Circle().fill(.background))
                     .frame(width: beadSize, height: beadSize)
+                    .background {
+                        // A background-coloured gap, so the bead keeps punching
+                        // out of a rail thick enough to swallow it.
+                        Circle()
+                            .fill(.background)
+                            .frame(width: beadSize + 7, height: beadSize + 7)
+                    }
             }
-            .frame(width: beadSize + 6, height: rowHeight)
+            .frame(width: haloWidth, height: rowHeight)
 
             Text(row.stop.name)
                 .font(row.isSectionEnd ? .subheadline.weight(.bold) : .subheadline)
@@ -59,22 +71,40 @@ struct LineSchemaStopRow: View {
         switch style {
         case .none:
             Color.clear
-                .frame(width: railWidth)
+                .frame(width: haloWidth)
                 .frame(maxHeight: .infinity)
         case .line:
-            Rectangle()
-                .fill(lineColor)
-                .frame(width: railWidth)
-                .frame(maxHeight: .infinity)
+            solidRail(lineColor)
         case .cut(let condition):
             VerticalRail()
                 .stroke(
                     condition.tint,
-                    style: StrokeStyle(lineWidth: railWidth - 2, lineCap: .butt, dash: [4, 4])
+                    style: StrokeStyle(lineWidth: railWidth - 2, lineCap: .round, dash: [5, 6])
                 )
                 .frame(width: railWidth)
                 .frame(maxHeight: .infinity)
         }
+    }
+
+    /// A horizontal gradient rather than a blur, so consecutive rows stack
+    /// without a seam between their halves.
+    private func solidRail(_ tint: Color) -> some View {
+        ZStack {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [tint.opacity(0), tint.opacity(0.22), tint.opacity(0)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: haloWidth)
+
+            Rectangle()
+                .fill(tint)
+                .frame(width: railWidth)
+        }
+        .frame(maxHeight: .infinity)
     }
 }
 

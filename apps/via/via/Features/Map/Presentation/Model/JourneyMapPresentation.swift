@@ -2,10 +2,36 @@ import MapKit
 
 struct JourneyMapSegment: Identifiable, Sendable, Hashable {
     let id: String
+    let sectionIndex: Int
     let coordinates: [GeoCoordinate]
     let colorHex: String?
     let isPedestrian: Bool
     let isStationary: Bool
+}
+
+/// One drawn piece of the route, already resolved against the traveller's
+/// position so the map only has to pick colours.
+struct JourneyRenderedSegment: Identifiable, Sendable, Hashable {
+    let id: String
+    let coordinates: [GeoCoordinate]
+    let colorHex: String?
+    let isPedestrian: Bool
+    let isStationary: Bool
+    /// Behind the traveller: drawn faded, like the timeline rail above the cursor.
+    let isTravelled: Bool
+}
+
+/// A place on the route worth marking: where to board, where to change, where
+/// to get off.
+struct JourneyMapStop: Identifiable, Sendable, Hashable {
+    enum Kind: Sendable, Hashable { case origin, board, alight, destination }
+
+    let id: String
+    let name: String
+    let coordinate: GeoCoordinate
+    let kind: Kind
+    let sectionIndex: Int
+    let colorHex: String?
 }
 
 /// Map-ready projection of a selected journey. The map never needs to learn
@@ -13,12 +39,14 @@ struct JourneyMapSegment: Identifiable, Sendable, Hashable {
 struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
     let id: JourneyID
     let segments: [JourneyMapSegment]
+    let stops: [JourneyMapStop]
 
     init(journey: Journey) {
         id = journey.id
-        segments = journey.sections.map { section in
+        segments = journey.sections.enumerated().map { index, section in
             JourneyMapSegment(
                 id: section.id,
+                sectionIndex: index,
                 coordinates: section.geometry.isEmpty
                     ? [section.from.coordinate, section.to.coordinate]
                     : section.geometry,
@@ -27,7 +55,58 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                 isStationary: section.kind == .wait
             )
         }
+        stops = Self.stops(of: journey)
     }
+
+    // MARK: - Rendering
+
+    /// Splits the current segment at the traveller and tags everything behind
+    /// them as travelled.
+    func rendered(with progress: JourneyProgress?) -> [JourneyRenderedSegment] {
+        segments.flatMap { segment -> [JourneyRenderedSegment] in
+            guard let progress else {
+                return [rendered(segment, coordinates: segment.coordinates, isTravelled: false)]
+            }
+
+            if segment.sectionIndex < progress.sectionIndex {
+                return [rendered(segment, coordinates: segment.coordinates, isTravelled: true)]
+            }
+            if segment.sectionIndex > progress.sectionIndex {
+                return [rendered(segment, coordinates: segment.coordinates, isTravelled: false)]
+            }
+
+            let split = JourneyProgressProjector.split(
+                coordinates: segment.coordinates,
+                at: progress.fractionInSection
+            )
+            return [
+                split.traveled.count >= 2
+                    ? rendered(segment, coordinates: split.traveled, isTravelled: true, suffix: "travelled")
+                    : nil,
+                split.remaining.count >= 2
+                    ? rendered(segment, coordinates: split.remaining, isTravelled: false, suffix: "remaining")
+                    : nil,
+            ].compactMap(\.self)
+        }
+    }
+
+    private func rendered(
+        _ segment: JourneyMapSegment,
+        coordinates: [GeoCoordinate],
+        isTravelled: Bool,
+        suffix: String? = nil
+    ) -> JourneyRenderedSegment {
+        JourneyRenderedSegment(
+            id: suffix.map { "\(segment.id):\($0)" } ?? segment.id,
+            coordinates: coordinates,
+            colorHex: segment.colorHex,
+            isPedestrian: segment.isPedestrian,
+            isStationary: segment.isStationary,
+            isTravelled: isTravelled
+        )
+    }
+
+    // MARK: - Framing
 
     var mapRect: MKMapRect? {
         mapRect(for: segments.flatMap(\.coordinates))
@@ -39,6 +118,27 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
             return mapRect
         }
         return mapRect(for: segment.coordinates)
+    }
+
+    /// What is left to travel, so guidance frames the road ahead instead of the
+    /// whole trip.
+    func mapRect(remainingFrom progress: JourneyProgress?) -> MKMapRect? {
+        guard let progress else { return mapRect }
+
+        let ahead = segments
+            .filter { $0.sectionIndex > progress.sectionIndex }
+            .flatMap(\.coordinates)
+        let current = segments
+            .first { $0.sectionIndex == progress.sectionIndex }
+            .map {
+                JourneyProgressProjector.split(
+                    coordinates: $0.coordinates,
+                    at: progress.fractionInSection
+                ).remaining
+            } ?? []
+
+        let coordinates = current + ahead
+        return coordinates.count >= 2 ? mapRect(for: coordinates) : mapRect
     }
 
     private func mapRect(for coordinates: [GeoCoordinate]) -> MKMapRect? {
@@ -54,5 +154,81 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
         let horizontalPadding = max(rect.size.width * 0.18, minimumSize)
         let verticalPadding = max(rect.size.height * 0.18, minimumSize)
         return rect.insetBy(dx: -horizontalPadding, dy: -verticalPadding)
+    }
+
+    // MARK: - Stops
+
+    private static func stops(of journey: Journey) -> [JourneyMapStop] {
+        let nodes = JourneyTimeline.nodes(for: journey)
+        return nodes.compactMap { node in
+            switch node.kind {
+            case .origin(let name):
+                JourneyMapStop(
+                    id: node.id,
+                    name: name,
+                    coordinate: journey.sections.first?.from.coordinate ?? .init(latitude: 0, longitude: 0),
+                    kind: .origin,
+                    sectionIndex: node.sectionIndex,
+                    colorHex: nil
+                )
+            case .destination(let name):
+                JourneyMapStop(
+                    id: node.id,
+                    name: name,
+                    coordinate: journey.sections.last?.to.coordinate ?? .init(latitude: 0, longitude: 0),
+                    kind: .destination,
+                    sectionIndex: node.sectionIndex,
+                    colorHex: nil
+                )
+            case .board(let stop, let route, _, _):
+                JourneyMapStop(
+                    id: node.id,
+                    name: stop.name,
+                    coordinate: stop.coordinate,
+                    kind: .board,
+                    sectionIndex: node.sectionIndex,
+                    colorHex: route?.colorHex
+                )
+            case .alight(let stop):
+                JourneyMapStop(
+                    id: node.id,
+                    name: stop.name,
+                    coordinate: stop.coordinate,
+                    kind: .alight,
+                    sectionIndex: node.sectionIndex,
+                    colorHex: node.lineColorHex
+                )
+            case .walk, .wait, .transfer, .ride:
+                nil
+            }
+        }
+    }
+}
+
+extension JourneyProgress {
+    /// The drawing-side view of the progress: stable between two frames that
+    /// would look identical anyway.
+    ///
+    /// The map splits its polylines at `fractionInSection` and dims what is
+    /// behind the traveller. Both survive a coarse value; the camera does not
+    /// survive a view rebuild mid-gesture. Half a percent of a leg is under a
+    /// pixel at the zoom guidance uses.
+    var mapQuantized: JourneyProgress {
+        JourneyProgress(
+            sectionIndex: sectionIndex,
+            fractionInSection: JourneyProgress.mapStep(fractionInSection),
+            overallFraction: JourneyProgress.mapStep(overallFraction),
+            passedStopCount: passedStopCount,
+            stopsUntilAlighting: stopsUntilAlighting,
+            // Only the annotations and the split read this value, and neither
+            // reads the coordinate. Keeping it would defeat the whole point:
+            // it moves with every single fix.
+            projectedCoordinate: nil,
+            isLocationDerived: isLocationDerived
+        )
+    }
+
+    private static func mapStep(_ fraction: Double) -> Double {
+        (fraction * 200).rounded() / 200
     }
 }

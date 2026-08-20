@@ -12,3 +12,16 @@ extension JourneySection.Kind {
         self == .wait || self == .transfer
     }
 }
+
+extension JourneyRoute {
+    /// Shared bridge to the neutral badge model `LineBadgeView` renders.
+    var badge: RouteBadge {
+        RouteBadge(
+            id: id,
+            shortName: shortName,
+            mode: mode,
+            colorHex: colorHex,
+            textColorHex: textColorHex
+        )
+    }
+}

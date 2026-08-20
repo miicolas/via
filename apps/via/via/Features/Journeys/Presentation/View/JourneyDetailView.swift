@@ -27,8 +27,7 @@ struct JourneyDetailView: View {
         self.activeJourneyModel = activeJourneyModel
         self.onHighlightSection = onHighlightSection
         self.onExpandMap = onExpandMap
-        let firstSectionID = journey.sections.first?.id
-        _expandedSectionIDs = State(initialValue: Set([firstSectionID].compactMap { $0 }))
+        _expandedSectionIDs = State(initialValue: [])
         _highlightedSectionID = State(initialValue: nil)
     }
 
@@ -37,29 +36,12 @@ struct JourneyDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 JourneyDetailSummaryView(journey: journey, source: source)
 
-                Button(action: expandMap) {
-                    JourneyOverviewMapView(
-                        presentation: JourneyMapPresentation(journey: journey),
-                        highlightedSectionID: highlightedSectionID
-                    )
-                    .frame(height: 220)
-                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                    .overlay(alignment: .bottomTrailing) {
-                        Label("Agrandir", systemImage: "arrow.up.left.and.arrow.down.right")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 11)
-                            .padding(.vertical, 8)
-                            .background(.regularMaterial, in: Capsule())
-                            .padding(10)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Carte du trajet")
-                .accessibilityHint("Réduit la fiche pour explorer le trajet sur la grande carte")
-
                 if !journey.warnings.isEmpty {
                     JourneyWarningBanner(warnings: journey.warnings)
                 }
+
+                Text("Votre trajet")
+                    .font(.title2.weight(.bold))
 
                 JourneyTimelineView(
                     journey: journey,
@@ -74,6 +56,12 @@ struct JourneyDetailView: View {
         }
         .navigationTitle("Détail du trajet")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Carte", systemImage: "map", action: expandMap)
+                    .accessibilityHint("Réduit la fiche pour explorer le trajet sur la carte")
+            }
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             actionBar
         }
@@ -82,6 +70,9 @@ struct JourneyDetailView: View {
         }
         .onAppear {
             onHighlightSection(highlightedSectionID)
+            // The full-screen map behind the sheet is the only map now: make
+            // room for it instead of drawing a second one inside the sheet.
+            onExpandMap()
         }
         .onDisappear {
             onHighlightSection(nil)

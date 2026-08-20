@@ -1,0 +1,267 @@
+import XCTest
+@testable import Via
+
+final class JourneyTimelineTests: XCTestCase {
+    private let referenceDate = Date(timeIntervalSince1970: 2_000_000_000)
+
+    func testEveryNodeCarriesAResolvedTimeWhenSectionsOmitTheirs() {
+        // The planners frequently leave `departureAt` / `arrivalAt` nil on walk,
+        // wait and transfer sections. The old timeline read those optionals
+        // directly and displayed nothing.
+        let journey = makeJourney()
+        XCTAssertTrue(journey.sections.allSatisfy { $0.kind == .transit || $0.departureAt == nil })
+
+        let nodes = JourneyTimeline.nodes(for: journey)
+
+        XCTAssertFalse(nodes.isEmpty)
+        for node in nodes {
+            XCTAssertGreaterThanOrEqual(node.endsAt, node.startsAt, "\(node.id) ends before it starts")
+        }
+        XCTAssertEqual(nodes.first?.startsAt, journey.departureAt)
+        XCTAssertEqual(nodes.last?.startsAt, journey.arrivalAt)
+    }
+
+    func testTimesIncreaseMonotonicallyDownTheTimeline() {
+        let nodes = JourneyTimeline.nodes(for: makeJourney())
+
+        for (previous, next) in zip(nodes, nodes.dropFirst()) {
+            XCTAssertGreaterThanOrEqual(
+                next.startsAt,
+                previous.startsAt,
+                "\(next.id) goes back in time after \(previous.id)"
+            )
+        }
+    }
+
+    func testBoardingAndAlightingComeFromTheStopListWithoutDuplication() {
+        let nodes = JourneyTimeline.nodes(for: makeJourney())
+
+        let boarding = nodes.compactMap { node -> JourneyStop? in
+            guard case .board(let stop, _, _, _) = node.kind else { return nil }
+            return stop
+        }
+        let alighting = nodes.compactMap { node -> JourneyStop? in
+            guard case .alight(let stop) = node.kind else { return nil }
+            return stop
+        }
+
+        XCTAssertEqual(boarding.map(\.name), ["Châtelet", "Gare de Lyon"])
+        XCTAssertEqual(alighting.map(\.name), ["Gare de Lyon", "Vincennes"])
+        // Four calls means two intermediate stops, not four extra rows.
+        XCTAssertEqual(intermediateStops(in: nodes).map(\.name), ["Bastille", "Gare d'Austerlitz"])
+    }
+
+    func testBoardingTimeUsesTheStopTimetableRatherThanTheSectionCursor() {
+        let nodes = JourneyTimeline.nodes(for: makeJourney())
+
+        let boarding = nodes.first { if case .board = $0.kind { return true } else { return false } }
+        let alighting = nodes.first { if case .alight = $0.kind { return true } else { return false } }
+
+        XCTAssertEqual(boarding?.startsAt, referenceDate.addingTimeInterval(5 * 60))
+        XCTAssertEqual(alighting?.startsAt, referenceDate.addingTimeInterval(17 * 60))
+    }
+
+    func testSectionWithoutStopsStillProducesBoardingAndAlightingNodes() {
+        let nodes = JourneyTimeline.nodes(for: makeJourney())
+        let secondLeg = nodes.filter { $0.sectionID == "section:3" }
+
+        XCTAssertEqual(secondLeg.count, 2, "no stop list means no ride row")
+        guard case .board(let stop, _, _, _) = secondLeg[0].kind else {
+            return XCTFail("expected a boarding node")
+        }
+        XCTAssertEqual(stop.name, "Gare de Lyon")
+        guard case .alight(let alightStop) = secondLeg[1].kind else {
+            return XCTFail("expected an alighting node")
+        }
+        XCTAssertEqual(alightStop.name, "Vincennes")
+    }
+
+    func testRailFollowsTheLegBeingTravelledAcrossEachGap() {
+        let nodes = JourneyTimeline.nodes(for: makeJourney())
+
+        let walk = nodes.first { if case .walk = $0.kind { return true } else { return false } }
+        XCTAssertEqual(walk?.railAbove, .pedestrian)
+        // The gap between walking and boarding is still walking.
+        XCTAssertEqual(walk?.railBelow, .pedestrian)
+
+        let ride = nodes.first { if case .ride = $0.kind { return true } else { return false } }
+        XCTAssertEqual(ride?.railAbove, .line(colorHex: "FFCE00"))
+        XCTAssertEqual(ride?.railBelow, .line(colorHex: "FFCE00"))
+
+        // After alighting the leg is over, so the gap belongs to the transfer.
+        let firstAlight = nodes.first { if case .alight = $0.kind { return true } else { return false } }
+        XCTAssertEqual(firstAlight?.railBelow, .pedestrian)
+    }
+
+    func testNoRailIsDrawnBetweenTwoNodesDescribingTheSamePlace() {
+        let journey = makeJourney(startsWithWalk: false)
+        let nodes = JourneyTimeline.nodes(for: journey)
+
+        XCTAssertEqual(nodes.first?.railBelow, .none, "origin and boarding share a place")
+        XCTAssertEqual(nodes.last?.railAbove, .none, "alighting and destination share a place")
+    }
+
+    func testTerminusBeadsSitAtBothEnds() {
+        let nodes = JourneyTimeline.nodes(for: makeJourney())
+
+        XCTAssertEqual(nodes.first?.bead, .terminus)
+        XCTAssertEqual(nodes.last?.bead, .terminus)
+        XCTAssertEqual(nodes.first?.railAbove, .none)
+        XCTAssertEqual(nodes.last?.railBelow, .none)
+    }
+
+    func testPreviewJourneyWithTwoTransfersExposesEveryLeg() {
+        let journey = Journey.mapPreviewMultipleTransfers
+        let transitSectionIDs = journey.sections.filter { $0.kind == .transit }.map(\.id)
+
+        let nodes = JourneyTimeline.nodes(for: journey)
+
+        for sectionID in transitSectionIDs {
+            let leg = nodes.filter { $0.sectionID == sectionID }
+            XCTAssertTrue(
+                leg.contains { if case .board = $0.kind { return true } else { return false } },
+                "\(sectionID) has no boarding node"
+            )
+            XCTAssertTrue(
+                leg.contains { if case .alight = $0.kind { return true } else { return false } },
+                "\(sectionID) has no alighting node"
+            )
+        }
+        XCTAssertEqual(nodes.last?.startsAt, journey.arrivalAt)
+    }
+
+    // MARK: - Fixtures
+
+    private func intermediateStops(in nodes: [JourneyTimelineNode]) -> [JourneyStop] {
+        nodes.flatMap { node -> [JourneyStop] in
+            guard case .ride(let intermediate) = node.kind else { return [] }
+            return intermediate
+        }
+    }
+
+    private func makeJourney(startsWithWalk: Bool = true) -> Journey {
+        let chatelet = JourneyPlace(
+            name: "Châtelet",
+            coordinate: GeoCoordinate(latitude: 48.8586, longitude: 2.3477)
+        )
+        let gareDeLyon = JourneyPlace(
+            name: "Gare de Lyon",
+            coordinate: GeoCoordinate(latitude: 48.8443, longitude: 2.3743)
+        )
+        let vincennes = JourneyPlace(
+            name: "Vincennes",
+            coordinate: GeoCoordinate(latitude: 48.8475, longitude: 2.4370)
+        )
+
+        let firstLeg = JourneySection(
+            id: "section:1",
+            kind: .transit,
+            durationSeconds: 12 * 60,
+            from: chatelet,
+            to: gareDeLyon,
+            departureAt: referenceDate.addingTimeInterval(5 * 60),
+            arrivalAt: referenceDate.addingTimeInterval(17 * 60),
+            geometry: [chatelet.coordinate, gareDeLyon.coordinate],
+            route: JourneyRoute(
+                id: RouteID(rawValue: "route:1"),
+                shortName: "1",
+                longName: "Métro 1",
+                mode: .metro,
+                colorHex: "FFCE00",
+                textColorHex: "000000"
+            ),
+            direction: "Château de Vincennes",
+            platform: "2",
+            stops: [
+                stop(id: "s1", place: chatelet, at: 5 * 60),
+                stop(id: "s2", name: "Bastille", at: 9 * 60),
+                stop(id: "s3", name: "Gare d'Austerlitz", at: 13 * 60),
+                stop(id: "s4", place: gareDeLyon, at: 17 * 60),
+            ]
+        )
+
+        let transfer = JourneySection(
+            id: "section:2",
+            kind: .transfer,
+            durationSeconds: 3 * 60,
+            from: gareDeLyon,
+            to: gareDeLyon,
+            departureAt: nil,
+            arrivalAt: nil,
+            geometry: [],
+            route: nil,
+            direction: nil,
+            platform: nil,
+            stops: []
+        )
+
+        let secondLeg = JourneySection(
+            id: "section:3",
+            kind: .transit,
+            durationSeconds: 10 * 60,
+            from: gareDeLyon,
+            to: vincennes,
+            departureAt: nil,
+            arrivalAt: nil,
+            geometry: [gareDeLyon.coordinate, vincennes.coordinate],
+            route: JourneyRoute(
+                id: RouteID(rawValue: "route:a"),
+                shortName: "A",
+                longName: "RER A",
+                mode: .rer,
+                colorHex: "E3051C",
+                textColorHex: "FFFFFF"
+            ),
+            direction: "Boissy-Saint-Léger",
+            platform: nil,
+            stops: []
+        )
+
+        let walk = JourneySection(
+            id: "section:0",
+            kind: .walk,
+            durationSeconds: 5 * 60,
+            from: JourneyPlace(name: "Départ", coordinate: chatelet.coordinate),
+            to: chatelet,
+            departureAt: nil,
+            arrivalAt: nil,
+            geometry: [],
+            route: nil,
+            direction: nil,
+            platform: nil,
+            stops: []
+        )
+
+        let sections = startsWithWalk
+            ? [walk, firstLeg, transfer, secondLeg]
+            : [firstLeg, transfer, secondLeg]
+
+        return Journey(
+            id: JourneyID(rawValue: "test:journey"),
+            qualifier: .recommended,
+            durationSeconds: sections.reduce(0) { $0 + $1.durationSeconds },
+            walkingDurationSeconds: startsWithWalk ? 5 * 60 : 0,
+            transferCount: 1,
+            departureAt: startsWithWalk ? referenceDate : referenceDate.addingTimeInterval(5 * 60),
+            arrivalAt: referenceDate.addingTimeInterval(30 * 60),
+            status: .normal,
+            warnings: [],
+            sections: sections
+        )
+    }
+
+    private func stop(
+        id: String,
+        place: JourneyPlace? = nil,
+        name: String? = nil,
+        at offset: TimeInterval
+    ) -> JourneyStop {
+        JourneyStop(
+            id: id,
+            name: place?.name ?? name ?? id,
+            coordinate: place?.coordinate ?? GeoCoordinate(latitude: 48.85, longitude: 2.36),
+            arrivalAt: referenceDate.addingTimeInterval(offset),
+            departureAt: referenceDate.addingTimeInterval(offset)
+        )
+    }
+}

@@ -5,13 +5,48 @@ extension EnvironmentValues {
     @Entry var sheetTabVisibilityProgress: CGFloat = 1
 }
 
+/// Detent contract of the map sheet, shared with whoever drives `activeDetent`.
+enum SheetTabDetents {
+    /// The collapsed height has to make room for the tab bar accessory,
+    /// otherwise an active journey bar is clipped away at rest.
+    static func collapsed(hasAccessory: Bool) -> PresentationDetent {
+        hasAccessory ? .height(158) : .height(90)
+    }
+}
+
+enum SheetTabPresentation {
+    static func showsAccessory(
+        isEligible: Bool,
+        measuredContentProgress: CGFloat
+    ) -> Bool {
+        isEligible && measuredContentProgress <= 0.01
+    }
+
+    /// The compact journey accessory replaces the tab's navigation content.
+    /// Keeping both eligible for display makes short sheets show two copies of
+    /// the same guidance and lets the navigation bar overlap the accessory.
+    static func contentVisibilityProgress(
+        measuredProgress: CGFloat,
+        isAccessoryVisible: Bool
+    ) -> CGFloat {
+        isAccessoryVisible ? 0 : measuredProgress
+    }
+}
+
 /// Tab container for the persistent map sheet: owns the detent set and fades
 /// tab content in as the sheet grows past the collapsed detent.
-struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>>: View {
+struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Accessory: View>: View {
     @Binding var selection: Selection
     @Binding var activeDetent: PresentationDetent
     var isLargeScreen: Bool
     var isAnotherSheetPresenting: Bool = false
+    /// Keeps room for the accessory in the collapsed detent. Stays true for the
+    /// whole journey so the detent set does not change under the sheet.
+    var reservesAccessorySpace: Bool = false
+    /// Shows the accessory. The guidance screen already states the current step,
+    /// so the bar only earns its place once the sheet is put away.
+    var isAccessoryVisible: Bool = false
+    @ViewBuilder var accessory: () -> Accessory
     @TabContentBuilder<Selection> var tabs: TabC
 
     @State private var tabVisibilityProgress: CGFloat = 0
@@ -19,7 +54,13 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>>: View {
     var body: some View {
         tabView
         .tabViewSearchActivation(.searchTabSelection)
-        .environment(\.sheetTabVisibilityProgress, tabVisibilityProgress)
+        .environment(
+            \.sheetTabVisibilityProgress,
+            SheetTabPresentation.contentVisibilityProgress(
+                measuredProgress: tabVisibilityProgress,
+                isAccessoryVisible: showsAccessory
+            )
+        )
         .presentationDetents(detents, selection: .init(get: {
             // A detail sheet cannot stack above a .large parent; pin just below full height.
             if activeDetent == .large && isAnotherSheetPresenting {
@@ -48,9 +89,13 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>>: View {
 
     @ViewBuilder
     private var tabView: some View {
-        let base = TabView(selection: $selection) {
-            tabs
-        }
+        // The modifier stays attached in every state: branching around the
+        // TabView itself would change its identity and reset the selected tab.
+        let base = accessorised(
+            TabView(selection: $selection) {
+                tabs
+            }
+        )
 
         #if compiler(>=6.4)
         if #available(iOS 27.0, *) {
@@ -63,15 +108,35 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>>: View {
         #endif
     }
 
+    /// `isEnabled:` is the supported way to hide the accessory; on 26.0 an
+    /// empty accessory body is the only lever available.
+    @ViewBuilder
+    private func accessorised(_ content: some View) -> some View {
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: showsAccessory) { accessory() }
+        } else {
+            content.tabViewBottomAccessory { if showsAccessory { accessory() } }
+        }
+    }
+
+    private var showsAccessory: Bool {
+        SheetTabPresentation.showsAccessory(
+            isEligible: isAccessoryVisible,
+            measuredContentProgress: tabVisibilityProgress
+        )
+    }
+
     private var detents: Set<PresentationDetent> {
+        let collapsed = SheetTabDetents.collapsed(hasAccessory: reservesAccessorySpace)
+
         if isLargeScreen {
-            return [.height(90), .fraction(0.97)]
+            return [collapsed, .fraction(0.97)]
         }
 
         if isAnotherSheetPresenting {
-            return [.height(90), .fraction(0.45), .fraction(0.98), .large]
+            return [collapsed, .fraction(0.45), .fraction(0.98), .large]
         }
 
-        return [.height(90), .fraction(0.45), .large]
+        return [collapsed, .fraction(0.45), .large]
     }
 }

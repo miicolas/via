@@ -8,58 +8,64 @@ struct ActiveJourneyPanelView: View {
     @State private var isAlternativesPresented = false
     @State private var isLocationExplanationPresented = false
     @State private var isStarting = false
+    @State private var expandedSectionIDs: Set<String> = []
+    @State private var hasScrolledAway = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    header(at: context.date)
-                    statuses
+            ScrollViewReader { scroll in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        statuses
 
-                    if let alternative = model.alternative {
-                        JourneyAlternativeCard(
-                            alternative: alternative,
-                            onAccept: { Task { await model.acceptBestAlternative() } },
-                            onShowOthers: { isAlternativesPresented = true },
-                            onDismiss: model.dismissAlternative
-                        )
+                        if let alternative = model.alternative {
+                            JourneyAlternativeCard(
+                                alternative: alternative,
+                                onAccept: { Task { await model.acceptBestAlternative() } },
+                                onShowOthers: { isAlternativesPresented = true },
+                                onDismiss: model.dismissAlternative
+                            )
+                        }
+
+                        if let journey = model.journey {
+                            // The whole trip, not just the next step: the
+                            // traveller can read ahead without losing the
+                            // current one, which the header keeps pinned.
+                            JourneyTimelineView(
+                                journey: journey,
+                                mode: model.progress(at: context.date).map { .live($0) } ?? .plan,
+                                expandedSectionIDs: $expandedSectionIDs
+                            )
+                        }
+
+                        if model.recalculationState == .checking {
+                            ViaLoadingStatus(label: "Recherche de l’itinéraire le plus rapide…")
+                                .frame(maxWidth: .infinity)
+                        }
                     }
-
-                    if let current = model.currentInstruction {
-                        ActiveJourneyInstructionCard(
-                            eyebrow: "Maintenant",
-                            instruction: current,
-                            emphasized: true
-                        )
-                    }
-
-                    if let next = model.nextInstruction {
-                        ActiveJourneyInstructionCard(
-                            eyebrow: "Ensuite",
-                            instruction: next
-                        )
-                    }
-
-                    secondaryActions
-
-                    if model.recalculationState == .checking {
-                        ViaLoadingStatus(label: "Recherche de l’itinéraire le plus rapide…")
-                            .frame(maxWidth: .infinity)
-                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-                .padding(.bottom, 24)
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if model.requiresResume || shouldOfferGo(at: context.date) {
-                    primaryAction
+                .onScrollPhaseChange { _, phase in
+                    if phase == .interacting { hasScrolledAway = true }
+                }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    header(at: context.date)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    bottomActions(using: scroll, at: context.date)
+                }
+                .onChange(of: model.progress(at: context.date)?.sectionIndex) { _, _ in
+                    scrollToCurrentStep(using: scroll, at: context.date)
                 }
             }
         }
         .navigationTitle(model.destinationName)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { journeyMenu }
+        .toolbar { journeyToolbar }
         .confirmationDialog(
             "Arrêter ce trajet ?",
             isPresented: $isStopConfirmationPresented,
@@ -163,42 +169,62 @@ struct ActiveJourneyPanelView: View {
         }
     }
 
+    @ViewBuilder
     private func header(at date: Date) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                if model.requiresResume {
-                    Text("Trajet mémorisé")
-                        .font(.title2.weight(.bold))
-                    Text("Reprenez pour continuer le suivi")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                } else {
-                    switch model.phase(at: date) {
-                    case .scheduled(let interval):
-                        Text("Départ dans \(JourneyFormatting.countdown(interval))")
-                            .font(.title2.weight(.bold))
-                        if let journey = model.journey {
-                            Text("Première étape à \(JourneyFormatting.time(journey.departureAt))")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    case .underway:
-                        Text(model.isTracking ? "En route" : "Prêt à partir")
-                            .font(.title2.weight(.bold))
-                        if let journey = model.journey {
-                            Text("Arrivée prévue à \(JourneyFormatting.time(journey.arrivalAt))")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+        if let journey = model.journey,
+           let progress = model.progress(at: date),
+           let headline = model.guidanceHeadline(at: date) {
+            LiveJourneyHeaderView(
+                journey: journey,
+                headline: headline,
+                progress: progress,
+                isTracking: model.isTracking
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func bottomActions(using scroll: ScrollViewProxy, at date: Date) -> some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            if hasScrolledAway {
+                recenterButton {
+                    scrollToCurrentStep(using: scroll, at: date)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .transition(.opacity.combined(with: .scale))
             }
 
-            Spacer(minLength: 0)
+            if model.requiresResume || shouldOfferGo(at: date) {
+                primaryAction
+            }
+        }
+    }
 
-            Image(systemName: model.isTracking ? "location.fill" : "clock.fill")
+    private func recenterButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "location.fill")
+                .font(.body.weight(.semibold))
                 .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
+                .frame(width: 44, height: 44)
+                .contentShape(.circle)
+                .glassEffect(.regular, in: .circle)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Revenir à l’étape actuelle")
+        .accessibilityHint("Fait défiler le trajet jusqu’à votre position")
+    }
+
+    private func scrollToCurrentStep(using scroll: ScrollViewProxy, at date: Date) {
+        guard let journey = model.journey,
+              let nodeID = JourneyTimelineView.currentNodeID(
+                  in: journey,
+                  progress: model.progress(at: date)
+              ) else { return }
+        withAnimation(.snappy) {
+            scroll.scrollTo(nodeID, anchor: .center)
+            hasScrolledAway = false
         }
     }
 
@@ -234,39 +260,8 @@ struct ActiveJourneyPanelView: View {
         .background(.bar)
     }
 
-    private var secondaryActions: some View {
-        HStack(spacing: 10) {
-            Button {
-                onOpenReport()
-            } label: {
-                Label("Signaler", systemImage: "exclamationmark.bubble")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-
-            Button {
-                model.checkForAlternative()
-            } label: {
-                Label(
-                    shouldRetryRecalculation ? "Réessayer" : "Plus rapide",
-                    systemImage: "arrow.triangle.branch"
-                )
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.capsule)
-            .disabled(
-                model.recalculationState == .checking ||
-                    !model.hasLocationFix ||
-                    !model.canRecalculate
-            )
-            .accessibilityLabel("Rechercher l’itinéraire le plus rapide")
-        }
-    }
-
     @ToolbarContentBuilder
-    private var journeyMenu: some ToolbarContent {
+    private var journeyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button("Étape précédente", systemImage: "backward.end") {
@@ -287,6 +282,37 @@ struct ActiveJourneyPanelView: View {
             }
             .accessibilityLabel("Actions du trajet")
         }
+
+        ToolbarItem(placement: .bottomBar) {
+            Button(action: onOpenReport) {
+                Image(systemName: "exclamationmark.bubble")
+            }
+            .tint(.primary)
+            .accessibilityLabel("Signaler")
+            .accessibilityHint("Ouvre les signalements pour ce trajet")
+        }
+
+        ToolbarSpacer(.fixed, placement: .bottomBar)
+
+        ToolbarItem(placement: .bottomBar) {
+            Button(action: model.checkForAlternative) {
+                Image(systemName: alternativeSystemImage)
+                    .contentTransition(
+                        reduceMotion
+                            ? .identity
+                            : .symbolEffect(
+                                .replace.magic(fallback: .offUp.byLayer),
+                                options: .nonRepeating
+                            )
+                    )
+            }
+            .tint(shouldRetryRecalculation ? .orange : .primary)
+            .disabled(!canCheckForAlternative)
+            .accessibilityLabel(alternativeTitle)
+            .accessibilityHint("Recherche l’itinéraire le plus rapide")
+        }
+
+        ToolbarSpacer(.flexible, placement: .bottomBar)
     }
 
     private func shouldOfferGo(at date: Date) -> Bool {
@@ -314,6 +340,20 @@ struct ActiveJourneyPanelView: View {
         case .idle, .checking:
             false
         }
+    }
+
+    private var alternativeTitle: String {
+        shouldRetryRecalculation ? "Réessayer" : "Plus rapide"
+    }
+
+    private var alternativeSystemImage: String {
+        shouldRetryRecalculation ? "arrow.clockwise" : "arrow.triangle.branch"
+    }
+
+    private var canCheckForAlternative: Bool {
+        model.recalculationState != .checking &&
+            model.hasLocationFix &&
+            model.canRecalculate
     }
 
     private func recalculationMessage(for error: ViaError) -> String {

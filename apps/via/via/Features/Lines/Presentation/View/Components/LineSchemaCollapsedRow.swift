@@ -7,18 +7,34 @@ struct LineSchemaCollapsedRow: View {
     let lineColor: Color
     let action: () -> Void
 
-    private let railWidth: CGFloat = 6
-    private let beadSize: CGFloat = 14
-    private let rowHeight: CGFloat = 30
+    private let railWidth: CGFloat = 11
+    private let haloWidth: CGFloat = 22
+    private let rowHeight: CGFloat = 34
 
     var body: some View {
         Button(action: action) {
             HStack(alignment: .center, spacing: 14) {
-                Rectangle()
-                    .fill(lineColor)
-                    .frame(width: railWidth)
-                    .frame(maxHeight: .infinity)
-                    .frame(width: beadSize + 6)
+                ZStack {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    lineColor.opacity(0),
+                                    lineColor.opacity(0.22),
+                                    lineColor.opacity(0),
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: haloWidth)
+
+                    Rectangle()
+                        .fill(lineColor)
+                        .frame(width: railWidth)
+                }
+                .frame(maxHeight: .infinity)
+                .frame(width: haloWidth)
 
                 Text("⋯ \(run.hiddenCount) gare\(run.hiddenCount > 1 ? "s" : "")")
                     .font(.footnote)
