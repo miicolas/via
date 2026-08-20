@@ -8,9 +8,13 @@ struct StationsView: View {
     @Binding var detailDetent: PresentationDetent
 
     let onOpenSearch: () -> Void
+    let naturalLanguageAccess: NaturalLanguageAccess
+    let showsNaturalSearchDiscovery: Bool
+    let onOpenNaturalSearch: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var selectedPlaceShortcut: StationPlaceShortcut?
 
@@ -19,6 +23,29 @@ struct StationsView: View {
             content
                 .navigationTitle("Stations")
                 .toolbarTitleDisplayMode(.inlineLarge)
+                .toolbar {
+                    if naturalLanguageAccess != .hidden {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                onOpenNaturalSearch()
+                            } label: {
+                                Image(systemName: "sparkles")
+                                    .foregroundStyle(Color.aiAccent)
+                                    .frame(width: 36, height: 36)
+                                    .background(Color.aiSurface, in: Circle())
+                                    .borderBeam(
+                                        border: .white,
+                                        beam: [.purple, .blue, .pink, .indigo],
+                                        beamBlur: 10,
+                                        cornerRadius: 18,
+                                        isEnabled: showsNaturalSearchDiscovery && !reduceMotion
+                                    )
+                            }
+                            .accessibilityLabel("Rechercher avec Apple Intelligence")
+                            .accessibilityHint("Ouvre la recherche en langage naturel")
+                        }
+                    }
+                }
         }
         .opacity(tabVisibilityProgress)
         .task(id: scenePhase) {
@@ -50,7 +77,7 @@ struct StationsView: View {
     private var isInitialLoading: Bool {
         switch viewModel.state {
         case .idle, .locating: true
-        case .loading(let previous): previous == nil
+        case let .loading(previous): previous == nil
         case .loaded, .empty, .locationUnavailable, .failed: false
         }
     }
@@ -60,19 +87,19 @@ struct StationsView: View {
         switch viewModel.state {
         case .idle, .locating:
             EmptyView()
-        case .loading(let previous):
+        case let .loading(previous):
             if let previous {
                 stationList(previous, isRefreshing: true)
             } else {
                 EmptyView()
             }
-        case .loaded(let station):
+        case let .loaded(station):
             stationList(station)
         case .empty:
             StationsEmptyStateView(onOpenSearch: onOpenSearch)
-        case .locationUnavailable(let authorization):
+        case let .locationUnavailable(authorization):
             unavailableContent(for: authorization)
-        case .failed(let error, let previous):
+        case let .failed(error, previous):
             if let previous {
                 stationList(previous, refreshError: error)
             } else {
@@ -231,7 +258,10 @@ struct StationsView: View {
         ),
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
-        onOpenSearch: {}
+        onOpenSearch: {},
+        naturalLanguageAccess: .active,
+        showsNaturalSearchDiscovery: true,
+        onOpenNaturalSearch: {}
     )
 }
 

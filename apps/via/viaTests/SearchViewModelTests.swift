@@ -1,8 +1,383 @@
-import XCTest
 @testable import Via
+import XCTest
 
 @MainActor
 final class SearchViewModelTests: XCTestCase {
+    func testFirstNaturalSearchOpeningShowsOnboardingOnce() {
+        let onboarding = InMemoryNaturalJourneyOnboardingStore(hasSeenOnboarding: false)
+        let model = makeModel(
+            naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: onboarding
+        )
+
+        model.openNaturalSearch()
+
+        XCTAssertTrue(model.isNaturalSearchPresented)
+        XCTAssertEqual(model.naturalSearchState, .onboarding)
+
+        model.showNaturalSearchInput()
+
+        XCTAssertEqual(model.naturalSearchState, .input)
+        XCTAssertTrue(onboarding.hasSeenOnboarding)
+    }
+
+    func testDismissingOnboardingDoesNotShowItAgain() {
+        let onboarding = InMemoryNaturalJourneyOnboardingStore(hasSeenOnboarding: false)
+        let model = makeModel(
+            naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: onboarding
+        )
+
+        model.openNaturalSearch()
+        model.dismissNaturalSearch()
+        model.openNaturalSearch()
+
+        XCTAssertTrue(model.isNaturalSearchPresented)
+        XCTAssertEqual(model.naturalSearchState, .input)
+    }
+
+    func testIneligibleDeviceCannotOpenNaturalSearch() {
+        let model = makeModel(
+            naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
+            naturalLanguageAvailability: .unavailable(.deviceNotEligible)
+        )
+
+        model.openNaturalSearch()
+
+        XCTAssertFalse(model.isNaturalSearchPresented)
+        XCTAssertEqual(model.naturalLanguageAccess, .hidden)
+    }
+
+    func testTemporarilyUnavailableModelOpensRecoveryExplanation() {
+        let model = makeModel(
+            naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
+            naturalLanguageAvailability: .unavailable(.modelNotReady)
+        )
+
+        model.openNaturalSearch()
+
+        XCTAssertTrue(model.isNaturalSearchPresented)
+        XCTAssertEqual(model.naturalSearchState, .availability(.modelDownloading))
+    }
+
+    func testNaturalSearchReadyResultUsesTheExistingJourneyPresentation() async {
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: "Ma position",
+            destination: JourneyPlaceSelection(.previewStation).journeyDestination,
+            destinationResult: .previewStation,
+            requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+            datetimeRepresents: .arrival,
+            requiredModes: [],
+            excludedModes: [.rer],
+            preferredModes: []
+        )
+        let naturalRepository = NaturalJourneyRepositoryRecorder(
+            result: .ready(interpretation: interpretation, journeys: .mapPreview)
+        )
+        let location = LocationModel(adapter: InMemoryLocationAdapter(
+            coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        ))
+        let model = makeModel(
+            location: location,
+            naturalJourneyRepository: naturalRepository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true
+            )
+        )
+        model.naturalQuery = "Châtelet demain avant 8 h, sans RER"
+
+        model.submitNaturalSearch()
+        await waitForStep(model, .results)
+
+        XCTAssertEqual(model.selectedDestination, .previewStation)
+        XCTAssertEqual(model.journeyResult, .mapPreview)
+        XCTAssertEqual(model.selectedJourneyID, JourneyResult.mapPreview.journeys.first?.id)
+        XCTAssertEqual(model.naturalJourneyCriteria?.requestedAt, interpretation.requestedAt)
+        XCTAssertEqual(model.naturalJourneyCriteria?.datetimeRepresents, .arrival)
+        XCTAssertEqual(model.naturalJourneyCriteria?.excludedModes, [.rer])
+        XCTAssertFalse(model.isNaturalSearchPresented)
+        let requests = await naturalRepository.requests
+        XCTAssertEqual(requests, [.submit(
+            query: "Châtelet demain avant 8 h, sans RER",
+            currentLocation: GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        )])
+    }
+
+    func testNaturalNetworkFailureKeepsCriteriaAndPhraseForRetry() async {
+        let requestedAt = ISO8601.parse("2026-08-21T08:00:00+02:00")!
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: "Ma position",
+            originCoordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
+            destination: JourneyPlaceSelection(.previewStation).journeyDestination,
+            destinationResult: .previewStation,
+            requestedAt: requestedAt,
+            datetimeRepresents: .arrival,
+            requiredModes: [],
+            excludedModes: [.rer],
+            preferredModes: []
+        )
+        let naturalRepository = NaturalJourneyRepositoryRecorder(
+            result: .networkUnavailable(interpretation: interpretation)
+        )
+        let model = makeModel(
+            naturalJourneyRepository: naturalRepository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true
+            )
+        )
+        model.naturalQuery = "Nation demain avant 8 h, sans RER"
+
+        model.submitNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .failed = $0 { return true }
+            return false
+        }
+
+        XCTAssertEqual(model.naturalQuery, "Nation demain avant 8 h, sans RER")
+        XCTAssertEqual(model.naturalJourneyCriteria?.destinationResult, .previewStation)
+        XCTAssertEqual(model.naturalJourneyCriteria?.requestedAt, requestedAt)
+        XCTAssertEqual(model.naturalJourneyCriteria?.excludedModes, [.rer])
+    }
+
+    func testSuccessfulNaturalSearchDoesNotKeepAReplayablePhrase() async {
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: "Ma position",
+            destination: JourneyPlaceSelection(.previewStation).journeyDestination,
+            destinationResult: .previewStation,
+            requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+            datetimeRepresents: .arrival,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+        )
+        let repository = NaturalJourneyRepositoryRecorder(
+            result: .ready(interpretation: interpretation, journeys: .mapPreview),
+        )
+        let model = makeModel(
+            naturalJourneyRepository: repository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true,
+            ),
+        )
+        model.naturalQuery = "Nation demain avant 8 h"
+
+        model.submitNaturalSearch()
+        await waitForStep(model, .results)
+        model.retryNaturalSearch()
+        await Task.yield()
+
+        XCTAssertEqual(model.naturalQuery, "")
+        let requests = await repository.requests
+        XCTAssertEqual(requests.count, 1)
+    }
+
+    func testLeavingForClassicSearchClearsTheNaturalPhraseAndRetryRequest() async {
+        let repository = NaturalJourneyRepositoryRecorder(responses: [.failure(.transport)])
+        let model = makeModel(
+            naturalJourneyRepository: repository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true,
+            ),
+        )
+        model.naturalQuery = "Nation demain avant 8 h"
+        model.submitNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .failed = $0 { return true }
+            return false
+        }
+
+        model.useClassicSearch()
+        model.retryNaturalSearch()
+        await Task.yield()
+
+        XCTAssertEqual(model.naturalQuery, "")
+        let requests = await repository.requests
+        XCTAssertEqual(requests.count, 1)
+    }
+
+    func testNaturalPlaceClarificationStaysInTheSameSheetAndThenCompletes() async {
+        let draft = NaturalJourneyDraft(
+            intent: RouteIntent(
+                scope: .journey,
+                origin: .currentLocation,
+                destinationQuery: "Nation",
+                requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+                datetimeRepresents: .arrival,
+                requiredModes: [],
+                excludedModes: [],
+                preferredModes: []
+            ),
+            origin: nil,
+            destination: nil
+        )
+        let clarification = NaturalJourneyClarification(
+            target: .destination,
+            question: "Quel lieu veux-tu choisir ?",
+            candidates: [.previewStation]
+        )
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: "Ma position",
+            destination: JourneyPlaceSelection(.previewStation).journeyDestination,
+            destinationResult: .previewStation,
+            requestedAt: draft.intent.requestedAt!,
+            datetimeRepresents: .arrival,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: []
+        )
+        let naturalRepository = NaturalJourneyRepositoryRecorder(results: [
+            .needsClarification(draft: draft, fields: [clarification]),
+            .ready(interpretation: interpretation, journeys: .mapPreview),
+        ])
+        let model = makeModel(
+            naturalJourneyRepository: naturalRepository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true
+            )
+        )
+        model.naturalQuery = "Nation demain avant 8 h"
+
+        model.submitNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .clarification = $0 { return true }
+            return false
+        }
+        model.resolveNaturalPlace(draft: draft, field: clarification, candidate: .previewStation)
+        await waitForStep(model, .results)
+
+        XCTAssertFalse(model.isNaturalSearchPresented)
+        let requests = await naturalRepository.requests
+        XCTAssertEqual(requests.count, 2)
+        guard case let .resolve(_, _, _, destination, _, _) = requests.last else {
+            return XCTFail("Expected a clarification resolution")
+        }
+        XCTAssertEqual(destination, .previewStation)
+    }
+
+    func testEditingNaturalTimeReplansWithAllInterpretedConstraints() async {
+        let firstTime = ISO8601.parse("2026-08-21T08:00:00+02:00")!
+        let editedTime = ISO8601.parse("2026-08-21T18:00:00+02:00")!
+        let coordinate = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: "Ma position",
+            originCoordinate: coordinate,
+            destination: JourneyPlaceSelection(.previewStation).journeyDestination,
+            destinationResult: .previewStation,
+            requestedAt: firstTime,
+            datetimeRepresents: .arrival,
+            requiredModes: [.metro],
+            excludedModes: [.rer],
+            preferredModes: [.bus]
+        )
+        let naturalRepository = NaturalJourneyRepositoryRecorder(
+            result: .ready(interpretation: interpretation, journeys: .mapPreview)
+        )
+        let journeys = JourneyRepositoryRecorder(result: .mapPreview)
+        let model = makeModel(
+            journeyRepository: journeys,
+            location: LocationModel(adapter: InMemoryLocationAdapter(coordinate: coordinate)),
+            naturalJourneyRepository: naturalRepository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true
+            )
+        )
+        model.naturalQuery = "Nation avant 8 h sans RER"
+        model.submitNaturalSearch()
+        await waitForStep(model, .results)
+
+        model.updateNaturalTime(editedTime, represents: .departure)
+        await waitUntil { await journeys.requests().count == 1 }
+
+        let request = await journeys.requests().first
+        XCTAssertEqual(request?.requestedAt, editedTime)
+        XCTAssertEqual(request?.datetimeRepresents, .departure)
+        XCTAssertEqual(request?.requiredModes, [.metro])
+        XCTAssertEqual(request?.excludedModes, [.rer])
+        XCTAssertEqual(request?.preferredModes, [.bus])
+    }
+
+    func testNaturalSearchErrorPreservesThePhraseAndRetriesTheSameRequest() async {
+        let naturalRepository = NaturalJourneyRepositoryRecorder(responses: [
+            .failure(.transport),
+            .success(.unsupported(message: "Demande hors périmètre", examples: [])),
+        ])
+        let model = makeModel(
+            naturalJourneyRepository: naturalRepository,
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true
+            )
+        )
+        model.naturalQuery = "Nation demain avant 8 h"
+
+        model.submitNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .failed = $0 { return true }
+            return false
+        }
+        XCTAssertEqual(model.naturalQuery, "Nation demain avant 8 h")
+
+        model.retryNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .unsupported = $0 { return true }
+            return false
+        }
+
+        let requests = await naturalRepository.requests
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(requests.first, requests.last)
+    }
+
+    func testNaturalModeDecisionSubmitsTheUsersChoice() async {
+        let draft = NaturalJourneyDraft(
+            intent: RouteIntent(
+                scope: .journey,
+                origin: .currentLocation,
+                destinationQuery: "Nation",
+                requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+                datetimeRepresents: .departure,
+                requiredModes: [.metro],
+                excludedModes: [.metro],
+                preferredModes: []
+            ),
+            origin: nil,
+            destination: nil
+        )
+        let naturalRepository = NaturalJourneyRepositoryRecorder(
+            result: .unsupported(message: "stop", examples: [])
+        )
+        let model = makeModel(
+            naturalJourneyRepository: naturalRepository,
+            naturalLanguageAvailability: .available
+        )
+
+        model.resolveNaturalModeConflict(
+            draft: draft,
+            mode: .metro,
+            keeping: .excluded
+        )
+        await waitForNaturalState(model) {
+            if case .unsupported = $0 { return true }
+            return false
+        }
+
+        let requests = await naturalRepository.requests
+        XCTAssertEqual(requests, [.resolveModeConflict(
+            draft: draft,
+            currentLocation: nil,
+            mode: .metro,
+            keeping: .excluded
+        )])
+    }
+
     func testEnterBeforeSuggestionsArriveSelectsTheFirstResponse() async {
         let journeys = JourneyRepositoryRecorder(result: .mapPreview)
         let model = makeModel(journeyRepository: journeys)
@@ -296,12 +671,18 @@ final class SearchViewModelTests: XCTestCase {
     private func makeModel(
         repository: any SearchRepository = InMemorySearchRepository.preview,
         journeyRepository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
-        location: LocationModel = LocationModel(adapter: InMemoryLocationAdapter())
+        location: LocationModel = LocationModel(adapter: InMemoryLocationAdapter()),
+        naturalJourneyRepository: (any NaturalJourneyRepository)? = nil,
+        naturalLanguageAvailability: NaturalLanguageAvailability = .unavailable(.deviceNotEligible),
+        naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring = InMemoryNaturalJourneyOnboardingStore()
     ) -> SearchViewModel {
         SearchViewModel(
             repository: repository,
             journeyRepository: journeyRepository,
-            locationModel: location
+            locationModel: location,
+            naturalJourneyRepository: naturalJourneyRepository,
+            naturalLanguageAvailability: { naturalLanguageAvailability },
+            naturalJourneyOnboardingStore: naturalJourneyOnboardingStore
         )
     }
 
@@ -311,7 +692,7 @@ final class SearchViewModelTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) async {
-        for _ in 0..<160 {
+        for _ in 0 ..< 160 {
             if model.loadState == expected { return }
             await Task.yield()
             try? await Task.sleep(for: .milliseconds(5))
@@ -325,7 +706,7 @@ final class SearchViewModelTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) async {
-        for _ in 0..<160 {
+        for _ in 0 ..< 160 {
             if model.step == expected { return }
             await Task.yield()
             try? await Task.sleep(for: .milliseconds(5))
@@ -333,12 +714,26 @@ final class SearchViewModelTests: XCTestCase {
         XCTFail("Expected step \(expected), got \(model.step)", file: file, line: line)
     }
 
+    private func waitForNaturalState(
+        _ model: SearchViewModel,
+        matching predicate: (NaturalSearchState) -> Bool,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        for _ in 0 ..< 160 {
+            if predicate(model.naturalSearchState) { return }
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        XCTFail("Unexpected natural search state \(model.naturalSearchState)", file: file, line: line)
+    }
+
     private func waitUntil(
         _ predicate: @escaping @Sendable () async -> Bool,
         file: StaticString = #filePath,
         line: UInt = #line
     ) async {
-        for _ in 0..<200 {
+        for _ in 0 ..< 200 {
             if await predicate() { return }
             await Task.yield()
             try? await Task.sleep(for: .milliseconds(5))
@@ -368,8 +763,31 @@ private actor JourneyRepositoryRecorder: JourneyRepository {
     func requests() -> [JourneyRequest] { recordedRequests }
 }
 
+private actor NaturalJourneyRepositoryRecorder: NaturalJourneyRepository {
+    private var responses: [Result<NaturalJourneyResult, ViaError>]
+    private(set) var requests: [NaturalJourneyRequest] = []
+
+    init(result: NaturalJourneyResult) {
+        responses = [.success(result)]
+    }
+
+    init(results: [NaturalJourneyResult]) {
+        responses = results.map(Result.success)
+    }
+
+    init(responses: [Result<NaturalJourneyResult, ViaError>]) {
+        self.responses = responses
+    }
+
+    func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
+        requests.append(request)
+        let response = responses.count > 1 ? responses.removeFirst() : responses[0]
+        return try response.get()
+    }
+}
+
 private actor NeverFinishingSearchRepository: SearchRepository {
-    func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
+    func search(query _: String, near _: GeoCoordinate?) async throws -> SearchResponse {
         while !Task.isCancelled {
             try await Task.sleep(for: .seconds(1))
         }
@@ -380,7 +798,7 @@ private actor NeverFinishingSearchRepository: SearchRepository {
 private actor DelayedSearchRepository: SearchRepository {
     private var recordedQueries: [String] = []
 
-    func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
+    func search(query: String, near _: GeoCoordinate?) async throws -> SearchResponse {
         recordedQueries.append(query)
         if query == "old" {
             try await Task.sleep(for: .seconds(2))

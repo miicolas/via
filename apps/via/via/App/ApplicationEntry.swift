@@ -44,7 +44,9 @@ struct ApplicationEntry: App {
                 repository: dependencies.searchRepository,
                 journeyRepository: dependencies.journeyRepository,
                 locationModel: dependencies.locationModel,
-                account: dependencies.accountModel
+                account: dependencies.accountModel,
+                naturalJourneyRepository: dependencies.naturalJourneyRepository,
+                naturalLanguageAvailability: dependencies.naturalLanguageAvailability
             )
         )
         let activeJourneyModel = ActiveJourneyModel(
@@ -149,6 +151,8 @@ struct ApplicationEntry: App {
                     base: InMemoryJourneyRepository(result: .mapPreview),
                     account: accountModel
                 ),
+                naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
+                naturalLanguageAvailability: { .available },
                 lineStatusRepository: PreviewLineStatusRepository(),
                 accountModel: accountModel,
                 authSessionViewModel: AuthSessionViewModel(
@@ -156,7 +160,7 @@ struct ApplicationEntry: App {
                     vault: InMemoryAuthSessionVault(),
                     account: accountModel
                 ),
-                onboardingModel: OnboardingModel(),
+                onboardingModel: OnboardingModel()
             )
         }
 
@@ -172,17 +176,28 @@ struct ApplicationEntry: App {
             base: LiveJourneyRepository(transport: transport),
             account: accountModel
         )
+        let searchRepository = LiveSearchRepository(transport: transport)
+        let naturalIntentParser = FoundationModelsIntentParser()
+        let naturalJourneyRepository = OnDeviceNaturalJourneyService(
+            parser: naturalIntentParser,
+            places: OnDevicePlaceResolver { query, coordinate in
+                try await searchRepository.search(query: query, near: coordinate)
+            },
+            journeys: journeyRepository
+        )
 
         return Dependencies(
             locationModel: LocationModel(adapter: CoreLocationAdapter()),
             networkRepository: LiveNetworkRepository(transport: transport),
             departuresRepository: LiveDeparturesRepository(transport: transport),
-            searchRepository: LiveSearchRepository(transport: transport),
+            searchRepository: searchRepository,
             reportRepository: InMemoryReportRepository(),
             activeJourneyStore: UserDefaultsActiveJourneyStore(),
             activityManager: JourneyActivityManager(),
             connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
+            naturalJourneyRepository: naturalJourneyRepository,
+            naturalLanguageAvailability: { naturalIntentParser.availability },
             lineStatusRepository: LiveLineStatusRepository(transport: transport),
             accountModel: accountModel,
             authSessionViewModel: AuthSessionViewModel(
@@ -190,7 +205,7 @@ struct ApplicationEntry: App {
                 vault: authSessionVault,
                 account: accountModel
             ),
-            onboardingModel: OnboardingModel(),
+            onboardingModel: OnboardingModel()
         )
     }
 
@@ -204,6 +219,8 @@ struct ApplicationEntry: App {
         let activityManager: any JourneyActivityManaging
         let connectivityMonitor: any ConnectivityMonitoring
         let journeyRepository: any JourneyRepository
+        let naturalJourneyRepository: any NaturalJourneyRepository
+        let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
         let lineStatusRepository: any LineStatusRepository
         let accountModel: AccountModel
         let authSessionViewModel: AuthSessionViewModel

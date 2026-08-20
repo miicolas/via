@@ -36,6 +36,5 @@ test('the public route table is stable', async () => {
     'GET /api/search',
     'POST /api/account/delete',
     'POST /api/account/sync',
-    'POST /api/natural-journeys',
   ]);
 });

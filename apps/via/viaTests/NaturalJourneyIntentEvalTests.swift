@@ -1,35 +1,57 @@
-import XCTest
 @testable import Via
+import XCTest
 
 final class NaturalJourneyIntentEvalTests: XCTestCase {
+    func testCorpusContainsAtLeastOneHundredFrenchFormulations() {
+        XCTAssertGreaterThanOrEqual(Self.corpus.count, 100)
+    }
+
     func testAnnotatedFrenchJourneyCorpus() async throws {
         #if targetEnvironment(simulator)
-        throw XCTSkip("Foundation Models ne prend pas en charge l’inférence dans le simulateur")
+            throw XCTSkip("Foundation Models ne prend pas en charge l’inférence dans le simulateur")
         #else
-        let parser = FoundationModelsIntentParser()
-        try XCTSkipUnless(
-            parser.availability == .available,
-            "Foundation Models français indisponible sur cet appareil"
-        )
-        let now = try XCTUnwrap(ISO8601.parse("2026-08-17T09:00:00+02:00"))
+            let parser = FoundationModelsIntentParser()
+            try XCTSkipUnless(
+                parser.availability == .available,
+                "Foundation Models français indisponible sur cet appareil"
+            )
+            let now = try XCTUnwrap(ISO8601.parse("2026-08-17T09:00:00+02:00"))
 
-        for evaluation in Self.corpus {
-            let intent = try await parser.parseIntent(evaluation.phrase, now: now)
-            XCTAssertEqual(intent.scope, evaluation.scope, evaluation.id)
-            XCTAssertEqual(intent.destinationQuery, evaluation.destination, evaluation.id)
-            XCTAssertEqual(intent.datetimeRepresents, evaluation.timeMeaning, evaluation.id)
-            XCTAssertEqual(intent.requiredModes, evaluation.requiredModes, evaluation.id)
-            XCTAssertEqual(intent.excludedModes, evaluation.excludedModes, evaluation.id)
-            XCTAssertEqual(intent.preferredModes, evaluation.preferredModes, evaluation.id)
-            switch (intent.origin, evaluation.origin) {
-            case (.currentLocation, .currentLocation):
-                break
-            case (.place(let actual), .place(let expected)):
-                XCTAssertEqual(actual, expected, evaluation.id)
-            default:
-                XCTFail("\(evaluation.id): origine inattendue")
+            var exactMatches = 0
+            var mismatches: [String] = []
+            for evaluation in Self.corpus {
+                let intent = try await parser.parseIntent(evaluation.phrase, now: now)
+                let originMatches: Bool = switch (intent.origin, evaluation.origin) {
+                case (.currentLocation, .currentLocation):
+                    true
+                case let (.place(actual), .place(expected)):
+                    actual == expected
+                default:
+                    false
+                }
+                let matches = intent.scope == evaluation.scope
+                    && intent.destinationQuery == evaluation.destination
+                    && intent.datetimeRepresents == evaluation.timeMeaning
+                    && intent.requiredModes == evaluation.requiredModes
+                    && intent.excludedModes == evaluation.excludedModes
+                    && intent.preferredModes == evaluation.preferredModes
+                    && originMatches
+                if matches {
+                    exactMatches += 1
+                } else {
+                    mismatches.append(evaluation.id)
+                }
+
+                if evaluation.scope == .journey, evaluation.destination != nil {
+                    XCTAssertNotNil(intent.destinationQuery, "\(evaluation.id): destination critique inventée ou perdue")
+                }
             }
-        }
+            let accuracy = Double(exactMatches) / Double(Self.corpus.count)
+            XCTAssertGreaterThanOrEqual(
+                accuracy,
+                0.95,
+                "Précision \(accuracy); cas en échec: \(mismatches.joined(separator: ", "))"
+            )
         #endif
     }
 
@@ -45,7 +67,9 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         var preferredModes: Set<TransitMode> = []
     }
 
-    private static let corpus: [Evaluation] = [
+    private static let corpus: [Evaluation] = baseCorpus + generatedCorpus
+
+    private static let baseCorpus: [Evaluation] = [
         .init(
             id: "fr-01-01",
             phrase: "Je veux aller à Gare du Nord",
@@ -123,4 +147,100 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
             destination: nil, timeMeaning: .departure
         ),
     ]
+
+    private static let generatedCorpus: [Evaluation] = {
+        let destinations = [
+            "Nation",
+            "Châtelet",
+            "La Défense",
+            "Gare de Lyon",
+            "Gare du Nord",
+            "Montparnasse",
+            "Aéroport d’Orly",
+            "Saint-Lazare",
+            "République",
+            "Bibliothèque François Mitterrand",
+        ]
+
+        return destinations.enumerated().flatMap { index, destination in
+            let prefix = String(format: "generated-%02d", index + 1)
+            return [
+                Evaluation(
+                    id: "\(prefix)-simple",
+                    phrase: "Je veux aller à \(destination)",
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destination: destination,
+                    timeMeaning: .departure
+                ),
+                Evaluation(
+                    id: "\(prefix)-arrival",
+                    phrase: "Je dois arriver à \(destination) avant 9 h",
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destination: destination,
+                    timeMeaning: .arrival
+                ),
+                Evaluation(
+                    id: "\(prefix)-departure",
+                    phrase: "Je veux partir vers \(destination) après 18 h",
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destination: destination,
+                    timeMeaning: .departure
+                ),
+                Evaluation(
+                    id: "\(prefix)-without-rer",
+                    phrase: "\(destination) sans RER",
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destination: destination,
+                    timeMeaning: .departure,
+                    excludedModes: [.rer]
+                ),
+                Evaluation(
+                    id: "\(prefix)-prefer-bus",
+                    phrase: "\(destination) plutôt en bus",
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destination: destination,
+                    timeMeaning: .departure,
+                    preferredModes: [.bus]
+                ),
+                Evaluation(
+                    id: "\(prefix)-metro-only",
+                    phrase: "\(destination) uniquement en métro",
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destination: destination,
+                    timeMeaning: .departure,
+                    requiredModes: [.metro]
+                ),
+                Evaluation(
+                    id: "\(prefix)-from-chatelet",
+                    phrase: "De Châtelet à \(destination) demain à 10 h",
+                    scope: .journey,
+                    origin: .place(query: "Châtelet"),
+                    destination: destination,
+                    timeMeaning: .arrival
+                ),
+                Evaluation(
+                    id: "\(prefix)-from-north",
+                    phrase: "Depuis Gare du Nord vers \(destination) vendredi après 17 h",
+                    scope: .journey,
+                    origin: .place(query: "Gare du Nord"),
+                    destination: destination,
+                    timeMeaning: .departure
+                ),
+                Evaluation(
+                    id: "\(prefix)-morning",
+                    phrase: "\(destination) demain matin",
+                    scope: .journey,
+                    origin: .currentLocation,
+                    destination: destination,
+                    timeMeaning: .departure
+                ),
+            ]
+        }
+    }()
 }

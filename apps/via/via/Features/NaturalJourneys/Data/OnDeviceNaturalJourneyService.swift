@@ -16,7 +16,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         parser: any NaturalIntentParsing,
         places: OnDevicePlaceResolver,
         journeys: any JourneyRepository,
-        now: @escaping @Sendable () -> Date = { .now }
+        now: @escaping @Sendable () -> Date = { .now },
     ) {
         self.parser = parser
         self.places = places
@@ -30,49 +30,171 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         let currentLocation: GeoCoordinate?
 
         switch request {
-        case .submit(let query, let location):
+        case let .submit(query, location):
             do {
-                let intent = try await parser.parseIntent(query, now: currentTime)
+                let parsed = try await parser.parseIntent(query, now: currentTime)
+                let intent = Self.normalizedTime(in: parsed, now: currentTime)
                 draft = NaturalJourneyDraft(intent: intent, origin: nil, destination: nil)
             } catch NaturalIntentParsingError.cancelled {
                 throw CancellationError()
             }
             currentLocation = location
-        case .resolve(
-            let submittedDraft,
-            let location,
-            let submittedOrigin,
-            let submittedDestination,
-            let submittedTime
+        case let .resolve(
+            submittedDraft,
+            location,
+            submittedOrigin,
+            submittedDestination,
+            submittedRequestedAt,
+            submittedTime,
         ):
             let origin = try await verify(
                 submittedOrigin ?? submittedDraft.origin,
-                near: location
+                near: location,
             )
             try Task.checkCancellation()
             let destination = try await verify(
                 submittedDestination ?? submittedDraft.destination,
-                near: location
+                near: location,
             )
-            let intent: RouteIntent
-            if let submittedTime {
-                intent = RouteIntent(
+            let intent: RouteIntent = if let submittedTime {
+                RouteIntent(
                     scope: submittedDraft.intent.scope,
                     origin: submittedDraft.intent.origin,
                     destinationQuery: submittedDraft.intent.destinationQuery,
-                    requestedAt: submittedDraft.intent.requestedAt,
+                    requestedAt: submittedRequestedAt ?? submittedDraft.intent.requestedAt,
                     datetimeRepresents: submittedTime == .arrival ? .arrival : .departure,
                     requiredModes: submittedDraft.intent.requiredModes,
                     excludedModes: submittedDraft.intent.excludedModes,
-                    preferredModes: submittedDraft.intent.preferredModes
+                    preferredModes: submittedDraft.intent.preferredModes,
+                    unsupportedConstraints: submittedDraft.intent.unsupportedConstraints,
+                    dateWasExplicit: submittedDraft.intent.dateWasExplicit,
+                    timeWasExplicit: submittedRequestedAt == nil
+                        ? submittedDraft.intent.timeWasExplicit
+                        : true,
+                    alternateTimeConstraint: submittedDraft.intent.alternateTimeConstraint,
+                    originWasExplicit: submittedDraft.intent.originWasExplicit,
                 )
             } else {
-                intent = submittedDraft.intent
+                submittedDraft.intent
             }
             draft = NaturalJourneyDraft(
                 intent: intent,
                 origin: origin,
-                destination: destination
+                destination: destination,
+            )
+            currentLocation = location
+        case let .resolveModeConflict(submittedDraft, location, mode, constraint):
+            var requiredModes = submittedDraft.intent.requiredModes
+            var excludedModes = submittedDraft.intent.excludedModes
+            var preferredModes = submittedDraft.intent.preferredModes
+            switch constraint {
+            case .required:
+                requiredModes.insert(mode)
+                excludedModes.remove(mode)
+                preferredModes.remove(mode)
+            case .excluded:
+                requiredModes.remove(mode)
+                excludedModes.insert(mode)
+                preferredModes.remove(mode)
+            case .preferred:
+                requiredModes.remove(mode)
+                excludedModes.remove(mode)
+                preferredModes.insert(mode)
+            }
+            let intent = RouteIntent(
+                scope: submittedDraft.intent.scope,
+                origin: submittedDraft.intent.origin,
+                destinationQuery: submittedDraft.intent.destinationQuery,
+                requestedAt: submittedDraft.intent.requestedAt,
+                datetimeRepresents: submittedDraft.intent.datetimeRepresents,
+                requiredModes: requiredModes,
+                excludedModes: excludedModes,
+                preferredModes: preferredModes,
+                unsupportedConstraints: submittedDraft.intent.unsupportedConstraints,
+                dateWasExplicit: submittedDraft.intent.dateWasExplicit,
+                timeWasExplicit: submittedDraft.intent.timeWasExplicit,
+                alternateTimeConstraint: submittedDraft.intent.alternateTimeConstraint,
+                originWasExplicit: submittedDraft.intent.originWasExplicit,
+            )
+            draft = NaturalJourneyDraft(
+                intent: intent,
+                origin: submittedDraft.origin,
+                destination: submittedDraft.destination,
+            )
+            currentLocation = location
+        case let .continueWithoutUnsupportedConstraints(submittedDraft, location):
+            let intent = RouteIntent(
+                scope: submittedDraft.intent.scope,
+                origin: submittedDraft.intent.origin,
+                destinationQuery: submittedDraft.intent.destinationQuery,
+                requestedAt: submittedDraft.intent.requestedAt,
+                datetimeRepresents: submittedDraft.intent.datetimeRepresents,
+                requiredModes: submittedDraft.intent.requiredModes,
+                excludedModes: submittedDraft.intent.excludedModes,
+                preferredModes: submittedDraft.intent.preferredModes,
+                unsupportedConstraints: [],
+                dateWasExplicit: submittedDraft.intent.dateWasExplicit,
+                timeWasExplicit: submittedDraft.intent.timeWasExplicit,
+                alternateTimeConstraint: submittedDraft.intent.alternateTimeConstraint,
+                originWasExplicit: submittedDraft.intent.originWasExplicit,
+            )
+            draft = NaturalJourneyDraft(
+                intent: intent,
+                origin: submittedDraft.origin,
+                destination: submittedDraft.destination,
+            )
+            currentLocation = location
+        case let .resolveTimeConflict(submittedDraft, location, chosen):
+            let primary = submittedDraft.intent.requestedAt.map {
+                RouteTimeConstraint(
+                    requestedAt: $0,
+                    meaning: submittedDraft.intent.datetimeRepresents == .arrival ? .arrival : .departure,
+                )
+            }
+            guard chosen == primary || chosen == submittedDraft.intent.alternateTimeConstraint else {
+                throw ViaError.invalidRequest("La contrainte horaire choisie ne correspond pas à la demande")
+            }
+            let intent = RouteIntent(
+                scope: submittedDraft.intent.scope,
+                origin: submittedDraft.intent.origin,
+                destinationQuery: submittedDraft.intent.destinationQuery,
+                requestedAt: chosen.requestedAt,
+                datetimeRepresents: chosen.meaning == .arrival ? .arrival : .departure,
+                requiredModes: submittedDraft.intent.requiredModes,
+                excludedModes: submittedDraft.intent.excludedModes,
+                preferredModes: submittedDraft.intent.preferredModes,
+                unsupportedConstraints: submittedDraft.intent.unsupportedConstraints,
+                dateWasExplicit: submittedDraft.intent.dateWasExplicit,
+                timeWasExplicit: submittedDraft.intent.timeWasExplicit,
+                alternateTimeConstraint: nil,
+                originWasExplicit: submittedDraft.intent.originWasExplicit,
+            )
+            draft = NaturalJourneyDraft(
+                intent: intent,
+                origin: submittedDraft.origin,
+                destination: submittedDraft.destination,
+            )
+            currentLocation = location
+        case let .confirmCurrentLocation(submittedDraft, location):
+            let intent = RouteIntent(
+                scope: submittedDraft.intent.scope,
+                origin: .currentLocation,
+                destinationQuery: submittedDraft.intent.destinationQuery,
+                requestedAt: submittedDraft.intent.requestedAt,
+                datetimeRepresents: submittedDraft.intent.datetimeRepresents,
+                requiredModes: submittedDraft.intent.requiredModes,
+                excludedModes: submittedDraft.intent.excludedModes,
+                preferredModes: submittedDraft.intent.preferredModes,
+                unsupportedConstraints: submittedDraft.intent.unsupportedConstraints,
+                dateWasExplicit: submittedDraft.intent.dateWasExplicit,
+                timeWasExplicit: submittedDraft.intent.timeWasExplicit,
+                alternateTimeConstraint: submittedDraft.intent.alternateTimeConstraint,
+                originWasExplicit: true,
+            )
+            draft = NaturalJourneyDraft(
+                intent: intent,
+                origin: submittedDraft.origin,
+                destination: submittedDraft.destination,
             )
             currentLocation = location
         }
@@ -81,12 +203,71 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         if draft.intent.scope == .unsupported {
             return .unsupported(message: Self.unsupportedMessage, examples: Self.examples)
         }
+        if case .currentLocation = draft.intent.origin,
+           !draft.intent.originWasExplicit,
+           currentLocation != nil
+        {
+            return .needsDecision(draft: draft, decision: .currentLocation)
+        }
+
+        let conflictingModes = draft.intent.requiredModes.intersection(draft.intent.excludedModes)
+        if let mode = conflictingModes.sorted().first {
+            return .needsDecision(
+                draft: draft,
+                decision: .modeConflict(mode, choices: [.required, .excluded]),
+            )
+        }
+        let conflictingPreferences = draft.intent.preferredModes.intersection(
+            draft.intent.excludedModes,
+        )
+        if let mode = conflictingPreferences.sorted().first {
+            return .needsDecision(
+                draft: draft,
+                decision: .modeConflict(mode, choices: [.preferred, .excluded]),
+            )
+        }
+        if !draft.intent.unsupportedConstraints.isEmpty {
+            return .needsDecision(
+                draft: draft,
+                decision: .unsupportedConstraints(draft.intent.unsupportedConstraints),
+            )
+        }
+        if draft.intent.dateWasExplicit, !draft.intent.timeWasExplicit {
+            return .needsClarification(
+                draft: draft,
+                fields: [.init(
+                    target: .time,
+                    question: "À quelle heure veux-tu voyager ?",
+                    candidates: [],
+                )],
+            )
+        }
+        if let requestedAt = draft.intent.requestedAt,
+           requestedAt < currentTime,
+           draft.intent.dateWasExplicit
+        {
+            return .needsDecision(draft: draft, decision: .pastDate(requestedAt))
+        }
+        if let requestedAt = draft.intent.requestedAt,
+           let alternate = draft.intent.alternateTimeConstraint
+        {
+            let primaryMeaning: JourneyDatetimeRepresents = draft.intent.datetimeRepresents == .arrival
+                ? .arrival
+                : .departure
+            return .needsDecision(
+                draft: draft,
+                decision: .timeConflict(
+                    RouteTimeConstraint(requestedAt: requestedAt, meaning: primaryMeaning),
+                    alternate,
+                ),
+            )
+        }
 
         let resolved = try await resolveDraft(draft, currentLocation: currentLocation)
         switch resolved {
-        case .clarification(let result):
+        case let .clarification(result):
             return result
-        case .resolved(let nextDraft):
+        case let .resolved(nextDraft):
             draft = nextDraft
         }
 
@@ -94,7 +275,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         guard let requestedAt = draft.intent.requestedAt else {
             return .needsClarification(
                 draft: draft,
-                fields: [.init(target: .time, question: "Pour quand ?", candidates: [])]
+                fields: [.init(target: .time, question: "Pour quand ?", candidates: [])],
             )
         }
 
@@ -105,7 +286,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         guard let origin, let destinationResult = draft.destination else {
             return .unavailable(
                 message: "J’ai besoin d’un point de départ pour calculer le trajet.",
-                guidance: nil
+                guidance: nil,
             )
         }
         guard draft.intent.datetimeRepresents != .ambiguous else {
@@ -114,8 +295,8 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 fields: [.init(
                     target: .time,
                     question: "Tu veux partir ou arriver à cette heure ?",
-                    candidates: []
-                )]
+                    candidates: [],
+                )],
             )
         }
 
@@ -131,69 +312,49 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         journeyRequest.excludedModes = draft.intent.excludedModes
         journeyRequest.preferredModes = draft.intent.preferredModes
 
-        var journeyResult = try await journeys.plan(journeyRequest)
-        try Task.checkCancellation()
-        var lateNotice: String?
-        if (journeyResult.status != .ready || journeyResult.journeys.first == nil),
-           timeMeaning == .arrival {
-            var fallback = journeyRequest
-            fallback.requestedAt = currentTime
-            fallback.datetimeRepresents = .departure
-            let lateResult = try await journeys.plan(fallback)
-            try Task.checkCancellation()
-            if let first = lateResult.journeys.first, lateResult.status == .ready {
-                journeyResult = lateResult
-                lateNotice = "Aucun trajet n’arrive à l’heure demandée. Le plus proche arrive à \(Self.parisTime(first.arrivalAt))."
-            }
-        }
-
-        guard journeyResult.status == .ready, let firstJourney = journeyResult.journeys.first else {
-            return .unavailable(
-                message: "Je n’ai pas trouvé d’itinéraire vérifiable.",
-                guidance: nil
-            )
-        }
-
-        let preferenceNotice = lateNotice ?? Self.preferredNotice(
-            firstJourney,
-            modes: draft.intent.preferredModes
-        )
         let originLabel = switch draft.intent.origin {
         case .currentLocation: "Ta position"
         case .place: draft.origin?.name ?? "Départ"
         }
         let interpretation = NaturalJourneyInterpretation(
             originLabel: originLabel,
+            originCoordinate: origin,
+            originResult: draft.origin,
             destination: destination,
             destinationResult: destinationResult,
             requestedAt: requestedAt,
             datetimeRepresents: timeMeaning,
             requiredModes: draft.intent.requiredModes,
             excludedModes: draft.intent.excludedModes,
-            preferredModes: draft.intent.preferredModes
+            preferredModes: draft.intent.preferredModes,
         )
-        let facts = OnDeviceAnswerFacts(
-            originLabel: originLabel,
-            destinationLabel: destination.name,
-            requestedAt: requestedAt,
-            datetimeRepresents: timeMeaning,
-            journey: firstJourney,
-            preferenceNotice: preferenceNotice
-        )
-        let generatedAnswer = await parser.writeAnswer(facts)
-        try Task.checkCancellation()
+
+        let journeyResult: JourneyResult
+        do {
+            journeyResult = try await journeys.plan(journeyRequest)
+            try Task.checkCancellation()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return .networkUnavailable(interpretation: interpretation)
+        }
+
+        guard journeyResult.status == .ready, !journeyResult.journeys.isEmpty else {
+            return .unavailable(
+                message: "Je n’ai pas trouvé d’itinéraire vérifiable.",
+                guidance: nil,
+            )
+        }
+
         return .ready(
-            answer: generatedAnswer ?? OnDeviceAnswerComposer.deterministicAnswer(facts),
-            answerSource: generatedAnswer == nil ? .deterministic : .onDevice,
-            preferenceNotice: preferenceNotice,
             interpretation: interpretation,
-            journeys: journeyResult
+            journeys: journeyResult,
         )
     }
 
     private func resolveDraft(
         _ draft: NaturalJourneyDraft,
-        currentLocation: GeoCoordinate?
+        currentLocation: GeoCoordinate?,
     ) async throws -> DraftResolution {
         var fields: [NaturalJourneyClarification] = []
         var origin = draft.origin
@@ -201,16 +362,16 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
 
         if case .currentLocation = draft.intent.origin, currentLocation == nil {
             fields.append(.init(target: .origin, question: "D’où pars-tu ?", candidates: []))
-        } else if case .place(let query) = draft.intent.origin, origin == nil {
+        } else if case let .place(query) = draft.intent.origin, origin == nil {
             let resolution = try await places.resolve(query, near: currentLocation)
             switch resolution {
-            case .resolved(let result):
+            case let .resolved(result):
                 origin = result
             case .ambiguous, .notFound, .unavailable:
                 fields.append(.init(
                     target: .origin,
                     question: "De quel lieu pars-tu ?",
-                    candidates: resolution.candidates
+                    candidates: resolution.candidates,
                 ))
             }
         }
@@ -219,20 +380,20 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         if let query = draft.intent.destinationQuery, destination == nil {
             let resolution = try await places.resolve(query, near: currentLocation)
             switch resolution {
-            case .resolved(let result):
+            case let .resolved(result):
                 destination = result
             case .ambiguous, .notFound, .unavailable:
                 fields.append(.init(
                     target: .destination,
                     question: "Quel lieu veux-tu choisir ?",
-                    candidates: resolution.candidates
+                    candidates: resolution.candidates,
                 ))
             }
         } else if draft.intent.destinationQuery == nil {
             fields.append(.init(
                 target: .destination,
                 question: "Où veux-tu aller ?",
-                candidates: []
+                candidates: [],
             ))
         }
 
@@ -240,14 +401,14 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             fields.append(.init(
                 target: .time,
                 question: "Tu veux partir ou arriver à cette heure ?",
-                candidates: []
+                candidates: [],
             ))
         }
 
         let next = NaturalJourneyDraft(
             intent: draft.intent,
             origin: origin,
-            destination: destination
+            destination: destination,
         )
         return fields.isEmpty
             ? .resolved(next)
@@ -256,50 +417,68 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
 
     private func verify(
         _ submitted: SearchResult?,
-        near currentLocation: GeoCoordinate?
+        near currentLocation: GeoCoordinate?,
     ) async throws -> SearchResult? {
         guard let submitted else { return nil }
         let resolution = try await places.resolve(submitted.name, near: currentLocation)
         switch resolution {
-        case .resolved(let result):
+        case let .resolved(result):
             return result.id == submitted.id ? result : nil
-        case .ambiguous(let candidates):
+        case let .ambiguous(candidates):
             return candidates.first { $0.id == submitted.id }
         case .notFound, .unavailable:
             return nil
         }
     }
 
-    private static func preferredNotice(
-        _ journey: Journey,
-        modes: Set<TransitMode>
-    ) -> String? {
-        guard !modes.isEmpty else { return nil }
-        var transitSeconds = 0
-        var preferredSeconds = 0
-        for section in journey.sections where section.kind == .transit {
-            guard let mode = section.route?.mode else { continue }
-            transitSeconds += section.durationSeconds
-            if modes.contains(mode) { preferredSeconds += section.durationSeconds }
-        }
-        let labels = modes.sorted().map { $0 == .rer ? "RER" : $0.rawValue }.joined(separator: " ou ")
-        let preferredShare = transitSeconds > 0
-            ? Double(preferredSeconds) / Double(transitSeconds)
-            : 0
-        return preferredShare > 0.5
-            ? "Cet itinéraire passe majoritairement en \(labels)."
-            : "Aucun itinéraire raisonnable majoritairement en \(labels) : voici le meilleur trajet."
-    }
-
-    private static func parisTime(_ date: Date) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Europe/Paris")!
-        let parts = calendar.dateComponents([.hour, .minute], from: date)
-        return "\(parts.hour ?? 0) h \(String(format: "%02d", parts.minute ?? 0))"
-    }
-
     private enum DraftResolution {
         case resolved(NaturalJourneyDraft)
         case clarification(NaturalJourneyResult)
+    }
+
+    private static func normalizedTime(in intent: RouteIntent, now: Date) -> RouteIntent {
+        if intent.requestedAt == nil, !intent.dateWasExplicit, !intent.timeWasExplicit {
+            return RouteIntent(
+                scope: intent.scope,
+                origin: intent.origin,
+                destinationQuery: intent.destinationQuery,
+                requestedAt: now,
+                datetimeRepresents: intent.datetimeRepresents,
+                requiredModes: intent.requiredModes,
+                excludedModes: intent.excludedModes,
+                preferredModes: intent.preferredModes,
+                unsupportedConstraints: intent.unsupportedConstraints,
+                dateWasExplicit: false,
+                timeWasExplicit: false,
+                alternateTimeConstraint: intent.alternateTimeConstraint,
+                originWasExplicit: intent.originWasExplicit,
+            )
+        }
+        guard let requestedAt = intent.requestedAt,
+              requestedAt < now,
+              !intent.dateWasExplicit
+        else {
+            return intent
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Paris")!
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: requestedAt) else {
+            return intent
+        }
+        return RouteIntent(
+            scope: intent.scope,
+            origin: intent.origin,
+            destinationQuery: intent.destinationQuery,
+            requestedAt: nextDay,
+            datetimeRepresents: intent.datetimeRepresents,
+            requiredModes: intent.requiredModes,
+            excludedModes: intent.excludedModes,
+            preferredModes: intent.preferredModes,
+            unsupportedConstraints: intent.unsupportedConstraints,
+            dateWasExplicit: intent.dateWasExplicit,
+            timeWasExplicit: intent.timeWasExplicit,
+            alternateTimeConstraint: intent.alternateTimeConstraint,
+            originWasExplicit: intent.originWasExplicit,
+        )
     }
 }

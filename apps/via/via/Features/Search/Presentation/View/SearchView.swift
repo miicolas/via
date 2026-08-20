@@ -9,6 +9,7 @@ struct SearchView: View {
     let onClose: () -> Void
     let onExpandJourneyMap: () -> Void
     let onOpenReport: () -> Void
+    @Binding var sheetDetent: PresentationDetent
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -16,16 +17,20 @@ struct SearchView: View {
     @State private var isDeparturePickerPresented = false
     @State private var inspectedJourney: Journey?
     @State private var isActiveJourneyPresented = false
+    @State private var isNaturalDatePickerPresented = false
+    @State private var isNaturalOptionsPresented = false
 
     init(
         viewModel: SearchViewModel,
         activeJourneyModel: ActiveJourneyModel,
+        sheetDetent: Binding<PresentationDetent> = .constant(.large),
         onClose: @escaping () -> Void = {},
         onExpandJourneyMap: @escaping () -> Void = {},
         onOpenReport: @escaping () -> Void = {}
     ) {
         self.viewModel = viewModel
         self.activeJourneyModel = activeJourneyModel
+        _sheetDetent = sheetDetent
         self.onClose = onClose
         self.onExpandJourneyMap = onExpandJourneyMap
         self.onOpenReport = onOpenReport
@@ -34,47 +39,54 @@ struct SearchView: View {
     var body: some View {
         @Bindable var viewModel = viewModel
 
-        NavigationStack {
-            searchContent(viewModel: $viewModel)
-                .navigationTitle("Recherche")
-                .navigationSubtitle(viewModel.subtitle)
-                .toolbarTitleDisplayMode(.inlineLarge)
-                .toolbar {
-                    ToolbarItem(placement: .largeSubtitle) {
-                        departureMenu(viewModel: $viewModel)
-                    }
-                    ToolbarItem(placement: .subtitle) {
-                        departureMenu(viewModel: $viewModel)
-                    }
-                    if hasActiveJourneySurface {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("Trajet actif", systemImage: "location.fill") {
-                                isActiveJourneyPresented = true
+        Group {
+            if viewModel.isNaturalSearchPresented {
+                NaturalJourneySheet(viewModel: viewModel, detent: $sheetDetent)
+                    .toolbarVisibility(.hidden, for: .tabBar)
+            } else {
+                NavigationStack {
+                    searchContent(viewModel: $viewModel)
+                        .navigationTitle("Recherche")
+                        .navigationSubtitle(viewModel.subtitle)
+                        .toolbarTitleDisplayMode(.inlineLarge)
+                        .toolbar {
+                            ToolbarItem(placement: .largeSubtitle) {
+                                departureMenu(viewModel: $viewModel)
+                            }
+                            ToolbarItem(placement: .subtitle) {
+                                departureMenu(viewModel: $viewModel)
+                            }
+                            if hasActiveJourneySurface {
+                                ToolbarItem(placement: .topBarLeading) {
+                                    Button("Trajet actif", systemImage: "location.fill") {
+                                        isActiveJourneyPresented = true
+                                    }
+                                }
+                            }
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button(role: .close) {
+                                    onClose()
+                                }
                             }
                         }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .close) {
-                            onClose()
+                        .navigationDestination(item: $inspectedJourney) { journey in
+                            if let destination = viewModel.journeyDestination {
+                                JourneyDetailView(
+                                    journey: journey,
+                                    destination: destination,
+                                    source: viewModel.journeyResult?.source,
+                                    activeJourneyModel: activeJourneyModel,
+                                    onHighlightSection: viewModel.highlightJourneySection,
+                                    onExpandMap: onExpandJourneyMap
+                                )
+                            }
+                        }
+                        .navigationDestination(isPresented: $isActiveJourneyPresented) {
+                            activeJourneyDestination
                         }
                     }
                 }
-                .navigationDestination(item: $inspectedJourney) { journey in
-                    if let destination = viewModel.journeyDestination {
-                        JourneyDetailView(
-                            journey: journey,
-                            destination: destination,
-                            source: viewModel.journeyResult?.source,
-                            activeJourneyModel: activeJourneyModel,
-                            onHighlightSection: viewModel.highlightJourneySection,
-                            onExpandMap: onExpandJourneyMap
-                        )
-                    }
-                }
-                .navigationDestination(isPresented: $isActiveJourneyPresented) {
-                    activeJourneyDestination
-                }
-        }
+            }
         .opacity(tabVisibilityProgress)
         .scrollEdgeEffectStyle(.soft, for: .vertical)
         .sheet(isPresented: $isDeparturePickerPresented) {
@@ -85,12 +97,36 @@ struct SearchView: View {
                 onSelect: viewModel.selectDeparture
             )
         }
+        .sheet(isPresented: $isNaturalDatePickerPresented) {
+            if let criteria = viewModel.naturalJourneyCriteria {
+                NaturalJourneyDatePickerView(
+                    initialDate: criteria.requestedAt,
+                    initialMeaning: criteria.datetimeRepresents,
+                    onApply: viewModel.updateNaturalTime
+                )
+            }
+        }
+        .sheet(isPresented: $isNaturalOptionsPresented) {
+            if let criteria = viewModel.naturalJourneyCriteria {
+                NaturalJourneyOptionsView(
+                    required: criteria.requiredModes,
+                    excluded: criteria.excludedModes,
+                    preferred: criteria.preferredModes,
+                    onApply: viewModel.updateNaturalModes
+                )
+            }
+        }
         .onAppear(perform: synchronizeActiveJourneyPresentation)
         .onChange(of: activeJourneyModel.session?.journey.id) { _, _ in
             synchronizeActiveJourneyPresentation()
         }
         .onChange(of: activeJourneyModel.arrival?.journeyID) { _, _ in
             synchronizeActiveJourneyPresentation()
+        }
+        .onChange(of: viewModel.isNaturalSearchPresented) { _, isPresented in
+            if !isPresented {
+                sheetDetent = .large
+            }
         }
     }
 
@@ -149,6 +185,19 @@ struct SearchView: View {
             VStack(alignment: .leading, spacing: 22) {
                 inputStage(viewModel: viewModel)
 
+                if let criteria = viewModel.wrappedValue.naturalJourneyCriteria,
+                   viewModel.wrappedValue.step != .destination
+                {
+                    NaturalJourneyCriteriaView(
+                        criteria: criteria,
+                        journeyCount: viewModel.wrappedValue.journeyResult?.journeys.count ?? 0,
+                        onEditOrigin: { isDeparturePickerPresented = true },
+                        onEditDestination: viewModel.wrappedValue.editDestination,
+                        onEditTime: { isNaturalDatePickerPresented = true },
+                        onEditOptions: { isNaturalOptionsPresented = true }
+                    )
+                }
+
                 if viewModel.wrappedValue.step == .destination {
                     SearchResultsSection(
                         state: viewModel.wrappedValue.loadState,
@@ -185,13 +234,39 @@ struct SearchView: View {
         let step = viewModel.wrappedValue.step
 
         if step == .destination {
-            SearchDestinationField(
-                text: viewModel.query,
-                onClear: viewModel.wrappedValue.clearQuery,
-                onSubmit: viewModel.wrappedValue.searchImmediately
-            )
-            .onChange(of: viewModel.wrappedValue.query) { _, newValue in
-                viewModel.wrappedValue.updateQuery(newValue)
+            HStack(spacing: 10) {
+                SearchDestinationField(
+                    text: viewModel.query,
+                    onClear: viewModel.wrappedValue.clearQuery,
+                    onSubmit: viewModel.wrappedValue.searchImmediately
+                )
+                .onChange(of: viewModel.wrappedValue.query) { _, newValue in
+                    viewModel.wrappedValue.updateQuery(newValue)
+                }
+
+                if viewModel.wrappedValue.naturalLanguageAccess != .hidden {
+                    Button {
+                        sheetDetent = .fraction(0.45)
+                        viewModel.wrappedValue.openNaturalSearch()
+                    } label: {
+                        Label("IA", systemImage: "sparkles")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Color.aiAccent)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 48)
+                            .background(Color.aiSurface, in: Capsule())
+                            .borderBeam(
+                                border: .white,
+                                beam: [.purple, .blue, .pink, .indigo],
+                                beamBlur: 12,
+                                cornerRadius: 999,
+                                isEnabled: viewModel.wrappedValue.showsNaturalSearchDiscovery && !reduceMotion
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Rechercher avec Apple Intelligence")
+                    .accessibilityHint("Décris ton trajet dans une phrase")
+                }
             }
             .matchedGeometryEffect(
                 id: destinationInputID,
@@ -236,17 +311,17 @@ struct SearchView: View {
 private extension SearchResult {
     var searchTokenSubtitle: String? {
         switch self {
-        case .station(let station):
+        case let .station(station):
             let routes = station.routes.prefix(3).map(\.shortName).joined(separator: " · ")
             return routes.isEmpty ? "Station" : routes
-        case .address(let address):
+        case let .address(address):
             return address.context.isEmpty ? "Adresse" : address.context
         }
     }
 
     var searchTokenSystemImage: String {
         switch self {
-        case .station(let station):
+        case let .station(station):
             station.routes.first?.mode.chipSystemImage ?? "tram.fill"
         case .address:
             "mappin.and.ellipse"

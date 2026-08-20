@@ -1,7 +1,9 @@
 # 0001 — Recherche en langage naturel hybride, on-device d’abord
 
-- Statut : accepté
+- Statut : remplacé par ADR-0002
 - Date : 2026-08-17
+
+Cette décision est conservée comme historique. La recherche hybride et son fallback LLM serveur ont été remplacés par une recherche exclusivement locale pour l’interprétation.
 
 ## Contexte
 
