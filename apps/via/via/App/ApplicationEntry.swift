@@ -16,6 +16,9 @@ struct ApplicationEntry: App {
     @State private var reportViewModel: ReportViewModel
     @State private var authSessionViewModel: AuthSessionViewModel
     @State private var onboardingModel: OnboardingModel
+    @State private var locationModel: LocationModel
+    @State private var accountModel: AccountModel
+    @State private var profileModel: ProfileModel
 
     init() {
         let dependencies = Self.makeDependencies()
@@ -75,6 +78,9 @@ struct ApplicationEntry: App {
         _onboardingModel = State(
             initialValue: dependencies.onboardingModel,
         )
+        _locationModel = State(initialValue: dependencies.locationModel)
+        _accountModel = State(initialValue: dependencies.accountModel)
+        _profileModel = State(initialValue: ProfileModel())
     }
 
     var body: some Scene {
@@ -98,6 +104,10 @@ struct ApplicationEntry: App {
                         activeJourneyModel: activeJourneyModel,
                         reportViewModel: reportViewModel,
                         onboardingModel: onboardingModel,
+                        locationModel: locationModel,
+                        accountModel: accountModel,
+                        authSessionViewModel: authSessionViewModel,
+                        profileModel: profileModel,
                     )
                     .transition(.opacity)
                 }

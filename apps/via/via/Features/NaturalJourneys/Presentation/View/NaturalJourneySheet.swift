@@ -59,6 +59,8 @@ struct NaturalJourneySheet: View {
             NaturalJourneyInputView(
                 query: viewModel.naturalQuery,
                 isFocused: $isInputFocused,
+                errorMessage: viewModel.wrappedValue.naturalInputErrorMessage,
+                onEdit: viewModel.wrappedValue.naturalQueryDidChange,
                 onSubmit: viewModel.wrappedValue.submitNaturalSearch,
             )
         case .loading:
@@ -119,7 +121,7 @@ struct NaturalJourneySheet: View {
         case let .availability(guidance):
             NaturalJourneyAvailabilityView(
                 guidance: guidance,
-                onRetry: viewModel.wrappedValue.openNaturalSearch,
+                onRetry: viewModel.wrappedValue.retryNaturalAvailability,
                 onClassicSearch: viewModel.wrappedValue.useClassicSearch,
             )
         case let .failed(message):

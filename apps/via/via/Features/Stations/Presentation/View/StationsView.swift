@@ -6,11 +6,14 @@ struct StationsView: View {
 
     @Binding var isLargeScreen: Bool
     @Binding var detailDetent: PresentationDetent
+    let profileModel: ProfileModel
 
     let onOpenSearch: () -> Void
     let naturalLanguageAccess: NaturalLanguageAccess
     let showsNaturalSearchDiscovery: Bool
     let onOpenNaturalSearch: () -> Void
+    let onOpenProfile: () -> Void
+    let onOpenSettings: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.scenePhase) private var scenePhase
@@ -23,14 +26,20 @@ struct StationsView: View {
                 .navigationTitle("Stations")
                 .toolbarTitleDisplayMode(.inlineLarge)
                 .toolbar {
-                    if naturalLanguageAccess != .hidden {
-                        ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        if naturalLanguageAccess != .hidden {
                             AIEntryButton(
-                                shape: .circle,
+                                surface: .toolbar,
                                 isDiscoverable: showsNaturalSearchDiscovery,
                                 action: onOpenNaturalSearch,
                             )
                         }
+
+                        AccountMenuButton(
+                            profile: profileModel,
+                            onOpenProfile: onOpenProfile,
+                            onOpenSettings: onOpenSettings
+                        )
                     }
                 }
         }
@@ -245,10 +254,13 @@ struct StationsView: View {
         ),
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
+        profileModel: ProfileModel(store: InMemoryProfileStore()),
         onOpenSearch: {},
         naturalLanguageAccess: .active,
         showsNaturalSearchDiscovery: true,
         onOpenNaturalSearch: {},
+        onOpenProfile: {},
+        onOpenSettings: {}
     )
 }
 

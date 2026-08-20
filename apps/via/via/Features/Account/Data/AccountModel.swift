@@ -160,6 +160,32 @@ final class AccountModel {
         scheduleSynchronization()
     }
 
+    func preference(for mode: TransitMode) -> TransitModePreference {
+        if transportPreferences.preferredModes.contains(mode) { return .preferred }
+        if transportPreferences.excludedModes.contains(mode) { return .excluded }
+        return .normal
+    }
+
+    func setPreference(_ preference: TransitModePreference, for mode: TransitMode) {
+        var preferences = transportPreferences
+        preferences.preferredModes.remove(mode)
+        preferences.excludedModes.remove(mode)
+
+        switch preference {
+        case .normal:
+            break
+        case .preferred:
+            preferences.preferredModes.insert(mode)
+        case .excluded:
+            preferences.excludedModes.insert(mode)
+        }
+
+        preferences.updatedAt = now()
+        store.setPreferences(preferences)
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
     func resetPreferences() {
         var preferences = TransportPreferences.empty
         preferences.updatedAt = now()

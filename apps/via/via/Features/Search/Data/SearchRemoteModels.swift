@@ -66,11 +66,11 @@ enum SearchResultDTO: Codable {
                 routes: station.routes.map(RouteBadgeDTO.init),
                 distanceMeters: station.distanceMeters,
                 accessibility: station.accessibility.flatMap { value in
-                    guard let condition = StationAccessibility.Condition(rawValue: value.condition) else {
+                    guard let condition = StationAccessibility.Condition(rawValue: value.condition.rawValue) else {
                         return nil
                     }
                     return Station.Accessibility(
-                        condition: condition,
+                        condition: condition.rawValue,
                         label: value.label,
                         comment: value.comment
                     )

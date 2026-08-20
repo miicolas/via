@@ -19,6 +19,10 @@ struct MapShellView: View {
     let activeJourneyModel: ActiveJourneyModel
     let reportViewModel: ReportViewModel
     let onboardingModel: OnboardingModel
+    let locationModel: LocationModel
+    let accountModel: AccountModel
+    let authSessionViewModel: AuthSessionViewModel
+    let profileModel: ProfileModel
 
     @State private var showTabSheet: Bool = true
     @State private var activeTab: MapShellTab = .stations
@@ -30,6 +34,8 @@ struct MapShellView: View {
     // The reference opens with the map still visible above the content sheet.
     @State private var activeDetent: PresentationDetent = .fraction(0.45)
     @State private var detailSheetDetent: PresentationDetent = .height(80)
+    @State private var accountSheetDestination: AccountSheetDestination?
+    @State private var accountSheetDetent: PresentationDetent = .height(80)
     @State private var isOnboardingPresented = false
 
     init(
@@ -40,7 +46,11 @@ struct MapShellView: View {
         searchViewModel: SearchViewModel,
         activeJourneyModel: ActiveJourneyModel,
         reportViewModel: ReportViewModel,
-        onboardingModel: OnboardingModel
+        onboardingModel: OnboardingModel,
+        locationModel: LocationModel,
+        accountModel: AccountModel,
+        authSessionViewModel: AuthSessionViewModel,
+        profileModel: ProfileModel
     ) {
         self.networkViewModel = networkViewModel
         self.stationsViewModel = stationsViewModel
@@ -50,6 +60,10 @@ struct MapShellView: View {
         self.activeJourneyModel = activeJourneyModel
         self.reportViewModel = reportViewModel
         self.onboardingModel = onboardingModel
+        self.locationModel = locationModel
+        self.accountModel = accountModel
+        self.authSessionViewModel = authSessionViewModel
+        self.profileModel = profileModel
     }
 
     var body: some View {
@@ -113,7 +127,13 @@ struct MapShellView: View {
             }
             .onChange(of: activeTab) { oldValue, newValue in
                 if newValue == .search, oldValue != .search {
-                    previousTab = oldValue
+                    // Signaler is reached *from* search (the guidance panel's
+                    // report button) and search comes back on its own for the
+                    // running journey, so remembering it sent closing search
+                    // straight back into the report form.
+                    if oldValue != .report {
+                        previousTab = oldValue
+                    }
                     activeDetent = searchViewModel.isNaturalSearchPresented
                         ? guidanceDetent
                         : (hasJourneySurface ? guidanceDetent : expandedDetent)
@@ -146,6 +166,13 @@ struct MapShellView: View {
             .task {
                 guard !onboardingModel.isCompleted else { return }
                 isOnboardingPresented = true
+            }
+            .task(id: authSessionViewModel.session?.user.id) {
+                if let user = authSessionViewModel.session?.user {
+                    profileModel.activate(scope: .user(user.id), seedName: user.displayName)
+                } else {
+                    profileModel.activate(scope: .anonymous)
+                }
             }
             .onOpenURL { url in
                 guard url.scheme == "via", url.host == "journey" else { return }
@@ -185,7 +212,8 @@ struct MapShellView: View {
             activeDetent: $activeDetent,
             isLargeScreen: isLargeScreen,
             isAnotherSheetPresenting: selectedStationModel.overview != nil ||
-                reportViewModel.isPresentingAnotherSheet,
+                reportViewModel.isPresentingAnotherSheet ||
+                accountSheetDestination != nil,
             reservesCompactSpace: activeJourneyModel.isActive,
             isCompactVisible: isActiveJourneyCompactVisible,
             compactContent: { activeJourneyCompact }
@@ -196,6 +224,7 @@ struct MapShellView: View {
                     selectedStation: selectedStationModel,
                     isLargeScreen: $isLargeScreen,
                     detailDetent: $detailSheetDetent,
+                    profileModel: profileModel,
                     onOpenSearch: { activeTab = .search },
                     naturalLanguageAccess: searchViewModel.naturalLanguageAccess,
                     showsNaturalSearchDiscovery: searchViewModel.showsNaturalSearchDiscovery,
@@ -203,7 +232,9 @@ struct MapShellView: View {
                         searchViewModel.openNaturalSearch()
                         activeTab = .search
                         activeDetent = guidanceDetent
-                    }
+                    },
+                    onOpenProfile: { presentAccountSheet(.profile) },
+                    onOpenSettings: { presentAccountSheet(.settings) }
                 )
                 .sheetTabBarVisibility()
             } label: {
@@ -236,6 +267,26 @@ struct MapShellView: View {
                 .sheetTabBarVisibility()
             }
         }
+        .sheet(item: $accountSheetDestination) { destination in
+            switch destination {
+            case .profile:
+                // The editor sizes the sheet to its own form rather than
+                // opening on the collapsible detents the station detail uses.
+                ProfileEditorView(model: profileModel)
+            case .settings:
+                SettingsView(
+                    accountModel: accountModel,
+                    searchViewModel: searchViewModel,
+                    authSessionViewModel: authSessionViewModel,
+                    profileModel: profileModel,
+                    locationModel: locationModel
+                )
+                .detailSheetPresentation(
+                    isLargeScreen: isLargeScreen,
+                    selection: $accountSheetDetent
+                )
+            }
+        }
     }
 
     private var displayedJourneyPresentation: JourneyMapPresentation? {
@@ -250,6 +301,11 @@ struct MapShellView: View {
 
     private func expandJourneyMap() {
         activeDetent = guidanceDetent
+    }
+
+    private func presentAccountSheet(_ destination: AccountSheetDestination) {
+        accountSheetDetent = isLargeScreen ? .fraction(0.97) : .large
+        accountSheetDestination = destination
     }
 
     /// Frames the part of the journey that is still ahead when guidance is
@@ -332,6 +388,24 @@ struct MapShellView: View {
             repository: InMemoryReportRepository(),
             searchRepository: InMemorySearchRepository.preview
         ),
-        onboardingModel: OnboardingModel(store: OnboardingStore(defaults: .standard))
+        onboardingModel: OnboardingModel(store: OnboardingStore(defaults: .standard)),
+        locationModel: locationModel,
+        accountModel: accountModel,
+        authSessionViewModel: AuthSessionViewModel(
+            client: InMemoryAuthenticationClient(session: StoredAuthSession(
+                bearerToken: "preview.token",
+                user: AuthUser(
+                    id: "preview",
+                    appleUserIdentifier: "preview",
+                    name: "Alex Martin",
+                    email: "alex@example.com"
+                ),
+                expiresAt: .distantFuture,
+                lastValidatedAt: .now
+            )),
+            vault: InMemoryAuthSessionVault(),
+            account: accountModel
+        ),
+        profileModel: ProfileModel(store: InMemoryProfileStore())
     )
 }

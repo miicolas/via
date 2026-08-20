@@ -13,7 +13,7 @@ final class NaturalLanguageAvailabilityTests: XCTestCase {
         )
         XCTAssertEqual(
             NaturalLanguageAvailability.unavailable(.modelNotReady).access,
-            .explanation(.modelDownloading),
+            .explanation(.modelNotReady),
         )
     }
 

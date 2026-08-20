@@ -19,6 +19,30 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         return journey.sections[currentSectionIndex]
     }
 
+    init(
+        journey: Journey,
+        destination: JourneyDestination,
+        source: JourneyResult.Source?,
+        requiresAccessibleStations: Bool,
+        currentSectionIndex: Int,
+        lastCoordinate: GeoCoordinate?,
+        horizontalAccuracy: Double?,
+        manualOverrideUntil: Date?,
+        isTrackingStarted: Bool,
+        allowsBackgroundTracking: Bool
+    ) {
+        self.journey = journey
+        self.destination = destination
+        self.source = source
+        self.requiresAccessibleStations = requiresAccessibleStations
+        self.currentSectionIndex = currentSectionIndex
+        self.lastCoordinate = lastCoordinate
+        self.horizontalAccuracy = horizontalAccuracy
+        self.manualOverrideUntil = manualOverrideUntil
+        self.isTrackingStarted = isTrackingStarted
+        self.allowsBackgroundTracking = allowsBackgroundTracking
+    }
+
     private enum CodingKeys: String, CodingKey {
         case journey
         case destination

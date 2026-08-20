@@ -57,19 +57,9 @@ struct SearchView: View {
                             ToolbarItem(placement: .subtitle) {
                                 departureMenu(viewModel: $viewModel)
                             }
-                            if hasActiveJourneySurface {
-                                ToolbarItem(placement: .topBarLeading) {
-                                    Button("Trajet actif", systemImage: "location.fill") {
-                                        isActiveJourneyPresented = true
-                                    }
-                                }
-                            }
+                            activeJourneyToolbarItem
                             ToolbarItem(placement: .topBarTrailing) {
-                                SearchFiltersMenu(
-                                    filters: viewModel.wrappedValue.filters,
-                                    onSetRequiresAccessibleStations: viewModel.wrappedValue.setRequiresAccessibleStations,
-                                    onShowAccessibilityInfo: { isAccessibilityInfoPresented = true }
-                                )
+                                searchFiltersMenu
                             }
                             ToolbarItem(placement: .topBarTrailing) {
                                 Button(role: .close) {
@@ -141,6 +131,18 @@ struct SearchView: View {
         }
     }
 
+    private var searchFiltersMenu: some View {
+        SearchFiltersMenu(
+            filters: viewModel.filters,
+            onSetRequiresAccessibleStations: { isEnabled in
+                viewModel.setRequiresAccessibleStations(isEnabled)
+            },
+            onShowAccessibilityInfo: {
+                isAccessibilityInfoPresented = true
+            }
+        )
+    }
+
     @ViewBuilder
     private var activeJourneyDestination: some View {
         if let arrival = activeJourneyModel.arrival {
@@ -158,6 +160,17 @@ struct SearchView: View {
 
     private var hasActiveJourneySurface: Bool {
         activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+    }
+
+    @ToolbarContentBuilder
+    private var activeJourneyToolbarItem: some ToolbarContent {
+        if hasActiveJourneySurface {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Trajet actif", systemImage: "location.fill") {
+                    isActiveJourneyPresented = true
+                }
+            }
+        }
     }
 
     private func synchronizeActiveJourneyPresentation() {
@@ -257,7 +270,6 @@ struct SearchView: View {
 
                 if viewModel.wrappedValue.naturalLanguageAccess != .hidden {
                     AIEntryButton(
-                        shape: .capsule(title: "IA"),
                         isDiscoverable: viewModel.wrappedValue.showsNaturalSearchDiscovery,
                     ) {
                         sheetDetent = .fraction(0.45)

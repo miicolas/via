@@ -136,20 +136,7 @@ struct StationDetailView: View {
                 }
             }
         }
-        .presentationDetents(detents, selection: $detailDetent)
-        .presentationCornerRadius(isLargeScreen ? 45 : nil)
-        .adaptiveSheet(380, isActive: isLargeScreen)
-        .presentationBackgroundInteraction(.enabled)
-        .interactiveDismissDisabled()
-        .scrollEdgeEffectStyle(.soft, for: .vertical)
-    }
-
-    private var detents: Set<PresentationDetent> {
-        if isLargeScreen {
-            return [.height(80), .fraction(0.97)]
-        }
-
-        return [.height(80), .large]
+        .detailSheetPresentation(isLargeScreen: isLargeScreen, selection: $detailDetent)
     }
 }
 

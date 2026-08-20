@@ -243,7 +243,8 @@ enum NaturalJourneyDecision: Sendable, Hashable {
 
 enum NaturalJourneyUnavailableGuidance: Sendable, Hashable {
     case enableAppleIntelligence
-    case modelDownloading
+    case modelNotReady
+    case systemUnavailable
 }
 
 enum NaturalJourneyResult: Sendable, Hashable {

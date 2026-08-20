@@ -6,68 +6,82 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(Self.corpus.count, 100)
     }
 
-    func testAnnotatedFrenchJourneyCorpus() async throws {
-        #if targetEnvironment(simulator)
-            throw XCTSkip("Foundation Models ne prend pas en charge l’inférence dans le simulateur")
-        #else
-            let parser = FoundationModelsIntentParser()
-            try XCTSkipUnless(
-                parser.availability == .available,
-                "Foundation Models français indisponible sur cet appareil",
+    func testRuntimeFailureStaysInsideTheNaturalIntentErrorContract() async throws {
+        let parser = FoundationModelsIntentParser()
+        try XCTSkipUnless(
+            parser.availability == .available,
+            "Foundation Models français indisponible sur cet appareil ou ce simulateur",
+        )
+        let now = try XCTUnwrap(ISO8601.parse("2026-08-17T09:00:00+02:00"))
+
+        do {
+            _ = try await parser.parseIntent("Nation demain avant 8 h", now: now)
+        } catch {
+            XCTAssertTrue(
+                error == .modelFailed || error == .modelNotReady,
+                "Une panne système doit rester une erreur locale récupérable, reçu : \(error)",
             )
-            let now = try XCTUnwrap(ISO8601.parse("2026-08-17T09:00:00+02:00"))
+        }
+    }
 
-            var exactMatches = 0
-            var exactEligibleCount = 0
-            var mismatches: [String] = []
-            for evaluation in Self.corpus {
-                let intent = try await parser.parseIntent(evaluation.phrase, now: now)
-                let originMatches: Bool = switch (intent.origin, evaluation.origin) {
-                case (.currentLocation, .currentLocation):
-                    true
-                case let (.place(actual), .place(expected)):
-                    actual == expected
-                default:
-                    false
-                }
-                let expectedOriginWasExplicit = switch evaluation.origin {
-                case .currentLocation: false
-                case .place: true
-                }
-                let matches = intent.scope == evaluation.scope
-                    && intent.destinationQuery == evaluation.destination
-                    && intent.datetimeRepresents == evaluation.timeMeaning
-                    && intent.requiredModes == evaluation.requiredModes
-                    && intent.excludedModes == evaluation.excludedModes
-                    && intent.preferredModes == evaluation.preferredModes
-                    && intent.unsupportedConstraints == evaluation.unsupportedConstraints
-                    && evaluation.requestedAt.matches(intent.requestedAt)
-                    && intent.dateWasExplicit == evaluation.dateWasExplicit
-                    && intent.timeWasExplicit == evaluation.timeWasExplicit
-                    && intent.originWasExplicit == expectedOriginWasExplicit
-                    && evaluation.alternateRequestedAt.matches(intent.alternateTimeConstraint?.requestedAt)
-                    && intent.alternateTimeConstraint?.meaning == evaluation.alternateMeaning
-                    && originMatches
-                if !evaluation.isAmbiguous {
-                    exactEligibleCount += 1
-                    if matches {
-                        exactMatches += 1
-                    } else {
-                        mismatches.append(evaluation.id)
-                    }
-                }
+    func testAnnotatedFrenchJourneyCorpus() async throws {
+        let parser = FoundationModelsIntentParser()
+        try XCTSkipUnless(
+            parser.availability == .available,
+            "Foundation Models français indisponible sur cet appareil ou ce simulateur",
+        )
+        let now = try XCTUnwrap(ISO8601.parse("2026-08-17T09:00:00+02:00"))
 
-                if evaluation.scope == .journey, evaluation.destination != nil {
-                    XCTAssertNotNil(intent.destinationQuery, "\(evaluation.id): destination critique inventée ou perdue")
+        var exactMatches = 0
+        var exactEligibleCount = 0
+        var mismatches: [String] = []
+        for evaluation in Self.corpus {
+            let intent = try await parser.parseIntent(evaluation.phrase, now: now)
+            let originMatches: Bool = switch (intent.origin, evaluation.origin) {
+            case (.currentLocation, .currentLocation):
+                true
+            case let (.place(actual), .place(expected)):
+                actual == expected
+            default:
+                false
+            }
+            let expectedOriginWasExplicit = switch evaluation.origin {
+            case .currentLocation: false
+            case .place: true
+            }
+            let matches = intent.scope == evaluation.scope
+                && intent.destinationQuery == evaluation.destination
+                && intent.datetimeRepresents == evaluation.timeMeaning
+                && intent.requiredModes == evaluation.requiredModes
+                && intent.excludedModes == evaluation.excludedModes
+                && intent.preferredModes == evaluation.preferredModes
+                && intent.unsupportedConstraints == evaluation.unsupportedConstraints
+                && evaluation.requestedAt.matches(intent.requestedAt)
+                && intent.dateWasExplicit == evaluation.dateWasExplicit
+                && intent.timeWasExplicit == evaluation.timeWasExplicit
+                && intent.originWasExplicit == expectedOriginWasExplicit
+                && evaluation.alternateRequestedAt.matches(intent.alternateTimeConstraint?.requestedAt)
+                && intent.alternateTimeConstraint?.meaning == evaluation.alternateMeaning
+                && originMatches
+            if !evaluation.isAmbiguous {
+                exactEligibleCount += 1
+                if matches {
+                    exactMatches += 1
+                } else {
+                    mismatches.append(evaluation.id)
                 }
             }
-            let accuracy = Double(exactMatches) / Double(exactEligibleCount)
-            XCTAssertGreaterThanOrEqual(
-                accuracy,
-                0.95,
-                "Précision \(accuracy); cas en échec: \(mismatches.joined(separator: ", "))",
-            )
-        #endif
+
+            if evaluation.scope == .journey, evaluation.destination != nil {
+                XCTAssertNotNil(intent.destinationQuery, "\(evaluation.id): destination critique inventée ou perdue")
+            }
+        }
+        let accuracy = Double(exactMatches) / Double(exactEligibleCount)
+        XCTAssertGreaterThanOrEqual(
+            accuracy,
+            0.95,
+            "Précision \(accuracy); cas en échec: \(mismatches.joined(separator: ", "))",
+        )
     }
 
     private struct Evaluation {

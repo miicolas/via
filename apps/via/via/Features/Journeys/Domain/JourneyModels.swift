@@ -105,8 +105,34 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
     let arrivalAt: Date
     let status: Status
     let warnings: [String]
-    let accessibility: Accessibility? = nil
+    let accessibility: Accessibility?
     let sections: [JourneySection]
+
+    init(
+        id: JourneyID,
+        qualifier: Qualifier,
+        durationSeconds: Int,
+        walkingDurationSeconds: Int,
+        transferCount: Int,
+        departureAt: Date,
+        arrivalAt: Date,
+        status: Status,
+        warnings: [String],
+        accessibility: Accessibility? = nil,
+        sections: [JourneySection]
+    ) {
+        self.id = id
+        self.qualifier = qualifier
+        self.durationSeconds = durationSeconds
+        self.walkingDurationSeconds = walkingDurationSeconds
+        self.transferCount = transferCount
+        self.departureAt = departureAt
+        self.arrivalAt = arrivalAt
+        self.status = status
+        self.warnings = warnings
+        self.accessibility = accessibility
+        self.sections = sections
+    }
 }
 
 struct JourneyResult: Sendable, Hashable {

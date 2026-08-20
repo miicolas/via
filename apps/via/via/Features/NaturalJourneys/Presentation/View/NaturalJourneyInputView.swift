@@ -3,6 +3,8 @@ import SwiftUI
 struct NaturalJourneyInputView: View {
     @Binding var query: String
     let isFocused: FocusState<Bool>.Binding
+    let errorMessage: String?
+    let onEdit: () -> Void
     let onSubmit: () -> Void
 
     private let examples = [
@@ -25,7 +27,7 @@ struct NaturalJourneyInputView: View {
             TextField(
                 "Ex. Nation vers La Défense demain avant 9 h",
                 text: $query,
-                axis: .vertical,
+                axis: .vertical
             )
             .focused(isFocused)
             .lineLimit(3 ... 6)
@@ -35,6 +37,17 @@ struct NaturalJourneyInputView: View {
             .padding(16)
             .background(Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 18))
             .accessibilityLabel("Description du trajet")
+            .onChange(of: query) { _, _ in
+                onEdit()
+            }
+
+            if let errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.circle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("naturalJourneyInputError")
+            }
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("Exemples")

@@ -1,10 +1,11 @@
 import Foundation
 
 struct SearchFilters: Codable, Sendable, Hashable {
+    var accessibleStationsOnly = false
     var requiresAccessibleStations = false
 
     var activeCount: Int {
-        requiresAccessibleStations ? 1 : 0
+        (accessibleStationsOnly ? 1 : 0) + (requiresAccessibleStations ? 1 : 0)
     }
 }
 
@@ -13,7 +14,7 @@ protocol SearchFilterStoring: Sendable {
     func save(_ filters: SearchFilters)
 }
 
-struct UserDefaultsSearchFilterStore: SearchFilterStoring {
+struct UserDefaultsSearchFilterStore: SearchFilterStoring, @unchecked Sendable {
     private let defaults: UserDefaults
     private let key = "via.search.filters.v1"
 

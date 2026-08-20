@@ -63,6 +63,33 @@ final class AccountModelTests: XCTestCase {
     }
 
     @MainActor
+    func testTransportPreferenceCyclesThroughNormalPreferredAndExcluded() {
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        model.activateAnonymous()
+
+        XCTAssertEqual(model.preference(for: .metro), .normal)
+
+        model.setPreference(.preferred, for: .metro)
+        XCTAssertEqual(model.preference(for: .metro), .preferred)
+        XCTAssertTrue(model.transportPreferences.preferredModes.contains(.metro))
+        XCTAssertFalse(model.transportPreferences.excludedModes.contains(.metro))
+
+        model.setPreference(.excluded, for: .metro)
+        XCTAssertEqual(model.preference(for: .metro), .excluded)
+        XCTAssertFalse(model.transportPreferences.preferredModes.contains(.metro))
+        XCTAssertTrue(model.transportPreferences.excludedModes.contains(.metro))
+
+        model.setPreference(.normal, for: .metro)
+        XCTAssertEqual(model.preference(for: .metro), .normal)
+        XCTAssertFalse(model.transportPreferences.preferredModes.contains(.metro))
+        XCTAssertFalse(model.transportPreferences.excludedModes.contains(.metro))
+    }
+
+    @MainActor
     func testSavedPlacesReplaceTheirRoleAndSurviveRelaunch() {
         let date = Date(timeIntervalSince1970: 100)
         let model = AccountModel(

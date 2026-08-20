@@ -29,6 +29,77 @@ enum GeneratedRouteTimeMeaning {
     case ambiguous
 }
 
+@Generable(description: "Jour formulé par l’utilisateur, sans calcul calendaire")
+enum GeneratedDateReference {
+    case implicitToday
+    case today
+    case tomorrow
+    case monday
+    case tuesday
+    case wednesday
+    case thursday
+    case friday
+    case saturday
+    case sunday
+    case calendarDate
+    case relative
+}
+
+@Generable(description: "Précision horaire formulée par l’utilisateur")
+enum GeneratedTimePrecision {
+    case unspecified
+    case exact
+    case morning
+    case afternoon
+    case evening
+}
+
+@Generable(description: "Unité d’une durée relative")
+enum GeneratedRelativeUnit {
+    case minute
+    case hour
+    case day
+}
+
+@Generable(description: "Composants temporels extraits tels quels, sans date ISO 8601")
+struct GeneratedRouteDateTime {
+    @Guide(description: "implicitToday si aucun jour n’est cité; relative pour une durée; sinon le jour cité")
+    var reference: GeneratedDateReference
+
+    @Guide(description: "Année citée, sinon année neutre 2000", .range(2000 ... 2100))
+    var year: Int
+
+    @Guide(description: "Vrai seulement si l’année est explicitement écrite")
+    var yearWasExplicit: Bool
+
+    @Guide(description: "Mois cité pour calendarDate, sinon valeur neutre 1", .range(1 ... 12))
+    var month: Int
+
+    @Guide(description: "Jour cité pour calendarDate, sinon valeur neutre 1", .range(1 ... 31))
+    var day: Int
+
+    @Guide(description: "exact pour une heure chiffrée; morning, afternoon ou evening pour une partie de journée")
+    var timePrecision: GeneratedTimePrecision
+
+    @Guide(description: "Heure citée quand timePrecision vaut exact, sinon 0", .range(0 ... 23))
+    var hour: Int
+
+    @Guide(description: "Minutes citées quand timePrecision vaut exact, sinon 0", .range(0 ... 59))
+    var minute: Int
+
+    @Guide(description: "Nombre cité quand reference vaut relative, sinon 0", .range(0 ... 10080))
+    var relativeAmount: Int
+
+    @Guide(description: "Unité citée quand reference vaut relative, sinon minute")
+    var relativeUnit: GeneratedRelativeUnit
+}
+
+@Generable(description: "Contrainte temporelle complète et son sens")
+struct GeneratedRouteTimeConstraint {
+    var dateTime: GeneratedRouteDateTime
+    var meaning: GeneratedRouteTimeMeaning
+}
+
 @Generable(description: "Mode de transport en commun francilien")
 enum GeneratedTransitMode {
     case metro
@@ -49,36 +120,25 @@ struct GeneratedRouteIntent {
     @Guide(description: "Destination formulée par l’utilisateur, ou absence si elle manque")
     var destinationQuery: String?
 
-    @Guide(description: "Date et heure ISO 8601 avec décalage Europe/Paris, ou absence si inconnue")
-    var requestedAt: String?
+    @Guide(description: "Contrainte principale; utilise implicitToday et unspecified si aucune date ni heure n’est formulée")
+    var timeConstraint: GeneratedRouteTimeConstraint
 
-    @Guide(description: "Vrai seulement si l’utilisateur a formulé un jour ou une date")
-    var dateWasExplicit: Bool
+    @Guide(description: "Seconde contrainte complète uniquement si départ et arrivée ont chacun une heure")
+    var alternateTimeConstraint: GeneratedRouteTimeConstraint?
 
-    @Guide(description: "Vrai seulement si l’utilisateur a formulé une heure ou une partie de journée")
-    var timeWasExplicit: Bool
-
-    var datetimeRepresents: GeneratedRouteTimeMeaning
-
-    @Guide(description: "Seconde date et heure ISO 8601 uniquement si la phrase contient à la fois une contrainte de départ et d’arrivée")
-    var alternateRequestedAt: String?
-
-    @Guide(description: "Sens de la seconde heure, ou absence si alternateRequestedAt est absent")
-    var alternateDatetimeRepresents: GeneratedRouteTimeMeaning?
-
-    @Guide(description: "Modes obligatoires, au plus trois")
+    @Guide(description: "Modes obligatoires", .maximumCount(3))
     var requiredModes: [GeneratedTransitMode]
 
-    @Guide(description: "Modes exclus, au plus trois")
+    @Guide(description: "Modes exclus", .maximumCount(3))
     var excludedModes: [GeneratedTransitMode]
 
-    @Guide(description: "Modes préférés mais non obligatoires, au plus trois")
+    @Guide(description: "Modes préférés mais non obligatoires", .maximumCount(3))
     var preferredModes: [GeneratedTransitMode]
 
-    @Guide(description: "Contraintes de trajet comprises mais non prises en charge par Via, au plus trois; par exemple marche maximale, accessibilité, ligne précise, coût ou confort")
+    @Guide(description: "Contraintes comprises mais non prises en charge; marche maximale, accessibilité, ligne précise, coût ou confort", .maximumCount(3))
     var unsupportedConstraints: [String]
 
-    func domain() throws(NaturalIntentParsingError) -> RouteIntent {
+    func domain(now: Date) throws(NaturalIntentParsingError) -> RouteIntent {
         let mappedOrigin: RouteOriginIntent
         switch origin.kind {
         case .currentLocation:
@@ -98,14 +158,6 @@ struct GeneratedRouteIntent {
             destination = nil
         }
 
-        let date: Date?
-        if let requestedAt {
-            guard let parsed = ISO8601.parse(requestedAt) else { throw .invalidResponse }
-            date = parsed
-        } else {
-            date = nil
-        }
-
         guard requiredModes.count <= 3,
               excludedModes.count <= 3,
               preferredModes.count <= 3,
@@ -120,44 +172,68 @@ struct GeneratedRouteIntent {
         }
         guard constraints.count == unsupportedConstraints.count else { throw .invalidResponse }
 
-        let timeMeaning: RouteIntent.TimeMeaning = switch datetimeRepresents {
+        let timeMeaning: RouteIntent.TimeMeaning = switch timeConstraint.meaning {
         case .departure: .departure
         case .arrival: .arrival
         case .ambiguous: .ambiguous
         }
 
+        let resolvedTime: ResolvedNaturalDateTime
         let alternateTimeConstraint: RouteTimeConstraint?
-        switch (alternateRequestedAt, alternateDatetimeRepresents) {
-        case (nil, nil):
-            alternateTimeConstraint = nil
-        case let (.some(value), .some(meaning)):
-            guard let date = ISO8601.parse(value) else { throw .invalidResponse }
-            let domainMeaning: JourneyDatetimeRepresents
-            switch meaning {
-            case .departure: domainMeaning = .departure
-            case .arrival: domainMeaning = .arrival
-            case .ambiguous: throw .invalidResponse
-            }
-            alternateTimeConstraint = RouteTimeConstraint(
-                requestedAt: date,
-                meaning: domainMeaning
+        if scope == .unsupported {
+            resolvedTime = ResolvedNaturalDateTime(
+                date: now,
+                dateWasExplicit: false,
+                timeWasExplicit: false
             )
-        default:
-            throw .invalidResponse
+            alternateTimeConstraint = nil
+        } else {
+            do {
+                resolvedTime = try NaturalDateTimeResolver.resolve(
+                    timeConstraint.dateTime.domain,
+                    now: now
+                )
+            } catch {
+                throw .invalidResponse
+            }
+
+            if let alternate = self.alternateTimeConstraint {
+                let resolvedAlternate: ResolvedNaturalDateTime
+                do {
+                    resolvedAlternate = try NaturalDateTimeResolver.resolve(
+                        alternate.dateTime.domain,
+                        now: now
+                    )
+                } catch {
+                    throw .invalidResponse
+                }
+                let domainMeaning: JourneyDatetimeRepresents
+                switch alternate.meaning {
+                case .departure: domainMeaning = .departure
+                case .arrival: domainMeaning = .arrival
+                case .ambiguous: throw .invalidResponse
+                }
+                alternateTimeConstraint = RouteTimeConstraint(
+                    requestedAt: resolvedAlternate.date,
+                    meaning: domainMeaning
+                )
+            } else {
+                alternateTimeConstraint = nil
+            }
         }
 
         return RouteIntent(
             scope: scope == .journey ? .journey : .unsupported,
             origin: mappedOrigin,
             destinationQuery: destination,
-            requestedAt: date,
+            requestedAt: resolvedTime.date,
             datetimeRepresents: timeMeaning,
             requiredModes: Set(requiredModes.map(\.domain)),
             excludedModes: Set(excludedModes.map(\.domain)),
             preferredModes: Set(preferredModes.map(\.domain)),
             unsupportedConstraints: constraints,
-            dateWasExplicit: dateWasExplicit,
-            timeWasExplicit: timeWasExplicit,
+            dateWasExplicit: resolvedTime.dateWasExplicit,
+            timeWasExplicit: resolvedTime.timeWasExplicit,
             alternateTimeConstraint: alternateTimeConstraint,
             originWasExplicit: originWasExplicit
         )
@@ -167,6 +243,64 @@ struct GeneratedRouteIntent {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty || trimmed.count > 160 ? nil : trimmed
+    }
+}
+
+private extension GeneratedRouteDateTime {
+    var domain: NaturalDateTimeParts {
+        NaturalDateTimeParts(
+            reference: reference.domain,
+            year: year,
+            yearWasExplicit: yearWasExplicit,
+            month: month,
+            day: day,
+            timePrecision: timePrecision.domain,
+            hour: hour,
+            minute: minute,
+            relativeAmount: relativeAmount,
+            relativeUnit: relativeUnit.domain
+        )
+    }
+}
+
+private extension GeneratedDateReference {
+    var domain: NaturalDateReference {
+        switch self {
+        case .implicitToday: .implicitToday
+        case .today: .today
+        case .tomorrow: .tomorrow
+        case .monday: .monday
+        case .tuesday: .tuesday
+        case .wednesday: .wednesday
+        case .thursday: .thursday
+        case .friday: .friday
+        case .saturday: .saturday
+        case .sunday: .sunday
+        case .calendarDate: .calendarDate
+        case .relative: .relative
+        }
+    }
+}
+
+private extension GeneratedTimePrecision {
+    var domain: NaturalTimePrecision {
+        switch self {
+        case .unspecified: .unspecified
+        case .exact: .exact
+        case .morning: .morning
+        case .afternoon: .afternoon
+        case .evening: .evening
+        }
+    }
+}
+
+private extension GeneratedRelativeUnit {
+    var domain: NaturalRelativeUnit {
+        switch self {
+        case .minute: .minute
+        case .hour: .hour
+        case .day: .day
+        }
     }
 }
 
