@@ -105,14 +105,14 @@ function toSection(value: unknown, input: JourneyInput, generatedAt: Date): Jour
   const from = placeOf(section.from, input.origin, 'Départ');
   const to = placeOf(section.to, input.destination.coordinate, input.destination.name);
   const durationSeconds = Number(section.duration ?? 0);
-  const geometry = geometryOf(section.geojson ?? section.shape, from.coordinate, to.coordinate);
+  const sourceGeometry = section.geojson ?? section.shape;
   if (type === 'street_network' || type === 'crow_fly') {
     return [{
       type: 'walk',
       durationSeconds: safeSeconds(durationSeconds),
       from,
       to,
-      geometry,
+      geometry: geometryOf(sourceGeometry, from.coordinate, to.coordinate),
       stops: [],
     }];
   }
@@ -122,7 +122,7 @@ function toSection(value: unknown, input: JourneyInput, generatedAt: Date): Jour
       durationSeconds: safeSeconds(durationSeconds),
       from,
       to,
-      geometry,
+      geometry: geometryOf(sourceGeometry, from.coordinate, to.coordinate),
       stops: [],
     }];
   }
@@ -142,6 +142,12 @@ function toSection(value: unknown, input: JourneyInput, generatedAt: Date): Jour
   const line = displayOfLine(display, section);
   const direction = textOf(display.direction) ?? textOf(section.to?.name);
   const stopTimes = asArray(section.stop_date_times).flatMap((stopTime) => stopOf(stopTime));
+  const geometry = geometryOf(
+    sourceGeometry,
+    from.coordinate,
+    to.coordinate,
+    stopTimes.map((stop) => stop.coordinate)
+  );
   return [{
     type: 'transit',
     durationSeconds: safeSeconds(durationSeconds),
@@ -192,10 +198,24 @@ function placeOf(value: unknown, fallbackCoordinate: Coordinate, fallbackName: s
   };
 }
 
-function geometryOf(value: unknown, from: Coordinate, to: Coordinate): Coordinate[] {
+function geometryOf(
+  value: unknown,
+  from: Coordinate,
+  to: Coordinate,
+  fallbackVia: Coordinate[] = []
+): Coordinate[] {
   const coordinates = (value as { coordinates?: unknown } | undefined)?.coordinates;
   const points = flattenLineCoordinates(coordinates);
-  return points.length > 1 ? points : [from, to];
+  return points.length > 1 ? points : deduplicatedCoordinates([from, ...fallbackVia, to]);
+}
+
+function deduplicatedCoordinates(coordinates: Coordinate[]) {
+  return coordinates.filter((coordinate, index) => {
+    const previous = coordinates[index - 1];
+    return !previous ||
+      previous.latitude !== coordinate.latitude ||
+      previous.longitude !== coordinate.longitude;
+  });
 }
 
 /** Accepts both a LineString and the nested lines of a MultiLineString. */

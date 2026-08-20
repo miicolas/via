@@ -10,42 +10,43 @@ struct LineDetailView: View {
     }
 
     var body: some View {
-        List {
-            headerSection
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 28) {
+                headerSection
 
-            if let detail = viewModel.detail.value {
-                if detail.schemaDirections.count > 1 {
-                    directionPicker(directions: detail.schemaDirections)
-                }
-
-                if let direction = viewModel.selectedDirection {
-                    Section("Schéma de la ligne") {
-                        LineSchemaView(
+                if let detail = viewModel.detail.value {
+                    if viewModel.selectedDirection != nil {
+                        LineServiceMapCard(
+                            directions: detail.schemaDirections,
+                            selectedDirectionID: directionSelection,
                             rows: viewModel.schemaRows,
                             lineColor: Color(transitHex: route.colorHex, fallback: .secondary),
-                            directionLabel: direction.label,
+                            activeDisruptions: detail.activeDisruptions,
                             onToggleRun: { viewModel.toggleRun($0) }
                         )
                     }
-                }
 
-                if !detail.activeDisruptions.isEmpty {
-                    Section("En cours") {
-                        ForEach(detail.activeDisruptions) { disruption in
-                            LineDisruptionCard(disruption: disruption)
-                        }
+                    if !detail.activeDisruptions.isEmpty {
+                        LineDisruptionsSection(
+                            title: "Travaux en cours",
+                            disruptions: detail.activeDisruptions
+                        )
                     }
-                }
 
-                if !detail.upcomingDisruptions.isEmpty {
-                    Section("À venir") {
-                        ForEach(detail.upcomingDisruptions) { disruption in
-                            LineDisruptionCard(disruption: disruption)
-                        }
+                    if !detail.upcomingDisruptions.isEmpty {
+                        LineDisruptionsSection(
+                            title: "Travaux à venir",
+                            disruptions: detail.upcomingDisruptions
+                        )
                     }
                 }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 20)
         }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .refreshable { await viewModel.refresh() }
+        .task { await viewModel.runAutomaticRefresh() }
         .navigationTitle("\(route.mode.displayName) \(route.shortName)")
         .navigationBarTitleDisplayMode(.inline)
         .overlay {
@@ -68,44 +69,15 @@ struct LineDetailView: View {
                 )
             }
         }
-        .refreshable { await viewModel.refresh() }
-        .task { await viewModel.runAutomaticRefresh() }
     }
 
     private var headerSection: some View {
-        Section {
-            HStack(spacing: 14) {
-                LineBadgeView(route: route, size: 44)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    LineConditionLabel(condition: viewModel.detail.value?.condition ?? .normal)
-
-                    if viewModel.detail.value?.source == .unavailable {
-                        Text("État du trafic indisponible")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if let fetchedAt = viewModel.detail.value?.fetchedAt {
-                        Text("Mis à jour à \(fetchedAt.formatted(date: .omitted, time: .shortened))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, 4)
-        }
-    }
-
-    private func directionPicker(directions: [LineDirection]) -> some View {
-        Section {
-            Picker("Direction", selection: directionSelection) {
-                ForEach(directions) { direction in
-                    Text("Vers \(direction.label)").tag(direction.id)
-                }
-            }
-            .pickerStyle(.menu)
-        }
+        LineDetailHeaderView(
+            route: route,
+            condition: viewModel.detail.value?.condition ?? .normal,
+            source: viewModel.detail.value?.source ?? .unavailable,
+            fetchedAt: viewModel.detail.value?.fetchedAt
+        )
     }
 
     private var directionSelection: Binding<String> {
@@ -116,7 +88,7 @@ struct LineDetailView: View {
     }
 }
 
-#Preview {
+#Preview("Métro 1 — travaux actifs") {
     NavigationStack {
         LineDetailView(
             viewModel: LineDetailViewModel(
@@ -124,6 +96,94 @@ struct LineDetailView: View {
                 lineID: PreviewLineStatusRepository.metro1.id
             ),
             route: PreviewLineStatusRepository.metro1
+        )
+    }
+}
+
+#Preview("RER A — branches et tronçons") {
+    NavigationStack {
+        LineDetailView(
+            viewModel: LineDetailViewModel(
+                repository: PreviewLineStatusRepository(),
+                lineID: PreviewLineStatusRepository.rerA.id
+            ),
+            route: PreviewLineStatusRepository.rerA
+        )
+    }
+}
+
+#Preview("Sombre") {
+    NavigationStack {
+        LineDetailView(
+            viewModel: LineDetailViewModel(
+                repository: PreviewLineStatusRepository(),
+                lineID: PreviewLineStatusRepository.metro1.id
+            ),
+            route: PreviewLineStatusRepository.metro1
+        )
+    }
+    .preferredColorScheme(.dark)
+}
+
+#Preview("Dynamic Type — accessibilité 2") {
+    NavigationStack {
+        LineDetailView(
+            viewModel: LineDetailViewModel(
+                repository: PreviewLineStatusRepository(),
+                lineID: PreviewLineStatusRepository.metro1.id
+            ),
+            route: PreviewLineStatusRepository.metro1
+        )
+    }
+    .environment(\.dynamicTypeSize, .accessibility2)
+}
+
+#Preview("Service normal — écran complet") {
+    let detail = PreviewLineStatusRepository.metro1Detail
+    let normalDetail = LineDetail(
+        route: detail.route,
+        branches: detail.branches,
+        directions: detail.directions,
+        source: detail.source,
+        fetchedAt: detail.fetchedAt,
+        disruptions: []
+    )
+    let repository = PreviewLineStatusRepository(
+        details: [detail.route.id: normalDetail]
+    )
+
+    NavigationStack {
+        LineDetailView(
+            viewModel: LineDetailViewModel(
+                repository: repository,
+                lineID: detail.route.id
+            ),
+            route: detail.route
+        )
+    }
+}
+
+#Preview("Travaux à venir — écran complet") {
+    let detail = PreviewLineStatusRepository.metro1Detail
+    let upcomingDetail = LineDetail(
+        route: detail.route,
+        branches: detail.branches,
+        directions: detail.directions,
+        source: detail.source,
+        fetchedAt: detail.fetchedAt,
+        disruptions: detail.disruptions.filter { !$0.isActive }
+    )
+    let repository = PreviewLineStatusRepository(
+        details: [detail.route.id: upcomingDetail]
+    )
+
+    NavigationStack {
+        LineDetailView(
+            viewModel: LineDetailViewModel(
+                repository: repository,
+                lineID: detail.route.id
+            ),
+            route: detail.route
         )
     }
 }

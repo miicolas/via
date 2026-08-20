@@ -80,6 +80,7 @@ final class SearchViewModel {
     private(set) var mapPresentation: JourneyMapPresentation?
     private(set) var selectedDestination: SearchResult?
     private(set) var selectedDeparture: SearchDepartureSelection = .currentLocation
+    private(set) var highlightedJourneySectionID: String?
 
     var query = ""
 
@@ -113,6 +114,15 @@ final class SearchViewModel {
 
     var selectedJourneyID: JourneyID? {
         mapPresentation?.id
+    }
+
+    var selectedJourney: Journey? {
+        guard let selectedJourneyID else { return nil }
+        return journeyResult?.journeys.first { $0.id == selectedJourneyID }
+    }
+
+    var journeyDestination: JourneyDestination? {
+        selectedDestination.map { JourneyPlaceSelection($0).journeyDestination }
     }
 
     func updateQuery(_ value: String) {
@@ -202,6 +212,7 @@ final class SearchViewModel {
         selectedDestination = nil
         journeyResult = nil
         mapPresentation = nil
+        highlightedJourneySectionID = nil
         query = editingQuery
         results = []
         loadState = .idle
@@ -230,6 +241,16 @@ final class SearchViewModel {
             return
         }
         mapPresentation = JourneyMapPresentation(journey: journey)
+        highlightedJourneySectionID = nil
+    }
+
+    func highlightJourneySection(_ sectionID: String?) {
+        guard let sectionID else {
+            highlightedJourneySectionID = nil
+            return
+        }
+        guard selectedJourney?.sections.contains(where: { $0.id == sectionID }) == true else { return }
+        highlightedJourneySectionID = sectionID
     }
 
     func searchPlaces(query: String) async throws -> SearchResponse {
@@ -242,6 +263,7 @@ final class SearchViewModel {
         journeyTask?.cancel()
         journeyResult = nil
         mapPresentation = nil
+        highlightedJourneySectionID = nil
         step = .planning
 
         journeyTask = Task { [weak self] in

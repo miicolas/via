@@ -9,7 +9,10 @@ struct ApplicationEntry: App {
     @State private var linesViewModel: LinesViewModel
     @State private var selectedStationModel: SelectedStationModel
     @State private var searchViewModel: SearchViewModel
-    @State private var accountHubModel: AccountHubModel
+    @State private var activeJourneyModel: ActiveJourneyModel
+    @State private var reportViewModel: ReportViewModel
+    @State private var authSessionViewModel: AuthSessionViewModel
+    @State private var onboardingModel: OnboardingModel
 
     init() {
         let dependencies = Self.makeDependencies()
@@ -41,14 +44,30 @@ struct ApplicationEntry: App {
                 account: dependencies.accountModel
             )
         )
-        _accountHubModel = State(
-            initialValue: AccountHubModel(
-                account: dependencies.accountModel,
-                authSession: dependencies.authSessionViewModel,
-                onboarding: dependencies.onboardingModel,
-                supportDestinations: dependencies.supportDestinations,
-                searchRepository: dependencies.searchRepository
+        let activeJourneyModel = ActiveJourneyModel(
+            locationModel: dependencies.locationModel,
+            journeyRepository: dependencies.journeyRepository,
+            store: dependencies.activeJourneyStore,
+            activityManager: dependencies.activityManager,
+            connectivity: dependencies.connectivityMonitor
+        )
+        _activeJourneyModel = State(initialValue: activeJourneyModel)
+        _reportViewModel = State(
+            initialValue: ReportViewModel(
+                contextResolver: ReportContextResolver(
+                    locationModel: dependencies.locationModel,
+                    networkRepository: dependencies.networkRepository
+                ),
+                repository: dependencies.reportRepository,
+                searchRepository: dependencies.searchRepository,
+                activeJourneyProvider: activeJourneyModel
             )
+        )
+        _authSessionViewModel = State(
+            initialValue: dependencies.authSessionViewModel
+        )
+        _onboardingModel = State(
+            initialValue: dependencies.onboardingModel
         )
     }
 
@@ -60,14 +79,20 @@ struct ApplicationEntry: App {
                 linesViewModel: linesViewModel,
                 selectedStationModel: selectedStationModel,
                 searchViewModel: searchViewModel,
-                accountHubModel: accountHubModel
+                activeJourneyModel: activeJourneyModel,
+                reportViewModel: reportViewModel,
+                onboardingModel: onboardingModel
             )
             .task {
-                await accountHubModel.restoreSession()
+                await authSessionViewModel.restore()
+            }
+            .task {
+                await activeJourneyModel.restore()
             }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
-                await accountHubModel.sceneBecameActive()
+                await authSessionViewModel.sceneBecameActive()
+                await activeJourneyModel.sceneBecameActive()
             }
         }
     }
@@ -100,6 +125,10 @@ struct ApplicationEntry: App {
                 networkRepository: InMemoryNetworkRepository.mapPreview,
                 departuresRepository: InMemoryDeparturesRepository.stationsPreview,
                 searchRepository: InMemorySearchRepository.preview,
+                reportRepository: InMemoryReportRepository(),
+                activeJourneyStore: InMemoryActiveJourneyStore(),
+                activityManager: NoOpJourneyActivityManager(),
+                connectivityMonitor: InMemoryConnectivityMonitor(),
                 journeyRepository: PreferenceAwareJourneyRepository(
                     base: InMemoryJourneyRepository(result: .mapPreview),
                     account: accountModel
@@ -112,7 +141,6 @@ struct ApplicationEntry: App {
                     account: accountModel
                 ),
                 onboardingModel: OnboardingModel(),
-                supportDestinations: .preview
             )
         }
 
@@ -134,6 +162,10 @@ struct ApplicationEntry: App {
             networkRepository: LiveNetworkRepository(transport: transport),
             departuresRepository: LiveDeparturesRepository(transport: transport),
             searchRepository: LiveSearchRepository(transport: transport),
+            reportRepository: InMemoryReportRepository(),
+            activeJourneyStore: UserDefaultsActiveJourneyStore(),
+            activityManager: JourneyActivityManager(),
+            connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
             lineStatusRepository: LiveLineStatusRepository(transport: transport),
             accountModel: accountModel,
@@ -143,7 +175,6 @@ struct ApplicationEntry: App {
                 account: accountModel
             ),
             onboardingModel: OnboardingModel(),
-            supportDestinations: .app
         )
     }
 
@@ -152,11 +183,14 @@ struct ApplicationEntry: App {
         let networkRepository: any NetworkRepository
         let departuresRepository: any DeparturesRepository
         let searchRepository: any SearchRepository
+        let reportRepository: any ReportRepository
+        let activeJourneyStore: any ActiveJourneyStore
+        let activityManager: any JourneyActivityManaging
+        let connectivityMonitor: any ConnectivityMonitoring
         let journeyRepository: any JourneyRepository
         let lineStatusRepository: any LineStatusRepository
         let accountModel: AccountModel
         let authSessionViewModel: AuthSessionViewModel
         let onboardingModel: OnboardingModel
-        let supportDestinations: SupportDestinations
     }
 }

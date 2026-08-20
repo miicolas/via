@@ -104,6 +104,7 @@ final class AccountModelTests: XCTestCase {
         )
         model.activate(userID: "user")
         await waitUntil { model.syncState == .syncing }
+        await waitUntilSynchronizationIsSuspended(remote)
 
         model.setPlace(addressResult(id: "home"), role: .home)
         await remote.resumeSynchronization()
@@ -140,6 +141,7 @@ final class AccountModelTests: XCTestCase {
         )
         model.activate(userID: "user")
         await waitUntil { model.syncState == .syncing }
+        await waitUntilSynchronizationIsSuspended(remote)
 
         model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Nation")
         await remote.resumeSynchronization()
@@ -185,6 +187,7 @@ final class AccountModelTests: XCTestCase {
         )
         model.activate(userID: "first-user")
         await waitUntil { model.syncState == .syncing }
+        await waitUntilSynchronizationIsSuspended(remote)
         model.toggleFavorite(stationID: StationID(rawValue: "FIRST"), name: "First")
 
         model.activate(userID: "second-user")
@@ -230,12 +233,12 @@ final class AccountModelTests: XCTestCase {
 
     @MainActor
     func testAnonymousWorkspacePersistsAndMergesNewestValuesOnFirstLogin() {
-        var currentDate = Date(timeIntervalSince1970: 100)
+        let clock = LockedTestDate(Date(timeIntervalSince1970: 100))
         let model = AccountModel(
             store: AccountLocalStore(defaults: defaults),
             remote: AccountRemoteStub(),
             synchronizationEnabled: false,
-            now: { currentDate }
+            now: clock.read
         )
 
         model.activate(userID: "user")
@@ -245,7 +248,7 @@ final class AccountModelTests: XCTestCase {
         model.setPreferred(.metro, enabled: true)
 
         model.activateAnonymous()
-        currentDate = Date(timeIntervalSince1970: 200)
+        clock.set(Date(timeIntervalSince1970: 200))
         model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Appareil")
         model.setPlace(addressResult(id: "device-home"), role: .home)
         model.recordRecentSearch(addressResult(id: "device-recent"))
@@ -366,6 +369,19 @@ final class AccountModelTests: XCTestCase {
         XCTFail("Condition was not met", file: file, line: line)
     }
 
+    @MainActor
+    private func waitUntilSynchronizationIsSuspended(
+        _ remote: AccountRemoteStub,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        for _ in 0..<100 {
+            if await remote.isSynchronizationSuspended() { return }
+            await Task.yield()
+        }
+        XCTFail("Synchronization was not suspended", file: file, line: line)
+    }
+
     private func addressResult(id: String) -> SearchResult {
         .address(AddressSearchResult(
             id: id,
@@ -374,6 +390,23 @@ final class AccountModelTests: XCTestCase {
             coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35),
             distanceMeters: nil
         ))
+    }
+}
+
+private final class LockedTestDate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Date
+
+    init(_ value: Date) {
+        self.value = value
+    }
+
+    func read() -> Date {
+        lock.withLock { value }
+    }
+
+    func set(_ value: Date) {
+        lock.withLock { self.value = value }
     }
 }
 
@@ -398,6 +431,8 @@ private actor AccountRemoteStub: AccountRemote {
         suspendedContinuation?.resume()
         suspendedContinuation = nil
     }
+
+    func isSynchronizationSuspended() -> Bool { suspendedContinuation != nil }
 
     func setError(_ error: ViaError?) {
         self.error = error

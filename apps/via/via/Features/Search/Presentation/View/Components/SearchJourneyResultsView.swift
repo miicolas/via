@@ -111,7 +111,7 @@ struct SearchJourneyResultsView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Affiche cet itinéraire sur la carte")
+                .accessibilityHint("Ouvre le détail de cet itinéraire et l’affiche sur la carte")
             }
         }
     }

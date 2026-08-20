@@ -18,6 +18,17 @@
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>dev.via.app.journey</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>via</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -27,10 +38,18 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Via utilise votre position pendant un trajet actif pour mettre à jour les étapes et proposer un nouvel itinéraire même lorsque l’écran est verrouillé.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Via utilise votre position pour trouver les gares et itinéraires proches.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
@@ -41,4 +60,3 @@
 	<string>$(VIA_API_BASE_URL)</string>
 </dict>
 </plist>
-

@@ -203,10 +203,10 @@ extension SkeletonList.Row {
         verticalPadding: 8
     )
 
-    /// `LineSchemaStopRow`: 14pt bead on the rail, subheadline stop name,
-    /// 34pt row height.
+    /// `LineSchemaStopRow`: 18pt bead on the rail, subheadline stop name,
+    /// 38pt row height.
     static let schemaStop = Self(
-        leading: .circle(14),
+        leading: .circle(18),
         lines: [SkeletonList.Line(width: .fill, height: 13)],
         verticalPadding: 10
     )

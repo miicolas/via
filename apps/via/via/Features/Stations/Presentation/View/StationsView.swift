@@ -8,7 +8,6 @@ struct StationsView: View {
     @Binding var detailDetent: PresentationDetent
 
     let onOpenSearch: () -> Void
-    let onOpenProfile: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.scenePhase) private var scenePhase
@@ -20,17 +19,6 @@ struct StationsView: View {
             content
                 .navigationTitle("Stations")
                 .toolbarTitleDisplayMode(.inlineLarge)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: onOpenProfile) {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.title3)
-                                .symbolRenderingMode(.hierarchical)
-                                .frame(width: 44, height: 44)
-                        }
-                        .accessibilityLabel("Profil")
-                    }
-                }
         }
         .opacity(tabVisibilityProgress)
         .task(id: scenePhase) {
@@ -243,8 +231,7 @@ struct StationsView: View {
         ),
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
-        onOpenSearch: {},
-        onOpenProfile: {}
+        onOpenSearch: {}
     )
 }
 

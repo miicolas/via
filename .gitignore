@@ -37,8 +37,11 @@ DerivedData/
 xcuserdata/
 .build/
 
-# signing material
+# merge/patch backups
+*.orig
 *.orig.*
+
+# signing material
 *.p8
 *.p12
 *.key
