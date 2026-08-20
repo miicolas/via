@@ -6,6 +6,7 @@ import { departuresRouter } from './departures/router';
 import { healthRouter } from './health/router';
 import { createGtfsJourneyPlanner } from './journeys/gtfs/loader';
 import { createIdfmJourneyPlanner } from './journeys/idfm/client';
+import { loadJourneyShapes } from './journeys/idfm/shape-loader';
 import { createJourneysRouter } from './journeys/router';
 import { createJourneyPlanner } from './journeys/service';
 import { linesRouter } from './lines/router';
@@ -23,6 +24,7 @@ const journeyPlanner = createJourneyPlanner({
     ? createIdfmJourneyPlanner({
         apiKey: env.API_KEY_PRISM_IDFM,
         url: env.PRIM_JOURNEY_PLANNER_URL,
+        loadShapes: loadJourneyShapes,
       })
     : null,
   gtfs: createGtfsJourneyPlanner(),

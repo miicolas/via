@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000011 /* OpenAPIRuntime */; };
 		A10000000000000000000002 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000012 /* OpenAPIURLSession */; };
+		D10000000000000000000001 /* JourneyActivityExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D10000000000000000000002 /* JourneyActivityExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -19,7 +20,28 @@
 			remoteGlobalIDString = B2DADC663030B6E8007DFCA8;
 			remoteInfo = via;
 		};
+		D10000000000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B2DADC5F3030B6E8007DFCA8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D1000000000000000000000C;
+			remoteInfo = JourneyActivityExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D1000000000000000000000B /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D10000000000000000000001 /* JourneyActivityExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A10000000000000000000021 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
@@ -28,6 +50,7 @@
 		A10000000000000000000024 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 		B2DADC673030B6E8007DFCA8 /* Via.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Via.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C10000000000000000000001 /* ViaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ViaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D10000000000000000000002 /* JourneyActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = JourneyActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -37,6 +60,13 @@
 				Resources/Info.plist,
 			);
 			target = B2DADC663030B6E8007DFCA8 /* via */;
+		};
+		D10000000000000000000007 /* Exceptions for "JourneyActivityExtension" folder in "JourneyActivityExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = D1000000000000000000000C /* JourneyActivityExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -54,6 +84,19 @@
 			path = viaTests;
 			sourceTree = "<group>";
 		};
+		D10000000000000000000005 /* JourneyActivityShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = JourneyActivityShared;
+			sourceTree = "<group>";
+		};
+		D10000000000000000000006 /* JourneyActivityExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D10000000000000000000007 /* Exceptions for "JourneyActivityExtension" folder in "JourneyActivityExtension" target */,
+			);
+			path = JourneyActivityExtension;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,6 +110,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C10000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D10000000000000000000009 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -94,6 +144,8 @@
 				B2DADC683030B6E8007DFCA8 /* Products */,
 				B2DADC693030B6E8007DFCA8 /* via */,
 				C10000000000000000000002 /* viaTests */,
+				D10000000000000000000005 /* JourneyActivityShared */,
+				D10000000000000000000006 /* JourneyActivityExtension */,
 			);
 			sourceTree = "<group>";
 		};
@@ -102,6 +154,7 @@
 			children = (
 				B2DADC673030B6E8007DFCA8 /* Via.app */,
 				C10000000000000000000001 /* ViaTests.xctest */,
+				D10000000000000000000002 /* JourneyActivityExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -117,13 +170,16 @@
 				B2DADC633030B6E8007DFCA8 /* Sources */,
 				B2DADC643030B6E8007DFCA8 /* Frameworks */,
 				B2DADC653030B6E8007DFCA8 /* Resources */,
+				D1000000000000000000000B /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				D10000000000000000000004 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				B2DADC693030B6E8007DFCA8 /* via */,
+				D10000000000000000000005 /* JourneyActivityShared */,
 			);
 			name = via;
 			packageProductDependencies = (
@@ -157,6 +213,29 @@
 			productReference = C10000000000000000000001 /* ViaTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		D1000000000000000000000C /* JourneyActivityExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D10000000000000000000010 /* Build configuration list for PBXNativeTarget "JourneyActivityExtension" */;
+			buildPhases = (
+				D10000000000000000000008 /* Sources */,
+				D10000000000000000000009 /* Frameworks */,
+				D1000000000000000000000A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				D10000000000000000000005 /* JourneyActivityShared */,
+				D10000000000000000000006 /* JourneyActivityExtension */,
+			);
+			name = JourneyActivityExtension;
+			packageProductDependencies = (
+			);
+			productName = JourneyActivityExtension;
+			productReference = D10000000000000000000002 /* JourneyActivityExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -173,6 +252,9 @@
 					C10000000000000000000005 = {
 						CreatedOnToolsVersion = 26.6;
 						TestTargetID = B2DADC663030B6E8007DFCA8;
+					};
+					D1000000000000000000000C = {
+						CreatedOnToolsVersion = 26.6;
 					};
 				};
 			};
@@ -196,6 +278,7 @@
 			targets = (
 				B2DADC663030B6E8007DFCA8 /* via */,
 				C10000000000000000000005 /* ViaTests */,
+				D1000000000000000000000C /* JourneyActivityExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -209,6 +292,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C10000000000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D1000000000000000000000A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -255,6 +345,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D10000000000000000000008 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -262,6 +359,11 @@
 			isa = PBXTargetDependency;
 			target = B2DADC663030B6E8007DFCA8 /* via */;
 			targetProxy = C10000000000000000000004 /* PBXContainerItemProxy */;
+		};
+		D10000000000000000000004 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D1000000000000000000000C /* JourneyActivityExtension */;
+			targetProxy = D10000000000000000000003 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -291,7 +393,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = via/via.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 200;
 				DEVELOPMENT_TEAM = HZAYG4Q47N;
 				ENABLE_PREVIEWS = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -435,7 +537,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = via/via.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 200;
 				DEVELOPMENT_TEAM = HZAYG4Q47N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -470,7 +572,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = via/via.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 200;
 				DEVELOPMENT_TEAM = HZAYG4Q47N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -560,6 +662,87 @@
 			};
 			name = Release;
 		};
+		D1000000000000000000000D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 200;
+				DEVELOPMENT_TEAM = HZAYG4Q47N;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = JourneyActivityExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.JourneyActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		D1000000000000000000000E /* Staging */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 200;
+				DEVELOPMENT_TEAM = HZAYG4Q47N;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = JourneyActivityExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.JourneyActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Staging;
+		};
+		D1000000000000000000000F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 200;
+				DEVELOPMENT_TEAM = HZAYG4Q47N;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = JourneyActivityExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.via.app.JourneyActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -589,6 +772,16 @@
 				C10000000000000000000010 /* Debug */,
 				C10000000000000000000011 /* Staging */,
 				C10000000000000000000012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D10000000000000000000010 /* Build configuration list for PBXNativeTarget "JourneyActivityExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D1000000000000000000000D /* Debug */,
+				D1000000000000000000000E /* Staging */,
+				D1000000000000000000000F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

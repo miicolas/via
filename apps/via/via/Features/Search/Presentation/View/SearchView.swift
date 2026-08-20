@@ -5,19 +5,30 @@ import SwiftUI
 @MainActor
 struct SearchView: View {
     let viewModel: SearchViewModel
+    let activeJourneyModel: ActiveJourneyModel
     let onClose: () -> Void
+    let onExpandJourneyMap: () -> Void
+    let onOpenReport: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var inputTransitionNamespace
     @State private var isDeparturePickerPresented = false
+    @State private var inspectedJourney: Journey?
+    @State private var isActiveJourneyPresented = false
 
     init(
         viewModel: SearchViewModel,
-        onClose: @escaping () -> Void = {}
+        activeJourneyModel: ActiveJourneyModel,
+        onClose: @escaping () -> Void = {},
+        onExpandJourneyMap: @escaping () -> Void = {},
+        onOpenReport: @escaping () -> Void = {}
     ) {
         self.viewModel = viewModel
+        self.activeJourneyModel = activeJourneyModel
         self.onClose = onClose
+        self.onExpandJourneyMap = onExpandJourneyMap
+        self.onOpenReport = onOpenReport
     }
 
     var body: some View {
@@ -35,11 +46,33 @@ struct SearchView: View {
                     ToolbarItem(placement: .subtitle) {
                         departureMenu(viewModel: $viewModel)
                     }
+                    if hasActiveJourneySurface {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Trajet actif", systemImage: "location.fill") {
+                                isActiveJourneyPresented = true
+                            }
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(role: .close) {
                             onClose()
                         }
                     }
+                }
+                .navigationDestination(item: $inspectedJourney) { journey in
+                    if let destination = viewModel.journeyDestination {
+                        JourneyDetailView(
+                            journey: journey,
+                            destination: destination,
+                            source: viewModel.journeyResult?.source,
+                            activeJourneyModel: activeJourneyModel,
+                            onHighlightSection: viewModel.highlightJourneySection,
+                            onExpandMap: onExpandJourneyMap
+                        )
+                    }
+                }
+                .navigationDestination(isPresented: $isActiveJourneyPresented) {
+                    activeJourneyDestination
                 }
         }
         .opacity(tabVisibilityProgress)
@@ -52,6 +85,36 @@ struct SearchView: View {
                 onSelect: viewModel.selectDeparture
             )
         }
+        .onAppear(perform: synchronizeActiveJourneyPresentation)
+        .onChange(of: activeJourneyModel.session?.journey.id) { _, _ in
+            synchronizeActiveJourneyPresentation()
+        }
+        .onChange(of: activeJourneyModel.arrival?.journeyID) { _, _ in
+            synchronizeActiveJourneyPresentation()
+        }
+    }
+
+    @ViewBuilder
+    private var activeJourneyDestination: some View {
+        if let arrival = activeJourneyModel.arrival {
+            JourneyArrivalView(
+                arrival: arrival,
+                onComplete: activeJourneyModel.completeArrival
+            )
+        } else if activeJourneyModel.isActive {
+            ActiveJourneyPanelView(
+                model: activeJourneyModel,
+                onOpenReport: onOpenReport
+            )
+        }
+    }
+
+    private var hasActiveJourneySurface: Bool {
+        activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+    }
+
+    private func synchronizeActiveJourneyPresentation() {
+        isActiveJourneyPresented = hasActiveJourneySurface
     }
 
     private func departureMenu(viewModel: Bindable<SearchViewModel>) -> some View {
@@ -100,7 +163,10 @@ struct SearchView: View {
                         destinationName: destination.name,
                         departureTitle: viewModel.wrappedValue.selectedDeparture.title,
                         selectedJourneyID: viewModel.wrappedValue.selectedJourneyID,
-                        onSelectJourney: viewModel.wrappedValue.selectJourney,
+                        onSelectJourney: { journey in
+                            viewModel.wrappedValue.selectJourney(journey)
+                            inspectedJourney = journey
+                        },
                         onRetry: viewModel.wrappedValue.retryJourney,
                         onEdit: viewModel.wrappedValue.editDestination
                     )
@@ -195,6 +261,10 @@ private extension SearchResult {
             repository: InMemorySearchRepository.preview,
             journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
             locationModel: locationModel
+        ),
+        activeJourneyModel: ActiveJourneyModel(
+            locationModel: locationModel,
+            journeyRepository: InMemoryJourneyRepository(result: .mapPreview)
         )
     )
 }

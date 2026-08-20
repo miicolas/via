@@ -27,17 +27,17 @@ import {
 import { computeDrawnGeometry } from '@via/db/drawn-geometry';
 import { networkRouteCondition } from '@via/db/network-scope';
 import { projectStopsOntoPatterns } from '@via/db/projection';
-import { parse } from 'csv-parse';
 import { eq, sql } from 'drizzle-orm';
 import { RedisClient as BunRedisClient } from 'bun';
 
+import { readCsv, readPositionalCsv, type CsvRow } from './csv';
 import { importLineSchemas } from './line-schema/import-line-schemas';
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
+import { formatCount, formatDuration, logStep, step } from './progress';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
 import { addScheduledTrip } from './schedule/scheduled-trips';
 import { importShapes } from './shapes/import-shapes';
 
-type CsvRow = Record<string, string>;
 /**
  * A route once its required fields have actually been checked.
  *
@@ -83,9 +83,15 @@ const HASHED_FILES = [
   'calendar_dates.txt',
 ];
 
+/**
+ * Reads 1.5 GB before the import does anything else, so it announces each file:
+ * a run that looks frozen on the very first minute is usually just hashing
+ * stop_times.txt.
+ */
 async function hashGtfsFeed(gtfsPath: string): Promise<string> {
   const hash = createHash('sha256');
   for (const filename of HASHED_FILES) {
+    logStep(`Hashing ${filename}`);
     const path = join(gtfsPath, filename);
     try {
       await access(path);
@@ -99,16 +105,6 @@ async function hashGtfsFeed(gtfsPath: string): Promise<string> {
     }
   }
   return hash.digest('hex');
-}
-
-async function* readCsv(path: string): AsyncGenerator<CsvRow> {
-  const parser = createReadStream(path).pipe(
-    parse({ bom: true, columns: true, skip_empty_lines: true })
-  );
-
-  for await (const row of parser) {
-    yield row as CsvRow;
-  }
 }
 
 /**
@@ -129,6 +125,7 @@ async function importTransitNetwork(gtfsPath: string) {
     await access(join(gtfsPath, filename));
   }
 
+  logStep('Reading routes.txt');
   const routes: ImportedRoute[] = [];
   for await (const row of readCsv(join(gtfsPath, 'routes.txt'))) {
     const routeType = Number(required(row, 'route_type', 'routes.txt'));
@@ -151,6 +148,7 @@ async function importTransitNetwork(gtfsPath: string) {
     throw new Error('No metro, RER, Transilien, tram or bus route was found in routes.txt');
   }
 
+  logStep(`Reading trips.txt for ${formatCount(routes.length)} lines`);
   const routeIds = new Set(routes.map((route) => route.id));
   const candidateByKey = new Map<string, PatternCandidate>();
   /** Every imported trip, for the GTFS fallback — patterns only keep representatives. */
@@ -187,8 +185,13 @@ async function importTransitNetwork(gtfsPath: string) {
   // Shape ids are pattern primary keys, so one route can never claim another's.
   const canonicalShapeIds = new Set(selections.map((selection) => selection.canonicalShapeId));
 
-  const journeyShapeIds = new Set([...scheduledTrips.values()].map((trip) => trip.shapeId));
+  const journeyShapeIds = new Set<string>();
+  for (const trip of scheduledTrips.values()) journeyShapeIds.add(trip.shapeId);
 
+  logStep(
+    `Selected ${formatCount(patterns.length)} patterns from ` +
+      `${formatCount(scheduledTrips.size)} trips; reading stops.txt`
+  );
   const sourceStops = new Map<string, SourceStop>();
   for await (const stop of readCsv(join(gtfsPath, 'stops.txt'))) {
     const lon = Number(stop.stop_lon);
@@ -239,7 +242,9 @@ async function importTransitNetwork(gtfsPath: string) {
   }
 
   const importedAt = new Date();
+  logStep('Opening the network transaction');
   await db.transaction(async (tx) => {
+    logStep('Truncating the tables this importer owns');
     /**
      * Replace exactly what this importer owns. TER, airport rail shuttles and
      * guided special modes remain untouched if another importer adds them later.
@@ -273,6 +278,7 @@ async function importTransitNetwork(gtfsPath: string) {
       )
     `);
 
+    logStep(`Inserting ${formatCount(routes.length)} routes and ${formatCount(journeyStops.size)} stops`);
     await tx.insert(transitRoutes).values(
       routes.map(({ mode: _, ...route }) => ({ ...route, importedAt }))
     );
@@ -299,6 +305,7 @@ async function importTransitNetwork(gtfsPath: string) {
       for (const stop of inserted) stopKeyById.set(stop.id, stop.numericId);
     }
 
+    logStep(`Inserting ${formatCount(patterns.length)} route patterns`);
     const patternValues = patterns.map((pattern) => ({
         id: pattern.shapeId,
         routeId: pattern.routeId,
@@ -314,7 +321,9 @@ async function importTransitNetwork(gtfsPath: string) {
         .values(patternValues.slice(start, start + PATTERN_INSERT_BATCH));
     }
 
+    logStep(`Streaming shapes.txt for ${formatCount(journeyShapeIds.size)} shapes`);
     await importShapes({ gtfsPath, tx, shapeIds: journeyShapeIds, readCsv });
+    logStep('Attaching shape geometry to rail patterns');
     await tx.execute(sql`
       UPDATE ${transitRoutePatterns} AS patterns
       SET geometry = shapes.geometry
@@ -325,6 +334,7 @@ async function importTransitNetwork(gtfsPath: string) {
     `);
 
     const transfers = [...transfersByKey.values()];
+    logStep(`Inserting ${formatCount(transfers.length)} transfers`);
     for (let start = 0; start < transfers.length; start += INSERT_BATCH) {
       await tx
         .insert(transitTransfers)
@@ -353,12 +363,14 @@ async function importTransitNetwork(gtfsPath: string) {
         ])
       ),
       readCsv,
+      readPositionalCsv,
     });
 
+    logStep('Committing the network transaction');
   });
 
   const counts = Map.groupBy(routes, (route) => route.mode);
-  console.log(
+  logStep(
     `Imported ${counts.get('metro')?.length ?? 0} metro, ` +
       `${counts.get('rer')?.length ?? 0} RER, ` +
       `${counts.get('transilien')?.length ?? 0} Transilien, ` +
@@ -376,9 +388,10 @@ async function importTransitNetwork(gtfsPath: string) {
  * geometry — a degraded map, never broken schedules.
  */
 async function deriveNetworkData() {
-  await db.execute(projectStopsOntoPatterns());
-  await db.execute(computeDrawnGeometry());
+  await step('Projecting stops onto patterns', () => db.execute(projectStopsOntoPatterns()));
+  await step('Computing drawn geometry', () => db.execute(computeDrawnGeometry()));
 
+  logStep('Building line schemas');
   const stops = await db
     .select({
       numericId: transitStops.numericId,
@@ -434,7 +447,9 @@ if (!gtfsPath) {
   throw new Error('Pass the extracted GTFS directory as an argument or set GTFS_PATH');
 }
 
+const importStartedAt = performance.now();
 try {
+  logStep(`Importing ${gtfsPath}`);
   const feedHash = await hashGtfsFeed(gtfsPath);
   const [stored] = await db
     .select()
@@ -445,7 +460,7 @@ try {
   } else {
     await importTransitNetwork(gtfsPath);
     await deriveNetworkData();
-    await vacuumAnalyzeTransitTables();
+    await step('Vacuuming and analyzing the transit tables', vacuumAnalyzeTransitTables);
     /**
      * Only a fully completed import records its hash: a crash in any phase
      * above leaves the previous value, so the next run redoes everything.
@@ -458,6 +473,7 @@ try {
         set: { value: feedHash, updatedAt: new Date() },
       });
     await bumpTransitNetworkCacheVersion();
+    logStep(`Import complete in ${formatDuration(performance.now() - importStartedAt)}.`);
   }
 } finally {
   await client.end();

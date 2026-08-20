@@ -14,12 +14,14 @@ import {
 } from '@via/db/schema';
 import { sql } from 'drizzle-orm';
 
+import type { PositionalCsv } from '../csv';
+import { formatCount, logStep } from '../progress';
 import {
   expandServiceDates,
   type CalendarDateRow,
   type CalendarRow,
 } from './expand-service-dates';
-import { buildTimeProfiles } from './time-profiles';
+import { buildTimeProfiles, STOP_TIME_COLUMNS, type StopTimeColumn } from './time-profiles';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -54,6 +56,10 @@ type ImportSchedulesOptions = {
   /** One representative trip per editorial map pattern. */
   representativeTrips: ReadonlyMap<string, number>;
   readCsv: (path: string) => AsyncGenerator<Record<string, string>>;
+  readPositionalCsv: <Column extends string>(
+    path: string,
+    columns: readonly Column[]
+  ) => Promise<PositionalCsv<Column>>;
 };
 
 // Keep every statement under Postgres' 65k parameter limit while reducing
@@ -76,9 +82,14 @@ export async function importSchedules({
   stopKeyById,
   representativeTrips,
   readCsv,
+  readPositionalCsv,
 }: ImportSchedulesOptions) {
+  logStep('Streaming stop_times.txt into time profiles');
   const profiles = await buildTimeProfiles({
-    stopTimes: readCsv(join(gtfsPath, 'stop_times.txt')),
+    stopTimes: await readPositionalCsv<StopTimeColumn>(
+      join(gtfsPath, 'stop_times.txt'),
+      STOP_TIME_COLUMNS
+    ),
     trips,
     canonicalStopIdOf,
     stopKeyById,
@@ -99,31 +110,47 @@ export async function importSchedules({
     FROM STDIN WITH (FORMAT text, DELIMITER E'\\t')
   `.writable();
   await profiles.writeProfileStopsTo(copyWriter);
-  console.log(
-    `Copied ${profiles.callCount} calls of ${profiles.profileCount} time profiles; deriving route patterns…`
+  logStep(
+    `Copied ${formatCount(profiles.callCount)} calls of ` +
+      `${formatCount(profiles.profileCount)} time profiles.`
   );
 
-  /** A trip whose every call was skipped has no profile to reference. */
-  const tripRows = [...trips.values()].flatMap((trip) => {
+  /**
+   * Built one batch at a time rather than as one array of every trip: the feed
+   * has ~700k of them, and materializing a second full copy of the map next to
+   * the map itself was a needless multi-hundred-megabyte spike right at the
+   * point of the import where memory is already at its worst.
+   *
+   * A trip whose every call was skipped has no profile to reference, so it is
+   * dropped here rather than violating the foreign key.
+   */
+  logStep('Inserting trips');
+  let importedTripCount = 0;
+  let tripBatch: (typeof transitTrips.$inferInsert)[] = [];
+  const flushTripBatch = async () => {
+    if (tripBatch.length === 0) return;
+    await tx.insert(transitTrips).values(tripBatch);
+    tripBatch = [];
+  };
+  for (const trip of trips.values()) {
     const assignment = profiles.assignmentForTrip(trip.numericId);
-    if (!assignment) return [];
-    return [
-      {
-        numericId: trip.numericId,
-        id: trip.id,
-        routeId: trip.routeId,
-        serviceId: trip.serviceId,
-        directionId: trip.directionId,
-        headsign: trip.headsign,
-        shapeId: trip.shapeId,
-        profileKey: assignment.profileKey,
-        startSeconds: assignment.startSeconds,
-      },
-    ];
-  });
-  for (let start = 0; start < tripRows.length; start += TRIP_INSERT_BATCH) {
-    await tx.insert(transitTrips).values(tripRows.slice(start, start + TRIP_INSERT_BATCH));
+    if (!assignment) continue;
+    importedTripCount += 1;
+    tripBatch.push({
+      numericId: trip.numericId,
+      id: trip.id,
+      routeId: trip.routeId,
+      serviceId: trip.serviceId,
+      directionId: trip.directionId,
+      headsign: trip.headsign,
+      shapeId: trip.shapeId,
+      profileKey: assignment.profileKey,
+      startSeconds: assignment.startSeconds,
+    });
+    if (tripBatch.length === TRIP_INSERT_BATCH) await flushTripBatch();
   }
+  await flushTripBatch();
+  logStep(`Inserted ${formatCount(importedTripCount)} trips; deriving route patterns…`);
 
   /**
    * Derive map calls from each pattern's representative profile in SQL.
@@ -167,7 +194,9 @@ export async function importSchedules({
       .onConflictDoNothing();
   }
 
-  const serviceIds = new Set([...trips.values()].map((trip) => trip.serviceId));
+  logStep('Expanding service days');
+  const serviceIds = new Set<string>();
+  for (const trip of trips.values()) serviceIds.add(trip.serviceId);
   // Past days are dead weight: the planner only ever asks for today onwards.
   const today = new Date().toISOString().slice(0, 10);
   const serviceDates = expandServiceDates(
@@ -196,10 +225,11 @@ export async function importSchedules({
     )
   `);
 
-  const droppedTrips = trips.size - tripRows.length;
-  console.log(
-    `Imported ${profiles.stats.departureCount} calls as ${profiles.profileCount} time profiles ` +
-      `over ${serviceDates.length} service days` +
+  const droppedTrips = trips.size - importedTripCount;
+  logStep(
+    `Imported ${formatCount(profiles.stats.departureCount)} calls as ` +
+      `${formatCount(profiles.profileCount)} time profiles ` +
+      `over ${formatCount(serviceDates.length)} service days` +
       (droppedTrips > 0 ? ` (${droppedTrips} trips without usable calls dropped)` : '') +
       (profiles.stats.skippedStops > 0
         ? ` (${profiles.stats.skippedStops} calls on unknown stops skipped).`

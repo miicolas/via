@@ -22,7 +22,7 @@ struct JourneySummaryCard: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(timeText(journey.departureAt))
+                Text(JourneyFormatting.time(journey.departureAt))
                     .font(.system(.title2, design: .rounded).weight(.bold))
                     .monospacedDigit()
 
@@ -31,7 +31,7 @@ struct JourneySummaryCard: View {
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
 
-                Text(timeText(journey.arrivalAt))
+                Text(JourneyFormatting.time(journey.arrivalAt))
                     .font(.system(.title2, design: .rounded).weight(.bold))
                     .monospacedDigit()
             }
@@ -106,14 +106,17 @@ struct JourneySummaryCard: View {
     }
 
     private var summaryText: String {
-        let duration = formatDuration(journey.durationSeconds)
-        let walking = formatDuration(journey.walkingDurationSeconds)
+        var parts = [JourneyFormatting.duration(journey.durationSeconds)]
         let transfers = journey.transferCount == 0
             ? "direct"
             : journey.transferCount == 1
                 ? "1 correspondance"
                 : "\(journey.transferCount) correspondances"
-        return "\(duration) · \(transfers) · \(walking) de marche"
+        parts.append(transfers)
+        if journey.walkingDurationSeconds > 0 {
+            parts.append("\(JourneyFormatting.duration(journey.walkingDurationSeconds)) de marche")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var sourceLabel: String? {
@@ -135,24 +138,13 @@ struct JourneySummaryCard: View {
     }
 
     private var accessibilityLabel: String {
-        var value = "\(journey.qualifier.displayName), départ à \(timeText(journey.departureAt)), arrivée à \(timeText(journey.arrivalAt)), \(summaryText)"
+        var value = "\(journey.qualifier.displayName), départ à \(JourneyFormatting.time(journey.departureAt)), arrivée à \(JourneyFormatting.time(journey.arrivalAt)), \(summaryText)"
         if let status { value += ", \(status.title)" }
         if let sourceLabel { value += ", \(sourceLabel)" }
         if !journey.warnings.isEmpty { value += ", avertissement: \(journey.warnings.joined(separator: ", "))" }
         return value
     }
 
-    private func timeText(_ date: Date) -> String {
-        date.formatted(date: .omitted, time: .shortened)
-    }
-
-    private func formatDuration(_ seconds: Int) -> String {
-        let minutes = max(1, Int(ceil(Double(seconds) / 60)))
-        guard minutes >= 60 else { return "\(minutes) min" }
-        let hours = minutes / 60
-        let remaining = minutes % 60
-        return remaining == 0 ? "\(hours) h" : "\(hours) h \(remaining)"
-    }
 }
 
 private struct JourneyStatus {

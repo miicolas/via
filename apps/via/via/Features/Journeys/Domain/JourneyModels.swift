@@ -1,6 +1,6 @@
 import Foundation
 
-enum JourneyDestination: Sendable, Hashable {
+enum JourneyDestination: Codable, Sendable, Hashable {
     case station(id: StationID, name: String, coordinate: GeoCoordinate)
     case address(id: String, name: String, context: String?, coordinate: GeoCoordinate)
 
@@ -33,12 +33,12 @@ struct JourneyRequest: Sendable, Hashable {
     var preferredModes: Set<TransitMode> = []
 }
 
-struct JourneyPlace: Sendable, Hashable {
+struct JourneyPlace: Codable, Sendable, Hashable {
     let name: String
     let coordinate: GeoCoordinate
 }
 
-struct JourneyStop: Sendable, Hashable, Identifiable {
+struct JourneyStop: Codable, Sendable, Hashable, Identifiable {
     let id: String
     let name: String
     let coordinate: GeoCoordinate
@@ -46,7 +46,7 @@ struct JourneyStop: Sendable, Hashable, Identifiable {
     let departureAt: Date?
 }
 
-struct JourneyRoute: Sendable, Hashable, Identifiable {
+struct JourneyRoute: Codable, Sendable, Hashable, Identifiable {
     let id: RouteID
     let shortName: String
     let longName: String
@@ -55,8 +55,8 @@ struct JourneyRoute: Sendable, Hashable, Identifiable {
     let textColorHex: String
 }
 
-struct JourneySection: Sendable, Hashable, Identifiable {
-    enum Kind: String, Sendable, Hashable { case walk, wait, transfer, transit }
+struct JourneySection: Codable, Sendable, Hashable, Identifiable {
+    enum Kind: String, Codable, Sendable, Hashable { case walk, wait, transfer, transit }
 
     let id: String
     let kind: Kind
@@ -72,8 +72,8 @@ struct JourneySection: Sendable, Hashable, Identifiable {
     let stops: [JourneyStop]
 }
 
-struct Journey: Sendable, Hashable, Identifiable {
-    enum Qualifier: String, Sendable, Hashable {
+struct Journey: Codable, Sendable, Hashable, Identifiable {
+    enum Qualifier: String, Codable, Sendable, Hashable {
         case recommended
         case rapid
         case lessWalking = "less-walking"
@@ -81,7 +81,7 @@ struct Journey: Sendable, Hashable, Identifiable {
         case walking
     }
 
-    enum Status: String, Sendable, Hashable { case normal, disrupted, theoretical }
+    enum Status: String, Codable, Sendable, Hashable { case normal, disrupted, theoretical }
 
     let id: JourneyID
     let qualifier: Qualifier
@@ -97,11 +97,10 @@ struct Journey: Sendable, Hashable, Identifiable {
 
 struct JourneyResult: Sendable, Hashable {
     enum Status: String, Sendable, Hashable { case ready, noRoute = "no-route", unavailable }
-    enum Source: String, Sendable, Hashable { case realtime = "idfm-realtime", theoretical = "gtfs-theoretical" }
+    enum Source: String, Codable, Sendable, Hashable { case realtime = "idfm-realtime", theoretical = "gtfs-theoretical" }
 
     let status: Status
     let source: Source?
     let generatedAt: Date
     let journeys: [Journey]
 }
-

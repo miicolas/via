@@ -3,14 +3,33 @@ import SwiftUI
 struct SearchDestinationField: View {
     @Binding var text: String
 
+    let prompt: String
+    let accessibilityLabel: String
+    let clearAccessibilityLabel: String
     let onClear: () -> Void
     let onSubmit: () -> Void
 
     @FocusState private var isFocused: Bool
 
+    init(
+        text: Binding<String>,
+        prompt: String = "Station ou adresse",
+        accessibilityLabel: String = "Destination",
+        clearAccessibilityLabel: String = "Effacer la destination",
+        onClear: @escaping () -> Void,
+        onSubmit: @escaping () -> Void
+    ) {
+        _text = text
+        self.prompt = prompt
+        self.accessibilityLabel = accessibilityLabel
+        self.clearAccessibilityLabel = clearAccessibilityLabel
+        self.onClear = onClear
+        self.onSubmit = onSubmit
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            TextField("Station ou adresse", text: $text)
+            TextField(prompt, text: $text)
                 .font(.title3)
                 .textFieldStyle(.plain)
                 .textInputAutocapitalization(.sentences)
@@ -29,7 +48,7 @@ struct SearchDestinationField: View {
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Effacer la destination")
+                .accessibilityLabel(clearAccessibilityLabel)
             }
         }
         .padding(.horizontal, 16)
@@ -44,7 +63,7 @@ struct SearchDestinationField: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Destination")
+        .accessibilityLabel(accessibilityLabel)
     }
 }
 

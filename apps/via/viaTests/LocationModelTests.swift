@@ -56,6 +56,97 @@ final class LocationModelTests: XCTestCase {
         XCTAssertEqual(model.coordinate, coordinate)
         XCTAssertNotNil(search)
     }
+
+    func testJourneyTrackingRequestsBackgroundAccessAndPublishesAccuracy() async {
+        let coordinate = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let adapter = InMemoryLocationAdapter(
+            coordinate: coordinate,
+            horizontalAccuracy: 18
+        )
+        let model = LocationModel(adapter: adapter)
+
+        let updates = model.startJourneyTracking(allowsBackgroundUpdates: true)
+        var iterator = updates.makeAsyncIterator()
+        let sample = await iterator.next()
+
+        XCTAssertEqual(sample?.coordinate, coordinate)
+        XCTAssertEqual(sample?.horizontalAccuracy, 18)
+        XCTAssertTrue(model.backgroundAuthorizationGranted)
+        XCTAssertTrue(adapter.allowsBackgroundUpdates)
+
+        model.stopJourneyTracking()
+    }
+
+    func testForegroundJourneyTrackingDoesNotEnableBackgroundUpdates() async {
+        let adapter = InMemoryLocationAdapter()
+        let model = LocationModel(adapter: adapter)
+
+        let updates = model.startJourneyTracking(allowsBackgroundUpdates: false)
+        var iterator = updates.makeAsyncIterator()
+        _ = await iterator.next()
+
+        XCTAssertFalse(model.backgroundAuthorizationGranted)
+        XCTAssertFalse(adapter.allowsBackgroundUpdates)
+
+        model.stopJourneyTracking()
+    }
+
+    func testJourneyTrackingDoesNotReplayPreviousJourneySample() async {
+        let first = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let second = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let adapter = InMemoryLocationAdapter(coordinate: first)
+        let model = LocationModel(adapter: adapter)
+
+        var firstIterator = model
+            .startJourneyTracking(allowsBackgroundUpdates: false)
+            .makeAsyncIterator()
+        let firstSample = await firstIterator.next()
+        XCTAssertEqual(firstSample?.coordinate, first)
+        model.stopJourneyTracking()
+
+        adapter.coordinate = second
+        var secondIterator = model
+            .startJourneyTracking(allowsBackgroundUpdates: false)
+            .makeAsyncIterator()
+        let secondSample = await secondIterator.next()
+        XCTAssertEqual(secondSample?.coordinate, second)
+        model.stopJourneyTracking()
+    }
+
+    func testFreshLocationIgnoresTheCachedCoordinate() async {
+        let cached = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let fresh = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let adapter = InMemoryLocationAdapter(coordinate: cached)
+        let model = LocationModel(adapter: adapter)
+
+        let initialCoordinate = await model.requestCurrentLocation()
+        XCTAssertEqual(initialCoordinate, cached)
+
+        adapter.coordinate = fresh
+        let freshCoordinate = await model.requestFreshLocation()
+
+        XCTAssertEqual(freshCoordinate, fresh)
+    }
+
+    func testJourneyTrackingDropsSamplesFromBeforeTheSession() async {
+        let initial = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let stale = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let fresh = GeoCoordinate(latitude: 48.8766, longitude: 2.3722)
+        let adapter = InMemoryLocationAdapter(coordinate: initial)
+        let model = LocationModel(adapter: adapter)
+
+        var iterator = model
+            .startJourneyTracking(allowsBackgroundUpdates: false)
+            .makeAsyncIterator()
+        _ = await iterator.next()
+
+        adapter.updateJourneyLocation(stale, recordedAt: .distantPast)
+        adapter.updateJourneyLocation(fresh)
+        let nextSample = await iterator.next()
+
+        XCTAssertEqual(nextSample?.coordinate, fresh)
+        model.stopJourneyTracking()
+    }
 }
 
 @MainActor

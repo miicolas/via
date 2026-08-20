@@ -1,6 +1,7 @@
 import { Readable, type Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
+import type { PositionalCsv } from '../csv';
 import { parseGtfsTime } from './gtfs-time';
 
 import type { ScheduledTrip } from './import-schedules';
@@ -87,8 +88,19 @@ export class TimeProfileBuild {
   }
 }
 
+/** The only fields of stop_times.txt this build reads. */
+export const STOP_TIME_COLUMNS = [
+  'trip_id',
+  'stop_sequence',
+  'stop_id',
+  'arrival_time',
+  'departure_time',
+] as const;
+
+export type StopTimeColumn = (typeof STOP_TIME_COLUMNS)[number];
+
 type BuildTimeProfilesOptions = {
-  stopTimes: AsyncGenerator<Record<string, string>>;
+  stopTimes: PositionalCsv<StopTimeColumn>;
   trips: ReadonlyMap<string, ScheduledTrip>;
   canonicalStopIdOf: (stopId: string) => string;
   stopKeyById: ReadonlyMap<string, number>;
@@ -115,7 +127,8 @@ export async function buildTimeProfiles({
   const profileIdByVector = new Map<string, number>();
   const profileKeyByTrip = new Int32Array(trips.size + 1);
   const startSecondsByTrip = new Int32Array(trips.size + 1);
-  const flushedTrips = new Set<number>();
+  /** One byte per trip rather than a Set: trip ids are already dense 1..N. */
+  const flushedTrips = new Uint8Array(trips.size + 1);
   const stopRoutePairs = new Map<string, { stopId: string; routeId: string }>();
   const stats = { departureCount: 0, skippedStops: 0 };
 
@@ -126,7 +139,7 @@ export async function buildTimeProfiles({
 
   const flush = () => {
     if (!currentTrip) return;
-    flushedTrips.add(currentTrip.numericId);
+    flushedTrips[currentTrip.numericId] = 1;
     if (calls.length === 0) return;
 
     const callCount = calls.length / 4;
@@ -161,38 +174,46 @@ export async function buildTimeProfiles({
     startSecondsByTrip[currentTrip.numericId] = start;
   };
 
-  for await (const stopTime of stopTimes) {
-    if (stopTime.trip_id !== currentTripId) {
+  // Resolved once, outside the 14.5M-iteration loop.
+  const { column, rows } = stopTimes;
+  const tripIdAt = column.trip_id;
+  const stopSequenceAt = column.stop_sequence;
+  const stopIdAt = column.stop_id;
+  const arrivalAt = column.arrival_time;
+  const departureAt = column.departure_time;
+
+  for await (const stopTime of rows) {
+    const tripId = stopTime[tripIdAt];
+    if (tripId !== currentTripId) {
       flush();
       calls = [];
-      currentTripId = stopTime.trip_id;
-      currentTrip = trips.get(stopTime.trip_id);
-      if (currentTrip && flushedTrips.has(currentTrip.numericId)) {
+      currentTripId = tripId;
+      currentTrip = trips.get(tripId);
+      if (currentTrip && flushedTrips[currentTrip.numericId] === 1) {
         throw new Error(
           `stop_times.txt is not grouped by trip: ${currentTrip.id} reappeared after its block ended`
         );
       }
     }
-    if (!currentTrip || (!stopTime.departure_time && !stopTime.arrival_time)) continue;
+    const arrival = stopTime[arrivalAt];
+    const departure = stopTime[departureAt];
+    if (!currentTrip || (!departure && !arrival)) continue;
 
-    const stopId = canonicalStopIdOf(stopTime.stop_id);
+    const stopId = canonicalStopIdOf(stopTime[stopIdAt]);
     const stopKey = stopKeyById.get(stopId);
     if (stopKey === undefined) {
       stats.skippedStops += 1;
       continue;
     }
 
-    const arrivalSeconds = parseGtfsTime(stopTime.arrival_time || stopTime.departure_time);
-    const departureSeconds = parseGtfsTime(stopTime.departure_time || stopTime.arrival_time);
+    const arrivalSeconds = parseGtfsTime(arrival || departure);
+    const departureSeconds = parseGtfsTime(departure || arrival);
     stopRoutePairs.set(`${stopId}\u0000${currentTrip.routeId}`, {
       stopId,
       routeId: currentTrip.routeId,
     });
     stats.departureCount += 1;
-    if (stats.departureCount % 1_000_000 === 0) {
-      console.log(`Streamed ${stats.departureCount} stop-times…`);
-    }
-    calls.push(Number(stopTime.stop_sequence), stopKey, arrivalSeconds, departureSeconds);
+    calls.push(Number(stopTime[stopSequenceAt]), stopKey, arrivalSeconds, departureSeconds);
   }
   flush();
 

@@ -7,18 +7,24 @@ struct SearchResultsSection: View {
     let onSelect: (SearchResult) -> Void
 
     var body: some View {
+        SkeletonGate(isLoading: state == .loading) {
+            SkeletonList(
+                count: 4,
+                label: "Recherche…",
+                row: .searchResult,
+                separator: .divider(leadingInset: 60)
+            )
+        } content: {
+            loadedContent
+        }
+    }
+
+    @ViewBuilder
+    private var loadedContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             switch state {
-            case .idle:
+            case .idle, .loading:
                 EmptyView()
-
-            case .loading:
-                HStack {
-                    Spacer()
-                    ViaLoadingStatus(label: "Recherche…")
-                    Spacer()
-                }
-                .padding(.vertical, 28)
 
             case .loaded:
                 ForEach(results) { result in

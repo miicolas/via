@@ -8,7 +8,6 @@ struct StationsView: View {
     @Binding var detailDetent: PresentationDetent
 
     let onOpenSearch: () -> Void
-    let onOpenProfile: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.scenePhase) private var scenePhase
@@ -20,17 +19,6 @@ struct StationsView: View {
             content
                 .navigationTitle("Stations")
                 .toolbarTitleDisplayMode(.inlineLarge)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: onOpenProfile) {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.title3)
-                                .symbolRenderingMode(.hierarchical)
-                                .frame(width: 44, height: 44)
-                        }
-                        .accessibilityLabel("Profil")
-                    }
-                }
         }
         .opacity(tabVisibilityProgress)
         .task(id: scenePhase) {
@@ -49,16 +37,34 @@ struct StationsView: View {
         }
     }
 
-    @ViewBuilder
     private var content: some View {
+        SkeletonGate(isLoading: isInitialLoading) {
+            loadingContent
+        } content: {
+            settledContent
+        }
+    }
+
+    /// Only the first load gets a skeleton — a refresh keeps the stations on
+    /// screen and says so inline instead.
+    private var isInitialLoading: Bool {
+        switch viewModel.state {
+        case .idle, .locating: true
+        case .loading(let previous): previous == nil
+        case .loaded, .empty, .locationUnavailable, .failed: false
+        }
+    }
+
+    @ViewBuilder
+    private var settledContent: some View {
         switch viewModel.state {
         case .idle, .locating:
-            loadingContent
+            EmptyView()
         case .loading(let previous):
             if let previous {
                 stationList(previous, isRefreshing: true)
             } else {
-                loadingContent
+                EmptyView()
             }
         case .loaded(let station):
             stationList(station)
@@ -76,12 +82,14 @@ struct StationsView: View {
     }
 
     private var loadingContent: some View {
-        VStack {
-            Spacer()
-            ViaLoadingStatus(label: "Recherche de stations…")
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        SkeletonList(
+            count: 5,
+            label: "Recherche de stations…",
+            row: .departure,
+            separator: .divider(leadingInset: 52)
+        )
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     @ViewBuilder
@@ -223,8 +231,7 @@ struct StationsView: View {
         ),
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
-        onOpenSearch: {},
-        onOpenProfile: {}
+        onOpenSearch: {}
     )
 }
 

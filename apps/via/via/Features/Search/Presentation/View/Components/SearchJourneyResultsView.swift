@@ -33,11 +33,24 @@ struct SearchJourneyResultsView: View {
         }
     }
 
-    @ViewBuilder
+    private var isPlanning: Bool {
+        if case .planning = step { return true }
+        return false
+    }
+
     private var content: some View {
+        SkeletonGate(isLoading: isPlanning) {
+            loadingContent
+        } content: {
+            settledContent
+        }
+    }
+
+    @ViewBuilder
+    private var settledContent: some View {
         switch step {
         case .planning:
-            loadingContent
+            EmptyView()
         case .results:
             if let result, !result.journeys.isEmpty {
                 resultsContent(result)
@@ -73,30 +86,13 @@ struct SearchJourneyResultsView: View {
     }
 
     private var loadingContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(0..<3, id: \.self) { _ in
-                VStack(alignment: .leading, spacing: 12) {
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color.secondary.opacity(0.16))
-                        .frame(width: 130, height: 16)
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color.secondary.opacity(0.13))
-                        .frame(height: 28)
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color.secondary.opacity(0.10))
-                        .frame(width: 220, height: 14)
-                }
-                .padding(18)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            }
-
-            ViaLoadingStatus(label: "Recherche des itinéraires…")
-                .frame(maxWidth: .infinity)
-                .padding(.top, 4)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Recherche des itinéraires en cours")
+        SkeletonList(
+            count: 3,
+            label: "Recherche des itinéraires…",
+            row: .journeyCard,
+            surface: .card(cornerRadius: 22, padding: 18),
+            spacing: 12
+        )
     }
 
     private func resultsContent(_ result: JourneyResult) -> some View {
@@ -115,7 +111,7 @@ struct SearchJourneyResultsView: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Affiche cet itinéraire sur la carte")
+                .accessibilityHint("Ouvre le détail de cet itinéraire et l’affiche sur la carte")
             }
         }
     }

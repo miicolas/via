@@ -5,6 +5,8 @@ struct NetworkMapView: View {
     let viewModel: NetworkViewModel
     let stationSelectionEnabled: Bool
     let journeyPresentation: JourneyMapPresentation?
+    let journeyProgress: JourneyProgress?
+    let highlightedJourneySegmentID: String?
     @Binding var position: MapCameraPosition
     @Binding var selectedStation: StationMapItem?
     @Namespace private var mapScope
@@ -15,11 +17,15 @@ struct NetworkMapView: View {
         position: Binding<MapCameraPosition>,
         stationSelectionEnabled: Bool = true,
         journeyPresentation: JourneyMapPresentation? = nil,
+        journeyProgress: JourneyProgress? = nil,
+        highlightedJourneySegmentID: String? = nil,
         selectedStation: Binding<StationMapItem?> = .constant(nil)
     ) {
         self.viewModel = viewModel
         self.stationSelectionEnabled = stationSelectionEnabled
         self.journeyPresentation = journeyPresentation
+        self.journeyProgress = journeyProgress
+        self.highlightedJourneySegmentID = highlightedJourneySegmentID
         _position = position
         _selectedStation = selectedStation
     }
@@ -33,16 +39,20 @@ struct NetworkMapView: View {
                     scope: mapScope
                 ) {
                     let snapshot = viewModel.state.snapshot
-                    if snapshot.lineStyle.opacity > 0 {
+                    if snapshot.lineStyle.opacity * networkDimming > 0 {
                         TransitRouteMapContent(
                             routes: snapshot.routes,
-                            opacity: snapshot.lineStyle.opacity,
+                            opacity: snapshot.lineStyle.opacity * networkDimming,
                             lineWidth: snapshot.lineStyle.width
                         )
                     }
 
                     if let journeyPresentation {
-                        JourneyRouteMapContent(presentation: journeyPresentation)
+                        JourneyRouteMapContent(
+                            presentation: journeyPresentation,
+                            progress: journeyProgress,
+                            highlightedSegmentID: highlightedJourneySegmentID
+                        )
                     }
 
                     UserAnnotation()
@@ -54,7 +64,7 @@ struct NetworkMapView: View {
                             anchor: .bottom
                         ) {
                             StationAnnotationView(item: station)
-                                .opacity(snapshot.stationOpacity)
+                                .opacity(snapshot.stationOpacity * stationDimming)
                                 .transition(.opacity)
                         }
                         .annotationTitles(.hidden)
@@ -97,6 +107,16 @@ struct NetworkMapView: View {
 
     private var mapSelection: Binding<StationMapItem?> {
         stationSelectionEnabled ? $selectedStation : .constant(nil)
+    }
+
+    /// A selected journey owns the map: the rest of the network drops to a
+    /// watermark so the chosen route is the only thing in full colour.
+    private var networkDimming: Double {
+        journeyPresentation == nil ? 1 : 0.12
+    }
+
+    private var stationDimming: Double {
+        journeyPresentation == nil ? 1 : 0.25
     }
 }
 

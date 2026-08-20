@@ -49,7 +49,16 @@ struct LinesView: View {
             }
             .overlay {
                 if case .loading(nil) = viewModel.board {
-                    ProgressView("Chargement des lignes…")
+                    SkeletonGate(isLoading: true) {
+                        SkeletonList(
+                            count: 8,
+                            label: "Chargement des lignes…",
+                            row: .lineStatus
+                        )
+                        .padding(.horizontal, 20)
+                    }
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .background(.background)
                 } else if isSearching, viewModel.sections.isEmpty,
                           viewModel.extraSearchResults.isEmpty {
                     ContentUnavailableView.search(text: viewModel.searchText)

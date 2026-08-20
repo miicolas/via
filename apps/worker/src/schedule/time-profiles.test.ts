@@ -1,12 +1,26 @@
 import { describe, expect, test } from 'bun:test';
 
+import type { PositionalCsv } from '../csv';
 import type { ScheduledTrip } from './import-schedules';
-import { buildTimeProfiles } from './time-profiles';
+import { buildTimeProfiles, STOP_TIME_COLUMNS, type StopTimeColumn } from './time-profiles';
 
 type CsvRow = Record<string, string>;
 
-async function* rowsOf(rows: CsvRow[]): AsyncGenerator<CsvRow> {
-  for (const row of rows) yield row;
+/**
+ * Cases stay written by column name — the build reads positions, but a test
+ * that spelled its rows as bare arrays would say nothing about which field is
+ * which.
+ */
+function rowsOf(rows: CsvRow[]): PositionalCsv<StopTimeColumn> {
+  const column = Object.fromEntries(
+    STOP_TIME_COLUMNS.map((name, index) => [name, index])
+  ) as Record<StopTimeColumn, number>;
+
+  async function* generate(): AsyncGenerator<readonly string[]> {
+    for (const row of rows) yield STOP_TIME_COLUMNS.map((name) => row[name] ?? '');
+  }
+
+  return { column, rows: generate() };
 }
 
 function tripOf(numericId: number, id: string, routeId = 'route-a'): ScheduledTrip {

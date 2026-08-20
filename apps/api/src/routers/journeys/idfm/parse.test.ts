@@ -84,6 +84,66 @@ test('keeps the road geometry of a walking section, including multiple line part
   ]);
 });
 
+test('uses the ordered transit stops when IDFM omits a line geometry', () => {
+  const journeys = parseIdfmJourneys(
+    {
+      journeys: [
+        {
+          departure_date_time: '20260813T200000',
+          arrival_date_time: '20260813T201000',
+          duration: 600,
+          sections: [
+            {
+              type: 'public_transport',
+              duration: 600,
+              departure_date_time: '20260813T200000',
+              arrival_date_time: '20260813T201000',
+              from: { name: 'Hôtel de Ville', coord: { lon: 2.3522, lat: 48.8566 } },
+              to: { name: 'Bastille', coord: { lon: 2.369, lat: 48.853 } },
+              display_informations: {
+                code: '76',
+                name: 'Bus 76',
+                commercial_mode: 'Bus',
+              },
+              stop_date_times: [
+                {
+                  stop_point: {
+                    id: 'hotel-de-ville',
+                    name: 'Hôtel de Ville',
+                    coord: { lon: 2.3522, lat: 48.8566 },
+                  },
+                },
+                {
+                  stop_point: {
+                    id: 'saint-paul',
+                    name: 'Saint-Paul',
+                    coord: { lon: 2.3601, lat: 48.8552 },
+                  },
+                },
+                {
+                  stop_point: {
+                    id: 'bastille',
+                    name: 'Bastille',
+                    coord: { lon: 2.369, lat: 48.853 },
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    input,
+    new Date('2026-08-13T20:00:00+02:00')
+  );
+
+  expect(journeys[0]?.sections[0]?.geometry).toEqual([
+    { latitude: 48.8566, longitude: 2.3522 },
+    { latitude: 48.8552, longitude: 2.3601 },
+    { latitude: 48.853, longitude: 2.369 },
+  ]);
+});
+
 test('distinguishes tram and Transilien sections from Navitia commercial modes', () => {
   const transitSection = (commercialMode: string, code: string, minute: number) => ({
     type: 'public_transport',

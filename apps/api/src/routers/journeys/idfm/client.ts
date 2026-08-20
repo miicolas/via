@@ -4,12 +4,17 @@ import { fetchJsonOrNull } from '../../../http/fetch-json-or-null';
 import { compactParisDateTime } from '../../../time/paris';
 import type { IdfmJourneyPlanner } from '../service';
 import { parseIdfmJourneys } from './parse';
+import {
+  hydrateSparseJourneyGeometry,
+  type JourneyShapeLoader,
+} from './shape-hydrator';
 
 const DEFAULT_TIMEOUT_MS = 2_500;
 
 type IdfmJourneyPlannerConfig = {
   apiKey: string;
   url: string;
+  loadShapes: JourneyShapeLoader;
   timeoutMs?: number;
 };
 
@@ -17,6 +22,7 @@ type IdfmJourneyPlannerConfig = {
 export function createIdfmJourneyPlanner({
   apiKey,
   url,
+  loadShapes,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: IdfmJourneyPlannerConfig): IdfmJourneyPlanner {
   return {
@@ -29,7 +35,8 @@ export function createIdfmJourneyPlanner({
         logLabel: '[journeys] IDFM',
       });
       if (body === null) return null;
-      const journeys = parseIdfmJourneys(body, input, requestedAt);
+      const parsed = parseIdfmJourneys(body, input, requestedAt);
+      const journeys = await hydrateSparseJourneyGeometry(parsed, loadShapes);
       return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys };
     },
   };
@@ -44,6 +51,9 @@ export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Da
   );
   url.searchParams.set('count', String(input.limit));
   url.searchParams.set('data_freshness', 'realtime');
+  // IDFM can omit section shapes when GeoJSON is disabled, which leaves the
+  // map no choice but to draw a chord between two stops.
+  url.searchParams.set('disable_geojson', 'false');
   url.searchParams.set('datetime', compactParisDateTime(requestedAt));
   url.searchParams.set('datetime_represents', input.datetimeRepresents ?? 'departure');
   for (const mode of input.requiredModes ?? []) {
