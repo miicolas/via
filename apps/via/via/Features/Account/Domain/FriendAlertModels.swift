@@ -20,7 +20,7 @@ enum FriendAlertLevel: String, Codable, CaseIterable, Sendable, Hashable, Identi
     var explanation: String {
         switch self {
         case .none:
-            "Aucune alerte. Consulte simplement leurs vols dans Via."
+            "Aucune alerte. Consulte simplement leurs vols dans Metyro."
         case .justLanded:
             "Préviens-moi uniquement quand ils atterrissent."
         case .basics:

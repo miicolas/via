@@ -34,7 +34,7 @@ struct LaunchAnimationView: View {
             await playAnimation()
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Via")
+        .accessibilityLabel("Metyro")
     }
 
     private var animatedCharacter: some View {

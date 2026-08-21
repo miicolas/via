@@ -140,7 +140,7 @@ struct SettingsView: View {
 
     private var feedbackText: String {
         """
-        Retour sur Via
+        Retour sur Metyro
 
         Version : \(Bundle.main.marketingVersion) (\(Bundle.main.buildNumber))
         Appareil : iOS

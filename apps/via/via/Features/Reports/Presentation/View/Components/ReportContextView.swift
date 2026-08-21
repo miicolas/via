@@ -102,7 +102,7 @@ struct ReportContextView: View {
         case .restricted:
             "La localisation est limitée sur cet appareil."
         case .denied:
-            "La localisation n’est pas autorisée pour Via."
+            "La localisation n’est pas autorisée pour Metyro."
         case .authorized:
             "La position actuelle n’a pas pu être déterminée."
         }

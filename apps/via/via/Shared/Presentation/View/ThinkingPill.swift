@@ -4,7 +4,7 @@ import SwiftUI
 /// one shimmering label on a capsule. A full-screen orb owns the sheet even
 /// when the wait is short; a pill says "still going" without claiming the view.
 struct ThinkingPill: View {
-    var label: String = "Via réfléchit…"
+    var label: String = "Metyro réfléchit…"
 
     var body: some View {
         HStack(spacing: 9) {
@@ -27,7 +27,7 @@ struct ThinkingPill: View {
 #Preview {
     VStack(spacing: 24) {
         ThinkingPill()
-        ThinkingPill(label: "Via cherche un itinéraire…")
+        ThinkingPill(label: "Metyro cherche un itinéraire…")
     }
     .padding(40)
 }
