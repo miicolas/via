@@ -64,8 +64,19 @@ struct JourneySummaryCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let accessibility = journey.accessibility {
-                PMRBadgeView(accessibilityLabel: accessibility.label, size: 24)
+            if journey.accessibility != nil || journey.peak != nil {
+                HStack(spacing: 8) {
+                    if let accessibility = journey.accessibility {
+                        PMRBadgeView(accessibilityLabel: accessibility.label, size: 24)
+                    }
+
+                    if let peak = journey.peak {
+                        StationPeakBadge(
+                            peak: peak,
+                            accessibilityLabel: "Affluence en correspondance"
+                        )
+                    }
+                }
             }
 
             if !journey.warnings.isEmpty {
@@ -146,6 +157,10 @@ struct JourneySummaryCard: View {
         if let status { value += ", \(status.title)" }
         if let sourceLabel { value += ", \(sourceLabel)" }
         if let accessibility = journey.accessibility { value += ", \(accessibility.label)" }
+        if let peak = journey.peak {
+            let station = peak.stationName.map { " — \($0)" } ?? ""
+            value += ", Affluence en correspondance\(station), \(peak.label)"
+        }
         if !journey.warnings.isEmpty { value += ", avertissement: \(journey.warnings.joined(separator: ", "))" }
         return value
     }

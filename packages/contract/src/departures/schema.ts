@@ -58,5 +58,13 @@ export const departuresResponseSchema = z.object({
   generatedAt: z.iso.datetime({ offset: true }),
   /** Upstream retrieval time; omitted for theoretical and unavailable boards. */
   fetchedAt: z.iso.datetime({ offset: true }).optional(),
+  /** Habitual, station-relative profile for the hour when this board was generated. */
+  peak: z
+    .object({
+      ratio: z.number().min(0).max(1),
+      level: z.enum(['off', 'moderate', 'peak']),
+      label: z.string(),
+    })
+    .optional(),
   groups: z.array(departureGroupSchema),
 });

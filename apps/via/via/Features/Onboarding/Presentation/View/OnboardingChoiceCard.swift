@@ -37,7 +37,11 @@ struct OnboardingChoiceCard: View {
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(isSelected ? Color.accentColor : .tertiary)
+                    .foregroundStyle(
+                        isSelected
+                            ? AnyShapeStyle(Color.accentColor)
+                            : AnyShapeStyle(.tertiary)
+                    )
                     .contentTransition(
                         reduceMotion
                             ? .identity

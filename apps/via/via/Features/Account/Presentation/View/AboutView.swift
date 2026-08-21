@@ -26,6 +26,21 @@ struct AboutView: View {
                 .padding(20)
                 .background(.quaternary, in: .rect(cornerRadius: 22))
 
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Données de fréquentation")
+                        .font(.headline)
+                    Link(
+                        "Profils horaires — Île-de-France Mobilités",
+                        destination: URL(string: "https://data.iledefrance-mobilites.fr/explore/dataset/validations-reseau-ferre-profils-horaires-par-jour-type-4eme-trimestre/")!
+                    )
+                    Text("Source : Île-de-France Mobilités — ODbL")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
+                .background(.quaternary, in: .rect(cornerRadius: 22))
+
                 Text("Bon trajet.")
                     .font(.title2.italic())
                     .foregroundStyle(.secondary)

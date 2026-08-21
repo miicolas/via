@@ -655,6 +655,32 @@
                       "type": "string",
                       "format": "date-time"
                     },
+                    "peak": {
+                      "type": "object",
+                      "properties": {
+                        "ratio": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "level": {
+                          "enum": [
+                            "off",
+                            "moderate",
+                            "peak"
+                          ],
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "ratio",
+                        "level",
+                        "label"
+                      ]
+                    },
                     "groups": {
                       "type": "array",
                       "items": {
@@ -1118,6 +1144,35 @@
                             },
                             "required": [
                               "condition",
+                              "label"
+                            ]
+                          },
+                          "peak": {
+                            "type": "object",
+                            "properties": {
+                              "ratio": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "level": {
+                                "enum": [
+                                  "moderate",
+                                  "peak"
+                                ],
+                                "type": "string"
+                              },
+                              "stationName": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ratio",
+                              "level",
+                              "stationName",
                               "label"
                             ]
                           },
@@ -2026,6 +2081,35 @@
                                     },
                                     "required": [
                                       "condition",
+                                      "label"
+                                    ]
+                                  },
+                                  "peak": {
+                                    "type": "object",
+                                    "properties": {
+                                      "ratio": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                      },
+                                      "level": {
+                                        "enum": [
+                                          "moderate",
+                                          "peak"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "stationName": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "ratio",
+                                      "level",
+                                      "stationName",
                                       "label"
                                     ]
                                   },

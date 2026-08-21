@@ -69,7 +69,8 @@ enum StationOverviewBuilder {
                 now: now
             ),
             departureSource: board.source,
-            departureFetchedAt: board.fetchedAt
+            departureFetchedAt: board.fetchedAt,
+            peak: board.peak
         )
     }
 

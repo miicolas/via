@@ -169,6 +169,7 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
     let status: Status
     let warnings: [String]
     let accessibility: Accessibility?
+    let peak: StationPeak?
     let sections: [JourneySection]
 
     init(
@@ -182,6 +183,7 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         status: Status,
         warnings: [String],
         accessibility: Accessibility? = nil,
+        peak: StationPeak? = nil,
         sections: [JourneySection]
     ) {
         self.id = id
@@ -194,6 +196,7 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         self.status = status
         self.warnings = warnings
         self.accessibility = accessibility
+        self.peak = peak
         self.sections = sections
     }
 }
