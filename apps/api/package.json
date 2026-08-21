@@ -25,6 +25,7 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.1",
     "jose": "6.2.9",
+    "openai": "^7.5.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

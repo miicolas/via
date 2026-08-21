@@ -95,6 +95,49 @@ const envSchema = z.object({
     .default("900")
     .transform(Number)
     .pipe(z.number().int().min(60)),
+  /**
+   * OpenAI fallback for the natural-language journey agent. The key is optional
+   * on purpose: without it the `/natural-journeys` route answers with the
+   * recoverable double-failure instead of the whole API refusing to boot, and
+   * the key never leaves this backend. See docs/adr for the fallback contract.
+   */
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  /** OpenAI presents gpt-5.6-luna as its high-volume GPT-5.6 model; override per env. */
+  OPENAI_MODEL: z.string().min(1).default("gpt-5.6-luna"),
+  /** Global per-submission timeout. The plan mandates no automatic retry. */
+  OPENAI_TIMEOUT_MS: z
+    .string()
+    .default("8000")
+    .transform(Number)
+    .pipe(z.number().int().min(1_000).max(60_000)),
+  /** Per-person fallback ceiling: 20 submissions per 15-minute window. */
+  OPENAI_PERSONAL_LIMIT: z
+    .string()
+    .default("20")
+    .transform(Number)
+    .pipe(z.number().int().min(1)),
+  OPENAI_PERSONAL_WINDOW_SECONDS: z
+    .string()
+    .default("900")
+    .transform(Number)
+    .pipe(z.number().int().min(60)),
+  /** Circuit breaker: open after 5 consecutive OpenAI failures, for 60 seconds. */
+  OPENAI_BREAKER_FAILURE_THRESHOLD: z
+    .string()
+    .default("5")
+    .transform(Number)
+    .pipe(z.number().int().min(1)),
+  OPENAI_BREAKER_OPEN_SECONDS: z
+    .string()
+    .default("60")
+    .transform(Number)
+    .pipe(z.number().int().min(1)),
+  /**
+   * Secret keying the HMAC that derives `safety_identifier`. Optional: it falls
+   * back to BETTER_AUTH_SECRET so a fresh deploy still never sends OpenAI a raw
+   * user id, while a dedicated secret can rotate independently later.
+   */
+  OPENAI_SAFETY_SECRET: z.string().min(16).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
