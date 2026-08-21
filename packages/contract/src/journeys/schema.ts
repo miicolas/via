@@ -1,6 +1,7 @@
 import * as z from 'zod';
 
 import {
+  accessibilityConditionSchema,
   coordinateParamSchema,
   coordinateSchema,
   networkModeSchema,
@@ -135,7 +136,7 @@ export const journeySchema = z.object({
   warnings: z.array(z.string()),
   accessibility: z
     .object({
-      condition: z.enum(['reservationRequired', 'staffAssistance', 'autonomous']),
+      condition: accessibilityConditionSchema,
       label: z.string(),
     })
     .optional(),

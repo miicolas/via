@@ -25,6 +25,17 @@ export const coordinateParamSchema = z.object({
 
 export const networkModeSchema = z.enum(['metro', 'rer', 'transilien', 'tram', 'bus']);
 
+/**
+ * How a wheelchair user can use a station, in Via's vocabulary. Mirrors the
+ * `condition` column of `station_facts` — the importer translates IDFM levels
+ * into these at write time, so every reader speaks the same three words.
+ */
+export const accessibilityConditionSchema = z.enum([
+  'reservationRequired',
+  'staffAssistance',
+  'autonomous',
+]);
+
 /** Boolean values arrive as `"true"`/`"false"` in a GET query string. */
 export const queryBooleanSchema = z.preprocess(
   (value) => {

@@ -24,11 +24,10 @@ struct SearchDeparturePickerView: View {
     }
 
     private var availableShortcuts: [StationPlaceShortcut] {
-        [.currentLocation] + savedPlaces.compactMap { place in
+        [.currentLocation] + savedPlaces.map { place in
             switch place.role {
             case .home: .home
             case .work: .work
-            case .favorite: nil
             }
         }
     }

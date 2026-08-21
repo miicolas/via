@@ -1,2 +1,7 @@
-export { coordinateSchema, networkModeSchema, routeBadgeSchema } from './schema';
-export type { Coordinate, NetworkMode, RouteBadge } from './type';
+export {
+  accessibilityConditionSchema,
+  coordinateSchema,
+  networkModeSchema,
+  routeBadgeSchema,
+} from './schema';
+export type { AccessibilityCondition, Coordinate, NetworkMode, RouteBadge } from './type';

@@ -158,14 +158,12 @@ enum AccountOperationReducer {
                 return
             }
             snapshot.places.removeAll { $0.id == place.id }
-            if place.role != .favorite {
-                guard !snapshot.places.contains(where: {
-                    $0.role == place.role && $0.updatedAt > place.updatedAt
-                }) else {
-                    return
-                }
-                snapshot.places.removeAll { $0.role == place.role }
+            guard !snapshot.places.contains(where: {
+                $0.role == place.role && $0.updatedAt > place.updatedAt
+            }) else {
+                return
             }
+            snapshot.places.removeAll { $0.role == place.role }
             snapshot.places.insert(place, at: 0)
             normalize(&snapshot)
         case .placeRemove:
@@ -189,13 +187,5 @@ enum AccountOperationReducer {
             guard let newest = matching.first else { continue }
             snapshot.places.removeAll { $0.role == role && $0.id != newest.id }
         }
-        let surplus = Set(
-            snapshot.places
-                .filter { $0.role == .favorite }
-                .sorted { $0.savedAt > $1.savedAt }
-                .dropFirst(AccountLocalSnapshot.favoritePlaceLimit)
-                .map(\.id)
-        )
-        snapshot.places.removeAll { surplus.contains($0.id) }
     }
 }

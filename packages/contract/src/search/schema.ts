@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { coordinateSchema, routeBadgeSchema } from '../shared/schema';
+import { accessibilityConditionSchema, coordinateSchema, routeBadgeSchema } from '../shared/schema';
 
 export const searchInputSchema = z
   .object({
@@ -30,7 +30,7 @@ export const stationSearchResultSchema = z.object({
   distanceMeters: z.number().optional(),
   accessibility: z
     .object({
-      condition: z.enum(['reservationRequired', 'staffAssistance', 'autonomous']),
+      condition: accessibilityConditionSchema,
       label: z.string(),
       comment: z.string().optional(),
     })

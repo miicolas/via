@@ -5,8 +5,6 @@ import { coordinateSchema, networkModeSchema } from '../shared/schema';
 export const ACCOUNT_FAVORITE_LIMIT = 50;
 export const ACCOUNT_RECENT_LIMIT = 5;
 export const ACCOUNT_PLACE_LIMIT = 50;
-/** Favorites get trimmed; home and work always keep their slot. */
-export const ACCOUNT_PLACE_FAVORITE_LIMIT = ACCOUNT_PLACE_LIMIT - 2;
 
 export const favoriteStationSchema = z.object({
   stationId: z.string().min(1).max(300),
@@ -16,7 +14,8 @@ export const favoriteStationSchema = z.object({
   updatedAt: z.iso.datetime({ offset: true }),
 });
 
-export const accountPlaceRoleSchema = z.enum(['home', 'work', 'favorite']);
+/** Favorite stations live in their own list; a place is a home or work slot. */
+export const accountPlaceRoleSchema = z.enum(['home', 'work']);
 
 export const accountPlaceSchema = z.object({
   id: z.string().min(1).max(500),

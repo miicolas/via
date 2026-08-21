@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   date,
   doublePrecision,
   index,
@@ -117,20 +118,46 @@ export const transitStopAliases = pgTable(
   (table) => [index('transit_stop_aliases_stop_idx').on(table.stopId)]
 );
 
-/** Latest station-level accessibility declaration imported from IDFM PRIM. */
-export const stationAccessibility = pgTable(
-  'station_accessibility',
+export const STATION_FACT_CONDITIONS = [
+  'autonomous',
+  'staffAssistance',
+  'reservationRequired',
+] as const;
+export type StationFactCondition = (typeof STATION_FACT_CONDITIONS)[number];
+
+/**
+ * One row per fact known about a station: `kind` names the concept,
+ * `condition` carries Via's verdict, and provenance rides on the row. A new
+ * attribute (elevators, facilities…) is a new `kind`, not a new table — so the
+ * n-th attribute touches no existing query. Importers translate source
+ * vocabulary into `condition` at write time; readers never see source codes.
+ */
+export const stationFacts = pgTable(
+  'station_facts',
   {
     stopId: text('stop_id')
-      .primaryKey()
+      .notNull()
       .references(() => transitStops.id, { onDelete: 'cascade' }),
-    sourceStopPointId: text('source_stop_point_id').notNull().unique(),
-    levelId: integer('level_id').notNull(),
-    levelName: text('level_name').notNull(),
-    comment: text('comment'),
+    kind: text('kind', { enum: ['accessibility'] }).notNull(),
+    condition: text('condition', { enum: STATION_FACT_CONDITIONS }).notNull(),
+    /** Displayable free text from the source, e.g. the IDFM agent-hours note. */
+    detail: text('detail'),
+    /** Which dataset produced the row, e.g. 'idfm:acces-gare'. */
+    source: text('source').notNull(),
+    /** The raw id the source used for this station, kept as its trace. */
+    sourceRef: text('source_ref').notNull(),
+    /** When the source itself says its data was last revised; null if it doesn't. */
+    sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }),
     importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
   },
-  (table) => [index('station_accessibility_level_idx').on(table.levelId)]
+  (table) => [
+    primaryKey({ columns: [table.stopId, table.kind] }),
+    uniqueIndex('station_facts_kind_source_ref_uidx').on(table.kind, table.sourceRef),
+    check(
+      'station_facts_condition_check',
+      sql`${table.condition} IN ('autonomous', 'staffAssistance', 'reservationRequired')`
+    ),
+  ]
 );
 
 export const transitRoutePatternStops = pgTable(
@@ -439,7 +466,15 @@ export const verifications = pgTable(
   (table) => [index('verifications_identifier_idx').on(table.identifier)]
 );
 
-/** Per-account data kept locally on iOS and reconciled through operation UUIDs. */
+/**
+ * Per-account data kept locally on iOS and reconciled through operation UUIDs.
+ *
+ * `station_id` deliberately has no FK to `transit_stops`: the GTFS import
+ * prunes stops no longer served, and a cascade would silently destroy user
+ * favorites over a feed hiccup. A favorite is a self-contained snapshot
+ * (name + coordinate); the client resolves route badges from the map and
+ * degrades gracefully when the station is gone.
+ */
 export const accountFavoriteStations = pgTable(
   'account_favorite_stations',
   {
@@ -459,7 +494,11 @@ export const accountFavoriteStations = pgTable(
   ]
 );
 
-/** Saved places (home, work, and later arbitrary favorites) keyed by composite search id. */
+/**
+ * Home and work slots keyed by composite search id. Favorite stations live in
+ * `account_favorite_stations`; a second representation under a 'favorite' role
+ * here was removed rather than kept as a parallel truth.
+ */
 export const accountPlaces = pgTable(
   'account_places',
   {
@@ -467,7 +506,7 @@ export const accountPlaces = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     id: text('id').notNull(),
-    role: text('role', { enum: ['home', 'work', 'favorite'] }).notNull(),
+    role: text('role', { enum: ['home', 'work'] }).notNull(),
     kind: text('kind', { enum: ['station', 'address'] }).notNull(),
     name: text('name').notNull(),
     context: text('context'),
@@ -479,6 +518,7 @@ export const accountPlaces = pgTable(
   (table) => [
     primaryKey({ columns: [table.userId, table.id] }),
     index('account_places_user_role_idx').on(table.userId, table.role),
+    check('account_places_role_check', sql`${table.role} IN ('home', 'work')`),
   ]
 );
 
@@ -518,6 +558,6 @@ export type TransitRoute = typeof transitRoutes.$inferSelect;
 export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
 export type TransitStopAlias = typeof transitStopAliases.$inferSelect;
-export type StationAccessibility = typeof stationAccessibility.$inferSelect;
+export type StationFact = typeof stationFacts.$inferSelect;
 export type TransitTrip = typeof transitTrips.$inferSelect;
 export type TransitLineSchemaStop = typeof transitLineSchemaStops.$inferSelect;

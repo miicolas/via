@@ -730,7 +730,6 @@ internal enum Operations {
                             internal enum rolePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                 case home = "home"
                                 case work = "work"
-                                case favorite = "favorite"
                             }
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/role`.
                             internal var role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.rolePayload
@@ -1063,7 +1062,6 @@ internal enum Operations {
                             internal enum rolePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                 case home = "home"
                                 case work = "work"
-                                case favorite = "favorite"
                             }
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/role`.
                             internal var role: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.rolePayload

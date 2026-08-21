@@ -93,4 +93,26 @@ describe('account sync contract', () => {
 
     expect(result.success).toBe(false);
   });
+
+  test('rejects the retired favorite place role', () => {
+    const result = accountSyncInputSchema.safeParse({
+      operations: [
+        {
+          ...common,
+          kind: 'place.upsert',
+          place: {
+            id: 'station:1',
+            kind: 'station',
+            name: 'Châtelet',
+            coordinate: { latitude: 48.858, longitude: 2.347 },
+            role: 'favorite',
+            savedAt: common.occurredAt,
+            updatedAt: common.occurredAt,
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

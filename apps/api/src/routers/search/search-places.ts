@@ -1,14 +1,13 @@
 import type { AddressSearchResult, Coordinate, SearchResult } from '@via/contract';
+import { db } from '@via/db';
+import { stationFacts } from '@via/db/schema';
+import { eq, max } from 'drizzle-orm';
 
 import { searchBan } from './ban-client';
 import { toAddressResults, toMunicipalityResults } from './ban-mappers';
-import { importMeta } from '@via/db/schema';
-import { inArray } from 'drizzle-orm';
-
 import { toStationResults } from './mappers';
 import { mergeSearchResults } from './merge';
 import { selectMatchingStations } from './queries';
-import { db } from '@via/db';
 
 /** Per-source fetch sizes, before the merge truncates to `limit`. */
 const STATION_LIMIT = 5;
@@ -29,23 +28,25 @@ export type AccessibilitySourceStatus = {
   importedAt?: string;
 };
 
-const ACCESSIBILITY_META_KEYS = [
-  'accessibility:source-updated-at',
-  'accessibility:imported-at',
-] as const;
-
 export async function readAccessibilitySourceStatus(): Promise<AccessibilitySourceStatus> {
-  const rows = await db
-    .select({ key: importMeta.key, value: importMeta.value })
-    .from(importMeta)
-    .where(inArray(importMeta.key, [...ACCESSIBILITY_META_KEYS]));
-  const values = new Map(rows.map((row) => [row.key, row.value]));
-  const importedAt = values.get('accessibility:imported-at');
+  const [row] = await db
+    .select({
+      importedAt: max(stationFacts.importedAt),
+      sourceUpdatedAt: max(stationFacts.sourceUpdatedAt),
+    })
+    .from(stationFacts)
+    .where(eq(stationFacts.kind, 'accessibility'));
+  const importedAt = timestampISOString(row?.importedAt);
   return {
     status: importedAt ? 'ok' : 'unavailable',
-    sourceUpdatedAt: values.get('accessibility:source-updated-at'),
+    sourceUpdatedAt: timestampISOString(row?.sourceUpdatedAt),
     importedAt,
   };
+}
+
+function timestampISOString(value: Date | string | null | undefined) {
+  if (value === null || value === undefined) return undefined;
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
 /**

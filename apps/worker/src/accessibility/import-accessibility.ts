@@ -1,8 +1,8 @@
 import { db } from '@via/db';
 import {
-  importMeta,
-  stationAccessibility,
+  stationFacts,
   transitStops,
+  type StationFactCondition,
 } from '@via/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 
@@ -16,7 +16,6 @@ const STOP_AREAS_EXPORT =
 type AccessibilityRow = {
   stop_point_id?: unknown;
   accessibility_level_id?: unknown;
-  accessibility_level_name?: unknown;
   commentaire?: unknown;
 };
 
@@ -26,8 +25,11 @@ type CatalogResponse = {
   metas?: { default?: { modified?: unknown; data_processed?: unknown } };
 };
 
-const IMPORTED_AT_KEY = 'accessibility:imported-at';
-const SOURCE_UPDATED_AT_KEY = 'accessibility:source-updated-at';
+const CONDITION_BY_LEVEL = new Map<number, StationFactCondition>([
+  [3, 'reservationRequired'],
+  [4, 'staffAssistance'],
+  [6, 'autonomous'],
+]);
 
 async function fetchJson(url: string) {
   const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
@@ -71,16 +73,17 @@ export async function refreshAccessibilitySnapshot() {
   const sourceRows = (accessibilityPayload as AccessibilityRow[]).flatMap((row) => {
     const sourceStopPointId = asString(row.stop_point_id);
     const levelId = asInteger(row.accessibility_level_id);
-    const levelName = asString(row.accessibility_level_name);
+    const condition = levelId === undefined ? undefined : CONDITION_BY_LEVEL.get(levelId);
     const sourceAreaId = sourceStopPointId ? sourceStopAreaId(sourceStopPointId) : undefined;
     const canonicalAreaId = sourceAreaId ? stopAreaByZdaid.get(sourceAreaId) : undefined;
-    if (!sourceStopPointId || !canonicalAreaId || levelId === undefined || !levelName) return [];
+    if (!sourceStopPointId || !canonicalAreaId || !condition) return [];
     return [{
-      sourceStopPointId,
       stopId: `IDFM:${canonicalAreaId}`,
-      levelId,
-      levelName,
-      comment: asString(row.commentaire) ?? null,
+      kind: 'accessibility' as const,
+      condition,
+      detail: asString(row.commentaire) ?? null,
+      source: 'idfm:acces-gare',
+      sourceRef: sourceStopPointId,
     }];
   });
 
@@ -102,35 +105,21 @@ export async function refreshAccessibilitySnapshot() {
 
   const sourceUpdatedAt = asString(catalogPayload.metas?.default?.data_processed)
     ?? asString(catalogPayload.metas?.default?.modified);
-  const importedAt = new Date().toISOString();
+  const importedAt = new Date();
+  const sourceUpdatedAtDate = sourceUpdatedAt ? new Date(sourceUpdatedAt) : null;
 
   await db.transaction(async (tx) => {
-    await tx.delete(stationAccessibility);
+    await tx.delete(stationFacts).where(eq(stationFacts.kind, 'accessibility'));
     for (let start = 0; start < rows.length; start += 500) {
-      await tx.insert(stationAccessibility).values(
+      await tx.insert(stationFacts).values(
         rows.slice(start, start + 500).map((row) => ({
           ...row,
-          importedAt: new Date(importedAt),
+          sourceUpdatedAt: sourceUpdatedAtDate,
+          importedAt,
         }))
       );
     }
-    const metadata = [
-      { key: IMPORTED_AT_KEY, value: importedAt },
-      ...(sourceUpdatedAt ? [{ key: SOURCE_UPDATED_AT_KEY, value: sourceUpdatedAt }] : []),
-    ];
-    if (!sourceUpdatedAt) {
-      await tx.delete(importMeta).where(eq(importMeta.key, SOURCE_UPDATED_AT_KEY));
-    }
-    for (const entry of metadata) {
-      await tx
-        .insert(importMeta)
-        .values(entry)
-        .onConflictDoUpdate({
-          target: importMeta.key,
-          set: { value: entry.value, updatedAt: new Date(importedAt) },
-        });
-    }
   });
 
-  return { imported: rows.length, sourceUpdatedAt, importedAt };
+  return { imported: rows.length, sourceUpdatedAt, importedAt: importedAt.toISOString() };
 }
