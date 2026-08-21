@@ -92,6 +92,10 @@ struct ApplicationEntry: App {
     var body: some Scene {
         WindowGroup {
             applicationRoot
+            .task(id: onboardingModel.isCompleted) {
+                guard onboardingModel.isCompleted else { return }
+                await preloadInitialData()
+            }
             .task {
                 await authSessionViewModel.restore()
             }
@@ -104,6 +108,20 @@ struct ApplicationEntry: App {
                 await activeJourneyModel.sceneBecameActive()
             }
         }
+    }
+
+    /// Starts the first screen's network work while the in-app launch
+    /// animation is still covering the shell. The individual views keep
+    /// their own task for refresh loops, but their initial request is already
+    /// in flight by the time they become visible.
+    private func preloadInitialData() async {
+        stationsViewModel.loadIfNeeded()
+
+        async let lines: Void = linesViewModel.loadIfNeeded()
+        async let network: Void = networkViewModel.preload()
+
+        await lines
+        await network
     }
 
     private var applicationRoot: some View {

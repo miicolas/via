@@ -20,6 +20,32 @@ final class NetworkViewModel {
         self.repository = repository
     }
 
+    /// Fetches and prepares the static network before the map gets its first
+    /// viewport. The viewport-specific positioning still happens when the map
+    /// appears, because it depends on the rendered map size and zoom.
+    func preload() async {
+        guard routeLayout == nil else { return }
+
+        do {
+            let network = try await repository.railMap()
+            try Task.checkCancellation()
+
+            let layout = await Task.detached(priority: .userInitiated) {
+                TransitRouteLayout(routes: network.routes)
+            }.value
+            try Task.checkCancellation()
+
+            if routeLayout == nil {
+                routeLayout = layout
+            }
+        } catch is CancellationError {
+        } catch {
+            AppLog.network.error(
+                "Network preload failed: \(String(describing: error), privacy: .private(mask: .hash))"
+            )
+        }
+    }
+
     func viewportChanged(to viewport: NetworkViewport, phase: NetworkViewportPhase) {
         viewportRevision &+= 1
         let revision = viewportRevision
