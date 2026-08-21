@@ -51,7 +51,10 @@ struct SearchResultsSection: View {
                 }
 
             case .empty:
-                EmptyStateView(.noResults())
+                EmptyStateView(.noResults()) {
+                    Text("Modifiez la recherche ci-dessus.")
+                        .emptyStateHint()
+                }
 
             case .failed:
                 EmptyStateView(.offline(title: "Recherche indisponible")) {

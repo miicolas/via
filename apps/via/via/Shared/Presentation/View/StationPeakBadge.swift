@@ -39,10 +39,10 @@ struct StationPeakBadge: View {
             .background(tint.opacity(0.12), in: Capsule())
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilityLabel)
-            .accessibilityValue(voiceOverValue)
+            .accessibilityValue(accessibilityValue)
     }
 
-    private var voiceOverValue: String {
+    var accessibilityValue: String {
         if let stationName = peak.stationName, !stationName.isEmpty {
             return "\(stationName), \(peak.label)"
         }

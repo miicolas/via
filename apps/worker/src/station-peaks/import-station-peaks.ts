@@ -2,6 +2,8 @@ import { db } from '@via/db';
 import { stationHourProfiles, transitStops } from '@via/db/schema';
 import { inArray } from 'drizzle-orm';
 
+import { asString, fetchOpenDataJson } from '../idfm/referential';
+
 const DATASET_ID = 'validations-reseau-ferre-profils-horaires-par-jour-type-4eme-trimestre';
 const DATASET_EXPORT =
   `https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/${DATASET_ID}/exports/json`;
@@ -111,8 +113,8 @@ export function completeStationPeakRows(
 /** Imports the latest T4 profiles, replacing the previous snapshot atomically. */
 export async function refreshStationPeakSnapshot(): Promise<StationPeakImportResult> {
   const [sourcePayload, catalogPayload] = await Promise.all([
-    fetchJson(DATASET_EXPORT),
-    fetchJson(DATASET_CATALOG) as Promise<CatalogResponse>,
+    fetchOpenDataJson(DATASET_EXPORT),
+    fetchOpenDataJson(DATASET_CATALOG) as Promise<CatalogResponse>,
   ]);
   const sourceUpdatedAt = asString(
     catalogPayload.metas?.default?.data_processed ?? catalogPayload.metas?.default?.modified
@@ -169,18 +171,6 @@ export async function refreshStationPeakSnapshot(): Promise<StationPeakImportRes
     sourceUpdatedAt,
     importedAt: importedAt.toISOString(),
   };
-}
-
-async function fetchJson(url: string) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
-  if (!response.ok) throw new Error(`Station peak source returned HTTP ${response.status}`);
-  return response.json();
-}
-
-function asString(value: unknown) {
-  if (typeof value === 'string' && value.length > 0) return value;
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  return undefined;
 }
 
 function asNumber(value: unknown) {

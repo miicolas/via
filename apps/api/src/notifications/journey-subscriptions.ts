@@ -1,4 +1,4 @@
-import { and, eq, gt, lte } from 'drizzle-orm';
+import { and, asc, eq, gt, lte } from 'drizzle-orm';
 
 import {
   db,
@@ -13,6 +13,12 @@ import type {
 export type NotificationJourneySubscription =
   typeof notificationJourneySubscriptions.$inferSelect;
 
+export type NotificationJourneyRecipient = NotificationJourneySubscription & {
+  deviceToken: string;
+  bundleId: string;
+  environment: 'sandbox' | 'production';
+};
+
 export class NotificationInstallationOwnershipError extends Error {
   constructor() {
     super('The installation is not owned by this authenticated account.');
@@ -26,9 +32,12 @@ export interface NotificationJourneySubscriptionStore {
     userId: string,
     input: ActiveJourneyUnregistration
   ): Promise<void>;
-  listActive(now: Date): Promise<NotificationJourneySubscription[]>;
-  deleteExpired(now: Date): Promise<number>;
-  removeInstallation(userId: string, installationId: string): Promise<void>;
+  listActiveBatch(
+    now: Date,
+    afterInstallationId: string | undefined,
+    limit: number
+  ): Promise<NotificationJourneyRecipient[]>;
+  deleteExpired(now: Date): Promise<void>;
 }
 
 export function createDatabaseNotificationJourneySubscriptionStore(): NotificationJourneySubscriptionStore {
@@ -82,30 +91,42 @@ export function createDatabaseNotificationJourneySubscriptionStore(): Notificati
         );
     },
 
-    async listActive(now) {
+    async listActiveBatch(now, afterInstallationId, limit) {
       return db
-        .select()
+        .select({
+          installationId: notificationJourneySubscriptions.installationId,
+          userId: notificationJourneySubscriptions.userId,
+          journeyId: notificationJourneySubscriptions.journeyId,
+          routeIds: notificationJourneySubscriptions.routeIds,
+          startsAt: notificationJourneySubscriptions.startsAt,
+          endsAt: notificationJourneySubscriptions.endsAt,
+          createdAt: notificationJourneySubscriptions.createdAt,
+          lastSeenAt: notificationJourneySubscriptions.lastSeenAt,
+          deviceToken: notificationDevices.deviceToken,
+          bundleId: notificationDevices.bundleId,
+          environment: notificationDevices.environment,
+        })
         .from(notificationJourneySubscriptions)
-        .where(gt(notificationJourneySubscriptions.endsAt, now));
+        .innerJoin(
+          notificationDevices,
+          eq(notificationDevices.installationId, notificationJourneySubscriptions.installationId)
+        )
+        .where(
+          and(
+            gt(notificationJourneySubscriptions.endsAt, now),
+            afterInstallationId
+              ? gt(notificationJourneySubscriptions.installationId, afterInstallationId)
+              : undefined
+          )
+        )
+        .orderBy(asc(notificationJourneySubscriptions.installationId))
+        .limit(limit);
     },
 
     async deleteExpired(now) {
-      const expired = await db
-        .delete(notificationJourneySubscriptions)
-        .where(lte(notificationJourneySubscriptions.endsAt, now))
-        .returning({ installationId: notificationJourneySubscriptions.installationId });
-      return expired.length;
-    },
-
-    async removeInstallation(userId, installationId) {
       await db
         .delete(notificationJourneySubscriptions)
-        .where(
-          and(
-            eq(notificationJourneySubscriptions.userId, userId),
-            eq(notificationJourneySubscriptions.installationId, installationId)
-          )
-        );
+        .where(lte(notificationJourneySubscriptions.endsAt, now));
     },
   };
 }

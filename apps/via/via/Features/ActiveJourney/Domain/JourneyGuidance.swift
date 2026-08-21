@@ -104,13 +104,17 @@ enum JourneyGuidance {
          and the door number is what they will need on the platform.
          */
         let leadsWithExit = section.exit != nil && (progress.stopsUntilAlighting ?? 99) <= 1
-        let detail: String = if leadsWithExit, let exit = section.exit {
-            "\(exitLabel(exit)) · \(JourneyFormatting.time(endsAt))"
+        let destinationDetail: String = if leadsWithExit, let exit = section.exit {
+            exitLabel(exit)
         } else if progress.stopsUntilAlighting == nil {
-            "Arrivée à \(JourneyFormatting.time(endsAt))"
+            "Arrivée"
         } else {
-            "\(alightName) · \(JourneyFormatting.time(endsAt))"
+            alightName
         }
+        let carriage = section.boardingPosition.map { "Voiture \($0.car)/\($0.carCount)" }
+        let detail = [carriage, destinationDetail, JourneyFormatting.time(endsAt)]
+            .compactMap { $0 }
+            .joined(separator: " · ")
 
         return JourneyGuidanceHeadline(
             title: title,

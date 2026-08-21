@@ -414,6 +414,33 @@ final class JourneyGuidanceTests: XCTestCase {
         XCTAssertEqual(result.title, "Descendre à Est")
     }
 
+    func testGuidanceCarriesCarriageAndExitIntoTheLiveActivityHeadline() {
+        let journey = makeRidingJourney(
+            boardingPosition: JourneyBoardingPosition(
+                car: 5,
+                carCount: 5,
+                zone: .rear,
+                reason: .exit,
+                equipment: nil
+            ),
+            exit: JourneyExit(
+                id: "exit:16",
+                name: "place du Châtelet",
+                number: 16,
+                coordinate: GeoCoordinate(latitude: 48.8576, longitude: 2.3473),
+                walkingMeters: 12
+            )
+        )
+        let result = headline(
+            journey: journey,
+            schedule: ActiveJourneyRules.schedule(for: journey),
+            stopsUntilAlighting: 1
+        )
+
+        XCTAssertTrue(result.detail?.contains("Voiture 5/5") == true)
+        XCTAssertTrue(result.detail?.contains("Sortie 16") == true)
+    }
+
     private func headline(
         journey: Journey,
         schedule: [JourneySectionSchedule],
@@ -436,7 +463,11 @@ final class JourneyGuidanceTests: XCTestCase {
         )
     }
 
-    private func makeRidingJourney(withStops: Bool = true) -> Journey {
+    private func makeRidingJourney(
+        withStops: Bool = true,
+        boardingPosition: JourneyBoardingPosition? = nil,
+        exit: JourneyExit? = nil
+    ) -> Journey {
         let west = GeoCoordinate(latitude: 48.86, longitude: 2.30)
         let east = GeoCoordinate(latitude: 48.86, longitude: 2.40)
         let names = ["Ouest", "Arrêt 1", "Arrêt 2", "Arrêt 3", "Est"]
@@ -472,7 +503,9 @@ final class JourneyGuidanceTests: XCTestCase {
             ),
             direction: "Est",
             platform: nil,
-            stops: withStops ? stops : []
+            stops: withStops ? stops : [],
+            boardingPosition: boardingPosition,
+            exit: exit
         )
 
         return Journey(

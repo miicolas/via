@@ -80,4 +80,3 @@ actor UserDefaultsJourneyNotificationPreferencesStore: JourneyNotificationPrefer
         defaults.set(try encoder.encode(preferences), forKey: key)
     }
 }
-

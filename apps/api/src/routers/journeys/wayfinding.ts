@@ -163,15 +163,9 @@ export function applyWayfinding(
   if (candidates.length > 0) {
     const positions = positionsFrom(snapshot, last.alightingStopId)
       .filter((row) => row.targetKind === 'exit');
-    /**
-     * When the quay publishes carriage advice, only the exits it names are
-     * offered: those are the ones RATP signposts from that platform, and any
-     * other would be a walk we cannot describe.
-     */
-    const reachable = positions.length > 0
-      ? candidates.filter((exit) => positions.some((row) => row.targetId === exit.id))
-      : candidates;
-    const chosen = nearest(reachable.length > 0 ? reachable : candidates, destination);
+    // Exit choice is authoritative: always pick the closest one. Carriage
+    // advice is additive and may be absent for that exit.
+    const chosen = nearest(candidates, destination);
     if (chosen) {
       exitByIndex.set(last.index, {
         id: chosen.id,

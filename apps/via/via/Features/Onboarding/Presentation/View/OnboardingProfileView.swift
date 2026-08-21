@@ -116,9 +116,6 @@ struct OnboardingProfileView: View {
             Button(step == steps.count - 1 ? "Terminer" : "Continuer", action: advance)
                 .primaryAction()
                 .disabled(!canAdvance)
-
-            Button("Plus tard", action: onComplete)
-                .secondaryAction()
         }
         .padding(.top, 6)
     }

@@ -31,7 +31,7 @@ type CatalogResponse = {
   metas?: { default?: { modified?: unknown; data_processed?: unknown } };
 };
 
-async function fetchJson(url: string) {
+export async function fetchOpenDataJson(url: string) {
   const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   if (!response.ok) throw new Error(`${url} returned HTTP ${response.status}`);
   return response.json();
@@ -39,7 +39,7 @@ async function fetchJson(url: string) {
 
 /** Every row of a dataset, in one request — the referential is small enough. */
 export async function exportDataset(dataset: ReferentialDataset) {
-  const payload = await fetchJson(`${REFERENTIAL_DATASETS[dataset]}/exports/json`);
+  const payload = await fetchOpenDataJson(`${REFERENTIAL_DATASETS[dataset]}/exports/json`);
   if (!Array.isArray(payload)) throw new Error(`Dataset ${dataset} did not export an array`);
   return payload as Record<string, unknown>[];
 }
@@ -49,7 +49,7 @@ export async function exportDataset(dataset: ReferentialDataset) {
  * rows so a stale referential is visible without diffing it.
  */
 export async function datasetUpdatedAt(dataset: ReferentialDataset) {
-  const payload = (await fetchJson(REFERENTIAL_DATASETS[dataset])) as CatalogResponse;
+  const payload = (await fetchOpenDataJson(REFERENTIAL_DATASETS[dataset])) as CatalogResponse;
   const value = asString(payload.metas?.default?.data_processed)
     ?? asString(payload.metas?.default?.modified);
   return value ? new Date(value) : null;

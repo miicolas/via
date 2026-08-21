@@ -393,16 +393,6 @@ function dedupeJourneys(journeys: Journey[]) {
   return [...new Map(journeys.map((journey) => [journey.id, journey])).values()];
 }
 
-function noRoute(now: Date, reason?: JourneysResponse['reason']): JourneysResponse {
-  return {
-    status: 'no-route',
-    source: 'gtfs-theoretical',
-    generatedAt: now.toISOString(),
-    reason,
-    journeys: [],
-  };
-}
-
 function unavailable(now: Date, reason?: JourneysResponse['reason']): JourneysResponse {
   return {
     status: 'unavailable',

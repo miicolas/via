@@ -29,4 +29,3 @@ export function stopNotificationDisruptionMonitor() {
   timer = null;
   monitor = null;
 }
-

@@ -3,12 +3,13 @@ import SwiftUI
 @main
 @MainActor
 struct ApplicationEntry: App {
-    @UIApplicationDelegateAdaptor(ViaAppDelegate.self) private var appDelegate
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isShowingLaunchAnimation = true
+    @State private var isContinuingAsGuest = false
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
     @State private var linesViewModel: LinesViewModel
@@ -162,7 +163,7 @@ struct ApplicationEntry: App {
                 OnboardingView(onComplete: onboardingModel.complete)
                     .transition(.opacity)
             } else if !onboardingModel.isSetupCompleted {
-                if authSessionViewModel.isSignedIn {
+                if authSessionViewModel.isSignedIn || isContinuingAsGuest {
                     OnboardingProfileView(
                         model: onboardingProfileModel,
                         onComplete: onboardingModel.completeSetup
@@ -171,7 +172,7 @@ struct ApplicationEntry: App {
                 } else {
                     OnboardingAccountView(
                         authSessionViewModel: authSessionViewModel,
-                        onContinueAsGuest: onboardingModel.completeSetup
+                        onContinueAsGuest: { isContinuingAsGuest = true }
                     )
                     .transition(.opacity)
                 }

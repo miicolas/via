@@ -120,6 +120,32 @@ describe('applyWayfinding', () => {
     expect(sections[0]!.boardingPosition).toMatchObject({ car: 1, zone: 'front' });
   });
 
+  test('keeps the nearest exit when that exit has no carriage advice', () => {
+    const snapshotWithoutNearestPosition: WayfindingSnapshot = {
+      ...SNAPSHOT,
+      positionsByQuayId: new Map([[
+        'IDFM:463060',
+        [{
+          fromQuayId: 'IDFM:463060',
+          targetId: 'IDFM:50147794',
+          targetKind: 'exit',
+          car: 4,
+          carCount: 5,
+          zone: 'rear',
+          equipment: null,
+        }],
+      ]]),
+    };
+    const result = applyWayfinding(
+      journey([transit(['stop_point:IDFM:21958', 'stop_point:IDFM:463060']), walk()]),
+      PLACE_DU_CHATELET,
+      snapshotWithoutNearestPosition,
+    );
+
+    expect(result.sections[0]!.exit?.id).toBe('IDFM:50147797');
+    expect(result.sections[0]!.boardingPosition).toBeUndefined();
+  });
+
   test('a connection aims at the next line quay, and only the last leg carries an exit', () => {
     const sections = apply(
       [

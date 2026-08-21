@@ -49,8 +49,11 @@ struct ReportStationPickerView: View {
                     systemImage: "magnifyingglass",
                     title: "Rechercher une station",
                     message: "Saisissez au moins deux caractères pour lancer la recherche.",
-                ),
-            )
+                )
+            ) {
+                Text("Utilisez le champ de recherche ci-dessus.")
+                    .emptyStateHint()
+            }
 
         case .loading:
             EmptyStateView(.searching())
@@ -73,7 +76,10 @@ struct ReportStationPickerView: View {
             }
 
         case .empty:
-            EmptyStateView(.noResults(message: "Essayez un autre nom de station."))
+            EmptyStateView(.noResults(message: "Essayez un autre nom de station.")) {
+                Text("Modifiez la recherche ci-dessus.")
+                    .emptyStateHint()
+            }
 
         case .failed:
             EmptyStateView(.offline(title: "Recherche indisponible")) {

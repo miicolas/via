@@ -24,6 +24,7 @@ final class PushNotificationManager: JourneyActivityPushTokenSink, JourneyNotifi
     private var desiredActiveJourney: Journey?
     private var isAuthenticated = false
     private var isFlushing = false
+    private var needsAnotherFlush = false
 
     init(defaults: UserDefaults = .standard) {
         let key = "via.push.installation-id.v1"
@@ -114,13 +115,23 @@ final class PushNotificationManager: JourneyActivityPushTokenSink, JourneyNotifi
     }
 
     func flush() async {
-        guard !isFlushing, let configuration else { return }
+        guard !isFlushing else {
+            needsAnotherFlush = true
+            return
+        }
+        guard let configuration, isAuthenticated else { return }
         guard pendingDeviceToken != nil || !pendingActivities.isEmpty ||
             !pendingActivityRemovals.isEmpty || pendingPushToStartToken != nil ||
             pendingActiveJourneyRegistration != nil || pendingActiveJourneyRemoval != nil else { return }
 
         isFlushing = true
-        defer { isFlushing = false }
+        defer {
+            isFlushing = false
+            if needsAnotherFlush {
+                needsAnotherFlush = false
+                Task { await flush() }
+            }
+        }
 
         if let deviceToken = pendingDeviceToken {
             do {
@@ -177,8 +188,6 @@ final class PushNotificationManager: JourneyActivityPushTokenSink, JourneyNotifi
                 lastError = "Le démarrage distant sera réessayé plus tard."
             }
         }
-
-        guard isAuthenticated else { return }
 
         if let removal = pendingActiveJourneyRemoval {
             do {

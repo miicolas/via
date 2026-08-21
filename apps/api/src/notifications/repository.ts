@@ -1,10 +1,9 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import {
   db,
   notificationDevices,
   notificationLiveActivities,
   notificationLiveActivityStartTokens,
-  notificationJourneySubscriptions,
 } from "@via/db";
 import type {
   APNsEnvironment,
@@ -14,10 +13,6 @@ import type {
 } from "@via/contract";
 
 export type NotificationDevice = typeof notificationDevices.$inferSelect;
-export type NotificationLiveActivity =
-  typeof notificationLiveActivities.$inferSelect;
-export type NotificationStartToken =
-  typeof notificationLiveActivityStartTokens.$inferSelect;
 
 export interface NotificationTokenStore {
   registerDevice(
@@ -34,21 +29,7 @@ export interface NotificationTokenStore {
     userId: string,
     input: LiveActivityPushToStartRegistration,
   ): Promise<void>;
-  listDevices(userId: string): Promise<NotificationDevice[]>;
-  getActivity(activityId: string): Promise<NotificationLiveActivity | null>;
-  listActivities(journeyId: string): Promise<NotificationLiveActivity[]>;
-  getPushToStartTokens(userId: string): Promise<NotificationStartToken[]>;
   removeDeviceToken(
-    token: string,
-    bundleId: string,
-    environment: APNsEnvironment,
-  ): Promise<void>;
-  removeActivityToken(
-    token: string,
-    bundleId: string,
-    environment: APNsEnvironment,
-  ): Promise<void>;
-  removePushToStartToken(
     token: string,
     bundleId: string,
     environment: APNsEnvironment,
@@ -78,9 +59,17 @@ export function createDatabaseNotificationTokenStore(): NotificationTokenStore {
             ),
           );
 
+        // Re-associating an installation with another account must discard
+        // every child registration owned by the previous account. Same-user
+        // token refreshes keep the active journey subscription intact.
         await transaction
-          .delete(notificationJourneySubscriptions)
-          .where(eq(notificationJourneySubscriptions.installationId, input.installationId));
+          .delete(notificationDevices)
+          .where(
+            and(
+              eq(notificationDevices.installationId, input.installationId),
+              ne(notificationDevices.userId, userId),
+            ),
+          );
 
         await transaction
           .insert(notificationDevices)
@@ -110,43 +99,14 @@ export function createDatabaseNotificationTokenStore(): NotificationTokenStore {
     },
 
     async unregisterDevice(userId, installationId) {
-      await db.transaction(async (transaction) => {
-        await transaction
-          .delete(notificationDevices)
-          .where(
-            and(
-              eq(notificationDevices.userId, userId),
-              eq(notificationDevices.installationId, installationId),
-            ),
-          );
-        await transaction
-          .delete(notificationLiveActivities)
-          .where(
-            and(
-              eq(notificationLiveActivities.userId, userId),
-              eq(notificationLiveActivities.installationId, installationId),
-            ),
-          );
-        await transaction
-          .delete(notificationLiveActivityStartTokens)
-          .where(
-            and(
-              eq(notificationLiveActivityStartTokens.userId, userId),
-              eq(
-                notificationLiveActivityStartTokens.installationId,
-                installationId,
-              ),
-            ),
-          );
-        await transaction
-          .delete(notificationJourneySubscriptions)
-          .where(
-            and(
-              eq(notificationJourneySubscriptions.userId, userId),
-              eq(notificationJourneySubscriptions.installationId, installationId),
-            ),
-          );
-      });
+      await db
+        .delete(notificationDevices)
+        .where(
+          and(
+            eq(notificationDevices.userId, userId),
+            eq(notificationDevices.installationId, installationId),
+          ),
+        );
     },
 
     async registerActivity(userId, input) {
@@ -247,86 +207,14 @@ export function createDatabaseNotificationTokenStore(): NotificationTokenStore {
       });
     },
 
-    async listDevices(userId) {
-      return db
-        .select()
-        .from(notificationDevices)
-        .where(eq(notificationDevices.userId, userId));
-    },
-
-    async getActivity(activityId) {
-      const rows = await db
-        .select()
-        .from(notificationLiveActivities)
-        .where(eq(notificationLiveActivities.activityId, activityId))
-        .limit(1);
-      return rows[0] ?? null;
-    },
-
-    async listActivities(journeyId) {
-      return db
-        .select()
-        .from(notificationLiveActivities)
-        .where(eq(notificationLiveActivities.journeyId, journeyId));
-    },
-
-    async getPushToStartTokens(userId) {
-      return db
-        .select()
-        .from(notificationLiveActivityStartTokens)
-        .where(eq(notificationLiveActivityStartTokens.userId, userId));
-    },
-
     async removeDeviceToken(token, bundleId, environment) {
-      await db.transaction(async (transaction) => {
-        const devices = await transaction
-          .select({ installationId: notificationDevices.installationId })
-          .from(notificationDevices)
-          .where(
-            and(
-              eq(notificationDevices.deviceToken, token),
-              eq(notificationDevices.bundleId, bundleId),
-              eq(notificationDevices.environment, environment),
-            ),
-          );
-        await transaction
-          .delete(notificationDevices)
-          .where(
-            and(
-              eq(notificationDevices.deviceToken, token),
-              eq(notificationDevices.bundleId, bundleId),
-              eq(notificationDevices.environment, environment),
-            ),
-          );
-        const installationIDs = devices.map((device) => device.installationId);
-        if (installationIDs.length > 0) {
-          await transaction
-            .delete(notificationJourneySubscriptions)
-            .where(inArray(notificationJourneySubscriptions.installationId, installationIDs));
-        }
-      });
-    },
-
-    async removeActivityToken(token, bundleId, environment) {
       await db
-        .delete(notificationLiveActivities)
+        .delete(notificationDevices)
         .where(
           and(
-            eq(notificationLiveActivities.activityToken, token),
-            eq(notificationLiveActivities.bundleId, bundleId),
-            eq(notificationLiveActivities.environment, environment),
-          ),
-        );
-    },
-
-    async removePushToStartToken(token, bundleId, environment) {
-      await db
-        .delete(notificationLiveActivityStartTokens)
-        .where(
-          and(
-            eq(notificationLiveActivityStartTokens.pushToStartToken, token),
-            eq(notificationLiveActivityStartTokens.bundleId, bundleId),
-            eq(notificationLiveActivityStartTokens.environment, environment),
+            eq(notificationDevices.deviceToken, token),
+            eq(notificationDevices.bundleId, bundleId),
+            eq(notificationDevices.environment, environment),
           ),
         );
     },

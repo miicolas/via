@@ -18,6 +18,8 @@ export type RedisClient = {
   incr: (key: string) => Promise<number>;
   expire: (key: string, seconds: number) => Promise<number>;
   del: (key: string) => Promise<number>;
+  compareAndExpire: (key: string, expectedValue: string, seconds: number) => Promise<boolean>;
+  compareAndDelete: (key: string, expectedValue: string) => Promise<boolean>;
 };
 
 /**
@@ -43,4 +45,23 @@ export const redis: RedisClient = {
   incr: (key) => client.incr(key),
   expire: (key, seconds) => client.expire(key, seconds),
   del: (key) => client.del(key),
+  compareAndExpire: async (key, expectedValue, seconds) => {
+    const result = await client.send('EVAL', [
+      "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('EXPIRE', KEYS[1], ARGV[2]) else return 0 end",
+      '1',
+      key,
+      expectedValue,
+      String(seconds),
+    ]);
+    return Number(result) === 1;
+  },
+  compareAndDelete: async (key, expectedValue) => {
+    const result = await client.send('EVAL', [
+      "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end",
+      '1',
+      key,
+      expectedValue,
+    ]);
+    return Number(result) === 1;
+  },
 };

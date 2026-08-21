@@ -60,6 +60,3 @@ export async function stationPeaks(
     return new Map();
   }
 }
-
-/** Descriptive alias for call sites that use the resolver as a level lookup. */
-export const peakLevelForStations = stationPeaks;

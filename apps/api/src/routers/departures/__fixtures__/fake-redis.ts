@@ -33,6 +33,17 @@ export function fakeRedis() {
       expiries.delete(key);
       return existed ? 1 : 0;
     }) as RedisClient['del'],
+    compareAndExpire: (async (key: string, expectedValue: string, seconds: number) => {
+      if (store.get(key) !== JSON.parse(expectedValue)) return false;
+      expiries.set(key, seconds);
+      return true;
+    }) as RedisClient['compareAndExpire'],
+    compareAndDelete: (async (key: string, expectedValue: string) => {
+      if (store.get(key) !== JSON.parse(expectedValue)) return false;
+      store.delete(key);
+      expiries.delete(key);
+      return true;
+    }) as RedisClient['compareAndDelete'],
   };
 
   return { client, store, expiries };

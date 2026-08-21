@@ -18,7 +18,10 @@ struct FavoritesSettingsView: View {
         List {
             if favorites.isEmpty {
                 Section {
-                    EmptyStateView(.noFavorites)
+                    EmptyStateView(.noFavorites) {
+                        Text("Ajoutez une station depuis sa fiche pour la retrouver ici.")
+                            .emptyStateHint()
+                    }
                         .listRowBackground(Color.clear)
                 }
             } else {

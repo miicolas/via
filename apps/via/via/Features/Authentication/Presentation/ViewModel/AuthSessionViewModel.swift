@@ -203,6 +203,7 @@ final class AuthSessionViewModel {
             defer { isDeletingAccount = false }
             do {
                 try await account.delete(using: proof)
+                await onAuthenticatedSessionEnded()
                 try await vault.clear()
                 anonymousSession = nil
                 account.activateAnonymous()
@@ -270,6 +271,7 @@ final class AuthSessionViewModel {
     }
 
     private func clearConfirmedSession(message: String) async {
+        await onAuthenticatedSessionEnded()
         try? await vault.clear()
         anonymousSession = nil
         account.activateAnonymous()

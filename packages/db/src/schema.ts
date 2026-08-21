@@ -699,7 +699,9 @@ export const notificationLiveActivities = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    installationId: text('installation_id').notNull(),
+    installationId: text('installation_id')
+      .notNull()
+      .references(() => notificationDevices.installationId, { onDelete: 'cascade' }),
     journeyId: text('journey_id').notNull(),
     activityToken: text('activity_token').notNull(),
     bundleId: text('bundle_id').notNull(),
@@ -722,7 +724,9 @@ export const notificationLiveActivities = pgTable(
 export const notificationLiveActivityStartTokens = pgTable(
   'notification_live_activity_start_tokens',
   {
-    installationId: text('installation_id').primaryKey(),
+    installationId: text('installation_id')
+      .primaryKey()
+      .references(() => notificationDevices.installationId, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -750,7 +754,9 @@ export const notificationLiveActivityStartTokens = pgTable(
 export const notificationJourneySubscriptions = pgTable(
   'notification_journey_subscriptions',
   {
-    installationId: text('installation_id').primaryKey(),
+    installationId: text('installation_id')
+      .primaryKey()
+      .references(() => notificationDevices.installationId, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
