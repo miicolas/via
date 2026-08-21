@@ -152,13 +152,13 @@ struct SearchJourneyResultsView: View {
     private func locationMessage(for authorization: LocationAuthorization) -> String {
         switch authorization {
         case .notDetermined:
-            "Autorise Via à utiliser ta position pour calculer un itinéraire depuis Ma position."
+            "Autorise Metyro à utiliser ta position pour calculer un itinéraire depuis Ma position."
         case .denied:
             "L’accès à la position est désactivé. Autorise-le dans Réglages, puis réessaie."
         case .restricted:
             "La position n’est pas disponible sur cet appareil. Choisis une autre origine dans le menu Départ."
         case .authorized:
-            "Via n’a pas réussi à obtenir ta position. Réessaie ou choisis une autre origine."
+            "Metyro n’a pas réussi à obtenir ta position. Réessaie ou choisis une autre origine."
         }
     }
 }

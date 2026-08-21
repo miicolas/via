@@ -15,7 +15,7 @@ struct AccountDataSettingsView: View {
             Section {
                 ShareLink(
                     item: accountModel.makeExport(),
-                    preview: SharePreview("Données Via")
+                    preview: SharePreview("Données Metyro")
                 ) {
                     Label("Exporter mes données", systemImage: "square.and.arrow.up")
                 }
@@ -31,8 +31,18 @@ struct AccountDataSettingsView: View {
                 }
             }
 
+            if !authSessionViewModel.isSignedIn {
+                Section("COMPTE METYRO") {
+                    AppleSignInButton(authSessionViewModel: authSessionViewModel)
+
+                    Text("Connecte-toi pour retrouver tes favoris et tes préférences sur tous tes appareils.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if authSessionViewModel.isSignedIn {
-                Section("COMPTE VIA") {
+                Section("COMPTE METYRO") {
                     Button {
                         confirmation = .signOut
                     } label: {
@@ -119,7 +129,7 @@ private enum Confirmation: String, Identifiable {
         case .eraseDevice:
             "Les profils, favoris, lieux et recherches enregistrés sur cet appareil seront supprimés."
         case .signOut:
-            "Les données synchronisées resteront liées à ton compte Via."
+            "Les données synchronisées resteront liées à ton compte Metyro."
         case .deleteAccount:
             "Cette action supprime le compte et ses données synchronisées. Apple demandera une nouvelle confirmation."
         }

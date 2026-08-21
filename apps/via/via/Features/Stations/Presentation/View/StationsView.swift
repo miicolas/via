@@ -229,11 +229,11 @@ struct StationsView: View {
     private func message(for error: ViaError) -> String {
         switch error {
         case .invalidConfiguration:
-            "La configuration de Via est invalide."
+            "La configuration de Metyro est invalide."
         case .invalidRequest:
             "La zone de recherche n’est pas valide."
         case .unauthorized:
-            "La connexion à Via n’est pas autorisée."
+            "La connexion à Metyro n’est pas autorisée."
         case .rateLimited:
             "Le service est momentanément limité."
         case .unavailable:

@@ -21,9 +21,9 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
             self.session = session
         } else {
             let configuration = URLSessionConfiguration.apiSessionConfiguration(base: .ephemeral)
-            configuration.timeoutIntervalForRequest = 12
-            configuration.timeoutIntervalForResource = 20
-            configuration.waitsForConnectivity = false
+            configuration.timeoutIntervalForRequest = 15
+            configuration.timeoutIntervalForResource = 45
+            configuration.waitsForConnectivity = true
             self.session = URLSession(configuration: configuration)
         }
     }
@@ -74,7 +74,19 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
             expiresAt: .now.addingTimeInterval(30 * 24 * 60 * 60),
             lastValidatedAt: .now
         )
-        return try await validate(provisional)
+        // The sign-in response already contains a server-issued session. A
+        // transient failure during the follow-up validation must not throw the
+        // user back to the Apple sheet after a successful authorization.
+        do {
+            return try await validate(provisional)
+        } catch let error as AuthenticationClientError {
+            switch error {
+            case .transport, .server:
+                return provisional
+            case .unauthorized, .invalidResponse:
+                throw error
+            }
+        }
     }
 
     func signInAnonymously() async throws -> StoredAuthSession {
@@ -94,7 +106,16 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
             expiresAt: .now.addingTimeInterval(30 * 24 * 60 * 60),
             lastValidatedAt: .now
         )
-        return try await validate(provisional)
+        do {
+            return try await validate(provisional)
+        } catch let error as AuthenticationClientError {
+            switch error {
+            case .transport, .server:
+                return provisional
+            case .unauthorized, .invalidResponse:
+                throw error
+            }
+        }
     }
 
     func validate(_ storedSession: StoredAuthSession) async throws -> StoredAuthSession {
@@ -103,7 +124,7 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
             method: "GET",
             bearerToken: storedSession.bearerToken
         )
-        let (data, response) = try await perform(request)
+        let (data, response) = try await perform(request, retryCount: 1)
         guard let envelope = try JSONDecoder.via.decode(SessionEnvelope?.self, from: data) else {
             throw AuthenticationClientError.unauthorized
         }
@@ -157,28 +178,41 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
         return request
     }
 
-    private func perform(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        do {
-            let (data, response) = try await session.data(for: request)
-            guard let response = response as? HTTPURLResponse else {
-                throw AuthenticationClientError.invalidResponse
+    private func perform(
+        _ request: URLRequest,
+        retryCount: Int = 0
+    ) async throws -> (Data, HTTPURLResponse) {
+        var attempt = 0
+
+        while true {
+            do {
+                let (data, response) = try await session.data(for: request)
+                guard let response = response as? HTTPURLResponse else {
+                    throw AuthenticationClientError.invalidResponse
+                }
+                switch response.statusCode {
+                case 200..<300:
+                    return (data, response)
+                case 401:
+                    throw AuthenticationClientError.unauthorized
+                case 500...599:
+                    throw AuthenticationClientError.server(statusCode: response.statusCode)
+                default:
+                    throw AuthenticationClientError.invalidResponse
+                }
+            } catch let error as AuthenticationClientError {
+                guard attempt < retryCount, error.isTransient else { throw error }
+                attempt += 1
+                try await Task.sleep(for: .milliseconds(350))
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                guard attempt < retryCount else {
+                    throw AuthenticationClientError.transport
+                }
+                attempt += 1
+                try await Task.sleep(for: .milliseconds(350))
             }
-            switch response.statusCode {
-            case 200..<300:
-                return (data, response)
-            case 401:
-                throw AuthenticationClientError.unauthorized
-            case 500...599:
-                throw AuthenticationClientError.server(statusCode: response.statusCode)
-            default:
-                throw AuthenticationClientError.invalidResponse
-            }
-        } catch let error as AuthenticationClientError {
-            throw error
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            throw AuthenticationClientError.transport
         }
     }
 
@@ -188,6 +222,17 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
             throw AuthenticationClientError.invalidResponse
         }
         return bearer
+    }
+}
+
+private extension AuthenticationClientError {
+    var isTransient: Bool {
+        switch self {
+        case .transport, .server:
+            true
+        case .unauthorized, .invalidResponse:
+            false
+        }
     }
 }
 

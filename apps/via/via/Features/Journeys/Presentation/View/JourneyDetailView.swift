@@ -107,7 +107,7 @@ struct JourneyDetailView: View {
             .accessibilityHint(
                 action == .active
                     ? "Ce trajet est déjà actif"
-                    : "Active le guidage étape par étape dans Via"
+                    : "Active le guidage étape par étape dans Metyro"
             )
         }
     }

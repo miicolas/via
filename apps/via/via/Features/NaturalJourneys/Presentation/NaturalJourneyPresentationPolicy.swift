@@ -35,7 +35,7 @@ extension NaturalJourneyUnavailableGuidance {
     var message: String {
         switch self {
         case .enableAppleIntelligence:
-            "Via a besoin d’Apple Intelligence pour comprendre une demande de trajet écrite naturellement."
+            "Metyro a besoin d’Apple Intelligence pour comprendre une demande de trajet écrite naturellement."
         case .modelNotReady:
             "Le modèle n’est pas encore prêt. iOS peut encore le télécharger ou le préparer."
         case .systemUnavailable:
@@ -53,7 +53,7 @@ extension NaturalJourneyUnavailableGuidance {
                 ),
                 .init(
                     systemImage: "checkmark.circle",
-                    text: "Active Apple Intelligence, puis reviens dans Via.",
+                    text: "Active Apple Intelligence, puis reviens dans Metyro.",
                 ),
             ]
         case .modelNotReady:

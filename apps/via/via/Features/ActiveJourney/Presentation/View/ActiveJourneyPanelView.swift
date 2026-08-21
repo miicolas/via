@@ -107,7 +107,7 @@ struct ActiveJourneyPanelView: View {
         if model.isOffline {
             statusBanner(
                 title: "Hors connexion",
-                message: "Via continue avec le trajet mémorisé. Les recalculs sont suspendus.",
+                message: "Metyro continue avec le trajet mémorisé. Les recalculs sont suspendus.",
                 systemImage: "wifi.slash",
                 color: .orange
             )
@@ -123,7 +123,7 @@ struct ActiveJourneyPanelView: View {
                   !model.hasBackgroundLocationAuthorization {
             statusBanner(
                 title: "Suivi limité en arrière-plan",
-                message: "Gardez Via ouverte pour des changements d’étape et recalculs plus fiables.",
+                message: "Gardez Metyro ouverte pour des changements d’étape et recalculs plus fiables.",
                 systemImage: "location.circle",
                 color: .gray
             )
