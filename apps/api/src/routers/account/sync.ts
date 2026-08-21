@@ -12,7 +12,6 @@ import {
 } from '@via/db';
 import {
   ACCOUNT_FAVORITE_LIMIT,
-  ACCOUNT_PLACE_FAVORITE_LIMIT,
   ACCOUNT_RECENT_LIMIT,
   type AccountSyncInput,
   type AccountSyncResponse,
@@ -132,20 +131,18 @@ export async function synchronizeAccount(
         case 'place.upsert': {
           if (!operation.place) break;
           const place = operation.place;
-          if (place.role !== 'favorite') {
-            // Home and work are unique per user: reassigning the role evicts
-            // the previous holder, last writer wins on `updatedAt`.
-            await transaction
-              .delete(accountPlaces)
-              .where(
-                and(
-                  eq(accountPlaces.userId, userId),
-                  eq(accountPlaces.role, place.role),
-                  ne(accountPlaces.id, place.id),
-                  lte(accountPlaces.updatedAt, new Date(place.updatedAt))
-                )
-              );
-          }
+          // Home and work are unique per user: reassigning the role evicts
+          // the previous holder, last writer wins on `updatedAt`.
+          await transaction
+            .delete(accountPlaces)
+            .where(
+              and(
+                eq(accountPlaces.userId, userId),
+                eq(accountPlaces.role, place.role),
+                ne(accountPlaces.id, place.id),
+                lte(accountPlaces.updatedAt, new Date(place.updatedAt))
+              )
+            );
           await transaction
             .insert(accountPlaces)
             .values({
@@ -231,17 +228,6 @@ export async function synchronizeAccount(
       userIdColumn: accountRecentSearches.userId,
       limit: ACCOUNT_RECENT_LIMIT,
     });
-    if (input.operations.some((operation) => operation.kind === 'place.upsert')) {
-      // Home and work never get trimmed; only surplus favorite places do.
-      await trimOldest(transaction, userId, {
-        table: accountPlaces,
-        idColumn: accountPlaces.id,
-        savedAtColumn: accountPlaces.savedAt,
-        userIdColumn: accountPlaces.userId,
-        limit: ACCOUNT_PLACE_FAVORITE_LIMIT,
-        condition: sql`${accountPlaces.role} = 'favorite'`,
-      });
-    }
   });
 
   const [favorites, recents, places, preferences] = await Promise.all([

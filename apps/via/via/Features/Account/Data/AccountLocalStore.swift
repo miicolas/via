@@ -277,15 +277,6 @@ final class AccountLocalStore: @unchecked Sendable {
                 places.removeAll { $0.role == role && $0.id != newest.id }
             }
         }
-        let surplusFavoriteIDs = Set(
-            places
-                .filter { $0.role == .favorite }
-                .sorted { $0.savedAt > $1.savedAt }
-                .dropFirst(AccountLocalSnapshot.favoritePlaceLimit)
-                .map(\.id)
-        )
-        places.removeAll { surplusFavoriteIDs.contains($0.id) }
-
         var merged = AccountLocalSnapshot(
             favorites: Array(favoritesByID.values.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.favoriteLimit)),
             recents: Array(recentsByID.values.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.recentLimit)),

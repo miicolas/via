@@ -308,10 +308,14 @@ async function importTransitNetwork(gtfsPath: string) {
       for (const stop of inserted) stopKeyById.set(stop.id, stop.numericId);
     }
 
-    const aliasValues = [...sourceStops.values()].map((stop) => ({
-      sourceId: stop.id,
-      stopId: canonicalStopOf(stop.id).id,
-    }));
+    const aliasBySourceId = new Map<string, { sourceId: string; stopId: string }>();
+    for (const stop of sourceStops.values()) {
+      const stopId = canonicalStopOf(stop.id).id;
+      for (const sourceId of [stop.id, `stop_point:${stop.id}`, `stop_area:${stopId}`]) {
+        aliasBySourceId.set(sourceId, { sourceId, stopId });
+      }
+    }
+    const aliasValues = [...aliasBySourceId.values()];
     for (let start = 0; start < aliasValues.length; start += INSERT_BATCH) {
       await tx.insert(transitStopAliases).values(aliasValues.slice(start, start + INSERT_BATCH));
     }

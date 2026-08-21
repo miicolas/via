@@ -1,29 +1,26 @@
 import type { Journey, JourneyInput } from '@via/contract';
 import { db } from '@via/db';
-import { importMeta, stationAccessibility, transitStopAliases } from '@via/db/schema';
-import { inArray } from 'drizzle-orm';
+import {
+  stationFacts,
+  transitStopAliases,
+  type StationFactCondition,
+} from '@via/db/schema';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
-export type AccessibilityCondition = 'reservationRequired' | 'staffAssistance' | 'autonomous';
+import { ACCESSIBILITY_CONDITION_LABELS } from '../accessibility-labels';
 
 export type JourneyAccessibility = {
-  condition: AccessibilityCondition;
+  condition: StationFactCondition;
   label: string;
 };
 
-const ACCESSIBILITY_LEVELS = new Map<number, JourneyAccessibility>([
-  [3, { condition: 'reservationRequired', label: 'Réservation requise' }],
-  [4, { condition: 'staffAssistance', label: 'Agent requis' }],
-  [6, { condition: 'autonomous', label: 'Gares PMR vérifiées' }],
-]);
-
-const META_IMPORTED_AT = 'accessibility:imported-at';
-
 export async function accessibilitySnapshotAvailable() {
-  const rows = await db
-    .select({ value: importMeta.value })
-    .from(importMeta)
-    .where(inArray(importMeta.key, [META_IMPORTED_AT]));
-  return rows.length > 0;
+  const [row] = await db.execute<{ available: boolean }>(sql`
+    select exists(
+      select 1 from ${stationFacts} where ${stationFacts.kind} = 'accessibility'
+    ) as available
+  `);
+  return row?.available ?? false;
 }
 
 /** Returns the canonical Via station IDs for raw GTFS/Navitia stop IDs. */
@@ -38,10 +35,6 @@ export async function canonicalStationIDs(ids: Iterable<string>) {
   const result = new Map(aliases.map((row) => [row.sourceId, row.stopId]));
   for (const value of values) {
     if (value.startsWith('IDFM:')) result.set(value, value);
-    const withoutNavitiaPrefix = value.replace(/^(?:stop_point|stop_area):/, '');
-    if (withoutNavitiaPrefix !== value && withoutNavitiaPrefix.startsWith('IDFM:')) {
-      result.set(value, withoutNavitiaPrefix);
-    }
   }
   return result;
 }
@@ -50,14 +43,16 @@ export async function accessibilityForStationIDs(ids: Iterable<string>) {
   const values = [...new Set([...ids].filter(Boolean))];
   if (values.length === 0) return new Map<string, JourneyAccessibility>();
   const rows = await db
-    .select({ stopId: stationAccessibility.stopId, levelId: stationAccessibility.levelId })
-    .from(stationAccessibility)
-    .where(inArray(stationAccessibility.stopId, values));
+    .select({ stopId: stationFacts.stopId, condition: stationFacts.condition })
+    .from(stationFacts)
+    .where(
+      and(eq(stationFacts.kind, 'accessibility'), inArray(stationFacts.stopId, values))
+    );
   return new Map(
-    rows.flatMap((row) => {
-      const accessibility = ACCESSIBILITY_LEVELS.get(row.levelId);
-      return accessibility ? [[row.stopId, accessibility] as const] : [];
-    })
+    rows.map((row) => [
+      row.stopId,
+      { condition: row.condition, label: ACCESSIBILITY_CONDITION_LABELS[row.condition] },
+    ])
   );
 }
 

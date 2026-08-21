@@ -316,8 +316,7 @@
                             "role": {
                               "enum": [
                                 "home",
-                                "work",
-                                "favorite"
+                                "work"
                               ],
                               "type": "string"
                             },
@@ -525,8 +524,7 @@
                           "role": {
                             "enum": [
                               "home",
-                              "work",
-                              "favorite"
+                              "work"
                             ],
                             "type": "string"
                           },

@@ -32,11 +32,11 @@ struct FavoriteStation: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// A saved place with a stable role: home and work are unique, favorites are
-/// an open-ended collection the UI can grow into later.
+/// A saved place with a stable, unique home or work role. Favorite stations
+/// live in `FavoriteStation` so account state has one representation for them.
 struct SavedPlace: Codable, Sendable, Hashable, Identifiable {
     enum Role: String, Codable, Sendable, CaseIterable, Identifiable {
-        case home, work, favorite
+        case home, work
 
         var id: String { rawValue }
 
@@ -44,7 +44,6 @@ struct SavedPlace: Codable, Sendable, Hashable, Identifiable {
             switch self {
             case .home: "Maison"
             case .work: "Travail"
-            case .favorite: "Lieu enregistré"
             }
         }
 
@@ -52,7 +51,6 @@ struct SavedPlace: Codable, Sendable, Hashable, Identifiable {
             switch self {
             case .home: "house.fill"
             case .work: "briefcase.fill"
-            case .favorite: "mappin.and.ellipse"
             }
         }
     }
@@ -264,10 +262,6 @@ struct AccountLocalSnapshot: Codable, Sendable, Hashable {
     static let favoriteLimit = 50
     /// Mirrors the server's `ACCOUNT_RECENT_LIMIT`; both sides trim to it.
     static let recentLimit = 5
-    /// Mirrors the server's `ACCOUNT_PLACE_FAVORITE_LIMIT`: favorites get
-    /// trimmed, home and work always keep their slot.
-    static let favoritePlaceLimit = 48
-
     var favorites: [FavoriteStation] = []
     var recents: [RecentSearch] = []
     var places: [SavedPlace] = []

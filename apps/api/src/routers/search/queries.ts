@@ -1,7 +1,7 @@
 import type { Coordinate } from '@via/contract';
 import { db } from '@via/db';
 import {
-  stationAccessibility,
+  stationFacts,
   transitRoutes,
   transitStopRoutes,
   transitStops,
@@ -52,14 +52,16 @@ export function selectMatchingStations(
         'color', ${transitRoutes.color},
         'textColor', ${transitRoutes.textColor}
       ))`,
-      accessibilityLevelId: stationAccessibility.levelId,
-      accessibilityLevelName: stationAccessibility.levelName,
-      accessibilityComment: stationAccessibility.comment,
+      accessibilityCondition: stationFacts.condition,
+      accessibilityDetail: stationFacts.detail,
     })
     .from(transitStops)
     .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
     .innerJoin(transitRoutes, eq(transitStopRoutes.routeId, transitRoutes.id))
-    .leftJoin(stationAccessibility, eq(stationAccessibility.stopId, transitStops.id))
+    .leftJoin(
+      stationFacts,
+      and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
+    )
     .where(
       and(
         networkRouteCondition(),
@@ -68,9 +70,8 @@ export function selectMatchingStations(
     )
     .groupBy(
       transitStops.id,
-      stationAccessibility.levelId,
-      stationAccessibility.levelName,
-      stationAccessibility.comment
+      stationFacts.stopId,
+      stationFacts.kind
     )
     .orderBy(
       sql`(${normalizedName} LIKE ${likeNeedle} || '%') DESC`,
@@ -80,14 +81,4 @@ export function selectMatchingStations(
     .limit(limit);
 }
 
-type MatchingStationRowWithAccessibility = Awaited<ReturnType<typeof selectMatchingStations>>[number];
-export type MatchingStationRow = Omit<
-  MatchingStationRowWithAccessibility,
-  'accessibilityLevelId' | 'accessibilityLevelName' | 'accessibilityComment'
-> &
-  Partial<
-    Pick<
-      MatchingStationRowWithAccessibility,
-      'accessibilityLevelId' | 'accessibilityLevelName' | 'accessibilityComment'
-    >
-  >;
+export type MatchingStationRow = Awaited<ReturnType<typeof selectMatchingStations>>[number];

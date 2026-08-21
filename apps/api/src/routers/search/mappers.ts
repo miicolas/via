@@ -1,5 +1,6 @@
 import type { StationSearchResult } from '@via/contract';
 
+import { ACCESSIBILITY_CONDITION_LABELS } from '../accessibility-labels';
 import { toRouteBadge } from '../route-badge';
 import type { MatchingStationRow } from './queries';
 
@@ -17,29 +18,11 @@ export function toStationResults(rows: MatchingStationRow[]): StationSearchResul
 }
 
 function accessibilityOf(row: MatchingStationRow) {
-  if (row.accessibilityLevelId === undefined || row.accessibilityLevelId === null) {
-    return undefined;
-  }
-  switch (row.accessibilityLevelId) {
-    case 3:
-      return {
-        condition: 'reservationRequired' as const,
-        label: 'Sur réservation',
-        comment: row.accessibilityComment ?? undefined,
-      };
-    case 4:
-      return {
-        condition: 'staffAssistance' as const,
-        label: 'Avec un agent',
-        comment: row.accessibilityComment ?? undefined,
-      };
-    case 6:
-      return {
-        condition: 'autonomous' as const,
-        label: 'En autonomie',
-        comment: row.accessibilityComment ?? undefined,
-      };
-    default:
-      return undefined;
-  }
+  const condition = row.accessibilityCondition;
+  if (condition === null) return undefined;
+  return {
+    condition,
+    label: ACCESSIBILITY_CONDITION_LABELS[condition],
+    comment: row.accessibilityDetail ?? undefined,
+  };
 }

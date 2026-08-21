@@ -78,7 +78,6 @@ enum SearchDepartureSelection: Sendable, Hashable {
         switch place.role {
         case .home: return .home
         case .work: return .work
-        case .favorite: return nil
         }
     }
 }
