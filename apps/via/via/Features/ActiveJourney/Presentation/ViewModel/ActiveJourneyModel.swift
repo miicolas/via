@@ -16,6 +16,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     @ObservationIgnored private let journeyRepository: any JourneyRepository
     @ObservationIgnored private let store: any ActiveJourneyStore
     @ObservationIgnored private let activityManager: any JourneyActivityManaging
+    @ObservationIgnored private let journeyNotificationManager: any JourneyNotificationActiveJourneyManaging
     @ObservationIgnored private let connectivity: any ConnectivityMonitoring
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private var locationTask: Task<Void, Never>?
@@ -30,6 +31,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         journeyRepository: any JourneyRepository,
         store: any ActiveJourneyStore = InMemoryActiveJourneyStore(),
         activityManager: any JourneyActivityManaging = NoOpJourneyActivityManager(),
+        journeyNotificationManager: any JourneyNotificationActiveJourneyManaging = NoOpJourneyNotificationActiveJourneyManager(),
         connectivity: any ConnectivityMonitoring = InMemoryConnectivityMonitor(),
         now: @escaping @Sendable () -> Date = { .now }
     ) {
@@ -37,6 +39,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         self.journeyRepository = journeyRepository
         self.store = store
         self.activityManager = activityManager
+        self.journeyNotificationManager = journeyNotificationManager
         self.connectivity = connectivity
         self.now = now
         referenceDate = now()
@@ -180,6 +183,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         startLocationTracking(allowsBackgroundUpdates: allowsBackgroundTracking)
         startTimeMonitoring()
         await persist()
+        await journeyNotificationManager.registerActiveJourney(session.journey)
         await startActivity()
     }
 
@@ -228,6 +232,9 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             )
         }
         await persist()
+        if session.isTrackingStarted {
+            await journeyNotificationManager.registerActiveJourney(session.journey)
+        }
         await startActivity()
     }
 
@@ -250,6 +257,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         evaluateProgress(at: referenceDate)
         startTimeMonitoring()
         if session.isTrackingStarted {
+            await journeyNotificationManager.registerActiveJourney(session.journey)
             startLocationTracking(
                 allowsBackgroundUpdates: session.allowsBackgroundTracking
             )
@@ -318,6 +326,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             finalState: activityState(isArrived: true),
             dismissAt: finishedAt.addingTimeInterval(60)
         )
+        await journeyNotificationManager.unregisterActiveJourney(session.journey)
         await clearSession()
     }
 
@@ -332,6 +341,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             ),
             dismissAt: stoppedAt
         )
+        await journeyNotificationManager.unregisterActiveJourney(session.journey)
         arrival = nil
         await clearSession()
     }
@@ -387,6 +397,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         locationModel.stopJourneyTracking()
 
         if let previousSession, previousSession.journey.id != journey.id {
+            await journeyNotificationManager.unregisterActiveJourney(previousSession.journey)
             await activityManager.end(
                 journeyID: previousSession.journey.id,
                 finalState: terminalActivityState(
@@ -624,7 +635,11 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             ),
             dismissAt: acceptedAt
         )
+        await journeyNotificationManager.unregisterActiveJourney(previous.journey)
         await persist()
+        if session?.isTrackingStarted == true {
+            await journeyNotificationManager.registerActiveJourney(journey)
+        }
         await startActivity()
     }
 
@@ -639,6 +654,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             ),
             dismissAt: expiredAt
         )
+        await journeyNotificationManager.unregisterActiveJourney(session.journey)
         arrival = nil
         await clearSession()
     }

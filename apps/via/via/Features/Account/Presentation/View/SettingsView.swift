@@ -7,6 +7,8 @@ struct SettingsView: View {
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
     let locationModel: LocationModel
+    let pushNotificationManager: PushNotificationManager = .preview
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
 
     @Environment(\.dismiss) private var dismiss
 
@@ -52,12 +54,27 @@ struct SettingsView: View {
                     }
 
                     NavigationLink {
-                        PermissionsSettingsView(locationModel: locationModel)
+                        JourneyNotificationsSettingsView(
+                            coordinator: journeyNotificationCoordinator
+                        )
+                    } label: {
+                        SettingsRow(
+                            title: "Rappels de trajet",
+                            systemImage: "bell.badge.fill",
+                            subtitle: "Départ, correspondances et arrivée"
+                        )
+                    }
+
+                    NavigationLink {
+                        PermissionsSettingsView(
+                            locationModel: locationModel,
+                            pushNotificationManager: pushNotificationManager
+                        )
                     } label: {
                         SettingsRow(
                             title: "Autorisations iOS",
                             systemImage: "hand.raised.fill",
-                            subtitle: "Localisation, caméra et contacts"
+                            subtitle: "Localisation, caméra, contacts et notifications"
                         )
                     }
                 }

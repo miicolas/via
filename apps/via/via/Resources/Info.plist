@@ -48,6 +48,8 @@
 	<string>Metyro peut remplir votre nom et votre photo de profil depuis un contact que vous choisissez.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
@@ -65,5 +67,7 @@
 	</array>
 	<key>VIA_API_BASE_URL</key>
 	<string>$(VIA_API_BASE_URL)</string>
+	<key>VIA_APNS_ENVIRONMENT</key>
+	<string>$(VIA_APNS_ENVIRONMENT)</string>
 </dict>
 </plist>

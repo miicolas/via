@@ -9,6 +9,13 @@ const POST_PROCEDURES = new Set([
   'account.delete',
   'account.sync',
   'naturalJourneys.submit',
+  'notifications.registerDevice',
+  'notifications.unregisterDevice',
+  'notifications.registerActivity',
+  'notifications.unregisterActivity',
+  'notifications.registerPushToStart',
+  'notifications.registerActiveJourney',
+  'notifications.unregisterActiveJourney',
 ]);
 
 export function rpcMethod(path: readonly string[]): 'GET' | 'POST' {

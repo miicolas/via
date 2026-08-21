@@ -35,6 +35,17 @@ const envSchema = z.object({
   APPLE_PRIVATE_KEY: isTest
     ? z.string().min(1).default(testOnlyApplePrivateKey)
     : z.string().min(1),
+  /** APNs provider credentials are optional so local development can use the registration API without sending pushes. */
+  APNS_TEAM_ID: z
+    .string()
+    .min(1)
+    .default(process.env.APPLE_TEAM_ID ?? "HZAYG4Q47N"),
+  APNS_KEY_ID: z.string().min(1).optional(),
+  APNS_PRIVATE_KEY: z.string().min(1).optional(),
+  APNS_BUNDLE_ID: z
+    .string()
+    .min(1)
+    .default(process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? "dev.via.app"),
   /** The Géoplateforme (BAN) geocoder. Overridable to point tests at a fake. */
   BAN_SEARCH_URL: z.url().default("https://data.geopf.fr/geocodage/search"),
   /** Local or hosted Redis used for the PRIM cache and daily quota counter. */
@@ -68,6 +79,12 @@ const envSchema = z.object({
     .default("800")
     .transform(Number)
     .pipe(z.number().int().min(0)),
+  /** Authenticated journey disruption polling cadence. */
+  NOTIFICATION_DISRUPTION_POLL_SECONDS: z
+    .string()
+    .default("120")
+    .transform(Number)
+    .pipe(z.number().int().min(30)),
   /**
    * Daily request ceiling of the PRIM token (new tokens: 1 000/day). The
    * governor keeps a safety margin below it; raise this only after PRIM

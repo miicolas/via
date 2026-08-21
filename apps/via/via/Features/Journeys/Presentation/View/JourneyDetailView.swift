@@ -1,10 +1,13 @@
 import SwiftUI
+import UIKit
 
 struct JourneyDetailView: View {
     let journey: Journey
     let destination: JourneyDestination
     let source: JourneyResult.Source?
     let activeJourneyModel: ActiveJourneyModel
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
+    let prefersGoAction: Bool
     let onHighlightSection: (String?) -> Void
     let onExpandMap: () -> Void
 
@@ -12,14 +15,18 @@ struct JourneyDetailView: View {
     @State private var highlightedSectionID: String?
     @State private var isActivationExplanationPresented = false
     @State private var isActivating = false
+    @State private var isNotificationSettingsPresented = false
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     init(
         journey: Journey,
         destination: JourneyDestination,
         source: JourneyResult.Source?,
         activeJourneyModel: ActiveJourneyModel,
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
+        prefersGoAction: Bool = false,
         onHighlightSection: @escaping (String?) -> Void,
         onExpandMap: @escaping () -> Void
     ) {
@@ -27,6 +34,8 @@ struct JourneyDetailView: View {
         self.destination = destination
         self.source = source
         self.activeJourneyModel = activeJourneyModel
+        self.journeyNotificationCoordinator = journeyNotificationCoordinator
+        self.prefersGoAction = prefersGoAction
         self.onHighlightSection = onHighlightSection
         self.onExpandMap = onExpandMap
         _expandedSectionIDs = State(initialValue: [])
@@ -75,6 +84,15 @@ struct JourneyDetailView: View {
         .journeyTrackingAlert(isPresented: $isActivationExplanationPresented) {
             go(allowsBackgroundTracking: $0)
         }
+        .alert("Notifications désactivées", isPresented: $isNotificationSettingsPresented) {
+            Button("Ouvrir les réglages iOS") {
+                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                openURL(url)
+            }
+            Button("Plus tard", role: .cancel) {}
+        } message: {
+            Text("Votre rappel est mémorisé. Autorisez les notifications dans Réglages iOS pour le recevoir.")
+        }
         .onAppear {
             onHighlightSection(highlightedSectionID)
         }
@@ -86,21 +104,35 @@ struct JourneyDetailView: View {
     private var actionBar: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             let action = action(at: context.date)
-            Button {
-                handleAction(action)
-            } label: {
-                HStack(spacing: 9) {
-                    if isActivating {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(.white)
+            VStack(spacing: 10) {
+                Button {
+                    handleAction(action)
+                } label: {
+                    HStack(spacing: 9) {
+                        if isActivating {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(.white)
+                        }
+                        Text(action.title)
+                            .font(.headline)
                     }
-                    Text(action.title)
-                        .font(.headline)
                 }
+                .primaryAction()
+                .disabled(isActivating || action == .active)
+
+                Button {
+                    Task { await toggleReminder() }
+                } label: {
+                    Label(
+                        isReminderScheduled ? "Rappel programmé" : "Me rappeler",
+                        systemImage: isReminderScheduled ? "bell.fill" : "bell"
+                    )
+                    .font(.headline)
+                }
+                .secondaryAction()
+                .accessibilityValue(isReminderScheduled ? "Activé" : "Désactivé")
             }
-            .primaryAction()
-            .disabled(isActivating || action == .active)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(.bar)
@@ -113,6 +145,9 @@ struct JourneyDetailView: View {
     }
 
     private func action(at date: Date) -> JourneyActivationAction {
+        if prefersGoAction, activeJourneyModel.session?.journey.id != journey.id {
+            return .go
+        }
         activeJourneyModel.activationAction(for: journey, at: date)
     }
 
@@ -142,6 +177,25 @@ struct JourneyDetailView: View {
             perform { await activeJourneyModel.resume() }
         case .active:
             break
+        }
+    }
+
+    private var isReminderScheduled: Bool {
+        journeyNotificationCoordinator.reminder?.journey.id == journey.id
+    }
+
+    private func toggleReminder() async {
+        if isReminderScheduled {
+            await journeyNotificationCoordinator.cancelReminder()
+        } else {
+            await journeyNotificationCoordinator.scheduleReminder(
+                for: journey,
+                destination: destination,
+                source: source
+            )
+            if journeyNotificationCoordinator.authorizationStatus == .denied {
+                isNotificationSettingsPresented = true
+            }
         }
     }
 

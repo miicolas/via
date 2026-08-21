@@ -23,6 +23,8 @@ struct MapShellView: View {
     let favoriteRoutesModel: FavoriteRoutesModel
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
+    let pushNotificationManager: PushNotificationManager
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
 
     @State private var showTabSheet: Bool = true
     @State private var activeTab: MapShellTab = .stations
@@ -53,7 +55,9 @@ struct MapShellView: View {
         accountModel: AccountModel,
         favoriteRoutesModel: FavoriteRoutesModel,
         authSessionViewModel: AuthSessionViewModel,
-        profileModel: ProfileModel
+        profileModel: ProfileModel,
+        pushNotificationManager: PushNotificationManager = .preview,
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
     ) {
         self.networkViewModel = networkViewModel
         self.stationsViewModel = stationsViewModel
@@ -67,6 +71,8 @@ struct MapShellView: View {
         self.favoriteRoutesModel = favoriteRoutesModel
         self.authSessionViewModel = authSessionViewModel
         self.profileModel = profileModel
+        self.pushNotificationManager = pushNotificationManager
+        self.journeyNotificationCoordinator = journeyNotificationCoordinator
     }
 
     var body: some View {
@@ -204,16 +210,49 @@ struct MapShellView: View {
                     profileModel.activate(scope: .anonymous)
                 }
             }
+            .task {
+                routePendingNotificationIfNeeded()
+            }
+            .onChange(of: pushNotificationManager.pendingRoute) { _, _ in
+                routePendingNotificationIfNeeded()
+            }
             .onOpenURL { url in
-                guard url.scheme == "via", url.host == "journey" else { return }
-                showActiveJourney()
-                Task { await activeJourneyModel.restore() }
+                route(url)
             }
     }
 
     private func closeSearch() {
         searchViewModel.resetSearch()
         activeTab = previousTab
+    }
+
+    private func routePendingNotificationIfNeeded() {
+        guard let url = pushNotificationManager.consumePendingRoute() else { return }
+        route(url)
+    }
+
+    private func route(_ url: URL) {
+        guard url.scheme == "via", url.host == "journey" else { return }
+        let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let journeyID = queryItems
+            .first(where: { $0.name == "journeyId" })?.value
+            .map(JourneyID.init(rawValue:))
+        let mode = queryItems.first(where: { $0.name == "mode" })?.value
+
+        if mode == "reminder", let journeyID {
+            Task { await routeScheduledJourney(journeyID) }
+            return
+        }
+        showActiveJourney()
+        Task { await activeJourneyModel.restore() }
+    }
+
+    private func routeScheduledJourney(_ journeyID: JourneyID) async {
+        await journeyNotificationCoordinator.restore()
+        guard journeyNotificationCoordinator.reminder(for: journeyID) != nil else { return }
+        activeTab = .search
+        journeySheetDetent = expandedDetent
+        searchSheetDestination = .scheduledJourney(journeyID)
     }
 
     /// Only worth showing once the sheet is out of the way: with the sheet open,
@@ -313,7 +352,9 @@ struct MapShellView: View {
                     searchViewModel: searchViewModel,
                     authSessionViewModel: authSessionViewModel,
                     profileModel: profileModel,
-                    locationModel: locationModel
+                    locationModel: locationModel,
+                    pushNotificationManager: pushNotificationManager,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator
                 )
                 .detailSheetPresentation(
                     isLargeScreen: isLargeScreen,
@@ -330,6 +371,22 @@ struct MapShellView: View {
                     journeyID: journeyID,
                     searchViewModel: searchViewModel,
                     activeJourneyModel: activeJourneyModel,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    isLargeScreen: isLargeScreen,
+                    detent: $journeySheetDetent,
+                    onExpandMap: { journeySheetDetent = .height(80) },
+                    onOpenReport: {
+                        searchSheetDestination = nil
+                        activeTab = .report
+                    }
+                )
+            case let .scheduledJourney(journeyID):
+                JourneySheetView(
+                    journeyID: journeyID,
+                    searchViewModel: searchViewModel,
+                    activeJourneyModel: activeJourneyModel,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    scheduledReminder: journeyNotificationCoordinator.reminder(for: journeyID),
                     isLargeScreen: isLargeScreen,
                     detent: $journeySheetDetent,
                     onExpandMap: { journeySheetDetent = .height(80) },
@@ -343,8 +400,10 @@ struct MapShellView: View {
     }
 
     private var isJourneySheetUp: Bool {
-        if case .journey = searchSheetDestination { return true }
-        return false
+        switch searchSheetDestination {
+        case .journey, .scheduledJourney: true
+        default: false
+        }
     }
 
     private var displayedJourneyPresentation: JourneyMapPresentation? {

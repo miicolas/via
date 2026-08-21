@@ -4,6 +4,7 @@
 enum SearchSheetDestination: Identifiable, Hashable {
     case naturalSearch
     case journey(JourneyID)
+    case scheduledJourney(JourneyID)
 
     var id: String {
         switch self {
@@ -11,6 +12,8 @@ enum SearchSheetDestination: Identifiable, Hashable {
             "natural"
         case let .journey(journeyID):
             "journey-\(journeyID.rawValue)"
+        case let .scheduledJourney(journeyID):
+            "scheduled-journey-\(journeyID.rawValue)"
         }
     }
 }

@@ -63,6 +63,28 @@ against the live database), the workflow here is `generate` → `migrate` only.
 
 `bun run typecheck` proves the TypeScript contract and server agree. `bun run check:openapi` additionally proves that the versioned Swift-facing artifacts are current.
 
+## Notifications APNs et Live Activities
+
+Le flux APNs est complet de l’app au provider :
+
+- l’app demande la permission, s’enregistre à chaque lancement et envoie le
+  token APNs au compte courant ; le token n’est jamais persisté localement ;
+- une Live Activity est démarrée avec `pushType: .token`, et ses rotations de
+  token ainsi que le token `push-to-start` sont synchronisés vers l’API ;
+- l’API conserve les tokens par installation/environnement, signe les requêtes
+  avec la clé APNs et purge les tokens invalides retournés par Apple ;
+- `notificationDelivery` fournit les opérations de notification, de mise à
+  jour/fin de Live Activity (par activité ou par trajet) et de démarrage
+  distant pour les jobs métier.
+- Les rappels de trajet restent locaux (départ, correspondances, arrivée) et
+  mémorisent une seule intention par installation ; les perturbations des
+  lignes d’un trajet suivi passent par APNs et le monitor PRIM partagé.
+
+Après `bun run db:migrate`, renseigner côté serveur `APNS_TEAM_ID`,
+`APNS_KEY_ID`, `APNS_PRIVATE_KEY` et `APNS_BUNDLE_ID`. La clé privée reste
+uniquement dans l’environnement de l’API ; les builds Debug/Staging utilisent
+`sandbox`, et Release utilise `production`.
+
 ## API structure
 
 One folder per theme under `apps/api/src/routers/`, mirroring the URL tree, so

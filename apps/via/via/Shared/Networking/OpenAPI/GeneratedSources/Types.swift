@@ -47,6 +47,55 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /journeys`.
     /// - Remark: Generated from `#/paths//journeys/get(journeys.plan)`.
     func journeys_period_plan(_ input: Operations.journeys_period_plan.Input) async throws -> Operations.journeys_period_plan.Output
+    /// Enregistrer un appareil pour les notifications
+    ///
+    /// Associe le token APNs de l’installation au compte courant.
+    ///
+    /// - Remark: HTTP `POST /notifications/device`.
+    /// - Remark: Generated from `#/paths//notifications/device/post(notifications.registerDevice)`.
+    func notifications_period_registerDevice(_ input: Operations.notifications_period_registerDevice.Input) async throws -> Operations.notifications_period_registerDevice.Output
+    /// Désinscrire un appareil des notifications
+    ///
+    /// Supprime les tokens de l’installation pour le compte courant.
+    ///
+    /// - Remark: HTTP `POST /notifications/device/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/device/unregister/post(notifications.unregisterDevice)`.
+    func notifications_period_unregisterDevice(_ input: Operations.notifications_period_unregisterDevice.Input) async throws -> Operations.notifications_period_unregisterDevice.Output
+    /// Enregistrer une Live Activity
+    ///
+    /// Associe un token ActivityKit à un trajet actif.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/post(notifications.registerActivity)`.
+    func notifications_period_registerActivity(_ input: Operations.notifications_period_registerActivity.Input) async throws -> Operations.notifications_period_registerActivity.Output
+    /// Désinscrire une Live Activity
+    ///
+    /// Supprime le token ActivityKit d’un trajet terminé.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/unregister/post(notifications.unregisterActivity)`.
+    func notifications_period_unregisterActivity(_ input: Operations.notifications_period_unregisterActivity.Input) async throws -> Operations.notifications_period_unregisterActivity.Output
+    /// Enregistrer le token de démarrage Live Activity
+    ///
+    /// Autorise le serveur à démarrer une Live Activity à distance.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity/push-to-start`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/push-to-start/post(notifications.registerPushToStart)`.
+    func notifications_period_registerPushToStart(_ input: Operations.notifications_period_registerPushToStart.Input) async throws -> Operations.notifications_period_registerPushToStart.Output
+    /// Enregistrer un trajet actif pour les perturbations
+    ///
+    /// Associe une installation authentifiée à la fenêtre et aux lignes d’un trajet suivi.
+    ///
+    /// - Remark: HTTP `POST /notifications/active-journey`.
+    /// - Remark: Generated from `#/paths//notifications/active-journey/post(notifications.registerActiveJourney)`.
+    func notifications_period_registerActiveJourney(_ input: Operations.notifications_period_registerActiveJourney.Input) async throws -> Operations.notifications_period_registerActiveJourney.Output
+    /// Désinscrire un trajet actif
+    ///
+    /// Supprime l’abonnement de perturbations d’un trajet terminé.
+    ///
+    /// - Remark: HTTP `POST /notifications/active-journey/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/active-journey/unregister/post(notifications.unregisterActiveJourney)`.
+    func notifications_period_unregisterActiveJourney(_ input: Operations.notifications_period_unregisterActiveJourney.Input) async throws -> Operations.notifications_period_unregisterActiveJourney.Output
     /// État des lignes ferrées
     ///
     /// Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.
@@ -160,6 +209,111 @@ extension APIProtocol {
         try await journeys_period_plan(Operations.journeys_period_plan.Input(
             query: query,
             headers: headers
+        ))
+    }
+    /// Enregistrer un appareil pour les notifications
+    ///
+    /// Associe le token APNs de l’installation au compte courant.
+    ///
+    /// - Remark: HTTP `POST /notifications/device`.
+    /// - Remark: Generated from `#/paths//notifications/device/post(notifications.registerDevice)`.
+    internal func notifications_period_registerDevice(
+        headers: Operations.notifications_period_registerDevice.Input.Headers = .init(),
+        body: Operations.notifications_period_registerDevice.Input.Body
+    ) async throws -> Operations.notifications_period_registerDevice.Output {
+        try await notifications_period_registerDevice(Operations.notifications_period_registerDevice.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Désinscrire un appareil des notifications
+    ///
+    /// Supprime les tokens de l’installation pour le compte courant.
+    ///
+    /// - Remark: HTTP `POST /notifications/device/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/device/unregister/post(notifications.unregisterDevice)`.
+    internal func notifications_period_unregisterDevice(
+        headers: Operations.notifications_period_unregisterDevice.Input.Headers = .init(),
+        body: Operations.notifications_period_unregisterDevice.Input.Body
+    ) async throws -> Operations.notifications_period_unregisterDevice.Output {
+        try await notifications_period_unregisterDevice(Operations.notifications_period_unregisterDevice.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Enregistrer une Live Activity
+    ///
+    /// Associe un token ActivityKit à un trajet actif.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/post(notifications.registerActivity)`.
+    internal func notifications_period_registerActivity(
+        headers: Operations.notifications_period_registerActivity.Input.Headers = .init(),
+        body: Operations.notifications_period_registerActivity.Input.Body
+    ) async throws -> Operations.notifications_period_registerActivity.Output {
+        try await notifications_period_registerActivity(Operations.notifications_period_registerActivity.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Désinscrire une Live Activity
+    ///
+    /// Supprime le token ActivityKit d’un trajet terminé.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/unregister/post(notifications.unregisterActivity)`.
+    internal func notifications_period_unregisterActivity(
+        headers: Operations.notifications_period_unregisterActivity.Input.Headers = .init(),
+        body: Operations.notifications_period_unregisterActivity.Input.Body
+    ) async throws -> Operations.notifications_period_unregisterActivity.Output {
+        try await notifications_period_unregisterActivity(Operations.notifications_period_unregisterActivity.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Enregistrer le token de démarrage Live Activity
+    ///
+    /// Autorise le serveur à démarrer une Live Activity à distance.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity/push-to-start`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/push-to-start/post(notifications.registerPushToStart)`.
+    internal func notifications_period_registerPushToStart(
+        headers: Operations.notifications_period_registerPushToStart.Input.Headers = .init(),
+        body: Operations.notifications_period_registerPushToStart.Input.Body
+    ) async throws -> Operations.notifications_period_registerPushToStart.Output {
+        try await notifications_period_registerPushToStart(Operations.notifications_period_registerPushToStart.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Enregistrer un trajet actif pour les perturbations
+    ///
+    /// Associe une installation authentifiée à la fenêtre et aux lignes d’un trajet suivi.
+    ///
+    /// - Remark: HTTP `POST /notifications/active-journey`.
+    /// - Remark: Generated from `#/paths//notifications/active-journey/post(notifications.registerActiveJourney)`.
+    internal func notifications_period_registerActiveJourney(
+        headers: Operations.notifications_period_registerActiveJourney.Input.Headers = .init(),
+        body: Operations.notifications_period_registerActiveJourney.Input.Body
+    ) async throws -> Operations.notifications_period_registerActiveJourney.Output {
+        try await notifications_period_registerActiveJourney(Operations.notifications_period_registerActiveJourney.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Désinscrire un trajet actif
+    ///
+    /// Supprime l’abonnement de perturbations d’un trajet terminé.
+    ///
+    /// - Remark: HTTP `POST /notifications/active-journey/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/active-journey/unregister/post(notifications.unregisterActiveJourney)`.
+    internal func notifications_period_unregisterActiveJourney(
+        headers: Operations.notifications_period_unregisterActiveJourney.Input.Headers = .init(),
+        body: Operations.notifications_period_unregisterActiveJourney.Input.Body
+    ) async throws -> Operations.notifications_period_unregisterActiveJourney.Output {
+        try await notifications_period_unregisterActiveJourney(Operations.notifications_period_unregisterActiveJourney.Input(
+            headers: headers,
+            body: body
         ))
     }
     /// État des lignes ferrées
@@ -2751,6 +2905,1234 @@ internal enum Operations {
             /// - Throws: An error if `self` is not `.ok`.
             /// - SeeAlso: `.ok`.
             internal var ok: Operations.journeys_period_plan.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Enregistrer un appareil pour les notifications
+    ///
+    /// Associe le token APNs de l’installation au compte courant.
+    ///
+    /// - Remark: HTTP `POST /notifications/device`.
+    /// - Remark: Generated from `#/paths//notifications/device/post(notifications.registerDevice)`.
+    internal enum notifications_period_registerDevice {
+        internal static let id: Swift.String = "notifications.registerDevice"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/device/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_registerDevice.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_registerDevice.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_registerDevice.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/json/installationId`.
+                    internal var installationId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/json/deviceToken`.
+                    internal var deviceToken: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/json/bundleId`.
+                    internal var bundleId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/json/environment`.
+                    internal enum environmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case sandbox = "sandbox"
+                        case production = "production"
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/json/environment`.
+                    internal var environment: Operations.notifications_period_registerDevice.Input.Body.jsonPayload.environmentPayload
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/json/appVersion`.
+                    internal var appVersion: Swift.String?
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/json/osVersion`.
+                    internal var osVersion: Swift.String?
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - installationId:
+                    ///   - deviceToken:
+                    ///   - bundleId:
+                    ///   - environment:
+                    ///   - appVersion:
+                    ///   - osVersion:
+                    internal init(
+                        installationId: Swift.String,
+                        deviceToken: Swift.String,
+                        bundleId: Swift.String,
+                        environment: Operations.notifications_period_registerDevice.Input.Body.jsonPayload.environmentPayload,
+                        appVersion: Swift.String? = nil,
+                        osVersion: Swift.String? = nil
+                    ) {
+                        self.installationId = installationId
+                        self.deviceToken = deviceToken
+                        self.bundleId = bundleId
+                        self.environment = environment
+                        self.appVersion = appVersion
+                        self.osVersion = osVersion
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case installationId
+                        case deviceToken
+                        case bundleId
+                        case environment
+                        case appVersion
+                        case osVersion
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/device/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_registerDevice.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_registerDevice.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_registerDevice.Input.Headers = .init(),
+                body: Operations.notifications_period_registerDevice.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/device/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/device/POST/responses/200/content/json/registered`.
+                        internal var registered: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - registered:
+                        internal init(registered: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.registered = registered
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case registered
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/device/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_registerDevice.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_registerDevice.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_registerDevice.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_registerDevice.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/device/post(notifications.registerDevice)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_registerDevice.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_registerDevice.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Désinscrire un appareil des notifications
+    ///
+    /// Supprime les tokens de l’installation pour le compte courant.
+    ///
+    /// - Remark: HTTP `POST /notifications/device/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/device/unregister/post(notifications.unregisterDevice)`.
+    internal enum notifications_period_unregisterDevice {
+        internal static let id: Swift.String = "notifications.unregisterDevice"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_unregisterDevice.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_unregisterDevice.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_unregisterDevice.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/requestBody/json/installationId`.
+                    internal var installationId: Swift.String
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - installationId:
+                    internal init(installationId: Swift.String) {
+                        self.installationId = installationId
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case installationId
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_unregisterDevice.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_unregisterDevice.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_unregisterDevice.Input.Headers = .init(),
+                body: Operations.notifications_period_unregisterDevice.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/responses/200/content/json/removed`.
+                        internal var removed: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - removed:
+                        internal init(removed: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.removed = removed
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case removed
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/device/unregister/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_unregisterDevice.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_unregisterDevice.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_unregisterDevice.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_unregisterDevice.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/device/unregister/post(notifications.unregisterDevice)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_unregisterDevice.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_unregisterDevice.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Enregistrer une Live Activity
+    ///
+    /// Associe un token ActivityKit à un trajet actif.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/post(notifications.registerActivity)`.
+    internal enum notifications_period_registerActivity {
+        internal static let id: Swift.String = "notifications.registerActivity"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/live-activity/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_registerActivity.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_registerActivity.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_registerActivity.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/installationId`.
+                    internal var installationId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/activityId`.
+                    internal var activityId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/journeyId`.
+                    internal var journeyId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/activityToken`.
+                    internal var activityToken: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/bundleId`.
+                    internal var bundleId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/environment`.
+                    internal enum environmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case sandbox = "sandbox"
+                        case production = "production"
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/environment`.
+                    internal var environment: Operations.notifications_period_registerActivity.Input.Body.jsonPayload.environmentPayload
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/appVersion`.
+                    internal var appVersion: Swift.String?
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/json/osVersion`.
+                    internal var osVersion: Swift.String?
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - installationId:
+                    ///   - activityId:
+                    ///   - journeyId:
+                    ///   - activityToken:
+                    ///   - bundleId:
+                    ///   - environment:
+                    ///   - appVersion:
+                    ///   - osVersion:
+                    internal init(
+                        installationId: Swift.String,
+                        activityId: Swift.String,
+                        journeyId: Swift.String,
+                        activityToken: Swift.String,
+                        bundleId: Swift.String,
+                        environment: Operations.notifications_period_registerActivity.Input.Body.jsonPayload.environmentPayload,
+                        appVersion: Swift.String? = nil,
+                        osVersion: Swift.String? = nil
+                    ) {
+                        self.installationId = installationId
+                        self.activityId = activityId
+                        self.journeyId = journeyId
+                        self.activityToken = activityToken
+                        self.bundleId = bundleId
+                        self.environment = environment
+                        self.appVersion = appVersion
+                        self.osVersion = osVersion
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case installationId
+                        case activityId
+                        case journeyId
+                        case activityToken
+                        case bundleId
+                        case environment
+                        case appVersion
+                        case osVersion
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/live-activity/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_registerActivity.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_registerActivity.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_registerActivity.Input.Headers = .init(),
+                body: Operations.notifications_period_registerActivity.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/live-activity/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/live-activity/POST/responses/200/content/json/registered`.
+                        internal var registered: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - registered:
+                        internal init(registered: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.registered = registered
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case registered
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_registerActivity.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_registerActivity.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_registerActivity.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_registerActivity.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/live-activity/post(notifications.registerActivity)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_registerActivity.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_registerActivity.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Désinscrire une Live Activity
+    ///
+    /// Supprime le token ActivityKit d’un trajet terminé.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/unregister/post(notifications.unregisterActivity)`.
+    internal enum notifications_period_unregisterActivity {
+        internal static let id: Swift.String = "notifications.unregisterActivity"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_unregisterActivity.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_unregisterActivity.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_unregisterActivity.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/requestBody/json/activityId`.
+                    internal var activityId: Swift.String
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - activityId:
+                    internal init(activityId: Swift.String) {
+                        self.activityId = activityId
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case activityId
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_unregisterActivity.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_unregisterActivity.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_unregisterActivity.Input.Headers = .init(),
+                body: Operations.notifications_period_unregisterActivity.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/responses/200/content/json/removed`.
+                        internal var removed: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - removed:
+                        internal init(removed: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.removed = removed
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case removed
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/unregister/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_unregisterActivity.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_unregisterActivity.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_unregisterActivity.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_unregisterActivity.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/live-activity/unregister/post(notifications.unregisterActivity)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_unregisterActivity.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_unregisterActivity.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Enregistrer le token de démarrage Live Activity
+    ///
+    /// Autorise le serveur à démarrer une Live Activity à distance.
+    ///
+    /// - Remark: HTTP `POST /notifications/live-activity/push-to-start`.
+    /// - Remark: Generated from `#/paths//notifications/live-activity/push-to-start/post(notifications.registerPushToStart)`.
+    internal enum notifications_period_registerPushToStart {
+        internal static let id: Swift.String = "notifications.registerPushToStart"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_registerPushToStart.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_registerPushToStart.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_registerPushToStart.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/json/installationId`.
+                    internal var installationId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/json/pushToStartToken`.
+                    internal var pushToStartToken: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/json/bundleId`.
+                    internal var bundleId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/json/environment`.
+                    internal enum environmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case sandbox = "sandbox"
+                        case production = "production"
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/json/environment`.
+                    internal var environment: Operations.notifications_period_registerPushToStart.Input.Body.jsonPayload.environmentPayload
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/json/appVersion`.
+                    internal var appVersion: Swift.String?
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/json/osVersion`.
+                    internal var osVersion: Swift.String?
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - installationId:
+                    ///   - pushToStartToken:
+                    ///   - bundleId:
+                    ///   - environment:
+                    ///   - appVersion:
+                    ///   - osVersion:
+                    internal init(
+                        installationId: Swift.String,
+                        pushToStartToken: Swift.String,
+                        bundleId: Swift.String,
+                        environment: Operations.notifications_period_registerPushToStart.Input.Body.jsonPayload.environmentPayload,
+                        appVersion: Swift.String? = nil,
+                        osVersion: Swift.String? = nil
+                    ) {
+                        self.installationId = installationId
+                        self.pushToStartToken = pushToStartToken
+                        self.bundleId = bundleId
+                        self.environment = environment
+                        self.appVersion = appVersion
+                        self.osVersion = osVersion
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case installationId
+                        case pushToStartToken
+                        case bundleId
+                        case environment
+                        case appVersion
+                        case osVersion
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_registerPushToStart.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_registerPushToStart.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_registerPushToStart.Input.Headers = .init(),
+                body: Operations.notifications_period_registerPushToStart.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/responses/200/content/json/registered`.
+                        internal var registered: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - registered:
+                        internal init(registered: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.registered = registered
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case registered
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/live-activity/push-to-start/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_registerPushToStart.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_registerPushToStart.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_registerPushToStart.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_registerPushToStart.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/live-activity/push-to-start/post(notifications.registerPushToStart)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_registerPushToStart.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_registerPushToStart.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Enregistrer un trajet actif pour les perturbations
+    ///
+    /// Associe une installation authentifiée à la fenêtre et aux lignes d’un trajet suivi.
+    ///
+    /// - Remark: HTTP `POST /notifications/active-journey`.
+    /// - Remark: Generated from `#/paths//notifications/active-journey/post(notifications.registerActiveJourney)`.
+    internal enum notifications_period_registerActiveJourney {
+        internal static let id: Swift.String = "notifications.registerActiveJourney"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/active-journey/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_registerActiveJourney.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_registerActiveJourney.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_registerActiveJourney.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/active-journey/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/active-journey/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/POST/requestBody/json/installationId`.
+                    internal var installationId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/POST/requestBody/json/journeyId`.
+                    internal var journeyId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/POST/requestBody/json/routeIds`.
+                    internal var routeIds: [Swift.String]
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/POST/requestBody/json/startsAt`.
+                    internal var startsAt: Foundation.Date
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/POST/requestBody/json/endsAt`.
+                    internal var endsAt: Foundation.Date
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - installationId:
+                    ///   - journeyId:
+                    ///   - routeIds:
+                    ///   - startsAt:
+                    ///   - endsAt:
+                    internal init(
+                        installationId: Swift.String,
+                        journeyId: Swift.String,
+                        routeIds: [Swift.String],
+                        startsAt: Foundation.Date,
+                        endsAt: Foundation.Date
+                    ) {
+                        self.installationId = installationId
+                        self.journeyId = journeyId
+                        self.routeIds = routeIds
+                        self.startsAt = startsAt
+                        self.endsAt = endsAt
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case installationId
+                        case journeyId
+                        case routeIds
+                        case startsAt
+                        case endsAt
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/active-journey/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_registerActiveJourney.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_registerActiveJourney.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_registerActiveJourney.Input.Headers = .init(),
+                body: Operations.notifications_period_registerActiveJourney.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/active-journey/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/active-journey/POST/responses/200/content/json/registered`.
+                        internal var registered: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - registered:
+                        internal init(registered: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.registered = registered
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case registered
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_registerActiveJourney.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_registerActiveJourney.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_registerActiveJourney.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_registerActiveJourney.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/active-journey/post(notifications.registerActiveJourney)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_registerActiveJourney.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_registerActiveJourney.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Désinscrire un trajet actif
+    ///
+    /// Supprime l’abonnement de perturbations d’un trajet terminé.
+    ///
+    /// - Remark: HTTP `POST /notifications/active-journey/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/active-journey/unregister/post(notifications.unregisterActiveJourney)`.
+    internal enum notifications_period_unregisterActiveJourney {
+        internal static let id: Swift.String = "notifications.unregisterActiveJourney"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_unregisterActiveJourney.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_unregisterActiveJourney.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_unregisterActiveJourney.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/requestBody/json/installationId`.
+                    internal var installationId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/requestBody/json/journeyId`.
+                    internal var journeyId: Swift.String
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - installationId:
+                    ///   - journeyId:
+                    internal init(
+                        installationId: Swift.String,
+                        journeyId: Swift.String
+                    ) {
+                        self.installationId = installationId
+                        self.journeyId = journeyId
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case installationId
+                        case journeyId
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_unregisterActiveJourney.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_unregisterActiveJourney.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_unregisterActiveJourney.Input.Headers = .init(),
+                body: Operations.notifications_period_unregisterActiveJourney.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/responses/200/content/json/removed`.
+                        internal var removed: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - removed:
+                        internal init(removed: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.removed = removed
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case removed
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/active-journey/unregister/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_unregisterActiveJourney.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_unregisterActiveJourney.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_unregisterActiveJourney.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_unregisterActiveJourney.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/active-journey/unregister/post(notifications.unregisterActiveJourney)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_unregisterActiveJourney.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_unregisterActiveJourney.Output.Ok {
                 get throws {
                     switch self {
                     case let .ok(response):

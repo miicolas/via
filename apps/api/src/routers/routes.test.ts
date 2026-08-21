@@ -37,5 +37,12 @@ test('the public route table is stable', async () => {
     'POST /api/account/delete',
     'POST /api/account/sync',
     'POST /api/natural-journeys',
+    'POST /api/notifications/active-journey',
+    'POST /api/notifications/active-journey/unregister',
+    'POST /api/notifications/device',
+    'POST /api/notifications/device/unregister',
+    'POST /api/notifications/live-activity',
+    'POST /api/notifications/live-activity/push-to-start',
+    'POST /api/notifications/live-activity/unregister',
   ]);
 });

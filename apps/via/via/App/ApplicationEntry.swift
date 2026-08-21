@@ -3,6 +3,8 @@ import SwiftUI
 @main
 @MainActor
 struct ApplicationEntry: App {
+    @UIApplicationDelegateAdaptor(ViaAppDelegate.self) private var appDelegate
+
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -21,9 +23,12 @@ struct ApplicationEntry: App {
     @State private var accountModel: AccountModel
     @State private var favoriteRoutesModel: FavoriteRoutesModel
     @State private var profileModel: ProfileModel
+    @State private var pushNotificationManager: PushNotificationManager
+    @State private var journeyNotificationCoordinator: JourneyNotificationCoordinator
 
     init() {
-        let dependencies = Self.makeDependencies()
+        let pushNotificationManager = PushNotificationManager.shared
+        let dependencies = Self.makeDependencies(pushNotificationManager: pushNotificationManager)
         _networkViewModel = State(
             initialValue: NetworkViewModel(repository: dependencies.networkRepository),
         )
@@ -60,6 +65,7 @@ struct ApplicationEntry: App {
             journeyRepository: dependencies.journeyRepository,
             store: dependencies.activeJourneyStore,
             activityManager: dependencies.activityManager,
+            journeyNotificationManager: dependencies.journeyNotificationCoordinator,
             connectivity: dependencies.connectivityMonitor,
         )
         _activeJourneyModel = State(initialValue: activeJourneyModel)
@@ -91,6 +97,8 @@ struct ApplicationEntry: App {
             ),
         )
         _profileModel = State(initialValue: ProfileModel())
+        _pushNotificationManager = State(initialValue: dependencies.pushNotificationManager)
+        _journeyNotificationCoordinator = State(initialValue: dependencies.journeyNotificationCoordinator)
     }
 
     var body: some Scene {
@@ -102,6 +110,8 @@ struct ApplicationEntry: App {
             }
             .task {
                 await authSessionViewModel.restore()
+                await journeyNotificationCoordinator.restore()
+                await pushNotificationManager.flush()
             }
             .task {
                 await activeJourneyModel.restore()
@@ -110,6 +120,16 @@ struct ApplicationEntry: App {
                 guard scenePhase == .active else { return }
                 await authSessionViewModel.sceneBecameActive()
                 await activeJourneyModel.sceneBecameActive()
+                await pushNotificationManager.refreshAuthorizationStatus()
+                await pushNotificationManager.flush()
+            }
+            .task(id: authSessionViewModel.session?.user.id) {
+                if authSessionViewModel.session != nil {
+                    await pushNotificationManager.registerForAuthenticatedSession()
+                } else {
+                    await pushNotificationManager.setAuthenticated(false)
+                }
+                await pushNotificationManager.flush()
             }
         }
     }
@@ -169,13 +189,17 @@ struct ApplicationEntry: App {
                     favoriteRoutesModel: favoriteRoutesModel,
                     authSessionViewModel: authSessionViewModel,
                     profileModel: profileModel,
+                    pushNotificationManager: pushNotificationManager,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator,
                 )
                 .transition(.opacity)
             }
         }
     }
 
-    private static func makeDependencies() -> Dependencies {
+    private static func makeDependencies(
+        pushNotificationManager: PushNotificationManager
+    ) -> Dependencies {
         guard let configuration = try? AppConfiguration.bundled() else {
             let accountModel = AccountModel(
                 remote: InMemoryAccountRemote(),
@@ -220,9 +244,17 @@ struct ApplicationEntry: App {
                     client: InMemoryAuthenticationClient(session: previewSession),
                     vault: InMemoryAuthSessionVault(),
                     account: accountModel,
+                    onAuthenticatedSessionEnded: {
+                        await pushNotificationManager.unregisterCurrentInstallation()
+                        await pushNotificationManager.setAuthenticated(false)
+                    },
                 ),
                 onboardingModel: OnboardingModel(),
                 onboardingProfileModel: OnboardingProfileModel(),
+                pushNotificationManager: pushNotificationManager,
+                journeyNotificationCoordinator: JourneyNotificationCoordinator(
+                    activeJourneyManager: pushNotificationManager
+                ),
             )
         }
 
@@ -235,6 +267,10 @@ struct ApplicationEntry: App {
             onUnauthorized: {
                 unauthorizedContinuation.yield(())
             },
+        )
+        pushNotificationManager.configure(
+            configuration: configuration,
+            remote: LivePushNotificationRemote(transport: transport)
         )
         let accountModel = AccountModel(remote: LiveAccountRemote(transport: transport))
         accountModel.activateAnonymous()
@@ -267,7 +303,7 @@ struct ApplicationEntry: App {
             searchRepository: searchRepository,
             reportRepository: InMemoryReportRepository(),
             activeJourneyStore: UserDefaultsActiveJourneyStore(),
-            activityManager: JourneyActivityManager(),
+            activityManager: JourneyActivityManager(tokenSink: pushNotificationManager),
             connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
             naturalJourneyRepository: naturalJourneyRepository,
@@ -280,9 +316,17 @@ struct ApplicationEntry: App {
                 vault: authSessionVault,
                 account: accountModel,
                 unauthorizedEvents: unauthorizedEvents,
+                onAuthenticatedSessionEnded: {
+                    await pushNotificationManager.unregisterCurrentInstallation()
+                    await pushNotificationManager.setAuthenticated(false)
+                },
             ),
             onboardingModel: OnboardingModel(),
             onboardingProfileModel: OnboardingProfileModel(),
+            pushNotificationManager: pushNotificationManager,
+            journeyNotificationCoordinator: JourneyNotificationCoordinator(
+                activeJourneyManager: pushNotificationManager
+            ),
         )
     }
 
@@ -304,5 +348,7 @@ struct ApplicationEntry: App {
         let authSessionViewModel: AuthSessionViewModel
         let onboardingModel: OnboardingModel
         let onboardingProfileModel: OnboardingProfileModel
+        let pushNotificationManager: PushNotificationManager
+        let journeyNotificationCoordinator: JourneyNotificationCoordinator
     }
 }
