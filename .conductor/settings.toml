@@ -1,0 +1,5 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[git]
+branch_prefix_type = "custom"
+branch_prefix = "feature/"

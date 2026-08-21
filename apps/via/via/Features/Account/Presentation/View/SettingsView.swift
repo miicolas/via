@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     let accountModel: AccountModel
+    let favoriteRoutesModel: FavoriteRoutesModel
     let searchViewModel: SearchViewModel
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
@@ -63,6 +64,21 @@ struct SettingsView: View {
 
                 Section("GÉRER") {
                     NavigationLink {
+                        FavoritesSettingsView(
+                            accountModel: accountModel,
+                            routesModel: favoriteRoutesModel
+                        )
+                    } label: {
+                        SettingsRow(
+                            title: "Stations favorites",
+                            systemImage: "star.fill",
+                            subtitle: "Consulter et supprimer",
+                            tint: .orange,
+                            value: favoritesCount
+                        )
+                    }
+
+                    NavigationLink {
                         AccountDataSettingsView(
                             accountModel: accountModel,
                             authSessionViewModel: authSessionViewModel,
@@ -106,6 +122,11 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var favoritesCount: String? {
+        let count = accountModel.favorites.count
+        return count > 0 ? "\(count)" : nil
     }
 
     private var intelligenceStatus: String {
@@ -156,6 +177,9 @@ struct SettingsView: View {
 
     SettingsView(
         accountModel: accountModel,
+        favoriteRoutesModel: FavoriteRoutesModel(
+            networkRepository: InMemoryNetworkRepository.mapPreview
+        ),
         searchViewModel: SearchViewModel(
             repository: InMemorySearchRepository.preview,
             journeyRepository: InMemoryJourneyRepository(result: .mapPreview),

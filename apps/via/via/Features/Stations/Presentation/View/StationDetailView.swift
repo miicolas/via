@@ -9,6 +9,12 @@ struct StationDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// The sheet's collapsed detent only shows the navigation title, so the
+    /// bottom-bar favorite control is hidden until the sheet is expanded.
+    private var isCollapsed: Bool {
+        detailDetent == .height(80)
+    }
+
     var body: some View {
         NavigationStack {
             if let currentStation = selection.overview {
@@ -112,27 +118,29 @@ struct StationDetailView: View {
                         }
                     }
 
-                    ToolbarItem(placement: .bottomBar) {
-                        Button {
-                            selection.toggleFavorite()
-                        } label: {
-                            Image(systemName: selection.isFavorite ? "star.fill" : "star")
-                                .contentTransition(
-                                    reduceMotion
-                                        ? .identity
-                                        : .symbolEffect(
-                                            .replace.magic(fallback: .offUp.byLayer),
-                                            options: .nonRepeating
-                                        )
-                                )
+                    if !isCollapsed {
+                        ToolbarItem(placement: .bottomBar) {
+                            Button {
+                                selection.toggleFavorite()
+                            } label: {
+                                Image(systemName: selection.isFavorite ? "star.fill" : "star")
+                                    .contentTransition(
+                                        reduceMotion
+                                            ? .identity
+                                            : .symbolEffect(
+                                                .replace.magic(fallback: .offUp.byLayer),
+                                                options: .nonRepeating
+                                            )
+                                    )
+                            }
+                            .tint(selection.isFavorite ? .orange : .primary)
+                            .accessibilityLabel("Favoris")
+                            .accessibilityValue(selection.isFavorite ? "Ajoutée" : "Non ajoutée")
+                            .accessibilityHint("Ajoute ou retire cette station des favoris.")
                         }
-                        .tint(selection.isFavorite ? .orange : .primary)
-                        .accessibilityLabel("Favoris")
-                        .accessibilityValue(selection.isFavorite ? "Ajoutée" : "Non ajoutée")
-                        .accessibilityHint("Ajoute ou retire cette station des favoris.")
-                    }
 
-                    ToolbarSpacer(.flexible, placement: .bottomBar)
+                        ToolbarSpacer(.flexible, placement: .bottomBar)
+                    }
                 }
             }
         }
