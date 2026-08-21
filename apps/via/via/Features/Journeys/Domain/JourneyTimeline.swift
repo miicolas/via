@@ -34,9 +34,15 @@ struct JourneyTimelineNode: Identifiable, Sendable, Hashable {
         case walk(destination: String)
         case wait(place: String)
         case transfer(destination: String)
-        case board(stop: JourneyStop, route: JourneyRoute?, direction: String?, platform: String?)
+        case board(
+            stop: JourneyStop,
+            route: JourneyRoute?,
+            direction: String?,
+            platform: String?,
+            position: JourneyBoardingPosition?
+        )
         case ride(intermediate: [JourneyStop])
-        case alight(stop: JourneyStop)
+        case alight(stop: JourneyStop, exit: JourneyExit?)
         case destination(name: String)
     }
 
@@ -203,7 +209,8 @@ enum JourneyTimeline {
                     stop: boardingStop,
                     route: section.route,
                     direction: section.direction,
-                    platform: section.platform
+                    platform: section.platform,
+                    position: section.boardingPosition
                 ),
                 startsAt: boardingTime,
                 endsAt: boardingTime,
@@ -234,7 +241,7 @@ enum JourneyTimeline {
                 id: "\(section.id):alight",
                 sectionID: section.id,
                 sectionIndex: index,
-                kind: .alight(stop: alightingStop),
+                kind: .alight(stop: alightingStop, exit: section.exit),
                 startsAt: alightingTime,
                 endsAt: alightingTime,
                 rail: rail,

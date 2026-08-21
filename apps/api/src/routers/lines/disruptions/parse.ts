@@ -1,4 +1,5 @@
 import { toInstant } from '../../../time/paris';
+import { bareStopId } from '../../idfm/stop-ids';
 
 /**
  * IDFM's three-level severity, already mapped onto the line conditions the app
@@ -157,8 +158,7 @@ function routeIdOf(lineId: string | null): string | null {
 
 /** `stop_area:IDFM:71135` → `IDFM:71135`, the id our parent stations carry. */
 function stopIdOf(stopId: string | null): string | null {
-  const match = /^(?:stop_area:|stop_point:)?IDFM:(.+)$/.exec(stopId ?? '');
-  return match ? `IDFM:${match[1]}` : null;
+  return bareStopId(stopId) ?? null;
 }
 
 function asArray(value: unknown): unknown[] {

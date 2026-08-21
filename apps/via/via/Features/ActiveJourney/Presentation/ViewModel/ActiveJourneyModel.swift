@@ -699,7 +699,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             title = section.route.map { "Prenez \($0.longName)" } ?? "Prenez le transport"
             let direction = section.direction.map { "Direction \($0)" }
             let platform = section.platform.map { "Quai \($0)" }
-            detail = [direction, platform].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
+            // Where to stand comes before where to leave: one is acted on now,
+            // on this platform, the other several stops later.
+            let car = section.boardingPosition.map { "Voiture \($0.car)/\($0.carCount)" }
+            let exit = section.exit.map(JourneyGuidance.exitLabel)
+            detail = [direction, platform, car, exit]
+                .compactMap { $0 }
+                .joined(separator: " · ")
+                .nilIfEmpty
         }
 
         return ActiveJourneyInstruction(

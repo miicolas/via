@@ -1,7 +1,9 @@
 import * as z from 'zod';
 
 import {
+  boardingPositionSchema,
   journeyDestinationSchema,
+  journeyExitSchema,
   journeyInputSchema,
   journeyModeSchema,
   journeySchema,
@@ -10,6 +12,8 @@ import {
   journeyStopSchema,
 } from './schema';
 
+export type BoardingPosition = z.infer<typeof boardingPositionSchema>;
+export type JourneyExit = z.infer<typeof journeyExitSchema>;
 export type JourneyDestination = z.infer<typeof journeyDestinationSchema>;
 export type JourneyInput = z.infer<typeof journeyInputSchema>;
 export type JourneyMode = z.infer<typeof journeyModeSchema>;

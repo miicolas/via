@@ -37,11 +37,11 @@ final class JourneyTimelineTests: XCTestCase {
         let nodes = JourneyTimeline.nodes(for: makeJourney())
 
         let boarding = nodes.compactMap { node -> JourneyStop? in
-            guard case .board(let stop, _, _, _) = node.kind else { return nil }
+            guard case .board(let stop, _, _, _, _) = node.kind else { return nil }
             return stop
         }
         let alighting = nodes.compactMap { node -> JourneyStop? in
-            guard case .alight(let stop) = node.kind else { return nil }
+            guard case .alight(let stop, _) = node.kind else { return nil }
             return stop
         }
 
@@ -66,11 +66,11 @@ final class JourneyTimelineTests: XCTestCase {
         let secondLeg = nodes.filter { $0.sectionID == "section:3" }
 
         XCTAssertEqual(secondLeg.count, 2, "no stop list means no ride row")
-        guard case .board(let stop, _, _, _) = secondLeg[0].kind else {
+        guard case .board(let stop, _, _, _, _) = secondLeg[0].kind else {
             return XCTFail("expected a boarding node")
         }
         XCTAssertEqual(stop.name, "Gare de Lyon")
-        guard case .alight(let alightStop) = secondLeg[1].kind else {
+        guard case .alight(let alightStop, _) = secondLeg[1].kind else {
             return XCTFail("expected an alighting node")
         }
         XCTAssertEqual(alightStop.name, "Vincennes")
@@ -130,6 +130,55 @@ final class JourneyTimelineTests: XCTestCase {
         XCTAssertEqual(nodes.last?.startsAt, journey.arrivalAt)
     }
 
+    func testBoardingCarriesItsPositionAndAlightingItsExit() {
+        let position = JourneyBoardingPosition(
+            car: 5,
+            carCount: 5,
+            zone: .rear,
+            reason: .exit,
+            equipment: nil
+        )
+        let exit = JourneyExit(
+            id: "IDFM:50147797",
+            name: "pl. du Châtelet",
+            number: 16,
+            coordinate: GeoCoordinate(latitude: 48.8576, longitude: 2.3472),
+            walkingMeters: 180
+        )
+        let journey = makeJourney(firstLegPosition: position, firstLegExit: exit)
+
+        let nodes = JourneyTimeline.nodes(for: journey).filter { $0.sectionID == "section:1" }
+
+        guard case .board(_, _, _, _, let boarded) = nodes.first?.kind else {
+            return XCTFail("expected a boarding node")
+        }
+        guard case .alight(_, let alighted) = nodes.last?.kind else {
+            return XCTFail("expected an alighting node")
+        }
+        XCTAssertEqual(boarded, position)
+        XCTAssertEqual(alighted, exit)
+    }
+
+    func testALegWithoutWayfindingCarriesNeither() {
+        // The destination node shares the last section's id, so match on the
+        // node kind rather than on position within the leg.
+        let nodes = JourneyTimeline.nodes(for: makeJourney()).filter { $0.sectionID == "section:3" }
+
+        let boarded = nodes.compactMap { node -> JourneyBoardingPosition?? in
+            guard case .board(_, _, _, _, let position) = node.kind else { return nil }
+            return position
+        }
+        let alighted = nodes.compactMap { node -> JourneyExit?? in
+            guard case .alight(_, let exit) = node.kind else { return nil }
+            return exit
+        }
+
+        XCTAssertEqual(boarded.count, 1)
+        XCTAssertEqual(alighted.count, 1)
+        XCTAssertNil(boarded.first ?? nil)
+        XCTAssertNil(alighted.first ?? nil)
+    }
+
     // MARK: - Fixtures
 
     private func intermediateStops(in nodes: [JourneyTimelineNode]) -> [JourneyStop] {
@@ -139,7 +188,11 @@ final class JourneyTimelineTests: XCTestCase {
         }
     }
 
-    private func makeJourney(startsWithWalk: Bool = true) -> Journey {
+    private func makeJourney(
+        startsWithWalk: Bool = true,
+        firstLegPosition: JourneyBoardingPosition? = nil,
+        firstLegExit: JourneyExit? = nil
+    ) -> Journey {
         let chatelet = JourneyPlace(
             name: "Châtelet",
             coordinate: GeoCoordinate(latitude: 48.8586, longitude: 2.3477)
@@ -177,7 +230,9 @@ final class JourneyTimelineTests: XCTestCase {
                 stop(id: "s2", name: "Bastille", at: 9 * 60),
                 stop(id: "s3", name: "Gare d'Austerlitz", at: 13 * 60),
                 stop(id: "s4", place: gareDeLyon, at: 17 * 60),
-            ]
+            ],
+            boardingPosition: firstLegPosition,
+            exit: firstLegExit
         )
 
         let transfer = JourneySection(
