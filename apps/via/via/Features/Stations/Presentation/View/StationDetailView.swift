@@ -28,39 +28,16 @@ struct StationDetailView: View {
                             }
 
                             if let accessibility = currentStation.accessibility {
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Label(accessibility.label, systemImage: "figure.roll")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(accessibilityTint(accessibility.condition))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(
-                                            accessibilityTint(accessibility.condition).opacity(0.12),
-                                            in: Capsule()
-                                        )
-
-                                    if let comment = accessibility.comment, !comment.isEmpty {
-                                        Text(comment)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                .accessibilityElement(children: .combine)
-                                .accessibilityLabel("Accessibilité PMR")
-                                .accessibilityValue(accessibilityVoiceOverValue(accessibility))
+                                PMRBadgeView(
+                                    accessibilityLabel: "Accessibilité PMR, \(accessibilityVoiceOverValue(accessibility))",
+                                    size: 24,
+                                    tint: accessibilityTint(accessibility.condition)
+                                )
                             }
 
                             if let distanceText = currentStation.distanceText {
                                 Text(distanceText)
                             }
-
-                            Text(currentStation.sourceText)
-                                .font(.caption)
-
-                            DepartureFreshnessView(
-                                source: currentStation.departureSource,
-                                fetchedAt: currentStation.departureFetchedAt
-                            )
                         }
                         .foregroundStyle(.gray)
 
