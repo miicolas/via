@@ -158,6 +158,27 @@ struct RecentSearch: Codable, Sendable, Hashable, Identifiable {
 }
 
 extension RecentSearch {
+    /// Search history is device-local: newest first, one entry per
+    /// destination, capped. Every store applies this so an in-memory double
+    /// cannot encode a different rule from the persisted one.
+    static let historyLimit = 5
+
+    static func normalizedHistory(_ searches: [RecentSearch]) -> [RecentSearch] {
+        var newestByID: [String: RecentSearch] = [:]
+        for search in searches {
+            if search.savedAt >= (newestByID[search.id]?.savedAt ?? .distantPast) {
+                newestByID[search.id] = search
+            }
+        }
+        return Array(
+            newestByID.values
+                .sorted { $0.savedAt > $1.savedAt }
+                .prefix(historyLimit)
+        )
+    }
+}
+
+extension RecentSearch {
     /// The raw identifier with the composite `"kind:"` prefix stripped;
     /// tolerates legacy un-prefixed persisted values.
     var resultIdentifier: String {

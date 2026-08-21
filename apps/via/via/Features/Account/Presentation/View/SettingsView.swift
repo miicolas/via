@@ -82,7 +82,8 @@ struct SettingsView: View {
                         AccountDataSettingsView(
                             accountModel: accountModel,
                             authSessionViewModel: authSessionViewModel,
-                            profileModel: profileModel
+                            profileModel: profileModel,
+                            onEraseLocalSearches: searchViewModel.clearRecentSearches
                         )
                     } label: {
                         SettingsRow(

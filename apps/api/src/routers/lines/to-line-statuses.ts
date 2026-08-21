@@ -3,9 +3,7 @@ import type { LineStatus, LineStatusesResponse } from '@via/contract';
 import type { DisruptionsSnapshot } from './disruptions/snapshot';
 import type { LineRow } from './queries';
 import { lineServiceState } from './service-state';
-import { toRouteBadge } from '../route-badge';
-
-const MODE_ORDER: Record<string, number> = { metro: 0, rer: 1, transilien: 2, tram: 3, bus: 4 };
+import { compareRouteBadges, toRouteBadge } from '../route-badge';
 
 /**
  * Line rows + the disruptions snapshot → the statuses payload. `canonical`
@@ -43,11 +41,7 @@ export function toLineStatuses(
   });
 
   if (order === 'canonical') {
-    lines.sort(
-      (left, right) =>
-        MODE_ORDER[left.route.mode] - MODE_ORDER[right.route.mode] ||
-        left.route.shortName.localeCompare(right.route.shortName, 'fr', { numeric: true })
-    );
+    lines.sort((left, right) => compareRouteBadges(left.route, right.route));
   }
 
   return {

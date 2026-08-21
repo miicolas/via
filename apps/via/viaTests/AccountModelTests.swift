@@ -19,11 +19,28 @@ final class AccountModelTests: XCTestCase {
     }
 
     @MainActor
-    func testActivationPreservesAndMigratesLegacyRecents() throws {
+    func testActivationDropsLegacyRecentsAndPendingSyncOperations() throws {
         let recent = RecentSearch(result: addressResult(id: "legacy"), savedAt: .distantPast)
         defaults.set(
             try JSONEncoder.via.encode([recent]),
             forKey: "via.recent-searches.v1"
+        )
+        // A blob written by a build that still stored recents in the account.
+        var legacySnapshot = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: try JSONEncoder.via.encode(AccountLocalSnapshot(
+                pendingOperations: [AccountSyncOperation(
+                    kind: .recentUpsert,
+                    occurredAt: recent.savedAt,
+                    recent: recent
+                )]
+            ))
+        ) as? [String: Any])
+        legacySnapshot["recents"] = try JSONSerialization.jsonObject(
+            with: try JSONEncoder.via.encode([recent])
+        )
+        defaults.set(
+            try JSONSerialization.data(withJSONObject: legacySnapshot),
+            forKey: "via.account-data.v1.user"
         )
         let model = AccountModel(
             store: AccountLocalStore(defaults: defaults),
@@ -33,8 +50,37 @@ final class AccountModelTests: XCTestCase {
 
         model.activate(userID: "user")
 
-        XCTAssertEqual(model.recentSearches, [recent])
         XCTAssertNil(defaults.data(forKey: "via.recent-searches.v1"))
+        XCTAssertNil(storedAccountObject()["recents"])
+        let storedData = try XCTUnwrap(defaults.data(forKey: "via.account-data.v1.user"))
+        let stored = try JSONDecoder.via.decode(AccountLocalSnapshot.self, from: storedData)
+        XCTAssertTrue(stored.pendingOperations.isEmpty)
+    }
+
+    func testCanonicalAccountRecentsAreIgnored() throws {
+        let store = AccountLocalStore(defaults: defaults)
+        store.activate(userID: "user")
+
+        store.apply(AccountSyncResult(
+            appliedOperationIDs: [],
+            favorites: [],
+            recents: [RecentSearch(result: addressResult(id: "remote"))],
+            preferences: .empty,
+            syncedAt: .now
+        ))
+
+        XCTAssertNil(storedAccountObject()["recents"])
+    }
+
+    /// The persisted account blob as raw JSON: `AccountLocalSnapshot` no longer
+    /// has a `recents` property, so only the keys on disk can prove it is gone.
+    private func storedAccountObject() -> [String: Any] {
+        guard let data = defaults.data(forKey: "via.account-data.v1.user"),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            return [:]
+        }
+        return object
     }
 
     @MainActor
@@ -49,17 +95,11 @@ final class AccountModelTests: XCTestCase {
         model.activate(userID: "user")
 
         model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Nation")
-        model.recordRecentSearch(addressResult(id: "address"))
         model.setPreferred(.metro, enabled: true)
 
         XCTAssertTrue(model.isFavorite(stationID: StationID(rawValue: "A")))
-        XCTAssertEqual(model.recentSearches.map(\.id), ["address:address"])
         XCTAssertEqual(model.transportPreferences.preferredModes, [.metro])
         XCTAssertEqual(model.syncState, .local)
-
-        model.removeRecentSearch(id: "address:address")
-
-        XCTAssertTrue(model.recentSearches.isEmpty)
     }
 
     @MainActor
@@ -271,14 +311,12 @@ final class AccountModelTests: XCTestCase {
         model.activate(userID: "user")
         model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Cloud")
         model.setPlace(addressResult(id: "cloud-home"), role: .home)
-        model.recordRecentSearch(addressResult(id: "cloud-recent"))
         model.setPreferred(.metro, enabled: true)
 
         model.activateAnonymous()
         clock.set(Date(timeIntervalSince1970: 200))
         model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Appareil")
         model.setPlace(addressResult(id: "device-home"), role: .home)
-        model.recordRecentSearch(addressResult(id: "device-recent"))
         model.setPreferred(.bus, enabled: true)
 
         let relaunched = AccountModel(
@@ -293,12 +331,11 @@ final class AccountModelTests: XCTestCase {
         XCTAssertEqual(relaunched.favorites.first?.name, "Appareil")
         XCTAssertEqual(relaunched.place(for: .home)?.id, "address:device-home")
         XCTAssertEqual(relaunched.transportPreferences.preferredModes, [.bus])
-        XCTAssertTrue(relaunched.recentSearches.contains { $0.id == "address:device-recent" })
         XCTAssertNil(defaults.data(forKey: "via.account-data.v1.anonymous"))
     }
 
     @MainActor
-    func testResetPreferencesKeepsFavoritesPlacesAndHistory() {
+    func testResetPreferencesKeepsFavoritesAndPlaces() {
         let date = Date(timeIntervalSince1970: 100)
         let model = AccountModel(
             store: AccountLocalStore(defaults: defaults),
@@ -309,7 +346,6 @@ final class AccountModelTests: XCTestCase {
         model.activateAnonymous()
         model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Nation")
         model.setPlace(addressResult(id: "home"), role: .home)
-        model.recordRecentSearch(addressResult(id: "recent"))
         model.setPreferred(.metro, enabled: true)
 
         model.resetPreferences()
@@ -317,7 +353,6 @@ final class AccountModelTests: XCTestCase {
         XCTAssertTrue(model.transportPreferences.preferredModes.isEmpty)
         XCTAssertEqual(model.favorites.count, 1)
         XCTAssertEqual(model.place(for: .home)?.id, "address:home")
-        XCTAssertEqual(model.recentSearches.count, 1)
     }
 
     @MainActor
@@ -377,8 +412,9 @@ final class AccountModelTests: XCTestCase {
 
         XCTAssertEqual(
             Set(object.keys),
-            ["schemaVersion", "exportedAt", "favorites", "places", "recentSearches", "preferences"]
+            ["schemaVersion", "exportedAt", "favorites", "places", "preferences"]
         )
+        XCTAssertEqual(object["schemaVersion"] as? Int, 2)
         XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("bearerToken"))
         XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("appleUserIdentifier"))
     }
@@ -480,7 +516,7 @@ private actor AccountRemoteStub: AccountRemote {
         return AccountSyncResult(
             appliedOperationIDs: operations.map(\.operationID),
             favorites: snapshot.favorites,
-            recents: snapshot.recents,
+            recents: [],
             places: snapshot.places,
             preferences: snapshot.preferences,
             syncedAt: .now

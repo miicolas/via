@@ -39,6 +39,63 @@ final class NaturalDateTimeResolverTests: XCTestCase {
         XCTAssertTrue(result.timeWasExplicit)
     }
 
+    func testExplicitClockTimeOverridesAnIncorrectPartOfDayClassification() throws {
+        let generatedParts = parts(
+            reference: .implicitToday,
+            timePrecision: .afternoon
+        )
+
+        let correctedParts = generatedParts.correctingSingleExactTime(
+            in: "De Nation à La Défense après 18h"
+        )
+        let result = try NaturalDateTimeResolver.resolve(correctedParts, now: now)
+
+        XCTAssertEqual(result.date, ISO8601.parse("2026-08-17T18:00:00+02:00"))
+        XCTAssertTrue(result.timeWasExplicit)
+    }
+
+    func testExplicitClockTimeCorrectionKeepsMinutes() throws {
+        let generatedParts = parts(
+            reference: .tomorrow,
+            timePrecision: .evening
+        )
+
+        let correctedParts = generatedParts.correctingSingleExactTime(
+            in: "Partir vers La Défense après 18 h 30"
+        )
+        let result = try NaturalDateTimeResolver.resolve(correctedParts, now: now)
+
+        XCTAssertEqual(result.date, ISO8601.parse("2026-08-18T18:30:00+02:00"))
+    }
+
+    func testRelativeDurationIsNotReinterpretedAsAClockTime() {
+        let generatedParts = parts(
+            reference: .relative,
+            timePrecision: .unspecified,
+            relativeAmount: 2,
+            relativeUnit: .hour
+        )
+
+        let correctedParts = generatedParts.correctingSingleExactTime(
+            in: "Partir vers La Défense dans 2 h"
+        )
+
+        XCTAssertEqual(correctedParts, generatedParts)
+    }
+
+    func testTwoClockTimesRemainAssignedByTheStructuredModel() {
+        let generatedParts = parts(
+            reference: .tomorrow,
+            timePrecision: .afternoon
+        )
+
+        let correctedParts = generatedParts.correctingSingleExactTime(
+            in: "Partir après 18 h et arriver avant 19 h à La Défense"
+        )
+
+        XCTAssertEqual(correctedParts, generatedParts)
+    }
+
     func testTomorrowIsCalculatedWithoutAskingTheModelForAnISODate() throws {
         let result = try NaturalDateTimeResolver.resolve(
             parts(reference: .tomorrow, timePrecision: .exact, hour: 10),

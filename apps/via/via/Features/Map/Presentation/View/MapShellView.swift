@@ -18,7 +18,6 @@ struct MapShellView: View {
     let searchViewModel: SearchViewModel
     let activeJourneyModel: ActiveJourneyModel
     let reportViewModel: ReportViewModel
-    let onboardingModel: OnboardingModel
     let locationModel: LocationModel
     let accountModel: AccountModel
     let favoriteRoutesModel: FavoriteRoutesModel
@@ -41,7 +40,6 @@ struct MapShellView: View {
     // one is ever presented above the tab sheet at a time.
     @State private var searchSheetDestination: SearchSheetDestination?
     @State private var journeySheetDetent: PresentationDetent = .large
-    @State private var isOnboardingPresented = false
 
     init(
         networkViewModel: NetworkViewModel,
@@ -51,7 +49,6 @@ struct MapShellView: View {
         searchViewModel: SearchViewModel,
         activeJourneyModel: ActiveJourneyModel,
         reportViewModel: ReportViewModel,
-        onboardingModel: OnboardingModel,
         locationModel: LocationModel,
         accountModel: AccountModel,
         favoriteRoutesModel: FavoriteRoutesModel,
@@ -65,7 +62,6 @@ struct MapShellView: View {
         self.searchViewModel = searchViewModel
         self.activeJourneyModel = activeJourneyModel
         self.reportViewModel = reportViewModel
-        self.onboardingModel = onboardingModel
         self.locationModel = locationModel
         self.accountModel = accountModel
         self.favoriteRoutesModel = favoriteRoutesModel
@@ -92,9 +88,6 @@ struct MapShellView: View {
             .sheet(isPresented: $showTabSheet) {
                 sheetContent
                 .adaptiveSheet(380, isActive: isLargeScreen)
-                .sheet(isPresented: $isOnboardingPresented) {
-                    OnboardingView(model: onboardingModel)
-                }
             }
             .onChange(of: selectedMapStation) { _, newValue in
                 guard let newValue else { return }
@@ -117,13 +110,16 @@ struct MapShellView: View {
                 guard detent == collapsedDetent, activeJourneyModel.isActive else { return }
                 frameJourney(sectionID: displayedHighlightedSectionID)
             }
-            .onChange(of: activeJourneyModel.session?.journey.id) { _, journeyID in
+            .onChange(of: activeJourneyModel.session?.journey.id) { previousJourneyID, journeyID in
                 if journeyID != nil {
                     showActiveJourney()
-                } else if activeJourneyModel.arrival == nil, isJourneySheetUp {
-                    // The journey ended (cancelled or expired) with no arrival
-                    // screen to show: close the sheet.
-                    searchSheetDestination = nil
+                } else if previousJourneyID != nil {
+                    searchViewModel.resetSearch()
+                    if activeJourneyModel.arrival == nil, isJourneySheetUp {
+                        // The journey ended (cancelled or expired) with no arrival
+                        // screen to show: close the sheet.
+                        searchSheetDestination = nil
+                    }
                 }
             }
             .onChange(of: activeJourneyModel.arrival?.journeyID) { _, journeyID in
@@ -201,10 +197,6 @@ struct MapShellView: View {
 
                 isLargeScreen = newValue
             }
-            .task {
-                guard !onboardingModel.isCompleted else { return }
-                isOnboardingPresented = true
-            }
             .task(id: authSessionViewModel.session?.user.id) {
                 if let user = authSessionViewModel.session?.user {
                     profileModel.activate(scope: .user(user.id), seedName: user.displayName)
@@ -220,6 +212,7 @@ struct MapShellView: View {
     }
 
     private func closeSearch() {
+        searchViewModel.resetSearch()
         activeTab = previousTab
     }
 
@@ -451,7 +444,6 @@ struct MapShellView: View {
             repository: InMemoryReportRepository(),
             searchRepository: InMemorySearchRepository.preview
         ),
-        onboardingModel: OnboardingModel(store: OnboardingStore(defaults: .standard)),
         locationModel: locationModel,
         accountModel: accountModel,
         favoriteRoutesModel: FavoriteRoutesModel(

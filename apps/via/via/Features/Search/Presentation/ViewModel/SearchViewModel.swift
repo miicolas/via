@@ -103,6 +103,7 @@ final class SearchViewModel {
     private(set) var naturalJourneyCriteria: NaturalJourneyCriteria?
     private(set) var naturalJourneyUnresolvedDraft: NaturalJourneyDraft?
     private(set) var naturalInputErrorMessage: String?
+    private(set) var recentSearches: [RecentSearch]
     /// One-shot signal: a natural-language search resolved to this journey, so
     /// the shell can close the IA sheet and open the journey sheet on it.
     private(set) var naturalResultJourneyID: JourneyID?
@@ -114,12 +115,13 @@ final class SearchViewModel {
     @ObservationIgnored private let journeyRepository: any JourneyRepository
     @ObservationIgnored private let locationModel: LocationModel
     @ObservationIgnored private let account: AccountModel?
+    @ObservationIgnored private let recentSearchStore: any RecentSearchStoring
     @ObservationIgnored private let filterStore: any SearchFilterStoring
     @ObservationIgnored private let naturalJourneyRepository: (any NaturalJourneyRepository)?
     @ObservationIgnored private let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
     @ObservationIgnored private let naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring
     @ObservationIgnored private let naturalJourneyMetrics: any NaturalJourneyMetricsRecording
-    @ObservationIgnored private let metricsNow: @Sendable () -> Date
+    @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var journeyTask: Task<Void, Never>?
     @ObservationIgnored private var naturalCriteriaReplanTask: Task<Void, Never>?
@@ -140,13 +142,16 @@ final class SearchViewModel {
         },
         naturalJourneyOnboardingStore: (any NaturalJourneyOnboardingStoring)? = nil,
         naturalJourneyMetrics: any NaturalJourneyMetricsRecording = AppLogNaturalJourneyMetrics(),
-        metricsNow: @escaping @Sendable () -> Date = { .now },
+        now: @escaping @Sendable () -> Date = { .now },
         filterStore: any SearchFilterStoring = UserDefaultsSearchFilterStore(),
+        recentSearchStore: any RecentSearchStoring = UserDefaultsRecentSearchStore(),
     ) {
         self.repository = repository
         self.journeyRepository = journeyRepository
         self.locationModel = locationModel
         self.account = account
+        self.recentSearchStore = recentSearchStore
+        recentSearches = recentSearchStore.load()
         self.filterStore = filterStore
         filters = filterStore.load()
         self.naturalJourneyRepository = naturalJourneyRepository
@@ -154,7 +159,7 @@ final class SearchViewModel {
         self.naturalJourneyOnboardingStore = naturalJourneyOnboardingStore
             ?? UserDefaultsNaturalJourneyOnboardingStore()
         self.naturalJourneyMetrics = naturalJourneyMetrics
-        self.metricsNow = metricsNow
+        self.now = now
     }
 
     var naturalLanguageAccess: NaturalLanguageAccess {
@@ -192,6 +197,13 @@ final class SearchViewModel {
         if naturalSearchState == .onboarding {
             naturalJourneyOnboardingStore.markOnboardingSeen()
         }
+        clearNaturalSearch()
+    }
+
+    /// Everything the natural-language surface owns, back to its resting
+    /// state. Kept in one place so a new natural-search property cannot be
+    /// forgotten by one of the three callers that tear the surface down.
+    private func clearNaturalSearch() {
         naturalJourneyTask?.cancel()
         naturalQuery = ""
         naturalInputErrorMessage = nil
@@ -223,7 +235,7 @@ final class SearchViewModel {
               !phrase.isEmpty,
               naturalJourneyRepository != nil else { return }
 
-        naturalSearchStartedAt = metricsNow()
+        naturalSearchStartedAt = now()
         naturalCorrectionCount = 0
         naturalJourneyCriteria = nil
         naturalJourneyUnresolvedDraft = nil
@@ -324,13 +336,9 @@ final class SearchViewModel {
     }
 
     func useClassicSearch() {
-        naturalJourneyTask?.cancel()
+        clearNaturalSearch()
         naturalJourneyCriteria = nil
         naturalJourneyUnresolvedDraft = nil
-        naturalQuery = ""
-        naturalInputErrorMessage = nil
-        lastNaturalJourneyRequest = nil
-        naturalSearchState = .dismissed
         editDestination()
         clearQuery()
     }
@@ -456,7 +464,7 @@ final class SearchViewModel {
 
     private func recordNaturalMetric(_ outcome: NaturalJourneyMetric.Outcome) {
         guard let naturalSearchStartedAt else { return }
-        let duration = max(0, metricsNow().timeIntervalSince(naturalSearchStartedAt))
+        let duration = max(0, now().timeIntervalSince(naturalSearchStartedAt))
         naturalJourneyMetrics.recordSearch(NaturalJourneyMetric(
             outcome: outcome,
             firstResultDurationMilliseconds: outcome == .success
@@ -485,6 +493,23 @@ final class SearchViewModel {
 
     var journeyDestination: JourneyDestination? {
         selectedDestination.map { JourneyPlaceSelection($0).journeyDestination }
+    }
+
+    var canResetSearch: Bool {
+        step != .destination
+            || !query.isEmpty
+            || !results.isEmpty
+            || loadState != .idle
+            || selectedDestination != nil
+            || selectedDeparture != .currentLocation
+            || naturalJourneyCriteria != nil
+    }
+
+    var showsRecentSearches: Bool {
+        step == .destination
+            && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && loadState == .idle
+            && !recentSearches.isEmpty
     }
 
     func updateQuery(_ value: String) {
@@ -556,6 +581,37 @@ final class SearchViewModel {
         updateQuery("")
     }
 
+    /// Starts a genuinely new search while preserving user preferences such
+    /// as accessibility filters and saved places.
+    func resetSearch() {
+        searchTask?.cancel()
+        journeyTask?.cancel()
+        naturalCriteriaReplanTask?.cancel()
+
+        step = .destination
+        results = []
+        loadState = .idle
+        accessibilitySource = SearchResponse.AccessibilitySource(
+            status: .unavailable,
+            sourceUpdatedAt: nil,
+            importedAt: nil
+        )
+        journeyResult = nil
+        mapPresentation = nil
+        selectedDestination = nil
+        selectedDeparture = .currentLocation
+        highlightedJourneySectionID = nil
+        query = ""
+
+        clearNaturalSearch()
+        naturalJourneyCriteria = nil
+        naturalJourneyUnresolvedDraft = nil
+        naturalResultJourneyID = nil
+        naturalSearchStartedAt = nil
+        naturalCorrectionCount = 0
+        lastSearchedQuery = ""
+    }
+
     func setRequiresAccessibleStations(_ enabled: Bool) {
         updateFilters { $0.requiresAccessibleStations = enabled }
     }
@@ -575,11 +631,23 @@ final class SearchViewModel {
 
     func selectDestination(_ result: SearchResult) {
         searchTask?.cancel()
-        account?.recordRecentSearch(result)
+        recentSearches = recentSearchStore.upsert(RecentSearch(result: result, savedAt: now()))
         selectedDestination = result
         results = []
         loadState = .idle
         planJourney()
+    }
+
+    func selectRecentSearch(_ recent: RecentSearch) {
+        selectDestination(recent.searchResult)
+    }
+
+    func removeRecentSearch(id: String) {
+        recentSearches = recentSearchStore.remove(id: id)
+    }
+
+    func clearRecentSearches() {
+        recentSearches = recentSearchStore.clear()
     }
 
     func editDestination() {

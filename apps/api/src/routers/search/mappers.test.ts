@@ -64,3 +64,28 @@ test('station facts use the shared accessibility label and detail', () => {
     comment: 'Présence requise aux heures d’ouverture',
   });
 });
+
+test('orders rail badges before bus badges for compact station results', () => {
+  const [result] = toStationResults([
+    {
+      id: 'IDFM:64483',
+      name: 'Chatou - Croissy',
+      longitude: 2.1553,
+      latitude: 48.8851,
+      accessibilityCondition: null,
+      accessibilityDetail: null,
+      routes: [
+        { id: 'bus-6450', shortName: '6450', routeType: 3, color: '666666', textColor: 'FFFFFF' },
+        { id: 'bus-6430', shortName: '6430', routeType: 3, color: '666666', textColor: 'FFFFFF' },
+        { id: 'bus-6439', shortName: '6439', routeType: 3, color: '666666', textColor: 'FFFFFF' },
+        { id: 'rer-a', shortName: 'A', routeType: 2, color: 'EB2132', textColor: 'FFFFFF' },
+      ],
+    },
+  ]);
+
+  expect(result?.routes.slice(0, 3).map((route) => route.shortName)).toEqual([
+    'A',
+    '6430',
+    '6439',
+  ]);
+});

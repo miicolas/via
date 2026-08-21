@@ -30,16 +30,16 @@ enum NaturalRelativeUnit: Sendable, Hashable {
 }
 
 struct NaturalDateTimeParts: Sendable, Hashable {
-    let reference: NaturalDateReference
-    let year: Int
-    let yearWasExplicit: Bool
-    let month: Int
-    let day: Int
-    let timePrecision: NaturalTimePrecision
-    let hour: Int
-    let minute: Int
-    let relativeAmount: Int
-    let relativeUnit: NaturalRelativeUnit
+    var reference: NaturalDateReference
+    var year: Int
+    var yearWasExplicit: Bool
+    var month: Int
+    var day: Int
+    var timePrecision: NaturalTimePrecision
+    var hour: Int
+    var minute: Int
+    var relativeAmount: Int
+    var relativeUnit: NaturalRelativeUnit
 }
 
 struct ResolvedNaturalDateTime: Sendable, Hashable {

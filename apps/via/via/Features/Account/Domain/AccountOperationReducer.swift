@@ -3,9 +3,6 @@ import Foundation
 enum AccountMutation: Sendable {
     case toggleFavorite(stationID: StationID, name: String, coordinate: GeoCoordinate?, at: Date)
     case removeFavorite(stationID: String, at: Date)
-    case upsertRecent(RecentSearch)
-    case removeRecent(id: String, at: Date)
-    case clearRecents(at: Date)
     case savePlace(SavedPlace)
     case removePlace(id: String, at: Date)
     case setPreferences(TransportPreferences)
@@ -73,26 +70,6 @@ enum AccountOperationReducer {
             )]
             favoriteIsSaved = nil
 
-        case .upsertRecent(let recent):
-            operations = [AccountSyncOperation(
-                kind: .recentUpsert,
-                occurredAt: recent.savedAt,
-                recent: recent
-            )]
-            favoriteIsSaved = nil
-
-        case .removeRecent(let id, let date):
-            operations = [AccountSyncOperation(
-                kind: .recentRemove,
-                occurredAt: date,
-                recentID: id
-            )]
-            favoriteIsSaved = nil
-
-        case .clearRecents(let date):
-            operations = [AccountSyncOperation(kind: .recentClear, occurredAt: date)]
-            favoriteIsSaved = nil
-
         case .savePlace(let place):
             operations = [AccountSyncOperation(
                 kind: .placeUpsert,
@@ -140,15 +117,10 @@ enum AccountOperationReducer {
             snapshot.favorites = Array(snapshot.favorites.prefix(AccountLocalSnapshot.favoriteLimit))
         case .favoriteRemove:
             snapshot.favorites.removeAll { $0.stationID == operation.stationID }
-        case .recentUpsert:
-            guard let recent = operation.recent else { return }
-            snapshot.recents.removeAll { $0.id == recent.id }
-            snapshot.recents.insert(recent, at: 0)
-            snapshot.recents = Array(snapshot.recents.prefix(AccountLocalSnapshot.recentLimit))
-        case .recentRemove:
-            snapshot.recents.removeAll { $0.id == operation.recentID }
-        case .recentClear:
-            snapshot.recents.removeAll { $0.savedAt <= operation.occurredAt }
+        case .recentUpsert, .recentRemove, .recentClear:
+            // Kept in the wire enum for older app versions only. Search
+            // history is device-local and never enters account state.
+            return
         case .preferencesSet:
             if let preferences = operation.preferences { snapshot.preferences = preferences }
         case .placeUpsert:
@@ -175,10 +147,6 @@ enum AccountOperationReducer {
         snapshot.favorites = Array(
             snapshot.favorites.sorted { $0.savedAt > $1.savedAt }
                 .prefix(AccountLocalSnapshot.favoriteLimit)
-        )
-        snapshot.recents = Array(
-            snapshot.recents.sorted { $0.savedAt > $1.savedAt }
-                .prefix(AccountLocalSnapshot.recentLimit)
         )
         for role in [SavedPlace.Role.home, .work] {
             let matching = snapshot.places

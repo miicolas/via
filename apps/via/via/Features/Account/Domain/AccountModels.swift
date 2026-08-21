@@ -231,13 +231,11 @@ struct AccountDeletionProof: Sendable, Hashable {
 
 struct AccountSnapshot: Sendable, Equatable {
     var favorites: [FavoriteStation]
-    var recentSearches: [RecentSearch]
     var places: [SavedPlace]
     var transportPreferences: TransportPreferences
 
     static let empty = AccountSnapshot(
         favorites: [],
-        recentSearches: [],
         places: [],
         transportPreferences: .empty
     )
@@ -260,10 +258,7 @@ enum AccountState: Sendable, Equatable {
 struct AccountLocalSnapshot: Codable, Sendable, Hashable {
     /// Mirrors the server's `ACCOUNT_FAVORITE_LIMIT`; both sides trim to it.
     static let favoriteLimit = 50
-    /// Mirrors the server's `ACCOUNT_RECENT_LIMIT`; both sides trim to it.
-    static let recentLimit = 5
     var favorites: [FavoriteStation] = []
-    var recents: [RecentSearch] = []
     var places: [SavedPlace] = []
     var preferences: TransportPreferences = .empty
     var pendingOperations: [AccountSyncOperation] = []
