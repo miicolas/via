@@ -104,6 +104,9 @@ final class SearchViewModel {
     private(set) var naturalJourneyCriteria: NaturalJourneyCriteria?
     private(set) var naturalJourneyUnresolvedDraft: NaturalJourneyDraft?
     private(set) var naturalInputErrorMessage: String?
+    /// One-shot signal: a natural-language search resolved to this journey, so
+    /// the shell can close the IA sheet and open the journey sheet on it.
+    private(set) var naturalResultJourneyID: JourneyID?
 
     var query = ""
     var naturalQuery = ""
@@ -195,6 +198,11 @@ final class SearchViewModel {
         naturalInputErrorMessage = nil
         lastNaturalJourneyRequest = nil
         naturalSearchState = .dismissed
+    }
+
+    /// Clears the one-shot journey signal once the shell has opened the sheet.
+    func consumeNaturalResultJourney() {
+        naturalResultJourneyID = nil
     }
 
     func retryNaturalSearch() {
@@ -379,6 +387,7 @@ final class SearchViewModel {
             if let firstJourney = journeys.journeys.first {
                 selectJourney(firstJourney)
                 step = .results
+                naturalResultJourneyID = firstJourney.id
             } else {
                 mapPresentation = nil
                 step = journeys.status == .unavailable ? .unavailable : .noRoute

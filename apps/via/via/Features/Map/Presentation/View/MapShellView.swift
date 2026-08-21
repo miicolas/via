@@ -36,6 +36,10 @@ struct MapShellView: View {
     @State private var detailSheetDetent: PresentationDetent = .height(80)
     @State private var accountSheetDestination: AccountSheetDestination?
     @State private var accountSheetDetent: PresentationDetent = .height(80)
+    // IA research and the journey detail share one stacked sheet slot, so only
+    // one is ever presented above the tab sheet at a time.
+    @State private var searchSheetDestination: SearchSheetDestination?
+    @State private var journeySheetDetent: PresentationDetent = .large
     @State private var isOnboardingPresented = false
 
     init(
@@ -70,7 +74,7 @@ struct MapShellView: View {
         NetworkMapView(
             viewModel: networkViewModel,
             position: $position,
-            stationSelectionEnabled: activeTab != .search,
+            stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
             journeyPresentation: displayedJourneyPresentation,
             journeyProgress: activeJourneyModel.progress?.mapQuantized,
             highlightedJourneySegmentID: displayedHighlightedSectionID,
@@ -113,17 +117,44 @@ struct MapShellView: View {
             .onChange(of: activeJourneyModel.session?.journey.id) { _, journeyID in
                 if journeyID != nil {
                     showActiveJourney()
-                } else if activeJourneyModel.arrival != nil {
-                    activeDetent = guidanceDetent
-                } else if isLargeScreen {
-                    activeDetent = .fraction(0.97)
-                } else {
-                    activeDetent = activeTab == .search ? .large : .fraction(0.45)
+                } else if activeJourneyModel.arrival == nil, isJourneySheetUp {
+                    // The journey ended (cancelled or expired) with no arrival
+                    // screen to show: close the sheet.
+                    searchSheetDestination = nil
                 }
             }
             .onChange(of: activeJourneyModel.arrival?.journeyID) { _, journeyID in
-                guard journeyID != nil else { return }
-                showActiveJourney()
+                if journeyID != nil {
+                    showActiveJourney()
+                } else if activeJourneyModel.session == nil, isJourneySheetUp {
+                    // The arrival screen was dismissed: close the sheet.
+                    searchSheetDestination = nil
+                }
+            }
+            .onChange(of: searchViewModel.isNaturalSearchPresented) { _, presented in
+                // Bridge the IA lifecycle to the shared sheet slot: every open
+                // and dismiss path flows through the view model.
+                if presented {
+                    if searchSheetDestination == nil { searchSheetDestination = .naturalSearch }
+                } else if searchSheetDestination == .naturalSearch {
+                    searchSheetDestination = nil
+                }
+            }
+            .onChange(of: searchViewModel.naturalResultJourneyID) { _, journeyID in
+                guard let journeyID else { return }
+                // The IA sheet closes and the journey detail opens on the result.
+                activeTab = .search
+                journeySheetDetent = expandedDetent
+                searchSheetDestination = .journey(journeyID)
+                searchViewModel.consumeNaturalResultJourney()
+            }
+            .onChange(of: activeJourneyModel.isActive) { _, isActive in
+                // Once guidance is running, peek so the map behind stays visible.
+                if isActive { journeySheetDetent = .height(80) }
+            }
+            .onChange(of: searchSheetDestination) { _, destination in
+                // Reset the detent so the next journey opens expanded, not on the peek.
+                if destination == nil { journeySheetDetent = expandedDetent }
             }
             .onChange(of: activeTab) { oldValue, newValue in
                 if newValue == .search, oldValue != .search {
@@ -134,9 +165,7 @@ struct MapShellView: View {
                     if oldValue != .report {
                         previousTab = oldValue
                     }
-                    activeDetent = searchViewModel.isNaturalSearchPresented
-                        ? guidanceDetent
-                        : (hasJourneySurface ? guidanceDetent : expandedDetent)
+                    activeDetent = hasJourneySurface ? guidanceDetent : expandedDetent
                 } else if newValue == .report, oldValue != .report {
                     activeDetent = isLargeScreen ? .fraction(0.97) : .large
                 } else if oldValue == .search, newValue != .search {
@@ -159,6 +188,12 @@ struct MapShellView: View {
                     detailSheetDetent = .fraction(0.97)
                 } else if !newValue && detailSheetDetent == .fraction(0.97) {
                     detailSheetDetent = .large
+                }
+
+                if newValue && journeySheetDetent != .height(80) {
+                    journeySheetDetent = .fraction(0.97)
+                } else if !newValue && journeySheetDetent == .fraction(0.97) {
+                    journeySheetDetent = .large
                 }
 
                 isLargeScreen = newValue
@@ -213,7 +248,8 @@ struct MapShellView: View {
             isLargeScreen: isLargeScreen,
             isAnotherSheetPresenting: selectedStationModel.overview != nil ||
                 reportViewModel.isPresentingAnotherSheet ||
-                accountSheetDestination != nil,
+                accountSheetDestination != nil ||
+                searchSheetDestination != nil,
             reservesCompactSpace: activeJourneyModel.isActive,
             isCompactVisible: isActiveJourneyCompactVisible,
             compactContent: { activeJourneyCompact }
@@ -231,7 +267,6 @@ struct MapShellView: View {
                     onOpenNaturalSearch: {
                         searchViewModel.openNaturalSearch()
                         activeTab = .search
-                        activeDetent = guidanceDetent
                     },
                     onOpenProfile: { presentAccountSheet(.profile) },
                     onOpenSettings: { presentAccountSheet(.settings) }
@@ -259,10 +294,12 @@ struct MapShellView: View {
                 SearchView(
                     viewModel: searchViewModel,
                     activeJourneyModel: activeJourneyModel,
-                    sheetDetent: $activeDetent,
                     onClose: closeSearch,
-                    onExpandJourneyMap: expandJourneyMap,
-                    onOpenReport: { activeTab = .report }
+                    onInspectJourney: { journey in
+                        journeySheetDetent = expandedDetent
+                        searchSheetDestination = .journey(journey.id)
+                    },
+                    onShowActiveJourney: showActiveJourney
                 )
                 .sheetTabBarVisibility()
             }
@@ -287,20 +324,40 @@ struct MapShellView: View {
                 )
             }
         }
+        .sheet(item: $searchSheetDestination) { destination in
+            switch destination {
+            case .naturalSearch:
+                NaturalJourneySheet(viewModel: searchViewModel)
+            case let .journey(journeyID):
+                JourneySheetView(
+                    journeyID: journeyID,
+                    searchViewModel: searchViewModel,
+                    activeJourneyModel: activeJourneyModel,
+                    isLargeScreen: isLargeScreen,
+                    detent: $journeySheetDetent,
+                    onExpandMap: { journeySheetDetent = .height(80) },
+                    onOpenReport: {
+                        searchSheetDestination = nil
+                        activeTab = .report
+                    }
+                )
+            }
+        }
+    }
+
+    private var isJourneySheetUp: Bool {
+        if case .journey = searchSheetDestination { return true }
+        return false
     }
 
     private var displayedJourneyPresentation: JourneyMapPresentation? {
         activeJourneyModel.mapPresentation
-            ?? (activeTab == .search ? searchViewModel.mapPresentation : nil)
+            ?? ((activeTab == .search || isJourneySheetUp) ? searchViewModel.mapPresentation : nil)
     }
 
     private var displayedHighlightedSectionID: String? {
         activeJourneyModel.highlightedSectionID
-            ?? (activeTab == .search ? searchViewModel.highlightedJourneySectionID : nil)
-    }
-
-    private func expandJourneyMap() {
-        activeDetent = guidanceDetent
+            ?? ((activeTab == .search || isJourneySheetUp) ? searchViewModel.highlightedJourneySectionID : nil)
     }
 
     private func presentAccountSheet(_ destination: AccountSheetDestination) {
@@ -321,7 +378,9 @@ struct MapShellView: View {
 
     private func showActiveJourney() {
         activeTab = .search
-        activeDetent = guidanceDetent
+        if let journeyID = activeJourneyModel.journey?.id ?? activeJourneyModel.arrival?.journeyID {
+            searchSheetDestination = .journey(journeyID)
+        }
     }
 
     private var hasJourneySurface: Bool {
