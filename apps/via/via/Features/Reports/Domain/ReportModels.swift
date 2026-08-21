@@ -15,6 +15,7 @@ enum ReportCategory: String, CaseIterable, Codable, Sendable, Hashable {
     case crowding
     case restroomsClosed
     case ticketMachinesUnavailable
+    case wheelchairAccessUnavailable
     case elevatorsUnavailable
     case escalatorUnavailable
     case validatorsUnavailable
@@ -30,6 +31,7 @@ enum ReportCategory: String, CaseIterable, Codable, Sendable, Hashable {
             .safetyAndCrowding
         case .restroomsClosed,
              .ticketMachinesUnavailable,
+             .wheelchairAccessUnavailable,
              .elevatorsUnavailable,
              .escalatorUnavailable,
              .validatorsUnavailable:

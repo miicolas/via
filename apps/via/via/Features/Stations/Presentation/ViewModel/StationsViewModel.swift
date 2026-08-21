@@ -61,6 +61,7 @@ enum StationOverviewBuilder {
             name: candidate.station.name,
             coordinate: candidate.station.coordinate,
             routes: candidate.routes,
+            accessibility: candidate.station.accessibility,
             distanceMeters: candidate.distanceMeters,
             departures: nextDepartures(
                 from: board,

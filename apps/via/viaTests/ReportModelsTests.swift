@@ -3,7 +3,7 @@ import XCTest
 
 final class ReportModelsTests: XCTestCase {
     func testStationCategoriesExposeTheExpectedGroupsAndOrder() {
-        XCTAssertEqual(ReportCategory.allCases.count, 12)
+        XCTAssertEqual(ReportCategory.allCases.count, 13)
         XCTAssertEqual(
             ReportCategoryGroup.safetyAndCrowding.categories,
             [.pickpocket, .crowding]
@@ -13,6 +13,7 @@ final class ReportModelsTests: XCTestCase {
             [
                 .restroomsClosed,
                 .ticketMachinesUnavailable,
+                .wheelchairAccessUnavailable,
                 .elevatorsUnavailable,
                 .escalatorUnavailable,
                 .validatorsUnavailable,

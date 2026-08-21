@@ -1,11 +1,11 @@
-import type { Journey, JourneyInput } from '@via/contract';
+import type { Journey } from '@via/contract';
 import { db } from '@via/db';
 import {
   stationFacts,
   transitStopAliases,
   type StationFactCondition,
 } from '@via/db/schema';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { ACCESSIBILITY_CONDITION_LABELS } from '../accessibility-labels';
 
@@ -14,14 +14,11 @@ export type JourneyAccessibility = {
   label: string;
 };
 
-export async function accessibilitySnapshotAvailable() {
-  const [row] = await db.execute<{ available: boolean }>(sql`
-    select exists(
-      select 1 from ${stationFacts} where ${stationFacts.kind} = 'accessibility'
-    ) as available
-  `);
-  return row?.available ?? false;
-}
+const MODES_WITH_STATION_ACCESSIBILITY_FACTS = new Set([
+  'metro',
+  'rer',
+  'transilien',
+]);
 
 /** Returns the canonical Via station IDs for raw GTFS/Navitia stop IDs. */
 export async function canonicalStationIDs(ids: Iterable<string>) {
@@ -56,31 +53,31 @@ export async function accessibilityForStationIDs(ids: Iterable<string>) {
   );
 }
 
-export async function explicitStationsAreAccessible(input: JourneyInput) {
-  const requested = [
-    input.originStationId,
-    input.destination.kind === 'station' ? input.destination.id : undefined,
-  ].filter((value): value is string => Boolean(value));
-  if (requested.length === 0) return true;
-  const canonical = await canonicalStationIDs(requested);
-  const accessibility = await accessibilityForStationIDs(canonical.values());
-  return requested.every((id) => {
-    const canonicalID = canonical.get(id);
-    return canonicalID !== undefined && accessibility.has(canonicalID);
-  });
-}
-
 /** Only boarding/alighting stops matter; intermediate calls are not user-used stations. */
 export function usedStationIDs(journey: Journey) {
   const ids: string[] = [];
   for (const section of journey.sections) {
-    if (section.type !== 'transit' || section.stops.length === 0) continue;
+    if (
+      section.type !== 'transit' ||
+      !section.route ||
+      !MODES_WITH_STATION_ACCESSIBILITY_FACTS.has(section.route.mode) ||
+      section.stops.length === 0
+    ) continue;
     ids.push(section.stops[0]!.id, section.stops.at(-1)!.id);
   }
   return ids;
 }
 
+/** IDFM already applies `wheelchair=true`; local facts only enrich its answer. */
+export async function annotateAccessibleJourneys(journeys: Journey[]) {
+  return accessibleJourneys(journeys, false);
+}
+
 export async function filterAndAnnotateAccessibleJourneys(journeys: Journey[]) {
+  return accessibleJourneys(journeys, true);
+}
+
+async function accessibleJourneys(journeys: Journey[], requiresLocalProof: boolean) {
   const rawIDs = journeys.flatMap(usedStationIDs);
   const canonical = await canonicalStationIDs(rawIDs);
   const accessibility = await accessibilityForStationIDs(canonical.values());
@@ -91,7 +88,9 @@ export async function filterAndAnnotateAccessibleJourneys(journeys: Journey[]) {
       const value = canonicalID ? accessibility.get(canonicalID) : undefined;
       return value ? [value] : [];
     });
-    if (levels.length !== used.length || levels.length === 0) return [];
+    if (levels.length !== used.length || levels.length === 0) {
+      return requiresLocalProof && used.length > 0 ? [] : [journey];
+    }
     const summary = levels.find((value) => value.condition === 'reservationRequired')
       ?? levels.find((value) => value.condition === 'staffAssistance')
       ?? levels[0]!;

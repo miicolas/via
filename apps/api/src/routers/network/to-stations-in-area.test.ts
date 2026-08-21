@@ -26,6 +26,8 @@ const rows: StationInAreaRow[] = [
     // The driver can hand geometry accessors back as strings.
     longitude: '2.3590' as unknown as number,
     latitude: '48.8765' as unknown as number,
+    accessibilityCondition: 'autonomous',
+    accessibilityDetail: null,
     routes: [BUS_38, BUS_47],
   },
   {
@@ -33,6 +35,8 @@ const rows: StationInAreaRow[] = [
     name: 'Magenta',
     longitude: 2.3577 as number,
     latitude: 48.8778 as number,
+    accessibilityCondition: null,
+    accessibilityDetail: null,
     routes: [BUS_38],
   },
 ];
@@ -46,6 +50,10 @@ describe('toStationsInArea', () => {
       name: 'Gare de l’Est',
       coordinate: { latitude: 48.8765, longitude: 2.359 },
       routeIds: ['IDFM:C01099', 'IDFM:C01133'],
+      accessibility: {
+        condition: 'autonomous',
+        label: 'En autonomie',
+      },
     });
   });
 

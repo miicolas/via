@@ -17,6 +17,7 @@ extension ReportCategory {
         case .crowding: "Affluence"
         case .restroomsClosed: "WC fermés"
         case .ticketMachinesUnavailable: "Aucun distributeur de tickets fonctionnel"
+        case .wheelchairAccessUnavailable: "Accès PMR impossible"
         case .elevatorsUnavailable: "Certains ascenseurs indisponibles"
         case .escalatorUnavailable: "Escalator indisponible"
         case .validatorsUnavailable: "Portiques ou validateurs indisponibles"
@@ -34,6 +35,7 @@ extension ReportCategory {
         case .crowding: "person.3.fill"
         case .restroomsClosed: "figure.dress.line.vertical.figure"
         case .ticketMachinesUnavailable: "creditcard.fill"
+        case .wheelchairAccessUnavailable: "figure.roll"
         case .elevatorsUnavailable: "arrow.up.arrow.down.square.fill"
         case .escalatorUnavailable: "figure.stairs"
         case .validatorsUnavailable: "rectangle.portrait.and.arrow.forward"
@@ -56,6 +58,8 @@ extension ReportCategory {
              .validatorsUnavailable,
              .passengerInformationUnavailable:
             .blue
+        case .wheelchairAccessUnavailable:
+            .orange
         case .stopRelocated, .stopNotServed, .passageObstructed:
             .orange
         }

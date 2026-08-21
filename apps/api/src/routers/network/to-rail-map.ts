@@ -3,6 +3,7 @@ import type { NetworkRoute, NetworkSegment, NetworkStation, RailMap } from '@via
 import { toLineStrings } from '../../geo/coordinates';
 import { lineLengthMeters } from '../../geo/line-length';
 import { toRouteBadge } from '../route-badge';
+import { ACCESSIBILITY_CONDITION_LABELS } from '../accessibility-labels';
 import type { NetworkPatternRow, RailStationPositionRow } from './queries';
 
 /**
@@ -62,6 +63,13 @@ function toStations(
       name: station.name,
       coordinate: nearestCoordinateOnRoute(source, routeById.get(station.routeId)) ?? source,
       routeIds: stationRows.map((row) => row.routeId),
+      ...(station.accessibilityCondition
+        ? { accessibility: {
+            condition: station.accessibilityCondition,
+            label: ACCESSIBILITY_CONDITION_LABELS[station.accessibilityCondition],
+            comment: station.accessibilityDetail ?? undefined,
+          } }
+        : {}),
     };
   });
 }

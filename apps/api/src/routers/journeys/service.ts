@@ -5,8 +5,7 @@ import { tryConsumeDailyIdfmBudget } from '../idfm/daily-budget';
 import { journeyCacheKey, valueThroughCache } from './cache';
 import { tryConsumePersonalJourneyBudget } from './rate-limit';
 import {
-  accessibilitySnapshotAvailable,
-  explicitStationsAreAccessible,
+  annotateAccessibleJourneys,
   filterAndAnnotateAccessibleJourneys,
 } from './accessibility';
 
@@ -91,20 +90,6 @@ export function createJourneyPlanner({
       });
 
       const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
-        if (input.requiresAccessibleStations) {
-          if (!(await accessibilitySnapshotAvailable())) {
-            return {
-              value: unavailable(now, 'accessibility-data-unavailable'),
-              ttlSeconds: GTFS_TTL_SECONDS,
-            };
-          }
-          if (!(await explicitStationsAreAccessible(input))) {
-            return {
-              value: noRoute(now, 'no-accessible-route'),
-              ttlSeconds: GTFS_TTL_SECONDS,
-            };
-          }
-        }
         if (!idfm) return gtfsFallback();
 
         const personal = await tryConsumePersonalJourneyBudget(
@@ -193,7 +178,9 @@ async function planWithIdfm(
     const response = await idfm.plan(input, requestedAt, signal);
     if (!response) return null;
     if (!input.requiresAccessibleStations) return qualify(response, 'idfm-realtime', now, input);
-    const journeys = await filterAndAnnotateAccessibleJourneys(response.journeys);
+    // IDFM has already applied `wheelchair=true`. Missing local rail aliases
+    // must not erase a valid, potentially longer bus or tram alternative.
+    const journeys = await annotateAccessibleJourneys(response.journeys);
     const status: PlannedJourneys['status'] = response.status === 'unavailable'
       ? 'unavailable'
       : journeys.length > 0

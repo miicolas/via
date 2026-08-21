@@ -47,6 +47,7 @@ final class SelectedStationModel {
             name: item.name,
             coordinate: item.coordinate,
             routes: item.routes,
+            accessibility: item.accessibility,
             distanceMeters: locationModel.coordinate.map {
                 item.coordinate.metersAway(from: $0)
             },
@@ -107,6 +108,7 @@ final class SelectedStationModel {
                 name: initialOverview.name,
                 coordinate: initialOverview.coordinate,
                 routes: initialOverview.routes,
+                accessibility: initialOverview.accessibility,
                 distanceMeters: initialOverview.distanceMeters,
                 departures: StationOverviewBuilder.nextDepartures(
                     from: board,

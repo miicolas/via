@@ -14,8 +14,10 @@ struct SearchFiltersMenu: View {
                     set: onSetRequiresAccessibleStations
                 )
             ) {
-                Label("Trajet via gares accessibles PMR", systemImage: "figure.roll")
+                Label("PMR", systemImage: "figure.roll")
+                    .labelStyle(.iconOnly)
             }
+            .accessibilityLabel("PMR")
 
             Divider()
 

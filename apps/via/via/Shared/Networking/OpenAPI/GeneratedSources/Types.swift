@@ -3860,6 +3860,43 @@ internal enum Operations {
                             internal var coordinate: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.coordinatePayload
                             /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/routeIds`.
                             internal var routeIds: [Swift.String]
+                            /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/accessibility`.
+                            internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/accessibility/condition`.
+                                internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case reservationRequired = "reservationRequired"
+                                    case staffAssistance = "staffAssistance"
+                                    case autonomous = "autonomous"
+                                }
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/accessibility/condition`.
+                                internal var condition: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload.conditionPayload
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/accessibility/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/accessibility/comment`.
+                                internal var comment: Swift.String?
+                                /// Creates a new `accessibilityPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - condition:
+                                ///   - label:
+                                ///   - comment:
+                                internal init(
+                                    condition: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload.conditionPayload,
+                                    label: Swift.String,
+                                    comment: Swift.String? = nil
+                                ) {
+                                    self.condition = condition
+                                    self.label = label
+                                    self.comment = comment
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case condition
+                                    case label
+                                    case comment
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/accessibility`.
+                            internal var accessibility: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload?
                             /// Creates a new `stationsPayloadPayload`.
                             ///
                             /// - Parameters:
@@ -3867,22 +3904,26 @@ internal enum Operations {
                             ///   - name:
                             ///   - coordinate:
                             ///   - routeIds:
+                            ///   - accessibility:
                             internal init(
                                 id: Swift.String,
                                 name: Swift.String,
                                 coordinate: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.coordinatePayload,
-                                routeIds: [Swift.String]
+                                routeIds: [Swift.String],
+                                accessibility: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil
                             ) {
                                 self.id = id
                                 self.name = name
                                 self.coordinate = coordinate
                                 self.routeIds = routeIds
+                                self.accessibility = accessibility
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case id
                                 case name
                                 case coordinate
                                 case routeIds
+                                case accessibility
                             }
                         }
                         /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stations`.
@@ -4088,6 +4129,43 @@ internal enum Operations {
                             internal var coordinate: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.coordinatePayload
                             /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/routeIds`.
                             internal var routeIds: [Swift.String]
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/accessibility`.
+                            internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/accessibility/condition`.
+                                internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case reservationRequired = "reservationRequired"
+                                    case staffAssistance = "staffAssistance"
+                                    case autonomous = "autonomous"
+                                }
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/accessibility/condition`.
+                                internal var condition: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload.conditionPayload
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/accessibility/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/accessibility/comment`.
+                                internal var comment: Swift.String?
+                                /// Creates a new `accessibilityPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - condition:
+                                ///   - label:
+                                ///   - comment:
+                                internal init(
+                                    condition: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload.conditionPayload,
+                                    label: Swift.String,
+                                    comment: Swift.String? = nil
+                                ) {
+                                    self.condition = condition
+                                    self.label = label
+                                    self.comment = comment
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case condition
+                                    case label
+                                    case comment
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/accessibility`.
+                            internal var accessibility: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload?
                             /// Creates a new `stationsPayloadPayload`.
                             ///
                             /// - Parameters:
@@ -4095,22 +4173,26 @@ internal enum Operations {
                             ///   - name:
                             ///   - coordinate:
                             ///   - routeIds:
+                            ///   - accessibility:
                             internal init(
                                 id: Swift.String,
                                 name: Swift.String,
                                 coordinate: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.coordinatePayload,
-                                routeIds: [Swift.String]
+                                routeIds: [Swift.String],
+                                accessibility: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil
                             ) {
                                 self.id = id
                                 self.name = name
                                 self.coordinate = coordinate
                                 self.routeIds = routeIds
+                                self.accessibility = accessibility
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case id
                                 case name
                                 case coordinate
                                 case routeIds
+                                case accessibility
                             }
                         }
                         /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stations`.

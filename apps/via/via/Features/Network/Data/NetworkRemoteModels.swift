@@ -15,17 +15,34 @@ struct NetworkRouteDTO: Decodable {
 }
 
 struct NetworkStationDTO: Decodable {
+    struct Accessibility: Decodable {
+        let condition: String
+        let label: String
+        let comment: String?
+    }
+
     let id: String
     let name: String
     let coordinate: CoordinateDTO
     let routeIds: [String]
+    let accessibility: Accessibility?
 
     func domain() -> NetworkStation {
         NetworkStation(
             id: StationID(rawValue: id),
             name: name,
             coordinate: coordinate.domain,
-            routeIDs: routeIds.map(RouteID.init(rawValue:))
+            routeIDs: routeIds.map(RouteID.init(rawValue:)),
+            accessibility: accessibility.flatMap { value in
+                guard let condition = StationAccessibility.Condition(rawValue: value.condition) else {
+                    return nil
+                }
+                return StationAccessibility(
+                    condition: condition,
+                    label: value.label,
+                    comment: value.comment
+                )
+            }
         )
     }
 }

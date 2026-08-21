@@ -214,6 +214,28 @@ describe('journey planning module', () => {
     expect(calls.idfm).toBe(2);
     expect(response.journeys[0]?.id).toBe('bus');
   });
+
+  test('keeps a wheelchair IDFM detour without requiring local station facts', async () => {
+    const detour = modalJourney('bus', 3_600);
+    const { planner, calls } = setup({
+      idfmResult: { status: 'ready', journeys: [detour] },
+    });
+
+    const response = await plan(planner, undefined, {
+      ...input,
+      destination: {
+        kind: 'address',
+        id: 'rue-de-chabrol',
+        name: 'Rue de Chabrol',
+        coordinate: { latitude: 48.8762, longitude: 2.3517 },
+      },
+      requiresAccessibleStations: true,
+    });
+
+    expect(response).toMatchObject({ status: 'ready', source: 'idfm-realtime' });
+    expect(response.journeys.map((journey) => journey.id)).toEqual(['bus']);
+    expect(calls).toEqual({ idfm: 1, gtfs: 0 });
+  });
 });
 
 function modalJourney(mode: JourneyMode, durationSeconds: number): Journey {
