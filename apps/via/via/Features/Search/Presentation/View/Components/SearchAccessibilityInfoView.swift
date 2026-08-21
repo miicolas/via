@@ -12,7 +12,7 @@ struct SearchAccessibilityInfoView: View {
                     Label("Filtre PMR", systemImage: "figure.roll")
                         .font(.title2.weight(.bold))
 
-                    Text("Via vérifie les gares utilisées pour monter, descendre ou changer de ligne. Les gares seulement traversées ne sont pas bloquantes.")
+                    Text("Via demande à Île-de-France Mobilités un itinéraire adapté aux personnes en fauteuil roulant. Le résultat peut être nettement plus long qu’un trajet classique.")
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 12) {
@@ -24,7 +24,7 @@ struct SearchAccessibilityInfoView: View {
                         Label("Sur réservation", systemImage: "calendar.badge.clock")
                     }
 
-                    Text("Les itinéraires nécessitant une réservation ou l’assistance d’un agent restent proposés avec un avertissement. Si la donnée PMR est indisponible, Via n’affiche pas de trajet présenté comme vérifié.")
+                    Text("Les itinéraires nécessitant une réservation ou l’assistance d’un agent restent proposés avec un avertissement. Les données locales complètent le résultat sans supprimer un itinéraire PMR renvoyé par Île-de-France Mobilités.")
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 8) {

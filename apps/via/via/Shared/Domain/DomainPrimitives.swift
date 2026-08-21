@@ -58,6 +58,26 @@ struct GeoBounds: Codable, Sendable, Hashable {
     }
 }
 
+struct StationAccessibility: Sendable, Hashable, Codable {
+    enum Condition: String, Sendable, Hashable, Codable {
+        case reservationRequired
+        case staffAssistance
+        case autonomous
+
+        var label: String {
+            switch self {
+            case .reservationRequired: "Sur réservation"
+            case .staffAssistance: "Avec un agent"
+            case .autonomous: "En autonomie"
+            }
+        }
+    }
+
+    let condition: Condition
+    let label: String
+    let comment: String?
+}
+
 /// Cases are declared in presentation order; `Comparable` sorts by it.
 enum TransitMode: String, Codable, CaseIterable, Sendable, Hashable, Comparable {
     case metro

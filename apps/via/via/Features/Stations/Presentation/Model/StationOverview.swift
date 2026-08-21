@@ -45,6 +45,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
     let name: String
     let coordinate: GeoCoordinate
     let routes: [RouteBadge]
+    let accessibility: StationAccessibility?
     let distanceMeters: Double?
     let departures: [StationDeparture]
     let departureSource: DepartureBoard.Source
@@ -55,6 +56,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         name: String,
         coordinate: GeoCoordinate,
         routes: [RouteBadge],
+        accessibility: StationAccessibility? = nil,
         distanceMeters: Double?,
         departures: [StationDeparture],
         departureSource: DepartureBoard.Source,
@@ -64,6 +66,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         self.name = name
         self.coordinate = coordinate
         self.routes = routes
+        self.accessibility = accessibility
         self.distanceMeters = distanceMeters
         self.departures = departures
         self.departureSource = departureSource
@@ -140,6 +143,11 @@ extension StationOverview {
             name: "Châtelet",
             coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470),
             routes: [metro1, metro4, metro11],
+            accessibility: StationAccessibility(
+                condition: .autonomous,
+                label: "En autonomie",
+                comment: nil
+            ),
             distanceMeters: 250,
             departures: [
                 StationDeparture(

@@ -25,26 +25,6 @@ struct StationSearchResult: Sendable, Hashable, Identifiable {
     }
 }
 
-struct StationAccessibility: Sendable, Hashable, Codable {
-    enum Condition: String, Sendable, Hashable, Codable {
-        case reservationRequired
-        case staffAssistance
-        case autonomous
-
-        var label: String {
-            switch self {
-            case .reservationRequired: "Sur réservation"
-            case .staffAssistance: "Avec un agent"
-            case .autonomous: "En autonomie"
-            }
-        }
-    }
-
-    let condition: Condition
-    let label: String
-    let comment: String?
-}
-
 struct AddressSearchResult: Sendable, Hashable, Identifiable {
     let id: String
     let name: String

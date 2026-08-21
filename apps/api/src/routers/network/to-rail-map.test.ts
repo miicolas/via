@@ -50,6 +50,8 @@ const stationRows: RailStationPositionRow[] = [
     routeId: 'IDFM:C01371',
     longitude: 2.3470,
     latitude: 48.8583,
+    accessibilityCondition: 'staffAssistance',
+    accessibilityDetail: 'Agent présent aux heures d’ouverture',
   },
   {
     id: 'IDFM:474151',
@@ -57,6 +59,8 @@ const stationRows: RailStationPositionRow[] = [
     routeId: 'IDFM:C01374',
     longitude: 2.3475,
     latitude: 48.8590,
+    accessibilityCondition: 'staffAssistance',
+    accessibilityDetail: 'Agent présent aux heures d’ouverture',
   },
   {
     id: 'IDFM:463127',
@@ -64,6 +68,8 @@ const stationRows: RailStationPositionRow[] = [
     routeId: 'IDFM:C01371',
     longitude: 2.3410,
     latitude: 48.8607,
+    accessibilityCondition: null,
+    accessibilityDetail: null,
   },
 ];
 
@@ -148,6 +154,11 @@ describe('toRailMap', () => {
     const [chatelet] = stations;
     expect(chatelet.name).toBe('Châtelet');
     expect(chatelet.routeIds).toEqual(['IDFM:C01371', 'IDFM:C01374']);
+    expect(chatelet.accessibility).toEqual({
+      condition: 'staffAssistance',
+      label: 'Avec un agent',
+      comment: 'Agent présent aux heures d’ouverture',
+    });
     // The line-1 row leads, so the anchor is the projection onto line 1 — the
     // same point the old payload served as the station's primary position.
     expect(chatelet.coordinate).toEqual({

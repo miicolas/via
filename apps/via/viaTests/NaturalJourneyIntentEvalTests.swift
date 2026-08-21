@@ -24,6 +24,29 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         }
     }
 
+    func testBareOriginVersDestinationKeepsExplicitOriginAndExcludedMode() async throws {
+        let parser = FoundationModelsIntentParser()
+        try XCTSkipUnless(
+            parser.availability == .available,
+            "Foundation Models français indisponible sur cet appareil ou ce simulateur",
+        )
+        let now = try XCTUnwrap(ISO8601.parse("2026-08-21T11:42:00+02:00"))
+
+        let intent = try await parser.parseIntent(
+            "gare du nord vers orly sans rer",
+            now: now,
+        )
+
+        XCTAssertEqual(intent.scope, .journey)
+        guard case let .place(originQuery) = intent.origin else {
+            return XCTFail("Gare du Nord doit rester l’origine explicite")
+        }
+        XCTAssertEqual(originQuery.lowercased(), "gare du nord")
+        XCTAssertTrue(intent.originWasExplicit)
+        XCTAssertEqual(intent.destinationQuery?.lowercased(), "orly")
+        XCTAssertEqual(intent.excludedModes, [.rer])
+    }
+
     func testAnnotatedFrenchJourneyCorpus() async throws {
         let parser = FoundationModelsIntentParser()
         try XCTSkipUnless(

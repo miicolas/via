@@ -24,19 +24,20 @@ struct JourneyPreferencesSettingsView: View {
             }
 
             Section {
-                Toggle("Stations accessibles uniquement", isOn: Binding(
-                    get: { searchViewModel.filters.accessibleStationsOnly },
-                    set: { searchViewModel.setAccessibleStationsOnly($0) }
-                ))
-
-                Toggle("Trajets accessibles uniquement", isOn: Binding(
-                    get: { searchViewModel.filters.requiresAccessibleStations },
-                    set: { searchViewModel.setRequiresAccessibleStations($0) }
-                ))
+                Toggle(
+                    isOn: Binding(
+                        get: { searchViewModel.filters.requiresAccessibleStations },
+                        set: { searchViewModel.setRequiresAccessibleStations($0) }
+                    )
+                ) {
+                    Label("PMR", systemImage: "figure.roll")
+                        .labelStyle(.iconOnly)
+                }
+                .accessibilityLabel("PMR")
             } header: {
                 Text("ACCESSIBILITÉ")
             } footer: {
-                Text("Le second réglage active automatiquement le filtrage des stations accessibles.")
+                Text("Via demande un itinéraire accessible, même s’il est nettement plus long.")
             }
         }
         .navigationTitle("Préférences de trajet")

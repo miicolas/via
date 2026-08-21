@@ -1346,6 +1346,875 @@
         }
       }
     },
+    "/natural-journeys": {
+      "post": {
+        "operationId": "naturalJourneys.submit",
+        "summary": "Interpréter une phrase et calculer un itinéraire",
+        "description": "Point d'entrée du repli serveur : reçoit une phrase en langage naturel, sa position éventuelle et le contexte temporel, puis renvoie le même résultat structuré que le chemin local. Réservé aux soumissions initiales — les clarifications restent traitées sur l’appareil.",
+        "tags": [
+          "natural-journeys"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "requestedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "query"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "ready"
+                        },
+                        "interpretation": {
+                          "type": "object",
+                          "properties": {
+                            "originLabel": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "station"
+                                    },
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    },
+                                    "routes": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "shortName": {
+                                            "type": "string"
+                                          },
+                                          "mode": {
+                                            "enum": [
+                                              "metro",
+                                              "rer",
+                                              "transilien",
+                                              "tram",
+                                              "bus"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "color": {
+                                            "type": "string"
+                                          },
+                                          "textColor": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "shortName",
+                                          "mode",
+                                          "color",
+                                          "textColor"
+                                        ]
+                                      }
+                                    },
+                                    "distanceMeters": {
+                                      "type": "number"
+                                    },
+                                    "accessibility": {
+                                      "type": "object",
+                                      "properties": {
+                                        "condition": {
+                                          "enum": [
+                                            "reservationRequired",
+                                            "staffAssistance",
+                                            "autonomous"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "condition",
+                                        "label"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "id",
+                                    "name",
+                                    "coordinate",
+                                    "routes"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "address"
+                                    },
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "context": {
+                                      "type": "string"
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    },
+                                    "distanceMeters": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "id",
+                                    "name",
+                                    "context",
+                                    "coordinate"
+                                  ]
+                                }
+                              ]
+                            },
+                            "destination": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "station"
+                                    },
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "id",
+                                    "name",
+                                    "coordinate"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "address"
+                                    },
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1
+                                    },
+                                    "context": {
+                                      "type": "string"
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "id",
+                                    "name",
+                                    "coordinate"
+                                  ]
+                                }
+                              ]
+                            },
+                            "destinationResult": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "station"
+                                    },
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    },
+                                    "routes": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "shortName": {
+                                            "type": "string"
+                                          },
+                                          "mode": {
+                                            "enum": [
+                                              "metro",
+                                              "rer",
+                                              "transilien",
+                                              "tram",
+                                              "bus"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "color": {
+                                            "type": "string"
+                                          },
+                                          "textColor": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "shortName",
+                                          "mode",
+                                          "color",
+                                          "textColor"
+                                        ]
+                                      }
+                                    },
+                                    "distanceMeters": {
+                                      "type": "number"
+                                    },
+                                    "accessibility": {
+                                      "type": "object",
+                                      "properties": {
+                                        "condition": {
+                                          "enum": [
+                                            "reservationRequired",
+                                            "staffAssistance",
+                                            "autonomous"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "label": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "condition",
+                                        "label"
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "id",
+                                    "name",
+                                    "coordinate",
+                                    "routes"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "address"
+                                    },
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "context": {
+                                      "type": "string"
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    },
+                                    "distanceMeters": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "id",
+                                    "name",
+                                    "context",
+                                    "coordinate"
+                                  ]
+                                }
+                              ]
+                            },
+                            "requestedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "datetimeRepresents": {
+                              "enum": [
+                                "departure",
+                                "arrival"
+                              ],
+                              "type": "string"
+                            },
+                            "requiredModes": {
+                              "type": "array",
+                              "items": {
+                                "enum": [
+                                  "metro",
+                                  "rer",
+                                  "transilien",
+                                  "tram",
+                                  "bus"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "excludedModes": {
+                              "type": "array",
+                              "items": {
+                                "enum": [
+                                  "metro",
+                                  "rer",
+                                  "transilien",
+                                  "tram",
+                                  "bus"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "preferredModes": {
+                              "type": "array",
+                              "items": {
+                                "enum": [
+                                  "metro",
+                                  "rer",
+                                  "transilien",
+                                  "tram",
+                                  "bus"
+                                ],
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "originLabel",
+                            "destination",
+                            "destinationResult",
+                            "requestedAt",
+                            "datetimeRepresents",
+                            "requiredModes",
+                            "excludedModes",
+                            "preferredModes"
+                          ]
+                        },
+                        "journeys": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "enum": [
+                                "ready",
+                                "no-route",
+                                "unavailable"
+                              ],
+                              "type": "string"
+                            },
+                            "source": {
+                              "enum": [
+                                "idfm-realtime",
+                                "gtfs-theoretical"
+                              ],
+                              "type": "string"
+                            },
+                            "generatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "reason": {
+                              "enum": [
+                                "no-accessible-route",
+                                "accessibility-data-unavailable"
+                              ],
+                              "type": "string"
+                            },
+                            "journeys": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "qualifier": {
+                                    "enum": [
+                                      "recommended",
+                                      "rapid",
+                                      "less-walking",
+                                      "comfort",
+                                      "walking"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "durationSeconds": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "walkingDurationSeconds": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "transferCount": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "departureAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "arrivalAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  },
+                                  "status": {
+                                    "enum": [
+                                      "normal",
+                                      "disrupted",
+                                      "theoretical"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "warnings": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "accessibility": {
+                                    "type": "object",
+                                    "properties": {
+                                      "condition": {
+                                        "enum": [
+                                          "reservationRequired",
+                                          "staffAssistance",
+                                          "autonomous"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "condition",
+                                      "label"
+                                    ]
+                                  },
+                                  "sections": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "type": {
+                                          "enum": [
+                                            "walk",
+                                            "wait",
+                                            "transfer",
+                                            "transit"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "durationSeconds": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "from": {
+                                          "type": "object",
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "coordinate": {
+                                              "type": "object",
+                                              "properties": {
+                                                "latitude": {
+                                                  "type": "number"
+                                                },
+                                                "longitude": {
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "required": [
+                                                "latitude",
+                                                "longitude"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "name",
+                                            "coordinate"
+                                          ]
+                                        },
+                                        "to": {
+                                          "type": "object",
+                                          "properties": {
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "coordinate": {
+                                              "type": "object",
+                                              "properties": {
+                                                "latitude": {
+                                                  "type": "number"
+                                                },
+                                                "longitude": {
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "required": [
+                                                "latitude",
+                                                "longitude"
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "name",
+                                            "coordinate"
+                                          ]
+                                        },
+                                        "departureAt": {
+                                          "type": "string",
+                                          "format": "date-time"
+                                        },
+                                        "arrivalAt": {
+                                          "type": "string",
+                                          "format": "date-time"
+                                        },
+                                        "geometry": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "latitude": {
+                                                "type": "number"
+                                              },
+                                              "longitude": {
+                                                "type": "number"
+                                              }
+                                            },
+                                            "required": [
+                                              "latitude",
+                                              "longitude"
+                                            ]
+                                          }
+                                        },
+                                        "route": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string"
+                                            },
+                                            "shortName": {
+                                              "type": "string"
+                                            },
+                                            "longName": {
+                                              "type": "string"
+                                            },
+                                            "mode": {
+                                              "enum": [
+                                                "metro",
+                                                "rer",
+                                                "transilien",
+                                                "tram",
+                                                "bus"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "color": {
+                                              "type": "string"
+                                            },
+                                            "textColor": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "shortName",
+                                            "longName",
+                                            "mode",
+                                            "color",
+                                            "textColor"
+                                          ]
+                                        },
+                                        "direction": {
+                                          "type": "string"
+                                        },
+                                        "platform": {
+                                          "type": "string"
+                                        },
+                                        "stops": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
+                                              },
+                                              "name": {
+                                                "type": "string"
+                                              },
+                                              "coordinate": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "latitude": {
+                                                    "type": "number"
+                                                  },
+                                                  "longitude": {
+                                                    "type": "number"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "latitude",
+                                                  "longitude"
+                                                ]
+                                              },
+                                              "arrivalAt": {
+                                                "type": "string",
+                                                "format": "date-time"
+                                              },
+                                              "departureAt": {
+                                                "type": "string",
+                                                "format": "date-time"
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "name",
+                                              "coordinate"
+                                            ]
+                                          },
+                                          "default": []
+                                        }
+                                      },
+                                      "required": [
+                                        "type",
+                                        "durationSeconds",
+                                        "from",
+                                        "to",
+                                        "geometry"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "qualifier",
+                                  "durationSeconds",
+                                  "walkingDurationSeconds",
+                                  "transferCount",
+                                  "departureAt",
+                                  "arrivalAt",
+                                  "status",
+                                  "warnings",
+                                  "sections"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "status",
+                            "generatedAt",
+                            "journeys"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "interpretation",
+                        "journeys"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "unsupported"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "examples": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "message",
+                        "examples"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "outcome": {
+                          "const": "unavailable"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "outcome",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/lines/statuses": {
       "get": {
         "operationId": "lines.statuses",
@@ -2034,6 +2903,29 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "accessibility": {
+                            "type": "object",
+                            "properties": {
+                              "condition": {
+                                "enum": [
+                                  "reservationRequired",
+                                  "staffAssistance",
+                                  "autonomous"
+                                ],
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "comment": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "condition",
+                              "label"
+                            ]
                           }
                         },
                         "required": [
@@ -2153,6 +3045,29 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "accessibility": {
+                            "type": "object",
+                            "properties": {
+                              "condition": {
+                                "enum": [
+                                  "reservationRequired",
+                                  "staffAssistance",
+                                  "autonomous"
+                                ],
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "comment": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "condition",
+                              "label"
+                            ]
                           }
                         },
                         "required": [

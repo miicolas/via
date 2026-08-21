@@ -1,6 +1,10 @@
 import * as z from 'zod';
 
-import { coordinateSchema, routeBadgeSchema } from '../shared/schema';
+import {
+  accessibilityConditionSchema,
+  coordinateSchema,
+  routeBadgeSchema,
+} from '../shared/schema';
 
 /**
  * One continuous run of track, drawn as a single polyline. Not one GTFS shape:
@@ -28,6 +32,13 @@ export const networkStationSchema = z.object({
   coordinate: coordinateSchema,
   /** Which lines serve this station, resolvable against the response's routes. */
   routeIds: z.array(z.string()),
+  accessibility: z
+    .object({
+      condition: accessibilityConditionSchema,
+      label: z.string(),
+      comment: z.string().optional(),
+    })
+    .optional(),
 });
 
 /**

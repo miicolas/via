@@ -29,10 +29,12 @@ final class SelectedStationModelTests: XCTestCase {
         XCTAssertEqual(model.overview?.id, item.id)
         XCTAssertEqual(model.overview?.departureSource, .unavailable)
         XCTAssertTrue(model.overview?.departures.isEmpty == true)
+        XCTAssertEqual(model.overview?.accessibility?.condition, .autonomous)
 
         await waitUntil { model.overview?.departureSource == .realtime }
 
         XCTAssertEqual(model.overview?.departures.first?.destination, "La Défense")
+        XCTAssertEqual(model.overview?.accessibility?.condition, .autonomous)
     }
 
     func testObsoleteDepartureResponseCannotReplaceNewSelection() async {
@@ -125,7 +127,12 @@ final class SelectedStationModelTests: XCTestCase {
             id: StationID(rawValue: id),
             name: id.capitalized,
             coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3522),
-            routes: [route]
+            routes: [route],
+            accessibility: StationAccessibility(
+                condition: .autonomous,
+                label: "En autonomie",
+                comment: nil
+            )
         )
     }
 

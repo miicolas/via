@@ -560,24 +560,12 @@ final class SearchViewModel {
         updateFilters { $0.requiresAccessibleStations = enabled }
     }
 
-    func setAccessibleStationsOnly(_ enabled: Bool) {
-        updateFilters { $0.accessibleStationsOnly = enabled }
-    }
-
     private func updateFilters(_ update: (inout SearchFilters) -> Void) {
         var next = filters
         update(&next)
         guard next != filters else { return }
         filters = next
         filterStore.save(next)
-
-        if (next.accessibleStationsOnly || next.requiresAccessibleStations),
-           let destination = selectedDestination,
-           case .station(let station) = destination,
-           station.accessibility == nil {
-            editDestination()
-            return
-        }
 
         if selectedDestination != nil, step != .destination {
             planJourney()
@@ -774,14 +762,9 @@ final class SearchViewModel {
             )
             guard !Task.isCancelled else { return }
 
-            let filteredResults = response.results.filter { result in
-                guard filters.accessibleStationsOnly else { return true }
-                guard case .station(let station) = result else { return true }
-                return station.accessibility != nil
-            }
-            results = filteredResults
+            results = response.results
             accessibilitySource = response.accessibilitySource
-            loadState = filteredResults.isEmpty ? .empty : .loaded
+            loadState = response.results.isEmpty ? .empty : .loaded
         } catch is CancellationError {
         } catch {
             guard !Task.isCancelled else { return }

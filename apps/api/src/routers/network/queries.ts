@@ -4,6 +4,7 @@ import {
   transitRoutePatterns,
   transitRoutePatternStops,
   transitRoutes,
+  stationFacts,
   transitStopRoutes,
   transitStops,
 } from '@via/db/schema';
@@ -54,6 +55,8 @@ export function selectRailStationPositions() {
       routeId: transitRoutes.id,
       longitude: sql<number>`ST_X(${displayedSnappedPoint})`,
       latitude: sql<number>`ST_Y(${displayedSnappedPoint})`,
+      accessibilityCondition: stationFacts.condition,
+      accessibilityDetail: stationFacts.detail,
     })
     .from(transitRoutePatternStops)
     .innerJoin(
@@ -62,8 +65,18 @@ export function selectRailStationPositions() {
     )
     .innerJoin(transitRoutes, eq(transitRoutePatterns.routeId, transitRoutes.id))
     .innerJoin(transitStops, eq(transitRoutePatternStops.stopId, transitStops.id))
+    .leftJoin(
+      stationFacts,
+      and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
+    )
     .where(and(drawnRouteCondition(), isNotNull(transitRoutePatternStops.snappedLocation)))
-    .groupBy(transitStops.id, transitStops.name, transitRoutes.id)
+    .groupBy(
+      transitStops.id,
+      transitStops.name,
+      transitRoutes.id,
+      stationFacts.condition,
+      stationFacts.detail
+    )
     .orderBy(asc(transitStops.name), asc(transitRoutes.id));
 }
 
@@ -79,6 +92,8 @@ export function selectStationsInArea(area: StationsInAreaInput) {
       name: transitStops.name,
       longitude: sql<number>`ST_X(${transitStops.location})`,
       latitude: sql<number>`ST_Y(${transitStops.location})`,
+      accessibilityCondition: stationFacts.condition,
+      accessibilityDetail: stationFacts.detail,
       routes: sql<RouteBadgeRow[]>`json_agg(DISTINCT jsonb_build_object(
         'id', ${transitRoutes.id},
         'shortName', ${transitRoutes.shortName},
@@ -90,6 +105,10 @@ export function selectStationsInArea(area: StationsInAreaInput) {
     .from(transitStops)
     .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
     .innerJoin(transitRoutes, eq(transitStopRoutes.routeId, transitRoutes.id))
+    .leftJoin(
+      stationFacts,
+      and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
+    )
     .where(
       and(
         networkRouteCondition(),
@@ -98,7 +117,12 @@ export function selectStationsInArea(area: StationsInAreaInput) {
           ${area.maxLongitude}, ${area.maxLatitude}, 4326)`
       )
     )
-    .groupBy(transitStops.id, transitStops.name)
+    .groupBy(
+      transitStops.id,
+      transitStops.name,
+      stationFacts.condition,
+      stationFacts.detail
+    )
     .orderBy(asc(transitStops.name));
 }
 
