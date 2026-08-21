@@ -9,7 +9,9 @@ final class TransportTests: XCTestCase {
         let recorder = TransportRecorder()
         let middleware = BearerAuthenticationMiddleware(
             vault: vault,
-            onUnauthorized: { await recorder.recordUnauthorized() }
+            onUnauthorized: { bearerToken in
+                await recorder.recordUnauthorized(bearerToken: bearerToken)
+            }
         )
         let request = HTTPRequest(
             method: .get,
@@ -33,9 +35,11 @@ final class TransportTests: XCTestCase {
         let authorization = await recorder.authorization
         let storedBearer = try await vault.load()?.bearerToken
         let unauthorizedCount = await recorder.unauthorizedCount
+        let rejectedBearer = await recorder.rejectedBearer
         XCTAssertEqual(authorization, "Bearer old.token")
         XCTAssertEqual(storedBearer, "new.token")
         XCTAssertEqual(unauthorizedCount, 1)
+        XCTAssertEqual(rejectedBearer, "old.token")
     }
 
     func testGetRetryMiddlewareRetriesServerFailureExactlyOnce() async throws {
@@ -88,14 +92,16 @@ final class TransportTests: XCTestCase {
 private actor TransportRecorder {
     private(set) var authorization: String?
     private(set) var unauthorizedCount = 0
+    private(set) var rejectedBearer: String?
     private(set) var attemptCount = 0
 
     func recordAuthorization(_ value: String?) {
         authorization = value
     }
 
-    func recordUnauthorized() {
+    func recordUnauthorized(bearerToken: String) {
         unauthorizedCount += 1
+        rejectedBearer = bearerToken
     }
 
     func recordAttempt() -> Int {

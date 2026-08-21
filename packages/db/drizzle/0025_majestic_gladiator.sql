@@ -1,0 +1,2 @@
+ALTER TABLE "notification_journey_subscriptions" ADD COLUMN "delivery_shard" integer GENERATED ALWAYS AS (mod(hashtextextended(installation_id, 0) & 9223372036854775807, 64)) STORED;--> statement-breakpoint
+CREATE INDEX "notification_journey_subscriptions_delivery_shard_idx" ON "notification_journey_subscriptions" USING btree ("delivery_shard","installation_id");

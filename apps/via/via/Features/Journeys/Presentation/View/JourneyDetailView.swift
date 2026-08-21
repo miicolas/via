@@ -84,14 +84,19 @@ struct JourneyDetailView: View {
         .journeyTrackingAlert(isPresented: $isActivationExplanationPresented) {
             go(allowsBackgroundTracking: $0)
         }
-        .alert("Notifications désactivées", isPresented: $isNotificationSettingsPresented) {
-            Button("Ouvrir les réglages iOS") {
-                guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                openURL(url)
+        .alert("Rappel non programmé", isPresented: $isNotificationSettingsPresented) {
+            if journeyNotificationCoordinator.authorizationStatus == .denied {
+                Button("Ouvrir les réglages iOS") {
+                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                    openURL(url)
+                }
             }
-            Button("Plus tard", role: .cancel) {}
+            Button("OK", role: .cancel) {}
         } message: {
-            Text("Votre rappel est mémorisé. Autorisez les notifications dans Réglages iOS pour le recevoir.")
+            Text(
+                journeyNotificationCoordinator.lastError ??
+                    "Votre rappel est mémorisé et sera réessayé plus tard."
+            )
         }
         .onAppear {
             onHighlightSection(highlightedSectionID)
@@ -131,6 +136,7 @@ struct JourneyDetailView: View {
                     .font(.headline)
                 }
                 .secondaryAction()
+                .disabled(journeyNotificationCoordinator.isUpdatingReminder)
                 .accessibilityValue(isReminderScheduled ? "Activé" : "Désactivé")
             }
             .padding(.horizontal, 16)
@@ -181,7 +187,7 @@ struct JourneyDetailView: View {
     }
 
     private var isReminderScheduled: Bool {
-        journeyNotificationCoordinator.reminder?.journey.id == journey.id
+        journeyNotificationCoordinator.scheduledJourneyID == journey.id
     }
 
     private func toggleReminder() async {
@@ -193,7 +199,7 @@ struct JourneyDetailView: View {
                 destination: destination,
                 source: source
             )
-            if journeyNotificationCoordinator.authorizationStatus == .denied {
+            if journeyNotificationCoordinator.lastError != nil {
                 isNotificationSettingsPresented = true
             }
         }

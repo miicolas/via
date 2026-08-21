@@ -9,7 +9,7 @@ struct APITransport: Sendable {
     init(
         baseURL: URL,
         authSessionVault: any AuthSessionVault,
-        onUnauthorized: @escaping @Sendable () async -> Void = {}
+        onUnauthorized: @escaping @Sendable (String) async -> Void = { _ in }
     ) {
         let configuration = URLSessionConfiguration.apiSessionConfiguration(base: .default)
         configuration.urlCache = URLCache(
@@ -96,7 +96,7 @@ struct APITransport: Sendable {
 
 struct BearerAuthenticationMiddleware: ClientMiddleware {
     let vault: any AuthSessionVault
-    let onUnauthorized: @Sendable () async -> Void
+    let onUnauthorized: @Sendable (String) async -> Void
 
     @concurrent
     nonisolated func intercept(
@@ -111,7 +111,9 @@ struct BearerAuthenticationMiddleware: ClientMiddleware {
         ) async throws -> (HTTPTypes.HTTPResponse, OpenAPIRuntime.HTTPBody?)
     ) async throws -> (HTTPTypes.HTTPResponse, OpenAPIRuntime.HTTPBody?) {
         var request = request
+        var bearerToken: String?
         if let session = try? await vault.load() {
+            bearerToken = session.bearerToken
             request.headerFields[.authorization] = "Bearer \(session.bearerToken)"
         }
 
@@ -121,8 +123,8 @@ struct BearerAuthenticationMiddleware: ClientMiddleware {
            !bearer.isEmpty {
             try? await vault.updateBearer(bearer)
         }
-        if response.0.status == .unauthorized {
-            await onUnauthorized()
+        if response.0.status == .unauthorized, let bearerToken {
+            await onUnauthorized(bearerToken)
         }
         return response
     }

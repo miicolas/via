@@ -68,7 +68,7 @@ struct SettingsView: View {
                     NavigationLink {
                         PermissionsSettingsView(
                             locationModel: locationModel,
-                            pushNotificationManager: pushNotificationManager
+                            journeyNotificationCoordinator: journeyNotificationCoordinator
                         )
                     } label: {
                         SettingsRow(

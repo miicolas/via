@@ -31,7 +31,13 @@ struct JourneyNotificationEvent: Codable, Sendable, Hashable, Identifiable {
 
     var id: String { identifier }
 
-    var requestIdentifier: String { "via.journey.\(journeyID.rawValue).\(id)" }
+    /// The orphan sweep matches on this prefix, so the scheme lives here rather
+    /// than as a literal in the coordinator that would not fail to compile.
+    static let requestIdentifierPrefix = "via.journey."
+
+    var requestIdentifier: String {
+        "\(Self.requestIdentifierPrefix)\(journeyID.rawValue).\(id)"
+    }
 
     var deepLink: URL {
         var components = URLComponents()

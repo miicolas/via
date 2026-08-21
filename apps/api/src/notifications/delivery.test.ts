@@ -20,16 +20,18 @@ const device: NotificationDevice = {
 
 function fakeStore() {
   const removed = {
-    devices: [] as string[],
+    devices: [] as Array<{ token: string; invalidatedAt?: Date }>,
   };
   const store: NotificationTokenStore = {
     registerDevice: async () => {},
     unregisterDevice: async () => {},
-    registerActivity: async () => {},
-    unregisterActivity: async () => {},
-    registerPushToStartToken: async () => {},
-    removeDeviceToken: async (token) => {
-      removed.devices.push(token);
+    removeDeviceToken: async (
+      token,
+      _bundleId,
+      _environment,
+      invalidatedAt,
+    ) => {
+      removed.devices.push({ token, invalidatedAt });
     },
   };
   return { store, removed };
@@ -57,7 +59,7 @@ test("notification delivery sends a device push with the alert payload", async (
       title: "Via",
       body: "Le trajet est prêt.",
     }),
-  ).resolves.toEqual({ sent: 1, failed: 0 });
+  ).resolves.toBeUndefined();
 
   expect(requests[0]).toMatchObject({
     token: device.deviceToken,
@@ -72,20 +74,21 @@ test("notification delivery sends a device push with the alert payload", async (
   });
 });
 
-test("invalid APNs tokens are removed while the delivery report remains partial", async () => {
+test("invalid APNs tokens are conditionally removed and the permanent error surfaces", async () => {
   const { store, removed } = fakeStore();
+  const invalidatedAt = new Date("2026-08-21T11:59:00Z");
   const apns: APNsProvider = {
     send: async () => {
-      throw new APNsError(410, "Unregistered", "gone");
+      throw new APNsError(410, "Unregistered", "gone", invalidatedAt);
     },
   };
   const delivery = createNotificationDelivery({ apns, tokens: store });
 
   await expect(
     delivery.sendToDevice(device, { title: "Via", body: "Test" }),
-  ).resolves.toEqual({
-    sent: 0,
-    failed: 1,
-  });
-  expect(removed.devices).toEqual([device.deviceToken]);
+  ).rejects.toMatchObject({ retryable: false });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(removed.devices).toEqual([
+    { token: device.deviceToken, invalidatedAt },
+  ]);
 });

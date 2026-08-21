@@ -15,9 +15,20 @@ export class APNsNotConfiguredError extends Error {
   }
 }
 
-export interface DeliveryReport {
-  sent: number;
-  failed: number;
+export class NotificationDeliveryError extends Error {
+  readonly retryable: boolean;
+  readonly failureScope: "device" | "global";
+  readonly invalidToken: boolean;
+
+  constructor(readonly deliveryCause: unknown) {
+    const apnsError =
+      deliveryCause instanceof APNsError ? deliveryCause : undefined;
+    super(apnsError ? `APNs: ${apnsError.reason}` : "APNs transport failed");
+    this.name = "NotificationDeliveryError";
+    this.retryable = apnsError?.isRetryable ?? true;
+    this.failureScope = apnsError?.failureScope ?? "global";
+    this.invalidToken = apnsError?.isInvalidToken ?? false;
+  }
 }
 
 export type NotificationDeviceTarget = {
@@ -30,7 +41,7 @@ export interface NotificationDelivery {
   sendToDevice(
     target: NotificationDeviceTarget,
     notification: DeviceNotification,
-  ): Promise<DeliveryReport>;
+  ): Promise<void>;
 }
 
 export function createNotificationDelivery(options: {
@@ -60,30 +71,32 @@ export function createNotificationDelivery(options: {
         pushType: "alert",
         priority: 10,
         collapseId: notification.collapseId,
+        expirationAt: notification.expirationAt,
         payload: deviceNotificationPayload(notification),
       });
-      return true;
     } catch (error) {
       if (isInvalidToken(error)) {
-        await options.tokens.removeDeviceToken(token, bundleId, environment);
+        void options.tokens
+          .removeDeviceToken(token, bundleId, environment, error.invalidatedAt)
+          .catch((cleanupError) => {
+            console.error(
+              "[notifications] invalid APNs token cleanup failed",
+              cleanupError,
+            );
+          });
       }
-      throw error;
+      throw new NotificationDeliveryError(error);
     }
   }
 
   return {
     async sendToDevice(target, notification) {
-      try {
-        await sendDevice(
-          target.deviceToken,
-          target.bundleId,
-          target.environment,
-          notification,
-        );
-        return { sent: 1, failed: 0 };
-      } catch {
-        return { sent: 0, failed: 1 };
-      }
+      await sendDevice(
+        target.deviceToken,
+        target.bundleId,
+        target.environment,
+        notification,
+      );
     },
   };
 }

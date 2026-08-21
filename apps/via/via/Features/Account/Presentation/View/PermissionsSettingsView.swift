@@ -5,7 +5,7 @@ import UIKit
 
 struct PermissionsSettingsView: View {
     let locationModel: LocationModel
-    let pushNotificationManager: PushNotificationManager
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
 
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
@@ -37,10 +37,10 @@ struct PermissionsSettingsView: View {
                 Text("Metyro demande chaque autorisation uniquement au moment où la fonctionnalité en a besoin.")
             }
 
-            if pushNotificationManager.authorizationStatus == .notDetermined {
+            if journeyNotificationCoordinator.authorizationStatus == .notDetermined {
                 Section {
                     Button("Autoriser les notifications", systemImage: "bell.badge") {
-                        Task { await pushNotificationManager.requestAuthorization() }
+                        Task { await journeyNotificationCoordinator.requestAuthorization() }
                     }
                     .primaryAction()
                 }
@@ -55,7 +55,7 @@ struct PermissionsSettingsView: View {
         .navigationTitle("Autorisations iOS")
         .navigationBarTitleDisplayMode(.large)
         .id(scenePhase)
-        .task { await pushNotificationManager.refreshAuthorizationStatus() }
+        .task { await journeyNotificationCoordinator.refreshAuthorizationStatus() }
     }
 
     private func permissionRow(title: String, systemImage: String, status: PermissionStatus) -> some View {
@@ -100,7 +100,7 @@ struct PermissionsSettingsView: View {
     }
 
     private var notificationStatus: PermissionStatus {
-        switch pushNotificationManager.authorizationStatus {
+        switch journeyNotificationCoordinator.authorizationStatus {
         case .authorized, .provisional, .ephemeral: .authorized
         case .notDetermined: .notRequested
         case .denied: .denied

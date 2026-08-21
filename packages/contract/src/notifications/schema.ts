@@ -1,7 +1,7 @@
-import * as z from "zod";
+import * as z from 'zod';
 
 /** APNs has separate endpoints for development and production tokens. */
-export const apnsEnvironmentSchema = z.enum(["sandbox", "production"]);
+export const apnsEnvironmentSchema = z.enum(['sandbox', 'production']);
 
 /**
  * Device and ActivityKit tokens are opaque hexadecimal values issued by
@@ -10,7 +10,7 @@ export const apnsEnvironmentSchema = z.enum(["sandbox", "production"]);
  */
 export const apnsTokenSchema = z
   .string()
-  .regex(/^[0-9a-f]+$/i, "Le token APNs doit être hexadécimal")
+  .regex(/^[0-9a-f]+$/i, 'Le token APNs doit être hexadécimal')
   .min(32)
   .max(512);
 
@@ -38,6 +38,7 @@ export const notificationDeviceUnregistrationSchema = z.object({
   installationId: notificationInstallationIDSchema,
 });
 
+/** @deprecated Compatibility input for iOS builds predating local-only Live Activities. */
 export const liveActivityRegistrationSchema = z
   .object({
     installationId: notificationInstallationIDSchema,
@@ -47,10 +48,12 @@ export const liveActivityRegistrationSchema = z
   })
   .extend(notificationAppMetadataSchema.shape);
 
+/** @deprecated Compatibility input for iOS builds predating local-only Live Activities. */
 export const liveActivityUnregistrationSchema = z.object({
   activityId: z.string().min(1).max(128),
 });
 
+/** @deprecated Compatibility input for iOS builds predating local-only Live Activities. */
 export const liveActivityPushToStartRegistrationSchema = z
   .object({
     installationId: notificationInstallationIDSchema,
@@ -59,18 +62,50 @@ export const liveActivityPushToStartRegistrationSchema = z
   .extend(notificationAppMetadataSchema.shape);
 
 /** The one journey whose line disruptions the installation wants remotely. */
-export const activeJourneyRegistrationSchema = z
+export const activeJourneyRouteWindowSchema = z
   .object({
-    installationId: notificationInstallationIDSchema,
-    journeyId: z.string().min(1).max(500),
-    routeIds: z.array(z.string().min(1).max(255)).max(64),
+    routeId: z.string().min(1).max(255),
     startsAt: z.iso.datetime({ offset: true }),
     endsAt: z.iso.datetime({ offset: true }),
   })
   .refine((value) => Date.parse(value.endsAt) > Date.parse(value.startsAt), {
-    message: "La fenêtre du trajet doit se terminer après son début.",
-    path: ["endsAt"],
+    message: 'La fenêtre de ligne doit se terminer après son début.',
+    path: ['endsAt'],
   });
+
+export const activeJourneyRegistrationSchema = z
+  .object({
+    installationId: notificationInstallationIDSchema,
+    journeyId: z.string().min(1).max(500),
+    routeWindows: z.array(activeJourneyRouteWindowSchema).max(32).default([]),
+    /** @deprecated Accepted during the route-window rolling migration. */
+    routeIds: z.array(z.string().min(1).max(255)).max(64).default([]),
+    startsAt: z.iso.datetime({ offset: true }),
+    endsAt: z.iso.datetime({ offset: true }),
+  })
+  .refine((value) => Date.parse(value.endsAt) > Date.parse(value.startsAt), {
+    message: 'La fenêtre du trajet doit se terminer après son début.',
+    path: ['endsAt'],
+  })
+  .refine(
+    (value) => value.routeWindows.length > 0 || value.routeIds.length > 0,
+    {
+      message: "Le trajet doit contenir au moins une ligne.",
+      path: ["routeWindows"],
+    },
+  )
+  .refine(
+    (value) =>
+      value.routeWindows.every(
+        (window) =>
+          Date.parse(window.startsAt) >= Date.parse(value.startsAt) &&
+          Date.parse(window.endsAt) <= Date.parse(value.endsAt)
+      ),
+    {
+      message: 'Chaque fenêtre de ligne doit rester dans la fenêtre du trajet.',
+      path: ['routeWindows'],
+    }
+  );
 
 export const activeJourneyUnregistrationSchema = z.object({
   installationId: notificationInstallationIDSchema,

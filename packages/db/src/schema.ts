@@ -4,8 +4,10 @@ import {
   check,
   date,
   doublePrecision,
+  foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   real,
@@ -675,23 +677,32 @@ export const notificationDevices = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     deviceToken: text('device_token').notNull(),
     bundleId: text('bundle_id').notNull(),
-    environment: text('environment', { enum: ['sandbox', 'production'] }).notNull(),
+    environment: text('environment', {
+      enum: ['sandbox', 'production'],
+    }).notNull(),
     appVersion: text('app_version'),
     osVersion: text('os_version'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex('notification_devices_token_uidx').on(
-      table.bundleId,
-      table.environment,
-      table.deviceToken
-    ),
+    uniqueIndex('notification_devices_token_uidx').on(table.bundleId, table.environment, table.deviceToken),
     index('notification_devices_user_idx').on(table.userId),
+    uniqueIndex('notification_devices_installation_user_uidx').on(table.installationId, table.userId),
   ]
 );
 
-/** A push token scoped to one running Live Activity. */
+export type NotificationRouteWindow = {
+  routeId: string;
+  startsAt: number;
+  endsAt: number;
+};
+
+/**
+ * @deprecated Physical compatibility only for API replicas from the ae27
+ * rollout. New code never reads or writes these ActivityKit tokens. Migration
+ * 0026 purges their contents; drop both tables after the old replicas drain.
+ */
 export const notificationLiveActivities = pgTable(
   'notification_live_activities',
   {
@@ -717,10 +728,11 @@ export const notificationLiveActivities = pgTable(
     ),
     index('notification_live_activities_user_idx').on(table.userId),
     index('notification_live_activities_journey_idx').on(table.journeyId),
+    index('notification_live_activities_installation_idx').on(table.installationId),
   ]
 );
 
-/** Token used when the server starts a new Live Activity remotely. */
+/** @deprecated See `notificationLiveActivities`; retained for one rollout window. */
 export const notificationLiveActivityStartTokens = pgTable(
   'notification_live_activity_start_tokens',
   {
@@ -747,6 +759,12 @@ export const notificationLiveActivityStartTokens = pgTable(
 );
 
 /**
+ * The monitor claims one shard at a time, so the column and every reader must
+ * agree on the count: a reader using fewer shards never sees the rest.
+ */
+export const NOTIFICATION_DELIVERY_SHARD_COUNT = 64;
+
+/**
  * One authenticated installation can follow one journey for disruption
  * alerts. The route ids are snapshotted with the timetable so the monitor
  * never needs to decode the full journey again.
@@ -754,14 +772,17 @@ export const notificationLiveActivityStartTokens = pgTable(
 export const notificationJourneySubscriptions = pgTable(
   'notification_journey_subscriptions',
   {
-    installationId: text('installation_id')
-      .primaryKey()
-      .references(() => notificationDevices.installationId, { onDelete: 'cascade' }),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+    installationId: text('installation_id').primaryKey(),
+    userId: text('user_id').notNull(),
     journeyId: text('journey_id').notNull(),
-    routeIds: text('route_ids').array().notNull(),
+    deliveryShard: integer('delivery_shard').generatedAlwaysAs(
+      sql.raw(
+        `mod(hashtextextended(installation_id, 0) & 9223372036854775807, ${NOTIFICATION_DELIVERY_SHARD_COUNT})`
+      )
+    ),
+    /** @deprecated Dual-write compatibility for ae27 replicas. */
+    routeIds: text('route_ids').array().notNull().default(sql`'{}'::text[]`),
+    routeWindows: jsonb('route_windows').$type<NotificationRouteWindow[]>().notNull(),
     startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
     endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -771,6 +792,16 @@ export const notificationJourneySubscriptions = pgTable(
     index('notification_journey_subscriptions_user_idx').on(table.userId),
     index('notification_journey_subscriptions_journey_idx').on(table.journeyId),
     index('notification_journey_subscriptions_ends_idx').on(table.endsAt),
+    index('notification_journey_subscriptions_starts_idx').on(table.startsAt),
+    index('notification_journey_subscriptions_delivery_shard_idx').on(
+      table.deliveryShard,
+      table.installationId
+    ),
+    foreignKey({
+      columns: [table.installationId, table.userId],
+      foreignColumns: [notificationDevices.installationId, notificationDevices.userId],
+      name: 'notification_journey_subscriptions_installation_user_fk',
+    }).onDelete('cascade'),
   ]
 );
 

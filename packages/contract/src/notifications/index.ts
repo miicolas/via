@@ -6,6 +6,6 @@ export {
   notificationsUnregisterActivityRelation,
   notificationsUnregisterActiveJourneyRelation,
   notificationsUnregisterDeviceRelation,
-} from "./relation";
-export * from "./schema";
-export * from "./type";
+} from './relation';
+export * from './schema';
+export * from './type';

@@ -25,6 +25,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     @ObservationIgnored private var recalculationID: UUID?
     @ObservationIgnored private var lastAutomaticRecalculationSectionID: String?
     @ObservationIgnored private var isRestoring = false
+    @ObservationIgnored private var restoreWaiters: [CheckedContinuation<Void, Never>] = []
 
     init(
         locationModel: LocationModel,
@@ -188,9 +189,19 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
 
     func restore() async {
-        guard session == nil, !isRestoring else { return }
+        guard session == nil else { return }
+        if isRestoring {
+            await withCheckedContinuation { continuation in
+                restoreWaiters.append(continuation)
+            }
+            return
+        }
         isRestoring = true
-        defer { isRestoring = false }
+        defer {
+            isRestoring = false
+            restoreWaiters.forEach { $0.resume() }
+            restoreWaiters.removeAll()
+        }
 
         let restored: ActiveJourneySession?
         do {

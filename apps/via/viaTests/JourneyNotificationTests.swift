@@ -81,11 +81,7 @@ final class JourneyNotificationTests: XCTestCase {
             id: JourneyID(rawValue: "second"),
             departureAt: Date(timeIntervalSince1970: 1_787_000_000 + 7_200)
         )
-        let destination = JourneyDestination.station(
-            id: StationID(rawValue: "destination"),
-            name: "Destination",
-            coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
-        )
+        let destination = makeDestination()
 
         await coordinator.scheduleReminder(for: first, destination: destination, source: .realtime)
         await coordinator.scheduleReminder(for: second, destination: destination, source: .realtime)
@@ -96,6 +92,187 @@ final class JourneyNotificationTests: XCTestCase {
             "via.journey.first.connection-transit-2",
             "via.journey.first.arrival",
         ])
+    }
+
+    func testAddFailureKeepsIntentWithoutClaimingTheReminderIsScheduled() async {
+        let center = FakeJourneyNotificationCenter(status: .authorized)
+        center.addError = FakeNotificationError.addFailed
+        let coordinator = JourneyNotificationCoordinator(
+            center: center,
+            reminderStore: InMemoryScheduledJourneyReminderStore(),
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore(),
+            now: { Date(timeIntervalSince1970: 1_787_000_000) }
+        )
+        let journey = makeJourney(departureAt: Date(timeIntervalSince1970: 1_787_000_000))
+
+        await coordinator.scheduleReminder(
+            for: journey,
+            destination: .station(
+                id: StationID(rawValue: "destination"),
+                name: "Destination",
+                coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
+            ),
+            source: .realtime
+        )
+
+        XCTAssertEqual(coordinator.reminder?.journey.id, journey.id)
+        XCTAssertNil(coordinator.scheduledJourneyID)
+        XCTAssertNotNil(coordinator.lastError)
+    }
+
+    func testPartialReplacementFailureRollsBackToPreviousRequests() async {
+        let center = FakeJourneyNotificationCenter(status: .authorized)
+        let coordinator = JourneyNotificationCoordinator(
+            center: center,
+            reminderStore: InMemoryScheduledJourneyReminderStore(),
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore(),
+            now: { Date(timeIntervalSince1970: 1_787_000_000) }
+        )
+        let first = makeJourney(
+            id: JourneyID(rawValue: "first"),
+            departureAt: Date(timeIntervalSince1970: 1_787_000_000)
+        )
+        let second = makeJourney(
+            id: JourneyID(rawValue: "second"),
+            departureAt: Date(timeIntervalSince1970: 1_787_007_200)
+        )
+        let destination = makeDestination()
+
+        await coordinator.scheduleReminder(
+            for: first,
+            destination: destination,
+            source: .realtime
+        )
+        center.failOnAddAttempt = center.addAttempts + 2
+        await coordinator.scheduleReminder(
+            for: second,
+            destination: destination,
+            source: .realtime
+        )
+
+        XCTAssertEqual(
+            Set(center.requests.map(\.identifier)),
+            Set([
+                "via.journey.first.departure",
+                "via.journey.first.connection-transit-2",
+                "via.journey.first.arrival",
+            ])
+        )
+        XCTAssertEqual(coordinator.scheduledJourneyID, first.id)
+        XCTAssertNotNil(coordinator.lastError)
+    }
+
+    func testArrivalDeepLinkIntentSurvivesReconciliationForOneDay() async {
+        let store = InMemoryScheduledJourneyReminderStore()
+        let departure = Date(timeIntervalSince1970: 1_787_000_000)
+        let journey = makeJourney(departureAt: departure)
+        let destination = makeDestination()
+        let initial = JourneyNotificationCoordinator(
+            center: FakeJourneyNotificationCenter(status: .authorized),
+            reminderStore: store,
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore(),
+            now: { departure.addingTimeInterval(-3_600) }
+        )
+        await initial.scheduleReminder(for: journey, destination: destination, source: .realtime)
+
+        let restored = JourneyNotificationCoordinator(
+            center: FakeJourneyNotificationCenter(status: .authorized),
+            reminderStore: store,
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore(),
+            now: { journey.arrivalAt.addingTimeInterval(60) }
+        )
+        await restored.restore()
+
+        XCTAssertEqual(restored.reminder(for: journey.id)?.journey.id, journey.id)
+        XCTAssertNil(restored.scheduledJourneyID)
+    }
+
+    func testUnreadableStoreRemovesOnlyOrphanedViaRequests() async {
+        let center = FakeJourneyNotificationCenter(status: .authorized)
+        center.requests = [
+            UNNotificationRequest(
+                identifier: "via.journey.orphan.arrival",
+                content: UNMutableNotificationContent(),
+                trigger: nil
+            ),
+            UNNotificationRequest(
+                identifier: "another-feature.notification",
+                content: UNMutableNotificationContent(),
+                trigger: nil
+            ),
+        ]
+        let store = FailingScheduledJourneyReminderStore(loadError: .loadFailed)
+        let coordinator = JourneyNotificationCoordinator(
+            center: center,
+            reminderStore: store,
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore()
+        )
+
+        await coordinator.restore()
+
+        XCTAssertEqual(center.requests.map(\.identifier), ["another-feature.notification"])
+        XCTAssertEqual(center.removedIdentifiers, ["via.journey.orphan.arrival"])
+        let wasCleared = await store.wasCleared
+        XCTAssertTrue(wasCleared)
+        XCTAssertNotNil(coordinator.lastError)
+    }
+
+    func testMissingStoreRemovesOrphanedViaRequestsAfterInterruptedCancellation() async {
+        let center = FakeJourneyNotificationCenter(status: .authorized)
+        center.requests = [
+            UNNotificationRequest(
+                identifier: "via.journey.cancelled.arrival",
+                content: UNMutableNotificationContent(),
+                trigger: nil
+            ),
+        ]
+        let coordinator = JourneyNotificationCoordinator(
+            center: center,
+            reminderStore: InMemoryScheduledJourneyReminderStore(),
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore()
+        )
+
+        await coordinator.restore()
+
+        XCTAssertTrue(center.requests.isEmpty)
+        XCTAssertEqual(center.removedIdentifiers, ["via.journey.cancelled.arrival"])
+    }
+
+    func testClearFailureKeepsReminderAndPendingRequests() async {
+        let center = FakeJourneyNotificationCenter(status: .authorized)
+        let store = FailingScheduledJourneyReminderStore()
+        let coordinator = JourneyNotificationCoordinator(
+            center: center,
+            reminderStore: store,
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore(),
+            now: { Date(timeIntervalSince1970: 1_787_000_000) }
+        )
+        let journey = makeJourney(departureAt: Date(timeIntervalSince1970: 1_787_000_000))
+        await coordinator.scheduleReminder(
+            for: journey,
+            destination: .station(
+                id: StationID(rawValue: "destination"),
+                name: "Destination",
+                coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
+            ),
+            source: .realtime
+        )
+        await store.failClearing()
+
+        await coordinator.cancelReminder()
+
+        XCTAssertEqual(coordinator.reminder?.journey.id, journey.id)
+        XCTAssertEqual(coordinator.scheduledJourneyID, journey.id)
+        XCTAssertFalse(center.requests.isEmpty)
+        XCTAssertNotNil(coordinator.lastError)
+    }
+
+    private func makeDestination() -> JourneyDestination {
+        .station(
+            id: StationID(rawValue: "destination"),
+            name: "Destination",
+            coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
+        )
     }
 
     private func makeJourney(
@@ -196,6 +373,9 @@ private final class FakeJourneyNotificationCenter: JourneyNotificationCenterClie
     var status: UNAuthorizationStatus
     var requests: [UNNotificationRequest] = []
     var removedIdentifiers: [String] = []
+    var addError: Error?
+    var addAttempts = 0
+    var failOnAddAttempt: Int?
 
     init(status: UNAuthorizationStatus) {
         self.status = status
@@ -209,10 +389,60 @@ private final class FakeJourneyNotificationCenter: JourneyNotificationCenterClie
     }
 
     func add(_ request: UNNotificationRequest) async throws {
+        addAttempts += 1
+        if failOnAddAttempt == addAttempts {
+            failOnAddAttempt = nil
+            throw FakeNotificationError.addFailed
+        }
+        if let addError { throw addError }
+        requests.removeAll { $0.identifier == request.identifier }
         requests.append(request)
     }
 
+    func pendingNotificationRequests() async -> [UNNotificationRequest] { requests }
+
     func removePendingNotificationRequests(withIdentifiers identifiers: [String]) {
         removedIdentifiers.append(contentsOf: identifiers)
+        let removed = Set(identifiers)
+        requests.removeAll { removed.contains($0.identifier) }
     }
+}
+
+private enum FakeNotificationError: Error {
+    case addFailed
+}
+
+private actor FailingScheduledJourneyReminderStore: ScheduledJourneyReminderStoring {
+    private var reminder: ScheduledJourneyReminder?
+    private var clearError: FakeStoreError?
+    private let loadError: FakeStoreError?
+    private(set) var wasCleared = false
+
+    init(loadError: FakeStoreError? = nil) {
+        self.loadError = loadError
+    }
+
+    func load() throws -> ScheduledJourneyReminder? {
+        if let loadError { throw loadError }
+        return reminder
+    }
+
+    func save(_ reminder: ScheduledJourneyReminder) {
+        self.reminder = reminder
+    }
+
+    func clear() throws {
+        if let clearError { throw clearError }
+        reminder = nil
+        wasCleared = true
+    }
+
+    func failClearing() {
+        clearError = .clearFailed
+    }
+}
+
+private enum FakeStoreError: Error {
+    case loadFailed
+    case clearFailed
 }

@@ -1,18 +1,52 @@
-import { and, eq, ne } from "drizzle-orm";
-import {
-  db,
-  notificationDevices,
-  notificationLiveActivities,
-  notificationLiveActivityStartTokens,
-} from "@via/db";
+import { and, desc, eq, inArray, lte, ne, or, sql } from "drizzle-orm";
+import { db, notificationDevices } from "@via/db";
 import type {
   APNsEnvironment,
-  LiveActivityPushToStartRegistration,
-  LiveActivityRegistration,
   NotificationDeviceRegistration,
 } from "@via/contract";
+import type { RedisClient } from "../redis";
+import {
+  notificationSubscriptionTombstone,
+  setNotificationSubscriptionVersionWhenIdle,
+} from "./journey-subscriptions";
 
 export type NotificationDevice = typeof notificationDevices.$inferSelect;
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+const MAXIMUM_DEVICES_PER_USER = 8;
+
+export async function tombstoneNotificationInstallations(
+  redis: RedisClient,
+  installationIds: readonly string[],
+) {
+  await Promise.all(
+    [...new Set(installationIds)].map((installationId) => {
+      const tombstone = notificationSubscriptionTombstone();
+      return setNotificationSubscriptionVersionWhenIdle(
+        redis,
+        installationId,
+        tombstone.value,
+        tombstone.ttlSeconds,
+      );
+    }),
+  );
+}
+
+/**
+ * Advisory locks are always taken in code-point order, so two transactions
+ * touching the same installations can never take them in opposite orders.
+ */
+export async function lockInstallations(
+  transaction: Transaction,
+  installationIds: readonly string[],
+) {
+  for (const installationId of [...new Set(installationIds)].sort()) {
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${installationId}))`,
+    );
+  }
+}
 
 export interface NotificationTokenStore {
   registerDevice(
@@ -20,19 +54,11 @@ export interface NotificationTokenStore {
     input: NotificationDeviceRegistration,
   ): Promise<void>;
   unregisterDevice(userId: string, installationId: string): Promise<void>;
-  registerActivity(
-    userId: string,
-    input: LiveActivityRegistration,
-  ): Promise<void>;
-  unregisterActivity(userId: string, activityId: string): Promise<void>;
-  registerPushToStartToken(
-    userId: string,
-    input: LiveActivityPushToStartRegistration,
-  ): Promise<void>;
   removeDeviceToken(
     token: string,
     bundleId: string,
     environment: APNsEnvironment,
+    invalidatedAt?: Date,
   ): Promise<void>;
 }
 
@@ -41,11 +67,52 @@ export interface NotificationTokenStore {
  * user id from the client; this adapter is always called with the authenticated
  * context supplied by the router or by a trusted delivery job.
  */
-export function createDatabaseNotificationTokenStore(): NotificationTokenStore {
+export function createDatabaseNotificationTokenStore(
+  redis: RedisClient,
+): NotificationTokenStore {
+  async function tombstoneInstallations(installationIds: readonly string[]) {
+    await tombstoneNotificationInstallations(redis, installationIds).catch(
+      (error) => {
+        console.error("[notifications] device tombstone sync failed", error);
+      },
+    );
+  }
+
   return {
     async registerDevice(userId, input) {
-      const now = new Date();
-      await db.transaction(async (transaction) => {
+      const invalidated = await db.transaction(async (transaction) => {
+        await transaction.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${userId}))`,
+        );
+        await transaction.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${`${input.bundleId}\u0000${input.environment}\u0000${input.deviceToken}`}))`,
+        );
+        const now = new Date();
+        const displacedCondition = or(
+          and(
+            eq(notificationDevices.bundleId, input.bundleId),
+            eq(notificationDevices.environment, input.environment),
+            eq(notificationDevices.deviceToken, input.deviceToken),
+            ne(notificationDevices.installationId, input.installationId),
+          ),
+          and(
+            eq(notificationDevices.installationId, input.installationId),
+            ne(notificationDevices.userId, userId),
+          ),
+        );
+        const displaced = await transaction
+          .select({ installationId: notificationDevices.installationId })
+          .from(notificationDevices)
+          .where(displacedCondition);
+        await lockInstallations(transaction, [
+          input.installationId,
+          ...displaced.map((device) => device.installationId),
+        ]);
+        const lockedDisplaced = await transaction
+          .select({ installationId: notificationDevices.installationId })
+          .from(notificationDevices)
+          .where(displacedCondition)
+          .for("update");
         // APNs can issue the same opaque token to a new installation after a
         // restore. Keep one owner and let the newest authenticated install win.
         await transaction
@@ -95,128 +162,92 @@ export function createDatabaseNotificationTokenStore(): NotificationTokenStore {
               lastSeenAt: now,
             },
           });
+
+        const surplus = await transaction
+          .select({ installationId: notificationDevices.installationId })
+          .from(notificationDevices)
+          .where(
+            and(
+              eq(notificationDevices.userId, userId),
+              ne(notificationDevices.installationId, input.installationId),
+            ),
+          )
+          .orderBy(desc(notificationDevices.lastSeenAt))
+          .offset(MAXIMUM_DEVICES_PER_USER - 1);
+        if (surplus.length > 0) {
+          await lockInstallations(
+            transaction,
+            surplus.map((device) => device.installationId),
+          );
+          await transaction.delete(notificationDevices).where(
+            and(
+              eq(notificationDevices.userId, userId),
+              inArray(
+                notificationDevices.installationId,
+                surplus.map((device) => device.installationId),
+              ),
+            ),
+          );
+        }
+        return [
+          input.installationId,
+          ...lockedDisplaced.map((device) => device.installationId),
+          ...surplus.map((device) => device.installationId),
+        ];
       });
+      await tombstoneInstallations(invalidated);
     },
 
     async unregisterDevice(userId, installationId) {
-      await db
-        .delete(notificationDevices)
-        .where(
-          and(
-            eq(notificationDevices.userId, userId),
-            eq(notificationDevices.installationId, installationId),
-          ),
+      const removed = await db.transaction(async (transaction) => {
+        await transaction.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${installationId}))`,
         );
-    },
-
-    async registerActivity(userId, input) {
-      const now = new Date();
-      await db.transaction(async (transaction) => {
-        await transaction
-          .delete(notificationLiveActivities)
+        const deleted = await transaction
+          .delete(notificationDevices)
           .where(
             and(
-              eq(notificationLiveActivities.bundleId, input.bundleId),
-              eq(notificationLiveActivities.environment, input.environment),
-              eq(notificationLiveActivities.activityToken, input.activityToken),
-              ne(notificationLiveActivities.activityId, input.activityId),
+              eq(notificationDevices.userId, userId),
+              eq(notificationDevices.installationId, installationId),
             ),
-          );
-
-        await transaction
-          .insert(notificationLiveActivities)
-          .values({
-            activityId: input.activityId,
-            userId,
-            installationId: input.installationId,
-            journeyId: input.journeyId,
-            activityToken: input.activityToken,
-            bundleId: input.bundleId,
-            environment: input.environment,
-            lastSeenAt: now,
-          })
-          .onConflictDoUpdate({
-            target: notificationLiveActivities.activityId,
-            set: {
-              userId,
-              installationId: input.installationId,
-              journeyId: input.journeyId,
-              activityToken: input.activityToken,
-              bundleId: input.bundleId,
-              environment: input.environment,
-              lastSeenAt: now,
-            },
-          });
+          )
+          .returning({ installationId: notificationDevices.installationId });
+        return deleted.length > 0;
       });
+      if (removed) await tombstoneInstallations([installationId]);
     },
 
-    async unregisterActivity(userId, activityId) {
-      await db
-        .delete(notificationLiveActivities)
-        .where(
-          and(
-            eq(notificationLiveActivities.userId, userId),
-            eq(notificationLiveActivities.activityId, activityId),
-          ),
-        );
-    },
-
-    async registerPushToStartToken(userId, input) {
-      const now = new Date();
-      await db.transaction(async (transaction) => {
-        await transaction
-          .delete(notificationLiveActivityStartTokens)
-          .where(
-            and(
-              eq(notificationLiveActivityStartTokens.bundleId, input.bundleId),
-              eq(
-                notificationLiveActivityStartTokens.environment,
-                input.environment,
-              ),
-              eq(
-                notificationLiveActivityStartTokens.pushToStartToken,
-                input.pushToStartToken,
-              ),
-              ne(
-                notificationLiveActivityStartTokens.installationId,
-                input.installationId,
-              ),
-            ),
-          );
-
-        await transaction
-          .insert(notificationLiveActivityStartTokens)
-          .values({
-            installationId: input.installationId,
-            userId,
-            pushToStartToken: input.pushToStartToken,
-            bundleId: input.bundleId,
-            environment: input.environment,
-            lastSeenAt: now,
-          })
-          .onConflictDoUpdate({
-            target: notificationLiveActivityStartTokens.installationId,
-            set: {
-              userId,
-              pushToStartToken: input.pushToStartToken,
-              bundleId: input.bundleId,
-              environment: input.environment,
-              lastSeenAt: now,
-            },
-          });
-      });
-    },
-
-    async removeDeviceToken(token, bundleId, environment) {
-      await db
-        .delete(notificationDevices)
-        .where(
-          and(
+    async removeDeviceToken(token, bundleId, environment, invalidatedAt) {
+      const removedInstallationIds = await db.transaction(
+        async (transaction) => {
+          const condition = and(
             eq(notificationDevices.deviceToken, token),
             eq(notificationDevices.bundleId, bundleId),
             eq(notificationDevices.environment, environment),
-          ),
-        );
+            invalidatedAt
+              ? lte(notificationDevices.lastSeenAt, invalidatedAt)
+              : undefined,
+          );
+          const current = await transaction
+            .select({ installationId: notificationDevices.installationId })
+            .from(notificationDevices)
+            .where(condition);
+          await lockInstallations(
+            transaction,
+            current.map((device) => device.installationId),
+          );
+          const lockedCurrent = await transaction
+            .select({ installationId: notificationDevices.installationId })
+            .from(notificationDevices)
+            .where(condition)
+            .for("update");
+          if (lockedCurrent.length > 0) {
+            await transaction.delete(notificationDevices).where(condition);
+          }
+          return lockedCurrent.map((device) => device.installationId);
+        },
+      );
+      await tombstoneInstallations(removedInstallationIds);
     },
   };
 }

@@ -13,12 +13,13 @@ export function startNotificationDisruptionMonitor(): NotificationDisruptionMoni
     return null;
   }
 
+  const intervalMilliseconds = env.NOTIFICATION_DISRUPTION_POLL_SECONDS * 1_000;
   monitor = new NotificationDisruptionMonitor({
     redis,
     subscriptions: notificationJourneySubscriptions,
     delivery: notificationDelivery,
+    shardCycleMilliseconds: intervalMilliseconds,
   });
-  const intervalMilliseconds = env.NOTIFICATION_DISRUPTION_POLL_SECONDS * 1_000;
   void monitor.pollOnce();
   timer = setInterval(() => void monitor?.pollOnce(), intervalMilliseconds);
   return monitor;

@@ -112,6 +112,9 @@ struct ApplicationEntry: App {
             .task {
                 await authSessionViewModel.restore()
                 await journeyNotificationCoordinator.restore()
+                await pushNotificationManager.setNotificationsAuthorized(
+                    journeyNotificationCoordinator.isAuthorized
+                )
                 await pushNotificationManager.flush()
             }
             .task {
@@ -121,7 +124,10 @@ struct ApplicationEntry: App {
                 guard scenePhase == .active else { return }
                 await authSessionViewModel.sceneBecameActive()
                 await activeJourneyModel.sceneBecameActive()
-                await pushNotificationManager.refreshAuthorizationStatus()
+                await journeyNotificationCoordinator.sceneBecameActive()
+                await pushNotificationManager.setNotificationsAuthorized(
+                    journeyNotificationCoordinator.isAuthorized
+                )
                 await pushNotificationManager.flush()
             }
             .task(id: authSessionViewModel.session?.user.id) {
@@ -131,6 +137,11 @@ struct ApplicationEntry: App {
                     await pushNotificationManager.setAuthenticated(false)
                 }
                 await pushNotificationManager.flush()
+            }
+            .task(id: journeyNotificationCoordinator.authorizationStatus.rawValue) {
+                await pushNotificationManager.setNotificationsAuthorized(
+                    journeyNotificationCoordinator.isAuthorized
+                )
             }
         }
     }
@@ -261,12 +272,12 @@ struct ApplicationEntry: App {
 
         // Product endpoints remain usable anonymously; 401 events still invalidate a cached session.
         let authSessionVault = KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
-        let (unauthorizedEvents, unauthorizedContinuation) = AsyncStream<Void>.makeStream()
+        let (unauthorizedEvents, unauthorizedContinuation) = AsyncStream<String>.makeStream()
         let transport = APITransport(
             baseURL: configuration.apiBaseURL,
             authSessionVault: authSessionVault,
-            onUnauthorized: {
-                unauthorizedContinuation.yield(())
+            onUnauthorized: { rejectedBearerToken in
+                unauthorizedContinuation.yield(rejectedBearerToken)
             },
         )
         pushNotificationManager.configure(
@@ -304,7 +315,7 @@ struct ApplicationEntry: App {
             searchRepository: searchRepository,
             reportRepository: InMemoryReportRepository(),
             activeJourneyStore: UserDefaultsActiveJourneyStore(),
-            activityManager: JourneyActivityManager(tokenSink: pushNotificationManager),
+            activityManager: JourneyActivityManager(),
             connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
             naturalJourneyRepository: naturalJourneyRepository,

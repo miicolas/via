@@ -21,7 +21,7 @@ final class AuthSessionViewModel {
         client: any AuthenticationClient,
         vault: any AuthSessionVault,
         account: AccountModel,
-        unauthorizedEvents: AsyncStream<Void> = AsyncStream { _ in },
+        unauthorizedEvents: AsyncStream<String> = AsyncStream { _ in },
         onAuthenticatedSessionEnded: @escaping @MainActor () async -> Void = {}
     ) {
         self.client = client
@@ -29,9 +29,11 @@ final class AuthSessionViewModel {
         self.account = account
         self.onAuthenticatedSessionEnded = onAuthenticatedSessionEnded
         lifecycleTask = Task { [weak self] in
-            for await _ in unauthorizedEvents {
+            for await rejectedBearerToken in unauthorizedEvents {
                 guard let self else { return }
-                await self.authenticatedRequestWasRejected()
+                await self.authenticatedRequestWasRejected(
+                    bearerToken: rejectedBearerToken
+                )
             }
         }
     }
@@ -138,7 +140,9 @@ final class AuthSessionViewModel {
         }
     }
 
-    func authenticatedRequestWasRejected() async {
+    func authenticatedRequestWasRejected(bearerToken: String) async {
+        guard let currentSession = try? await vault.load(),
+              currentSession.bearerToken == bearerToken else { return }
         if session != nil {
             await clearConfirmedSession(message: "Ta session n’est plus valide. Reconnecte-toi.")
         } else if anonymousSession != nil {

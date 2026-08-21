@@ -1,4 +1,5 @@
 import { env } from "../env";
+import { redis } from "../redis";
 
 import { createAPNsProvider } from "./apns";
 import { createNotificationDelivery } from "./delivery";
@@ -10,6 +11,8 @@ import { createDatabaseNotificationJourneySubscriptionStore } from "./journey-su
  * still useful without APNs credentials; delivery fails explicitly until the
  * deployment supplies the provider key.
  */
+export const notificationTokenStore = createDatabaseNotificationTokenStore(redis);
+
 export const notificationDelivery = createNotificationDelivery({
   apns:
     env.APNS_KEY_ID && env.APNS_PRIVATE_KEY
@@ -19,11 +22,11 @@ export const notificationDelivery = createNotificationDelivery({
           privateKey: env.APNS_PRIVATE_KEY,
         })
       : null,
-  tokens: createDatabaseNotificationTokenStore(),
+  tokens: notificationTokenStore,
 });
 
 export const notificationJourneySubscriptions =
-  createDatabaseNotificationJourneySubscriptionStore();
+  createDatabaseNotificationJourneySubscriptionStore(redis);
 
 export * from "./apns";
 export * from "./delivery";

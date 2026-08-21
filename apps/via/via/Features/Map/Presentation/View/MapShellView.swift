@@ -243,8 +243,14 @@ struct MapShellView: View {
             Task { await routeScheduledJourney(journeyID) }
             return
         }
+        guard mode == "active", let journeyID else { return }
+        Task { await routeActiveJourney(journeyID) }
+    }
+
+    private func routeActiveJourney(_ journeyID: JourneyID) async {
+        await activeJourneyModel.restore()
+        guard activeJourneyModel.journey?.id == journeyID else { return }
         showActiveJourney()
-        Task { await activeJourneyModel.restore() }
     }
 
     private func routeScheduledJourney(_ journeyID: JourneyID) async {

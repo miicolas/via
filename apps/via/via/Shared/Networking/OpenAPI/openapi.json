@@ -2602,8 +2602,8 @@
     "/notifications/live-activity": {
       "post": {
         "operationId": "notifications.registerActivity",
-        "summary": "Enregistrer une Live Activity",
-        "description": "Associe un token ActivityKit à un trajet actif.",
+        "summary": "Compatibilité Live Activity locale",
+        "description": "Accepte sans persister les tokens envoyés par les anciennes versions iOS.",
         "tags": [
           "notifications"
         ],
@@ -2695,8 +2695,8 @@
     "/notifications/live-activity/unregister": {
       "post": {
         "operationId": "notifications.unregisterActivity",
-        "summary": "Désinscrire une Live Activity",
-        "description": "Supprime le token ActivityKit d’un trajet terminé.",
+        "summary": "Compatibilité Live Activity locale",
+        "description": "Accepte la désinscription des anciennes versions iOS.",
         "tags": [
           "notifications"
         ],
@@ -2745,8 +2745,8 @@
     "/notifications/live-activity/push-to-start": {
       "post": {
         "operationId": "notifications.registerPushToStart",
-        "summary": "Enregistrer le token de démarrage Live Activity",
-        "description": "Autorise le serveur à démarrer une Live Activity à distance.",
+        "summary": "Compatibilité Live Activity locale",
+        "description": "Accepte sans persister les tokens des anciennes versions iOS.",
         "tags": [
           "notifications"
         ],
@@ -2847,6 +2847,34 @@
                     "minLength": 1,
                     "maxLength": 500
                   },
+                  "routeWindows": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "routeId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "routeId",
+                        "startsAt",
+                        "endsAt"
+                      ]
+                    },
+                    "default": []
+                  },
                   "routeIds": {
                     "type": "array",
                     "maxItems": 64,
@@ -2854,7 +2882,8 @@
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 255
-                    }
+                    },
+                    "default": []
                   },
                   "startsAt": {
                     "type": "string",
@@ -2868,7 +2897,6 @@
                 "required": [
                   "installationId",
                   "journeyId",
-                  "routeIds",
                   "startsAt",
                   "endsAt"
                 ]
