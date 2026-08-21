@@ -8,6 +8,10 @@ filter:
   operations:
     - account.delete
     - account.sync
+    - notifications.registerDevice
+    - notifications.unregisterDevice
+    - notifications.registerActiveJourney
+    - notifications.unregisterActiveJourney
     - departures.forStation
     - health
     - journeys.plan

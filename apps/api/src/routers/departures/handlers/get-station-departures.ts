@@ -4,6 +4,7 @@ import type { RouteBadge } from '@via/contract';
 import { env } from '../../../env';
 import { implementer } from '../../../orpc/implementer';
 import { redis } from '../../../redis';
+import { parisDay, parisDayType } from '../../../time/paris';
 import { adaptiveTtlSeconds } from '../adaptive-ttl';
 import { tryConsumeBudget } from '../budget';
 import { stationSnapshotThroughCache } from '../cache';
@@ -16,6 +17,7 @@ import { toRouteBadge } from '../../route-badge';
 import { selectStationRoutes } from '../queries';
 import { theoreticalRowLoader } from '../theoretical/load-rows';
 import { nextTheoreticalDepartures } from '../theoretical/next-departures';
+import { stationPeaks } from '../../station-peak';
 
 /**
  * The route is authenticated, so only the device cache may reuse the payload.
@@ -63,6 +65,13 @@ export const getStationDepartures = implementer.departures.forStation.handler(
     context.resHeaders?.set('Cache-Control', DEPARTURES_CACHE_CONTROL);
 
     const now = new Date();
+    const peak = (
+      await stationPeaks(
+        [input.stationId],
+        parisDayType(now),
+        Math.floor(parisDay(now).seconds / 3600)
+      )
+    ).get(input.stationId);
 
     if (snapshot !== null) {
       let theoreticalBaseline: Awaited<ReturnType<typeof nextTheoreticalDepartures>> = [];
@@ -96,6 +105,7 @@ export const getStationDepartures = implementer.departures.forStation.handler(
           source: 'realtime' as const,
           generatedAt: now.toISOString(),
           fetchedAt: new Date(snapshot.fetchedAt * 1_000).toISOString(),
+          peak,
           groups,
         };
       }
@@ -111,6 +121,7 @@ export const getStationDepartures = implementer.departures.forStation.handler(
     return {
       source: scheduled.length > 0 ? ('theoretical' as const) : ('unavailable' as const),
       generatedAt: now.toISOString(),
+      peak,
       groups: scheduled,
     };
   }

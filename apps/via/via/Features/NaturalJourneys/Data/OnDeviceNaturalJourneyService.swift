@@ -1,7 +1,7 @@
 import Foundation
 
 struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
-    private static let unsupportedMessage = "Via peut t’aider à préparer un trajet en Île-de-France"
+    private static let unsupportedMessage = "Metyro peut t’aider à préparer un trajet en Île-de-France"
     private static let examples = [
         "Depuis Châtelet, je veux être à Gare du Nord à 10 h",
         "12 rue de Rivoli avant 9 h",

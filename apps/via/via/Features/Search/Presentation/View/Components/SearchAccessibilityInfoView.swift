@@ -12,7 +12,7 @@ struct SearchAccessibilityInfoView: View {
                     Label("Filtre PMR", systemImage: "figure.roll")
                         .font(.title2.weight(.bold))
 
-                    Text("Via demande à Île-de-France Mobilités un itinéraire adapté aux personnes en fauteuil roulant. Le résultat peut être nettement plus long qu’un trajet classique.")
+                    Text("Metyro demande à Île-de-France Mobilités un itinéraire adapté aux personnes en fauteuil roulant. Le résultat peut être nettement plus long qu’un trajet classique.")
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 12) {
@@ -34,12 +34,12 @@ struct SearchAccessibilityInfoView: View {
                             .foregroundStyle(.secondary)
                         Text(
                             source.status == .ok
-                                ? "La dernière déclaration disponible a été importée par Via."
-                                : "Aucune déclaration PMR n’est actuellement disponible dans Via."
+                                ? "La dernière déclaration disponible a été importée par Metyro."
+                                : "Aucune déclaration PMR n’est actuellement disponible dans Metyro."
                         )
                             .foregroundStyle(.secondary)
                         if let importedAt = source.importedAt {
-                            Text("Dernière importation Via : \(importedAt.formatted(date: .abbreviated, time: .shortened))")
+                            Text("Dernière importation Metyro : \(importedAt.formatted(date: .abbreviated, time: .shortened))")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

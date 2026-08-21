@@ -444,6 +444,290 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// Enregistrer un appareil pour les notifications
+    ///
+    /// Associe le token APNs de l’installation au compte courant.
+    ///
+    /// - Remark: HTTP `POST /notifications/device`.
+    /// - Remark: Generated from `#/paths//notifications/device/post(notifications.registerDevice)`.
+    internal func notifications_period_registerDevice(_ input: Operations.notifications_period_registerDevice.Input) async throws -> Operations.notifications_period_registerDevice.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.notifications_period_registerDevice.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/notifications/device",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.notifications_period_registerDevice.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.notifications_period_registerDevice.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Désinscrire un appareil des notifications
+    ///
+    /// Supprime les tokens de l’installation pour le compte courant.
+    ///
+    /// - Remark: HTTP `POST /notifications/device/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/device/unregister/post(notifications.unregisterDevice)`.
+    internal func notifications_period_unregisterDevice(_ input: Operations.notifications_period_unregisterDevice.Input) async throws -> Operations.notifications_period_unregisterDevice.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.notifications_period_unregisterDevice.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/notifications/device/unregister",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.notifications_period_unregisterDevice.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.notifications_period_unregisterDevice.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Enregistrer un trajet actif pour les perturbations
+    ///
+    /// Associe une installation authentifiée à la fenêtre et aux lignes d’un trajet suivi.
+    ///
+    /// - Remark: HTTP `POST /notifications/active-journey`.
+    /// - Remark: Generated from `#/paths//notifications/active-journey/post(notifications.registerActiveJourney)`.
+    internal func notifications_period_registerActiveJourney(_ input: Operations.notifications_period_registerActiveJourney.Input) async throws -> Operations.notifications_period_registerActiveJourney.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.notifications_period_registerActiveJourney.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/notifications/active-journey",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.notifications_period_registerActiveJourney.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.notifications_period_registerActiveJourney.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Désinscrire un trajet actif
+    ///
+    /// Supprime l’abonnement de perturbations d’un trajet terminé.
+    ///
+    /// - Remark: HTTP `POST /notifications/active-journey/unregister`.
+    /// - Remark: Generated from `#/paths//notifications/active-journey/unregister/post(notifications.unregisterActiveJourney)`.
+    internal func notifications_period_unregisterActiveJourney(_ input: Operations.notifications_period_unregisterActiveJourney.Input) async throws -> Operations.notifications_period_unregisterActiveJourney.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.notifications_period_unregisterActiveJourney.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/notifications/active-journey/unregister",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.notifications_period_unregisterActiveJourney.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.notifications_period_unregisterActiveJourney.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
     /// État des lignes ferrées
     ///
     /// Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.

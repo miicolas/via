@@ -1,6 +1,7 @@
 import type { Journey, JourneyInput, JourneyMode, JourneysResponse } from '@via/contract';
 
 import type { RedisClient } from '../../redis';
+import { parisDay, parisDayType } from '../../time/paris';
 import { tryConsumeDailyIdfmBudget } from '../idfm/daily-budget';
 import { journeyCacheKey, valueThroughCache } from './cache';
 import { tryConsumePersonalJourneyBudget } from './rate-limit';
@@ -8,6 +9,8 @@ import {
   annotateAccessibleJourneys,
   filterAndAnnotateAccessibleJourneys,
 } from './accessibility';
+import { annotatePeakJourneys } from './peak';
+import { annotateWayfinding } from './wayfinding';
 
 type PlannedJourneys = {
   status: 'ready' | 'no-route' | 'unavailable';
@@ -82,6 +85,8 @@ export function createJourneyPlanner({
         preferredModes: input.preferredModes,
         requiresAccessibleStations: input.requiresAccessibleStations,
         originStationId: input.originStationId,
+        dayType: parisDayType(requestedAt),
+        hour: Math.floor(parisDay(requestedAt).seconds / 3600),
       });
 
       const gtfsFallback = async () => ({
@@ -89,7 +94,13 @@ export function createJourneyPlanner({
         ttlSeconds: GTFS_TTL_SECONDS,
       });
 
-      const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
+      /**
+       * Wayfinding rides inside the cached value rather than decorating the
+       * response afterwards: it is a pure function of the journeys and the
+       * destination, and the destination is already part of the cache key, so
+       * two callers sharing an entry share the same exit.
+       */
+      const planned = async () => {
         if (!idfm) return gtfsFallback();
 
         const personal = await tryConsumePersonalJourneyBudget(
@@ -144,7 +155,7 @@ export function createJourneyPlanner({
               signal
             );
             if (preferredOnly?.journeys.length) {
-              realtime = qualify(
+              realtime = await qualify(
                 {
                   ...realtime,
                   journeys: dedupeJourneys([...realtime.journeys, ...preferredOnly.journeys]),
@@ -159,6 +170,17 @@ export function createJourneyPlanner({
         return {
           value: realtime ?? (await planWithGtfsConstraint(gtfs, input, requestedAt, now, signal)),
           ttlSeconds: IDFM_TTL_SECONDS,
+        };
+      };
+
+      const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
+        const { value, ttlSeconds } = await planned();
+        return {
+          value: {
+            ...value,
+            journeys: await annotateWayfinding(value.journeys, input.destination.coordinate),
+          },
+          ttlSeconds,
         };
       });
 
@@ -242,18 +264,19 @@ async function planWithGtfsConstraint(
   };
 }
 
-function qualify(
+async function qualify(
   response: PlannedJourneys,
   source: NonNullable<JourneysResponse['source']>,
   now: Date,
   input: JourneyInput
-): JourneysResponse {
+): Promise<JourneysResponse> {
   const filtered = response.journeys.filter(
     (journey) =>
       matchesModePolicy(journey, input) &&
       (input.datetimeRepresents !== 'arrival' || new Date(journey.departureAt) >= now)
   );
-  const journeys = rankPreferredJourney(filtered, input.preferredModes ?? []);
+  const annotated = await annotatePeakJourneys(filtered);
+  const journeys = rankPreferredJourney(annotated, input.preferredModes ?? []);
   return {
     ...response,
     status: journeys.length > 0 ? 'ready' : response.status === 'unavailable' ? 'unavailable' : 'no-route',
@@ -284,16 +307,23 @@ function matchesModePolicy(journey: Journey, input: JourneyInput) {
 
 export function rankPreferredJourney(journeys: Journey[], preferredModes: JourneyMode[]) {
   const baseline = journeys[0];
-  if (!baseline || preferredModes.length === 0) return journeys;
+  if (!baseline) return journeys;
   const preferred = new Set(preferredModes);
+  if (preferredModes.length === 0) {
+    const ranked = [...journeys].sort((a, b) => compareJourneyPreference(a, b, preferred));
+    const candidate = ranked[0];
+    return candidate && candidate.id !== baseline.id
+      ? promoteJourney(ranked, candidate, baseline)
+      : ranked;
+  }
   const candidate = journeys
     .filter((journey) => isReasonablePreferred(journey, baseline, preferred))
-    .sort(
-      (a, b) =>
-        a.durationSeconds - b.durationSeconds ||
-        preferredShare(b, preferred) - preferredShare(a, preferred)
-    )[0];
+    .sort((a, b) => compareJourneyPreference(a, b, preferred))[0];
   if (!candidate || candidate.id === baseline.id) return journeys;
+  return promoteJourney(journeys, candidate, baseline);
+}
+
+function promoteJourney(journeys: Journey[], candidate: Journey, baseline: Journey) {
   return [
     { ...candidate, qualifier: 'recommended' as const },
     ...journeys
@@ -304,6 +334,25 @@ export function rankPreferredJourney(journeys: Journey[], preferredModes: Journe
           : journey
       ),
   ];
+}
+
+/**
+ * A peak is only a tie-breaker. A calm transfer can move ahead inside a
+ * three-minute duration band, but a genuinely faster journey always wins.
+ */
+function compareJourneyPreference(
+  a: Journey,
+  b: Journey,
+  preferredModes: ReadonlySet<JourneyMode>
+) {
+  const durationDifference = a.durationSeconds - b.durationSeconds;
+  const peakDifference = peakPenalty(a) - peakPenalty(b);
+  if (Math.abs(durationDifference) <= 180 && peakDifference !== 0) return peakDifference;
+  return durationDifference || preferredShare(b, preferredModes) - preferredShare(a, preferredModes);
+}
+
+function peakPenalty(journey: Journey) {
+  return journey.peak?.level === 'peak' ? 1 : 0;
 }
 
 export function preferredShare(journey: Journey, preferredModes: ReadonlySet<JourneyMode>) {
@@ -342,16 +391,6 @@ function isReasonablePreferred(
 
 function dedupeJourneys(journeys: Journey[]) {
   return [...new Map(journeys.map((journey) => [journey.id, journey])).values()];
-}
-
-function noRoute(now: Date, reason?: JourneysResponse['reason']): JourneysResponse {
-  return {
-    status: 'no-route',
-    source: 'gtfs-theoretical',
-    generatedAt: now.toISOString(),
-    reason,
-    journeys: [],
-  };
 }
 
 function unavailable(now: Date, reason?: JourneysResponse['reason']): JourneysResponse {

@@ -19,7 +19,8 @@ protocol JourneyActivityManaging: Sendable {
     ) async
 }
 
-struct JourneyActivityManager: JourneyActivityManaging {
+@MainActor
+final class JourneyActivityManager: JourneyActivityManaging {
     func start(
         attributes: JourneyActivityAttributes,
         state: JourneyActivityAttributes.ContentState,
@@ -69,6 +70,7 @@ struct JourneyActivityManager: JourneyActivityManaging {
             $0.attributes.journeyID == journeyID.rawValue
         }
     }
+
 }
 
 struct NoOpJourneyActivityManager: JourneyActivityManaging {

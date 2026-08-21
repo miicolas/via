@@ -655,6 +655,32 @@
                       "type": "string",
                       "format": "date-time"
                     },
+                    "peak": {
+                      "type": "object",
+                      "properties": {
+                        "ratio": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "level": {
+                          "enum": [
+                            "off",
+                            "moderate",
+                            "peak"
+                          ],
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "ratio",
+                        "level",
+                        "label"
+                      ]
+                    },
                     "groups": {
                       "type": "array",
                       "items": {
@@ -1121,6 +1147,35 @@
                               "label"
                             ]
                           },
+                          "peak": {
+                            "type": "object",
+                            "properties": {
+                              "ratio": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "level": {
+                                "enum": [
+                                  "moderate",
+                                  "peak"
+                                ],
+                                "type": "string"
+                              },
+                              "stationName": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ratio",
+                              "level",
+                              "stationName",
+                              "label"
+                            ]
+                          },
                           "sections": {
                             "type": "array",
                             "minItems": 1,
@@ -1307,6 +1362,91 @@
                                     ]
                                   },
                                   "default": []
+                                },
+                                "boardingPosition": {
+                                  "type": "object",
+                                  "properties": {
+                                    "car": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "carCount": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "zone": {
+                                      "enum": [
+                                        "front",
+                                        "middle",
+                                        "rear"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "reason": {
+                                      "enum": [
+                                        "exit",
+                                        "transfer"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "equipment": {
+                                      "enum": [
+                                        "escalator",
+                                        "lift",
+                                        "stairs"
+                                      ],
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "car",
+                                    "carCount",
+                                    "zone",
+                                    "reason"
+                                  ]
+                                },
+                                "exit": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "number": {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    },
+                                    "walkingMeters": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name",
+                                    "coordinate"
+                                  ]
                                 }
                               },
                               "required": [
@@ -1944,6 +2084,35 @@
                                       "label"
                                     ]
                                   },
+                                  "peak": {
+                                    "type": "object",
+                                    "properties": {
+                                      "ratio": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 1
+                                      },
+                                      "level": {
+                                        "enum": [
+                                          "moderate",
+                                          "peak"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "stationName": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "ratio",
+                                      "level",
+                                      "stationName",
+                                      "label"
+                                    ]
+                                  },
                                   "sections": {
                                     "type": "array",
                                     "minItems": 1,
@@ -2130,6 +2299,91 @@
                                             ]
                                           },
                                           "default": []
+                                        },
+                                        "boardingPosition": {
+                                          "type": "object",
+                                          "properties": {
+                                            "car": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "carCount": {
+                                              "type": "integer",
+                                              "minimum": 1,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "zone": {
+                                              "enum": [
+                                                "front",
+                                                "middle",
+                                                "rear"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "reason": {
+                                              "enum": [
+                                                "exit",
+                                                "transfer"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "equipment": {
+                                              "enum": [
+                                                "escalator",
+                                                "lift",
+                                                "stairs"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "car",
+                                            "carCount",
+                                            "zone",
+                                            "reason"
+                                          ]
+                                        },
+                                        "exit": {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string"
+                                            },
+                                            "name": {
+                                              "type": "string"
+                                            },
+                                            "number": {
+                                              "type": "integer",
+                                              "minimum": -9007199254740991,
+                                              "maximum": 9007199254740991
+                                            },
+                                            "coordinate": {
+                                              "type": "object",
+                                              "properties": {
+                                                "latitude": {
+                                                  "type": "number"
+                                                },
+                                                "longitude": {
+                                                  "type": "number"
+                                                }
+                                              },
+                                              "required": [
+                                                "latitude",
+                                                "longitude"
+                                              ]
+                                            },
+                                            "walkingMeters": {
+                                              "type": "integer",
+                                              "minimum": 0,
+                                              "maximum": 9007199254740991
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "name",
+                                            "coordinate"
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -2207,6 +2461,518 @@
                         "message"
                       ]
                     }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/device": {
+      "post": {
+        "operationId": "notifications.registerDevice",
+        "summary": "Enregistrer un appareil pour les notifications",
+        "description": "Associe le token APNs de l’installation au compte courant.",
+        "tags": [
+          "notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "deviceToken": {
+                    "type": "string",
+                    "minLength": 32,
+                    "maxLength": 512,
+                    "pattern": "^[0-9a-f]+$"
+                  },
+                  "bundleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^[A-Za-z0-9.-]+$"
+                  },
+                  "environment": {
+                    "enum": [
+                      "sandbox",
+                      "production"
+                    ],
+                    "type": "string"
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "osVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "installationId",
+                  "deviceToken",
+                  "bundleId",
+                  "environment"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "registered": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "registered"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/device/unregister": {
+      "post": {
+        "operationId": "notifications.unregisterDevice",
+        "summary": "Désinscrire un appareil des notifications",
+        "description": "Supprime les tokens de l’installation pour le compte courant.",
+        "tags": [
+          "notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "installationId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "removed"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/live-activity": {
+      "post": {
+        "operationId": "notifications.registerActivity",
+        "summary": "Compatibilité Live Activity locale",
+        "description": "Accepte sans persister les tokens envoyés par les anciennes versions iOS.",
+        "tags": [
+          "notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "activityId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "journeyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "activityToken": {
+                    "type": "string",
+                    "minLength": 32,
+                    "maxLength": 512,
+                    "pattern": "^[0-9a-f]+$"
+                  },
+                  "bundleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^[A-Za-z0-9.-]+$"
+                  },
+                  "environment": {
+                    "enum": [
+                      "sandbox",
+                      "production"
+                    ],
+                    "type": "string"
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "osVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "installationId",
+                  "activityId",
+                  "journeyId",
+                  "activityToken",
+                  "bundleId",
+                  "environment"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "registered": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "registered"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/live-activity/unregister": {
+      "post": {
+        "operationId": "notifications.unregisterActivity",
+        "summary": "Compatibilité Live Activity locale",
+        "description": "Accepte la désinscription des anciennes versions iOS.",
+        "tags": [
+          "notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "activityId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "activityId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "removed"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/live-activity/push-to-start": {
+      "post": {
+        "operationId": "notifications.registerPushToStart",
+        "summary": "Compatibilité Live Activity locale",
+        "description": "Accepte sans persister les tokens des anciennes versions iOS.",
+        "tags": [
+          "notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "pushToStartToken": {
+                    "type": "string",
+                    "minLength": 32,
+                    "maxLength": 512,
+                    "pattern": "^[0-9a-f]+$"
+                  },
+                  "bundleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^[A-Za-z0-9.-]+$"
+                  },
+                  "environment": {
+                    "enum": [
+                      "sandbox",
+                      "production"
+                    ],
+                    "type": "string"
+                  },
+                  "appVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "osVersion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "installationId",
+                  "pushToStartToken",
+                  "bundleId",
+                  "environment"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "registered": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "registered"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/active-journey": {
+      "post": {
+        "operationId": "notifications.registerActiveJourney",
+        "summary": "Enregistrer un trajet actif pour les perturbations",
+        "description": "Associe une installation authentifiée à la fenêtre et aux lignes d’un trajet suivi.",
+        "tags": [
+          "notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "journeyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "routeWindows": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "routeId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "startsAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "endsAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "routeId",
+                        "startsAt",
+                        "endsAt"
+                      ]
+                    },
+                    "default": []
+                  },
+                  "routeIds": {
+                    "type": "array",
+                    "maxItems": 64,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 255
+                    },
+                    "default": []
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "installationId",
+                  "journeyId",
+                  "startsAt",
+                  "endsAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "registered": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "registered"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/active-journey/unregister": {
+      "post": {
+        "operationId": "notifications.unregisterActiveJourney",
+        "summary": "Désinscrire un trajet actif",
+        "description": "Supprime l’abonnement de perturbations d’un trajet terminé.",
+        "tags": [
+          "notifications"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "journeyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "installationId",
+                  "journeyId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "removed"
                   ]
                 }
               }

@@ -61,33 +61,25 @@ struct SearchJourneyResultsView: View {
             noRouteContent(result: result)
         case .unavailable:
             if result?.reason == .accessibilityDataUnavailable {
-                stateContent(
-                    title: "Données PMR indisponibles",
-                    message: "La source d’accessibilité n’est pas disponible. Modifie le filtre PMR ou réessaie plus tard.",
-                    systemImage: "figure.roll",
-                    actionTitle: "Réessayer"
-                )
+                stateContent(.accessibilityUnavailable, actionTitle: "Réessayer")
             } else {
                 stateContent(
-                    title: "Calcul indisponible",
-                    message: "Le service d’itinéraires ne répond pas pour le moment. Vérifie ta connexion puis réessaie.",
-                    systemImage: "wifi.exclamationmark",
-                    actionTitle: "Réessayer"
+                    .offline(
+                        title: "Calcul indisponible",
+                        message: "Le service d’itinéraires ne répond pas pour le moment. Vérifie ta connexion puis réessaie.",
+                    ),
+                    actionTitle: "Réessayer",
                 )
             }
         case .locationBlocked(let authorization):
             stateContent(
-                title: "Position indisponible",
-                message: locationMessage(for: authorization),
-                systemImage: "location.slash",
-                actionTitle: authorization == .notDetermined ? "Autoriser la localisation" : "Réessayer"
+                .locationBlocked(message: locationMessage(for: authorization)),
+                actionTitle: authorization == .notDetermined ? "Autoriser la localisation" : "Réessayer",
             )
         case .failed(let error):
             stateContent(
-                title: "Impossible de calculer",
-                message: error.message,
-                systemImage: "exclamationmark.triangle",
-                actionTitle: "Réessayer"
+                .unavailable(title: "Impossible de calculer", message: error.message),
+                actionTitle: "Réessayer",
             )
         case .destination:
             EmptyView()
@@ -128,64 +120,45 @@ struct SearchJourneyResultsView: View {
     @ViewBuilder
     private func noRouteContent(result: JourneyResult?) -> some View {
         if result?.reason == .noAccessibleRoute {
-            stateContent(
-                title: "Aucun trajet PMR vérifié",
-                message: "Aucune combinaison de gares accessibles ne respecte cette recherche. Modifie la destination ou désactive le filtre de trajet PMR.",
-                systemImage: "figure.roll",
-                actionTitle: "Réessayer"
-            )
+            stateContent(.noAccessibleRoute, actionTitle: "Réessayer")
         } else {
-            SearchNoResultsView(
-                onChooseAnotherDestination: onEdit,
-                onEditSearch: onEdit
-            )
+            EmptyStateView(
+                EmptyState(
+                    systemImage: "mappin.slash",
+                    title: "Aucun itinéraire trouvé",
+                    message: "Vérifie ta destination ou ton point de départ. Toujours aucun résultat ?",
+                ),
+            ) {
+                Button("Choisir une autre destination", systemImage: "plus.circle.fill", action: onEdit)
+                    .primaryAction()
+                Button("Modifier la recherche", systemImage: "magnifyingglass", action: onEdit)
+                    .secondaryAction()
+            }
         }
     }
 
-    private func stateContent(
-        title: String,
-        message: String,
-        systemImage: String,
-        actionTitle: String
-    ) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: systemImage)
-                .font(.system(size: 42, weight: .medium))
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-
-            Text(title)
-                .font(.title2.weight(.bold))
-                .multilineTextAlignment(.center)
-
-            Text(message)
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
+    /// Every dead end in a journey search offers the same pair: try again, or go
+    /// back and change what was asked. Only the wording of the first one moves.
+    private func stateContent(_ state: EmptyState, actionTitle: String) -> some View {
+        EmptyStateView(state) {
             RetryButton(label: LocalizedStringKey(actionTitle), action: onRetry)
                 .primaryAction()
 
             Button("Modifier la recherche", systemImage: "magnifyingglass", action: onEdit)
                 .secondaryAction()
         }
-        .frame(maxWidth: 360)
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
-        .accessibilityElement(children: .contain)
     }
 
     private func locationMessage(for authorization: LocationAuthorization) -> String {
         switch authorization {
         case .notDetermined:
-            "Autorise Via à utiliser ta position pour calculer un itinéraire depuis Ma position."
+            "Autorise Metyro à utiliser ta position pour calculer un itinéraire depuis Ma position."
         case .denied:
             "L’accès à la position est désactivé. Autorise-le dans Réglages, puis réessaie."
         case .restricted:
             "La position n’est pas disponible sur cet appareil. Choisis une autre origine dans le menu Départ."
         case .authorized:
-            "Via n’a pas réussi à obtenir ta position. Réessaie ou choisis une autre origine."
+            "Metyro n’a pas réussi à obtenir ta position. Réessaie ou choisis une autre origine."
         }
     }
 }

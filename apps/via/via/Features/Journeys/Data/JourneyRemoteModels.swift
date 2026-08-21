@@ -70,10 +70,18 @@ struct JourneyResultDTO: Decodable {
         let status: String
         let warnings: [String]
         let accessibility: AccessibilityDTO?
+        let peak: PeakDTO?
         let sections: [SectionDTO]
 
         struct AccessibilityDTO: Decodable {
             let condition: String
+            let label: String
+        }
+
+        struct PeakDTO: Decodable {
+            let ratio: Double
+            let level: String
+            let stationName: String
             let label: String
         }
 
@@ -97,6 +105,17 @@ struct JourneyResultDTO: Decodable {
                         return nil
                     }
                     return Journey.Accessibility(condition: condition, label: value.label)
+                },
+                peak: peak.flatMap { value in
+                    guard let level = PeakLevel(rawValue: value.level), level != .off else {
+                        return nil
+                    }
+                    return StationPeak(
+                        ratio: value.ratio,
+                        level: level,
+                        label: value.label,
+                        stationName: value.stationName
+                    )
                 },
                 sections: try sections.enumerated().map { index, section in
                     try section.domain(id: "\(id):\(index)")
@@ -127,6 +146,52 @@ struct JourneyResultDTO: Decodable {
         let textColor: String
     }
 
+    struct BoardingPositionDTO: Decodable {
+        let car: Int
+        let carCount: Int
+        let zone: String
+        let reason: String
+        let equipment: String?
+
+        func domain() throws -> JourneyBoardingPosition {
+            guard
+                let zone = JourneyBoardingPosition.Zone(rawValue: zone),
+                let reason = JourneyBoardingPosition.Reason(rawValue: reason)
+            else { throw ViaError.decoding }
+            let mappedEquipment = try equipment.map { value in
+                guard let result = JourneyBoardingPosition.Equipment(rawValue: value) else {
+                    throw ViaError.decoding
+                }
+                return result
+            }
+            return JourneyBoardingPosition(
+                car: car,
+                carCount: carCount,
+                zone: zone,
+                reason: reason,
+                equipment: mappedEquipment
+            )
+        }
+    }
+
+    struct ExitDTO: Decodable {
+        let id: String
+        let name: String
+        let number: Int?
+        let coordinate: CoordinateDTO
+        let walkingMeters: Int?
+
+        var domain: JourneyExit {
+            JourneyExit(
+                id: id,
+                name: name,
+                number: number,
+                coordinate: coordinate.domain,
+                walkingMeters: walkingMeters
+            )
+        }
+    }
+
     struct SectionDTO: Decodable {
         let type: String
         let durationSeconds: Int
@@ -139,6 +204,8 @@ struct JourneyResultDTO: Decodable {
         let direction: String?
         let platform: String?
         let stops: [StopDTO]
+        let boardingPosition: BoardingPositionDTO?
+        let exit: ExitDTO?
 
         func domain(id: String) throws -> JourneySection {
             guard let kind = JourneySection.Kind(rawValue: type) else {
@@ -177,7 +244,9 @@ struct JourneyResultDTO: Decodable {
                         arrivalAt: $0.arrivalAt,
                         departureAt: $0.departureAt
                     )
-                }
+                },
+                boardingPosition: try boardingPosition?.domain(),
+                exit: exit?.domain
             )
         }
     }

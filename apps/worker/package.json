@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "bun test",
+    "test": "bun --env-file=../../.env test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

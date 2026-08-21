@@ -14,6 +14,7 @@ import { createNaturalJourneysRouter } from './natural-journeys/router';
 import { createOpenAiResponsesTransport } from './natural-journeys/openai-transport';
 import { createNaturalJourneyService } from './natural-journeys/service';
 import { networkRouter } from './network/router';
+import { notificationsRouter } from './notifications/router';
 import { searchRouter } from './search/router';
 import { searchPlaces } from './search/search-places';
 
@@ -80,6 +81,7 @@ export const apiRouter = implementer.router({
   health: healthRouter,
   journeys: createJourneysRouter(journeyPlanner),
   naturalJourneys: createNaturalJourneysRouter(naturalJourneyService),
+  notifications: notificationsRouter,
   lines: linesRouter,
   network: networkRouter,
   search: searchRouter,

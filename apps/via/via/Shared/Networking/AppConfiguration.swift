@@ -1,7 +1,14 @@
 import Foundation
 
-struct AppConfiguration: Sendable {
+enum APNsEnvironment: String, Codable, Sendable {
+    case sandbox
+    case production
+}
+
+struct AppConfiguration: Sendable, Hashable {
     let apiBaseURL: URL
+    let bundleIdentifier: String
+    let apnsEnvironment: APNsEnvironment
 
     static func bundled(bundle: Bundle = .main) throws -> AppConfiguration {
         guard
@@ -18,7 +25,16 @@ struct AppConfiguration: Sendable {
         }
         #endif
 
-        return AppConfiguration(apiBaseURL: url)
+        let rawEnvironment =
+            bundle.object(forInfoDictionaryKey: "VIA_APNS_ENVIRONMENT") as? String ?? "sandbox"
+        guard let apnsEnvironment = APNsEnvironment(rawValue: rawEnvironment) else {
+            throw ViaError.invalidConfiguration("VIA_APNS_ENVIRONMENT est invalide")
+        }
+
+        return AppConfiguration(
+            apiBaseURL: url,
+            bundleIdentifier: bundle.bundleIdentifier ?? "dev.via.app",
+            apnsEnvironment: apnsEnvironment
+        )
     }
 }
-

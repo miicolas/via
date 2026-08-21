@@ -8,10 +8,12 @@ struct NaturalJourneyFailureView: View {
     let onClassicSearch: () -> Void
 
     var body: some View {
-        NaturalJourneyStateCard(
-            systemImage: "wifi.exclamationmark",
-            title: "Recherche impossible",
-            message: message,
+        EmptyStateView(
+            .ai(
+                systemImage: "wifi.exclamationmark",
+                title: "Recherche impossible",
+                message: message,
+            ),
         ) {
             if let criteria {
                 NaturalJourneyPreservedCriteriaView(criteria: criteria)

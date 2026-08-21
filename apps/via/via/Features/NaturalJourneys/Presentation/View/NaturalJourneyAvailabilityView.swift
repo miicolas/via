@@ -6,10 +6,12 @@ struct NaturalJourneyAvailabilityView: View {
     let onClassicSearch: () -> Void
 
     var body: some View {
-        NaturalJourneyStateCard(
-            systemImage: "apple.intelligence.badge.xmark",
-            title: guidance.title,
-            message: guidance.message,
+        EmptyStateView(
+            .ai(
+                systemImage: "apple.intelligence.badge.xmark",
+                title: guidance.title,
+                message: guidance.message,
+            ),
         ) {
             // The steps stay left-aligned inside a centred column: a checklist
             // read as a paragraph of centred lines is a checklist nobody reads.

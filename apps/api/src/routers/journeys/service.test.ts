@@ -4,6 +4,7 @@ import type { Journey, JourneyInput, JourneyMode, JourneysResponse } from '@via/
 import { fakeRedis } from '../departures/__fixtures__/fake-redis';
 import {
   createJourneyPlanner,
+  rankPreferredJourney,
   type GtfsJourneyPlanner,
   type IdfmJourneyPlanner,
 } from './service';
@@ -235,6 +236,34 @@ describe('journey planning module', () => {
     expect(response).toMatchObject({ status: 'ready', source: 'idfm-realtime' });
     expect(response.journeys.map((journey) => journey.id)).toEqual(['bus']);
     expect(calls).toEqual({ idfm: 1, gtfs: 0 });
+  });
+
+  test('prefers a non-peak alternative inside the three-minute band', () => {
+    const peak = { ...modalJourney('metro', 1_800), peak: {
+      ratio: 1,
+      level: 'peak' as const,
+      stationName: 'Châtelet',
+      label: 'heure la plus chargée',
+    } };
+    const calm = modalJourney('rer', 1_920);
+
+    const ranked = rankPreferredJourney([peak, calm], []);
+
+    expect(ranked.map((journey) => journey.id)).toEqual(['rer', 'metro']);
+    expect(ranked[0]?.qualifier).toBe('recommended');
+    expect(ranked[1]?.qualifier).toBe('rapid');
+  });
+
+  test('never moves a peak journey behind a route that is more than three minutes faster', () => {
+    const fastPeak = { ...modalJourney('metro', 1_200), peak: {
+      ratio: 1,
+      level: 'peak' as const,
+      stationName: 'Châtelet',
+      label: 'heure la plus chargée',
+    } };
+    const calm = modalJourney('rer', 1_560);
+
+    expect(rankPreferredJourney([fastPeak, calm], []).map((journey) => journey.id)).toEqual(['metro', 'rer']);
   });
 });
 

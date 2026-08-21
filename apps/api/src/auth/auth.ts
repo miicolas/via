@@ -8,7 +8,7 @@ import { env } from '../env';
 import { getAppleClientSecret } from './apple-client-secret';
 
 export const auth = betterAuth({
-  appName: 'Via',
+  appName: 'Metyro',
   baseURL: env.BETTER_AUTH_URL,
   basePath: '/api/auth',
   secret: env.BETTER_AUTH_SECRET,

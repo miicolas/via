@@ -44,18 +44,19 @@ struct ReportStationPickerView: View {
     private var resultsContent: some View {
         switch viewModel.stationSearchState {
         case .idle:
-            Text("Saisissez au moins deux caractères pour rechercher une station.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            EmptyStateView(
+                EmptyState(
+                    systemImage: "magnifyingglass",
+                    title: "Rechercher une station",
+                    message: "Saisissez au moins deux caractères pour lancer la recherche.",
+                )
+            ) {
+                Text("Utilisez le champ de recherche ci-dessus.")
+                    .emptyStateHint()
+            }
 
         case .loading:
-            HStack {
-                Spacer()
-                LoadingStatus(label: "Recherche…")
-                Spacer()
-            }
-            .padding(.vertical, 28)
+            EmptyStateView(.searching())
 
         case .loaded(let stations):
             VStack(alignment: .leading, spacing: 0) {
@@ -75,15 +76,16 @@ struct ReportStationPickerView: View {
             }
 
         case .empty:
-            SearchEmptyStateView(message: "Essayez un autre nom de station.")
+            EmptyStateView(.noResults(message: "Essayez un autre nom de station.")) {
+                Text("Modifiez la recherche ci-dessus.")
+                    .emptyStateHint()
+            }
 
         case .failed:
-            SearchEmptyStateView(
-                title: "Recherche indisponible",
-                message: "Vérifiez votre connexion puis réessayez.",
-                actionTitle: "Réessayer",
-                action: viewModel.retryStationSearch
-            )
+            EmptyStateView(.offline(title: "Recherche indisponible")) {
+                RetryButton(action: viewModel.retryStationSearch)
+                    .primaryAction()
+            }
         }
     }
 }

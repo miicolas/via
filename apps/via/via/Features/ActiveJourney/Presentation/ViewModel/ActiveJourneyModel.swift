@@ -16,6 +16,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     @ObservationIgnored private let journeyRepository: any JourneyRepository
     @ObservationIgnored private let store: any ActiveJourneyStore
     @ObservationIgnored private let activityManager: any JourneyActivityManaging
+    @ObservationIgnored private let journeyNotificationManager: any JourneyNotificationActiveJourneyManaging
     @ObservationIgnored private let connectivity: any ConnectivityMonitoring
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private var locationTask: Task<Void, Never>?
@@ -24,12 +25,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     @ObservationIgnored private var recalculationID: UUID?
     @ObservationIgnored private var lastAutomaticRecalculationSectionID: String?
     @ObservationIgnored private var isRestoring = false
+    @ObservationIgnored private var restoreWaiters: [CheckedContinuation<Void, Never>] = []
 
     init(
         locationModel: LocationModel,
         journeyRepository: any JourneyRepository,
         store: any ActiveJourneyStore = InMemoryActiveJourneyStore(),
         activityManager: any JourneyActivityManaging = NoOpJourneyActivityManager(),
+        journeyNotificationManager: any JourneyNotificationActiveJourneyManaging = NoOpJourneyNotificationActiveJourneyManager(),
         connectivity: any ConnectivityMonitoring = InMemoryConnectivityMonitor(),
         now: @escaping @Sendable () -> Date = { .now }
     ) {
@@ -37,6 +40,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         self.journeyRepository = journeyRepository
         self.store = store
         self.activityManager = activityManager
+        self.journeyNotificationManager = journeyNotificationManager
         self.connectivity = connectivity
         self.now = now
         referenceDate = now()
@@ -180,13 +184,24 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         startLocationTracking(allowsBackgroundUpdates: allowsBackgroundTracking)
         startTimeMonitoring()
         await persist()
+        await journeyNotificationManager.registerActiveJourney(session.journey)
         await startActivity()
     }
 
     func restore() async {
-        guard session == nil, !isRestoring else { return }
+        guard session == nil else { return }
+        if isRestoring {
+            await withCheckedContinuation { continuation in
+                restoreWaiters.append(continuation)
+            }
+            return
+        }
         isRestoring = true
-        defer { isRestoring = false }
+        defer {
+            isRestoring = false
+            restoreWaiters.forEach { $0.resume() }
+            restoreWaiters.removeAll()
+        }
 
         let restored: ActiveJourneySession?
         do {
@@ -228,6 +243,9 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             )
         }
         await persist()
+        if session.isTrackingStarted {
+            await journeyNotificationManager.registerActiveJourney(session.journey)
+        }
         await startActivity()
     }
 
@@ -250,6 +268,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         evaluateProgress(at: referenceDate)
         startTimeMonitoring()
         if session.isTrackingStarted {
+            await journeyNotificationManager.registerActiveJourney(session.journey)
             startLocationTracking(
                 allowsBackgroundUpdates: session.allowsBackgroundTracking
             )
@@ -318,6 +337,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             finalState: activityState(isArrived: true),
             dismissAt: finishedAt.addingTimeInterval(60)
         )
+        await journeyNotificationManager.unregisterActiveJourney(session.journey)
         await clearSession()
     }
 
@@ -332,6 +352,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             ),
             dismissAt: stoppedAt
         )
+        await journeyNotificationManager.unregisterActiveJourney(session.journey)
         arrival = nil
         await clearSession()
     }
@@ -387,6 +408,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         locationModel.stopJourneyTracking()
 
         if let previousSession, previousSession.journey.id != journey.id {
+            await journeyNotificationManager.unregisterActiveJourney(previousSession.journey)
             await activityManager.end(
                 journeyID: previousSession.journey.id,
                 finalState: terminalActivityState(
@@ -624,7 +646,11 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             ),
             dismissAt: acceptedAt
         )
+        await journeyNotificationManager.unregisterActiveJourney(previous.journey)
         await persist()
+        if session?.isTrackingStarted == true {
+            await journeyNotificationManager.registerActiveJourney(journey)
+        }
         await startActivity()
     }
 
@@ -639,6 +665,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             ),
             dismissAt: expiredAt
         )
+        await journeyNotificationManager.unregisterActiveJourney(session.journey)
         arrival = nil
         await clearSession()
     }
@@ -699,7 +726,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             title = section.route.map { "Prenez \($0.longName)" } ?? "Prenez le transport"
             let direction = section.direction.map { "Direction \($0)" }
             let platform = section.platform.map { "Quai \($0)" }
-            detail = [direction, platform].compactMap { $0 }.joined(separator: " · ").nilIfEmpty
+            // Where to stand comes before where to leave: one is acted on now,
+            // on this platform, the other several stops later.
+            let car = section.boardingPosition.map { "Voiture \($0.car)/\($0.carCount)" }
+            let exit = section.exit.map(JourneyGuidance.exitLabel)
+            detail = [direction, platform, car, exit]
+                .compactMap { $0 }
+                .joined(separator: " · ")
+                .nilIfEmpty
         }
 
         return ActiveJourneyInstruction(

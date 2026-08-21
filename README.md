@@ -27,20 +27,20 @@ Open `apps/via/via.xcodeproj` in Xcode for development, or run `bun run ios` for
 
 ## Scripts
 
-| Script | What it does |
-| --- | --- |
-| `bun run dev` / `dev:api` | starts the API in watch mode |
-| `bun run ios` | builds the native app for an iOS simulator |
-| `bun run typecheck` | `tsc --noEmit` across all packages |
-| `bun run test` | `bun test` across all packages |
-| `bun run generate:ios-api` | regenerates the OpenAPI document and Swift client |
-| `bun run check:openapi` | verifies generated API artifacts are current |
-| `bun run check:transit-alignment` | checks metro/RER stop alignment and that buses have no trace (needs the API running) |
-| `bun run db:up` / `db:down` / `db:reset` | Docker Postgres + Redis lifecycle (`db:reset` drops both volumes) |
-| `bun run db:generate` | diff the schema into a new SQL migration |
-| `bun run db:migrate` | apply pending migrations |
-| `bun run db:studio` | Drizzle Studio |
-| `bun run gtfs:import <path>` | imports metro, RER A–E and all bus lines from an extracted IDFM GTFS feed |
+| Script                                   | What it does                                                                         |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| `bun run dev` / `dev:api`                | starts the API in watch mode                                                         |
+| `bun run ios`                            | builds the native app for an iOS simulator                                           |
+| `bun run typecheck`                      | `tsc --noEmit` across all packages                                                   |
+| `bun run test`                           | `bun test` across all packages                                                       |
+| `bun run generate:ios-api`               | regenerates the OpenAPI document and Swift client                                    |
+| `bun run check:openapi`                  | verifies generated API artifacts are current                                         |
+| `bun run check:transit-alignment`        | checks metro/RER stop alignment and that buses have no trace (needs the API running) |
+| `bun run db:up` / `db:down` / `db:reset` | Docker Postgres + Redis lifecycle (`db:reset` drops both volumes)                    |
+| `bun run db:generate`                    | diff the schema into a new SQL migration                                             |
+| `bun run db:migrate`                     | apply pending migrations                                                             |
+| `bun run db:studio`                      | Drizzle Studio                                                                       |
+| `bun run gtfs:import <path>`             | imports metro, RER A–E and all bus lines from an extracted IDFM GTFS feed            |
 
 ## Database
 
@@ -62,6 +62,27 @@ against the live database), the workflow here is `generate` → `migrate` only.
 `packages/contract` declares the paths, methods and payloads. The API implements them and `bun run generate:ios-api` produces the OpenAPI document plus the Swift client consumed behind `LiveViaAPIClient`.
 
 `bun run typecheck` proves the TypeScript contract and server agree. `bun run check:openapi` additionally proves that the versioned Swift-facing artifacts are current.
+
+## Notifications APNs et activités en direct
+
+Le flux APNs est complet de l’app au provider :
+
+- l’app demande la permission, s’enregistre à chaque lancement et envoie le
+  token APNs au compte courant ; le token n’est jamais persisté localement ;
+- l’API conserve les tokens par installation/environnement, signe les requêtes
+  avec la clé APNs, borne la durée de livraison et purge les tokens invalides
+  retournés par Apple ;
+- Les rappels de trajet restent locaux (départ, correspondances, arrivée) et
+  mémorisent une seule intention par installation ; les perturbations des
+  lignes d’un trajet suivi passent par APNs et le monitor PRIM partagé.
+- Les Live Activities sont pilotées localement par ActivityKit pendant le
+  guidage. Aucun token ActivityKit n’est collecté côté serveur tant qu’aucun
+  workflow métier ne produit de mises à jour distantes.
+
+Après `bun run db:migrate`, renseigner côté serveur `APNS_TEAM_ID`,
+`APNS_KEY_ID`, `APNS_PRIVATE_KEY` et `APNS_BUNDLE_ID`. La clé privée reste
+uniquement dans l’environnement de l’API ; les builds Debug/Staging utilisent
+`sandbox`, et Release utilise `production`.
 
 ## API structure
 
@@ -89,10 +110,10 @@ unimplemented.
 Hono keeps the HTTP edge — logging, CORS, request ids, the error envelope — and
 mounts oRPC twice over the same procedures:
 
-| Mount | Protocol | Who calls it |
-| --- | --- | --- |
-| `/api` | REST at the contract's paths, described by `/api/openapi.json` | iOS app and third parties |
-| `/rpc` | oRPC | internal typed integrations |
+| Mount  | Protocol                                                       | Who calls it                |
+| ------ | -------------------------------------------------------------- | --------------------------- |
+| `/api` | REST at the contract's paths, described by `/api/openapi.json` | iOS app and third parties   |
+| `/rpc` | oRPC                                                           | internal typed integrations |
 
 The iOS client uses cacheable `GET` operations through `URLSession`. Metro and RER carry normalized polylines. Bus routes carry their stops and metadata but no geometry, keeping the surface network from covering the map in strokes.
 
@@ -109,7 +130,7 @@ polled once a minute over a service day would spend it all. So:
 - every PRIM call goes through the server, never the app;
 - responses live in local Redis for ~120 s, behind a `SET NX` lock, so N
   riders looking at one station cost about one upstream call;
-- a per-day counter (`prim:budget:*`, Paris calendar) is incremented *before*
+- a per-day counter (`prim:budget:*`, Paris calendar) is incremented _before_
   each call and refuses once the daily ceiling minus a 5 % reserve is reached;
 - when consumption runs ahead of the hour's prorata, the cache TTL doubles then
   quadruples (`adaptive-ttl.ts`) instead of the quota simply running out;
@@ -118,6 +139,11 @@ polled once a minute over a service day would spend it all. So:
 
 `REDIS_URL` points the API at the local container by default. Without
 `API_KEY_PRISM_IDFM`, the endpoint still works but never returns `realtime`.
+
+Redis is also the durable coordination log for disruption delivery claims and
+three-day delivered markers. Production must enable AOF persistence and the
+`noeviction` policy; losing or evicting these keys can redeliver an active
+incident. The local container uses those settings explicitly.
 
 `scripts/spike-prim-mapping.ts` is the one-off that validates our GTFS ids map
 onto the STIF refs PRIM expects (`STIF:StopArea:SP:{n}:`, `STIF:Line::{code}:`)

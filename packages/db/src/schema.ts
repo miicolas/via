@@ -4,10 +4,13 @@ import {
   check,
   date,
   doublePrecision,
+  foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
+  real,
   serial,
   text,
   timestamp,
@@ -157,6 +160,111 @@ export const stationFacts = pgTable(
       'station_facts_condition_check',
       sql`${table.condition} IN ('autonomous', 'staffAssistance', 'reservationRequired')`
     ),
+  ]
+);
+
+/**
+ * Relative hourly validation profiles for the three public-transit day types.
+ * `peakRatio` is calculated at import time so readers only decide the current
+ * level thresholds; the raw station-relative share remains available for
+ * future displays without exposing the source table wholesale.
+ */
+export const stationHourProfiles = pgTable(
+  'station_hour_profiles',
+  {
+    stopId: text('stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    dayType: text('day_type', { enum: ['weekday', 'saturday', 'sunday'] }).notNull(),
+    hour: integer('hour').notNull(),
+    share: real('share').notNull(),
+    peakRatio: real('peak_ratio').notNull(),
+    source: text('source').notNull(),
+    sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }).notNull(),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.stopId, table.dayType, table.hour] }),
+    index('station_hour_profiles_day_hour_idx').on(table.dayType, table.hour),
+  ]
+);
+
+/**
+ * A street-level way in or out of a station, as the IDFM stop referential
+ * declares it: the door a traveller is told to take, `number` being the figure
+ * printed on the signage above it.
+ *
+ * Not a `station_facts` kind: that table holds one row per station per kind, and
+ * a station has many exits. Same provenance columns, deliberately — both are
+ * snapshots of an external referential and both must be able to say how old they
+ * are.
+ */
+export const stationExits = pgTable(
+  'station_exits',
+  {
+    /** The referential's access id, prefixed like every other IDFM id we store. */
+    id: text('id').primaryKey(),
+    stopId: text('stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    /** Street-facing name, e.g. 'pl. du Châtelet'. */
+    name: text('name').notNull(),
+    /** The number riders see on the signage; absent from a few accesses. */
+    number: integer('number'),
+    detail: text('detail'),
+    location: pointWgs84('location').notNull(),
+    source: text('source').notNull(),
+    sourceRef: text('source_ref').notNull(),
+    sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('station_exits_stop_idx').on(table.stopId),
+    index('station_exits_location_idx').using('gist', table.location),
+  ]
+);
+
+export const BOARDING_POSITION_ZONES = ['front', 'middle', 'rear'] as const;
+export type BoardingPositionZone = (typeof BOARDING_POSITION_ZONES)[number];
+
+export const BOARDING_POSITION_EQUIPMENTS = ['escalator', 'lift', 'stairs'] as const;
+export type BoardingPositionEquipment = (typeof BOARDING_POSITION_EQUIPMENTS)[number];
+
+/**
+ * Which carriage to ride in so the doors open in front of a given exit or
+ * connecting platform.
+ *
+ * Keyed by *quay*, not by station: a quay is direction-specific, and the advice
+ * flips with the direction — Châtelet line 7 is carriage 5 of 5 from one quay
+ * and carriage 1 of 5 from the other, because carriages count from the head of
+ * the train. Collapsing the two into a station would silently send half the
+ * riders to the wrong end of the platform. That is also why `fromQuayId` and
+ * `targetId` carry no foreign key: `transit_stops` holds canonical stations, and
+ * these are one level finer. The importer validates them against
+ * `transit_stop_aliases` instead.
+ */
+export const boardingPositions = pgTable(
+  'boarding_positions',
+  {
+    /** The quay the traveller arrives on, e.g. 'IDFM:463060'. */
+    fromQuayId: text('from_quay_id').notNull(),
+    /** A `station_exits.id` or, for a connection, the next line's quay id. */
+    targetId: text('target_id').notNull(),
+    targetKind: text('target_kind', { enum: ['exit', 'transfer'] }).notNull(),
+    routeId: text('route_id').notNull(),
+    car: integer('car').notNull(),
+    /** The line's nominal train length — a short trainset makes this optimistic. */
+    carCount: integer('car_count').notNull(),
+    zone: text('zone', { enum: BOARDING_POSITION_ZONES }).notNull(),
+    /** What the walk from the doors to the target uses, when the source says so. */
+    equipment: text('equipment', { enum: BOARDING_POSITION_EQUIPMENTS }),
+    source: text('source').notNull(),
+    sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.fromQuayId, table.targetId] }),
+    check('boarding_positions_car_check', sql`${table.car} BETWEEN 1 AND ${table.carCount}`),
   ]
 );
 
@@ -554,10 +662,154 @@ export const accountSyncOperations = pgTable(
   (table) => [index('account_sync_operations_user_idx').on(table.userId)]
 );
 
+/**
+ * One current APNs device token per app installation. The installation id is
+ * generated by the client and lets a token rotate without leaving a previous
+ * row attached to the same account. A token is unique per app/environment so
+ * signing out and signing in again can safely re-associate the installation.
+ */
+export const notificationDevices = pgTable(
+  'notification_devices',
+  {
+    installationId: text('installation_id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    deviceToken: text('device_token').notNull(),
+    bundleId: text('bundle_id').notNull(),
+    environment: text('environment', {
+      enum: ['sandbox', 'production'],
+    }).notNull(),
+    appVersion: text('app_version'),
+    osVersion: text('os_version'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('notification_devices_token_uidx').on(table.bundleId, table.environment, table.deviceToken),
+    index('notification_devices_user_idx').on(table.userId),
+    uniqueIndex('notification_devices_installation_user_uidx').on(table.installationId, table.userId),
+  ]
+);
+
+export type NotificationRouteWindow = {
+  routeId: string;
+  startsAt: number;
+  endsAt: number;
+};
+
+/**
+ * @deprecated Physical compatibility only for API replicas from the ae27
+ * rollout. New code never reads or writes these ActivityKit tokens. Migration
+ * 0026 purges their contents; drop both tables after the old replicas drain.
+ */
+export const notificationLiveActivities = pgTable(
+  'notification_live_activities',
+  {
+    activityId: text('activity_id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    installationId: text('installation_id')
+      .notNull()
+      .references(() => notificationDevices.installationId, { onDelete: 'cascade' }),
+    journeyId: text('journey_id').notNull(),
+    activityToken: text('activity_token').notNull(),
+    bundleId: text('bundle_id').notNull(),
+    environment: text('environment', { enum: ['sandbox', 'production'] }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('notification_live_activities_token_uidx').on(
+      table.bundleId,
+      table.environment,
+      table.activityToken
+    ),
+    index('notification_live_activities_user_idx').on(table.userId),
+    index('notification_live_activities_journey_idx').on(table.journeyId),
+    index('notification_live_activities_installation_idx').on(table.installationId),
+  ]
+);
+
+/** @deprecated See `notificationLiveActivities`; retained for one rollout window. */
+export const notificationLiveActivityStartTokens = pgTable(
+  'notification_live_activity_start_tokens',
+  {
+    installationId: text('installation_id')
+      .primaryKey()
+      .references(() => notificationDevices.installationId, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    pushToStartToken: text('push_to_start_token').notNull(),
+    bundleId: text('bundle_id').notNull(),
+    environment: text('environment', { enum: ['sandbox', 'production'] }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('notification_live_activity_start_tokens_token_uidx').on(
+      table.bundleId,
+      table.environment,
+      table.pushToStartToken
+    ),
+    index('notification_live_activity_start_tokens_user_idx').on(table.userId),
+  ]
+);
+
+/**
+ * The monitor claims one shard at a time, so the column and every reader must
+ * agree on the count: a reader using fewer shards never sees the rest.
+ */
+export const NOTIFICATION_DELIVERY_SHARD_COUNT = 64;
+
+/**
+ * One authenticated installation can follow one journey for disruption
+ * alerts. The route ids are snapshotted with the timetable so the monitor
+ * never needs to decode the full journey again.
+ */
+export const notificationJourneySubscriptions = pgTable(
+  'notification_journey_subscriptions',
+  {
+    installationId: text('installation_id').primaryKey(),
+    userId: text('user_id').notNull(),
+    journeyId: text('journey_id').notNull(),
+    deliveryShard: integer('delivery_shard').generatedAlwaysAs(
+      sql.raw(
+        `mod(hashtextextended(installation_id, 0) & 9223372036854775807, ${NOTIFICATION_DELIVERY_SHARD_COUNT})`
+      )
+    ),
+    /** @deprecated Dual-write compatibility for ae27 replicas. */
+    routeIds: text('route_ids').array().notNull().default(sql`'{}'::text[]`),
+    routeWindows: jsonb('route_windows').$type<NotificationRouteWindow[]>().notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('notification_journey_subscriptions_user_idx').on(table.userId),
+    index('notification_journey_subscriptions_journey_idx').on(table.journeyId),
+    index('notification_journey_subscriptions_ends_idx').on(table.endsAt),
+    index('notification_journey_subscriptions_starts_idx').on(table.startsAt),
+    index('notification_journey_subscriptions_delivery_shard_idx').on(
+      table.deliveryShard,
+      table.installationId
+    ),
+    foreignKey({
+      columns: [table.installationId, table.userId],
+      foreignColumns: [notificationDevices.installationId, notificationDevices.userId],
+      name: 'notification_journey_subscriptions_installation_user_fk',
+    }).onDelete('cascade'),
+  ]
+);
+
 export type TransitRoute = typeof transitRoutes.$inferSelect;
 export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
 export type TransitStopAlias = typeof transitStopAliases.$inferSelect;
 export type StationFact = typeof stationFacts.$inferSelect;
+export type StationHourProfile = typeof stationHourProfiles.$inferSelect;
 export type TransitTrip = typeof transitTrips.$inferSelect;
 export type TransitLineSchemaStop = typeof transitLineSchemaStops.$inferSelect;

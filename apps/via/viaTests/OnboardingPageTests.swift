@@ -13,7 +13,7 @@ final class OnboardingPageTests: XCTestCase {
         XCTAssertEqual(
             pages.map(\.title),
             [
-                "Bienvenue dans Via",
+                "Bienvenue dans Metyro",
                 "Tes stations en direct",
                 "Anticipe les perturbations",
                 "Décris simplement ton trajet",
@@ -27,7 +27,7 @@ final class OnboardingPageTests: XCTestCase {
                 "Tes trajets franciliens, plus simples et plus intelligents.",
                 "Repère les stations proches et consulte les prochains passages.",
                 "Visualise l’état des lignes et les travaux avant de partir.",
-                "Via comprend les lieux, l’heure et les transports à éviter.",
+                "Metyro comprend les lieux, l’heure et les transports à éviter.",
                 "Préfère ou évite certains transports et demande un trajet PMR via des stations accessibles.",
                 "Suis ta progression, les prochaines étapes et les correspondances jusqu’à l’arrivée.",
             ]

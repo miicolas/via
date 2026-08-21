@@ -12,7 +12,7 @@ services:
       POSTGRES_DB: via
     ports:
       # Override POSTGRES_PORT in .env if 5432 is already taken on your machine.
-      - '${POSTGRES_PORT:-5432}:5432'
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       # PG18 keeps its data in /var/lib/postgresql/18/docker and declares the
       # volume one level up — mount the parent, not PGDATA itself.
@@ -21,7 +21,7 @@ services:
       # /docker-entrypoint-initdb.d scripts (which enable PostGIS).
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/20-via-init.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U via -d via']
+      test: ["CMD-SHELL", "pg_isready -U via -d via"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -32,12 +32,19 @@ services:
     container_name: via-redis
     restart: unless-stopped
     ports:
-      - '${REDIS_PORT:-6379}:6379'
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - via-redisdata:/data
-    command: ['redis-server', '--appendonly', 'yes']
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10

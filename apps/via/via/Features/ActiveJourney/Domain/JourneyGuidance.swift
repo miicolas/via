@@ -98,16 +98,37 @@ enum JourneyGuidance {
         case .some(let remaining): "Descendre dans \(remaining) arrêts"
         }
 
+        /**
+         The exit replaces the alighting stop's name once it is nearly time to
+         get off: a traveller two stops away already knows where they are going,
+         and the door number is what they will need on the platform.
+         */
+        let leadsWithExit = section.exit != nil && (progress.stopsUntilAlighting ?? 99) <= 1
+        let destinationDetail: String = if leadsWithExit, let exit = section.exit {
+            exitLabel(exit)
+        } else if progress.stopsUntilAlighting == nil {
+            "Arrivée"
+        } else {
+            alightName
+        }
+        let carriage = section.boardingPosition.map { "Voiture \($0.car)/\($0.carCount)" }
+        let detail = [carriage, destinationDetail, JourneyFormatting.time(endsAt)]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+
         return JourneyGuidanceHeadline(
             title: title,
-            detail: progress.stopsUntilAlighting == nil
-                ? "Arrivée à \(JourneyFormatting.time(endsAt))"
-                : "\(alightName) · \(JourneyFormatting.time(endsAt))",
+            detail: detail,
             symbolName: section.route?.mode.chipSystemImage ?? "tram.fill",
             route: section.route,
             stopsUntilAlighting: progress.stopsUntilAlighting,
             alightStopName: alightName
         )
+    }
+
+    /// Short enough for a Live Activity line: the number when there is one.
+    static func exitLabel(_ exit: JourneyExit) -> String {
+        exit.number.map { "Sortie \($0)" } ?? "Sortie \(exit.name)"
     }
 
     private static func arrived(at journey: Journey) -> JourneyGuidanceHeadline {

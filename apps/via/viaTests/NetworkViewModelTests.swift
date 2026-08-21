@@ -3,6 +3,25 @@ import XCTest
 
 final class NetworkViewModelTests: XCTestCase {
     @MainActor
+    func testPreloadPreparesNetworkBeforeFirstViewport() async {
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: area()
+        )
+        let model = NetworkViewModel(repository: repository)
+
+        await model.preload()
+
+        XCTAssertEqual(await repository.railCallCount, 1)
+
+        model.viewportChanged(to: viewport(), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+
+        XCTAssertEqual(await repository.railCallCount, 1)
+        XCTAssertEqual(model.state.snapshot.routes.count, 2)
+    }
+
+    @MainActor
     func testInitialEndedViewportLoadsARenderableSnapshot() async {
         let repository = NetworkRepositorySpy(
             network: network(),

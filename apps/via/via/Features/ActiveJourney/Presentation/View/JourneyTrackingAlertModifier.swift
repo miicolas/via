@@ -11,7 +11,7 @@ struct JourneyTrackingAlertModifier: ViewModifier {
             Button("Annuler", role: .cancel) {}
         } message: {
             Text(
-                "Via utilise votre position pendant le trajet pour afficher la bonne étape, " +
+                "Metyro utilise votre position pendant le trajet pour afficher la bonne étape, " +
                     "détecter l’arrivée et proposer rapidement un nouvel itinéraire. " +
                     "Le suivi en arrière-plan fonctionne aussi lorsque l’écran est verrouillé. " +
                     "Vous pourrez toujours avancer manuellement si vous refusez."

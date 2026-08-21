@@ -7,10 +7,12 @@ struct NaturalJourneyUnsupportedView: View {
     let onClassicSearch: () -> Void
 
     var body: some View {
-        NaturalJourneyStateCard(
-            systemImage: "text.magnifyingglass",
-            title: "Demande non reconnue",
-            message: message,
+        EmptyStateView(
+            .ai(
+                systemImage: "text.magnifyingglass",
+                title: "Demande non reconnue",
+                message: message,
+            ),
         ) {
             if !suggestions.isEmpty {
                 VStack(spacing: 8) {

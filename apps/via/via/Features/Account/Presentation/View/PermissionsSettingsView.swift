@@ -5,6 +5,7 @@ import UIKit
 
 struct PermissionsSettingsView: View {
     let locationModel: LocationModel
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
 
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
@@ -27,8 +28,22 @@ struct PermissionsSettingsView: View {
                     systemImage: "person.crop.rectangle.stack.fill",
                     status: contactsStatus
                 )
+                permissionRow(
+                    title: "Notifications",
+                    systemImage: "bell.fill",
+                    status: notificationStatus
+                )
             } footer: {
-                Text("Via demande chaque autorisation uniquement au moment où la fonctionnalité en a besoin.")
+                Text("Metyro demande chaque autorisation uniquement au moment où la fonctionnalité en a besoin.")
+            }
+
+            if journeyNotificationCoordinator.authorizationStatus == .notDetermined {
+                Section {
+                    Button("Autoriser les notifications", systemImage: "bell.badge") {
+                        Task { await journeyNotificationCoordinator.requestAuthorization() }
+                    }
+                    .primaryAction()
+                }
             }
 
             Section {
@@ -40,6 +55,7 @@ struct PermissionsSettingsView: View {
         .navigationTitle("Autorisations iOS")
         .navigationBarTitleDisplayMode(.large)
         .id(scenePhase)
+        .task { await journeyNotificationCoordinator.refreshAuthorizationStatus() }
     }
 
     private func permissionRow(title: String, systemImage: String, status: PermissionStatus) -> some View {
@@ -79,6 +95,15 @@ struct PermissionsSettingsView: View {
         case .notDetermined: .notRequested
         case .denied: .denied
         case .restricted: .restricted
+        @unknown default: .restricted
+        }
+    }
+
+    private var notificationStatus: PermissionStatus {
+        switch journeyNotificationCoordinator.authorizationStatus {
+        case .authorized, .provisional, .ephemeral: .authorized
+        case .notDetermined: .notRequested
+        case .denied: .denied
         @unknown default: .restricted
         }
     }

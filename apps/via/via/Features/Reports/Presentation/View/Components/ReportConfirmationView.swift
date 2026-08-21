@@ -21,7 +21,7 @@ struct ReportConfirmationView: View {
                     Text("Merci")
                         .font(.largeTitle.weight(.bold))
 
-                    Text("Votre signalement aidera à améliorer Via à l’avenir.")
+                    Text("Votre signalement aidera à améliorer Metyro à l’avenir.")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -36,7 +36,7 @@ struct ReportConfirmationView: View {
                 .frame(minHeight: proxy.size.height, alignment: .center)
                 .padding(24)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Signalement envoyé. Merci. Votre signalement aidera à améliorer Via à l’avenir.")
+                .accessibilityLabel("Signalement envoyé. Merci. Votre signalement aidera à améliorer Metyro à l’avenir.")
             }
         }
         .safeAreaInset(edge: .bottom) {

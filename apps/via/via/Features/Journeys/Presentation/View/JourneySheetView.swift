@@ -8,6 +8,8 @@ struct JourneySheetView: View {
     let journeyID: JourneyID
     let searchViewModel: SearchViewModel
     let activeJourneyModel: ActiveJourneyModel
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
+    let scheduledReminder: ScheduledJourneyReminder? = nil
     var isLargeScreen: Bool
     @Binding var detent: PresentationDetent
     let onExpandMap: () -> Void
@@ -22,6 +24,8 @@ struct JourneySheetView: View {
                         destination: resolved.destination,
                         source: resolved.source,
                         activeJourneyModel: activeJourneyModel,
+                        journeyNotificationCoordinator: journeyNotificationCoordinator,
+                        prefersGoAction: scheduledReminder != nil,
                         onHighlightSection: searchViewModel.highlightJourneySection,
                         onExpandMap: onExpandMap,
                     )
@@ -42,6 +46,13 @@ struct JourneySheetView: View {
     /// search result set is empty; otherwise looks the journey up in the
     /// current proposal.
     private var resolvedJourney: (journey: Journey, destination: JourneyDestination, source: JourneyResult.Source?)? {
+        if let scheduledReminder, scheduledReminder.journey.id == journeyID {
+            return (
+                scheduledReminder.journey,
+                scheduledReminder.destination,
+                scheduledReminder.source
+            )
+        }
         if let session = activeJourneyModel.session, session.journey.id == journeyID {
             return (session.journey, session.destination, session.source)
         }

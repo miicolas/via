@@ -56,6 +56,9 @@ export function journeyCacheKey(input: {
   preferredModes?: string[];
   requiresAccessibleStations?: boolean;
   originStationId?: string;
+  /** Explicitly partition the derived station-profile context. */
+  dayType?: string;
+  hour?: number;
 }) {
   const round = (value: number) => Math.round(value * 10_000) / 10_000;
   const minute = Math.floor(input.requestedAt.getTime() / 60_000);
@@ -67,6 +70,8 @@ export function journeyCacheKey(input: {
     round(input.destination.coordinate.longitude),
     input.limit,
     minute,
+    input.dayType ?? '',
+    input.hour ?? '',
     input.datetimeRepresents ?? 'departure',
     [...(input.requiredModes ?? [])].sort().join(','),
     [...(input.excludedModes ?? [])].sort().join(','),

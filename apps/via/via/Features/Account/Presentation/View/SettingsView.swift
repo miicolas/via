@@ -7,6 +7,8 @@ struct SettingsView: View {
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
     let locationModel: LocationModel
+    let pushNotificationManager: PushNotificationManager = .preview
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
 
     @Environment(\.dismiss) private var dismiss
 
@@ -52,12 +54,27 @@ struct SettingsView: View {
                     }
 
                     NavigationLink {
-                        PermissionsSettingsView(locationModel: locationModel)
+                        JourneyNotificationsSettingsView(
+                            coordinator: journeyNotificationCoordinator
+                        )
+                    } label: {
+                        SettingsRow(
+                            title: "Rappels de trajet",
+                            systemImage: "bell.badge.fill",
+                            subtitle: "Départ, correspondances et arrivée"
+                        )
+                    }
+
+                    NavigationLink {
+                        PermissionsSettingsView(
+                            locationModel: locationModel,
+                            journeyNotificationCoordinator: journeyNotificationCoordinator
+                        )
                     } label: {
                         SettingsRow(
                             title: "Autorisations iOS",
                             systemImage: "hand.raised.fill",
-                            subtitle: "Localisation, caméra et contacts"
+                            subtitle: "Localisation, caméra, contacts et notifications"
                         )
                     }
                 }
@@ -140,7 +157,7 @@ struct SettingsView: View {
 
     private var feedbackText: String {
         """
-        Retour sur Via
+        Retour sur Metyro
 
         Version : \(Bundle.main.marketingVersion) (\(Bundle.main.buildNumber))
         Appareil : iOS

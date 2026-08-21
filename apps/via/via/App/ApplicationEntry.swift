@@ -3,10 +3,13 @@ import SwiftUI
 @main
 @MainActor
 struct ApplicationEntry: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isShowingLaunchAnimation = true
+    @State private var isContinuingAsGuest = false
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
     @State private var linesViewModel: LinesViewModel
@@ -16,13 +19,17 @@ struct ApplicationEntry: App {
     @State private var reportViewModel: ReportViewModel
     @State private var authSessionViewModel: AuthSessionViewModel
     @State private var onboardingModel: OnboardingModel
+    @State private var onboardingProfileModel: OnboardingProfileModel
     @State private var locationModel: LocationModel
     @State private var accountModel: AccountModel
     @State private var favoriteRoutesModel: FavoriteRoutesModel
     @State private var profileModel: ProfileModel
+    @State private var pushNotificationManager: PushNotificationManager
+    @State private var journeyNotificationCoordinator: JourneyNotificationCoordinator
 
     init() {
-        let dependencies = Self.makeDependencies()
+        let pushNotificationManager = PushNotificationManager.shared
+        let dependencies = Self.makeDependencies(pushNotificationManager: pushNotificationManager)
         _networkViewModel = State(
             initialValue: NetworkViewModel(repository: dependencies.networkRepository),
         )
@@ -59,6 +66,7 @@ struct ApplicationEntry: App {
             journeyRepository: dependencies.journeyRepository,
             store: dependencies.activeJourneyStore,
             activityManager: dependencies.activityManager,
+            journeyNotificationManager: dependencies.journeyNotificationCoordinator,
             connectivity: dependencies.connectivityMonitor,
         )
         _activeJourneyModel = State(initialValue: activeJourneyModel)
@@ -79,6 +87,9 @@ struct ApplicationEntry: App {
         _onboardingModel = State(
             initialValue: dependencies.onboardingModel,
         )
+        _onboardingProfileModel = State(
+            initialValue: dependencies.onboardingProfileModel,
+        )
         _locationModel = State(initialValue: dependencies.locationModel)
         _accountModel = State(initialValue: dependencies.accountModel)
         _favoriteRoutesModel = State(
@@ -87,13 +98,24 @@ struct ApplicationEntry: App {
             ),
         )
         _profileModel = State(initialValue: ProfileModel())
+        _pushNotificationManager = State(initialValue: dependencies.pushNotificationManager)
+        _journeyNotificationCoordinator = State(initialValue: dependencies.journeyNotificationCoordinator)
     }
 
     var body: some Scene {
         WindowGroup {
             applicationRoot
+            .task(id: onboardingModel.isCompleted) {
+                guard onboardingModel.isCompleted else { return }
+                await preloadInitialData()
+            }
             .task {
                 await authSessionViewModel.restore()
+                await journeyNotificationCoordinator.restore()
+                await pushNotificationManager.setNotificationsAuthorized(
+                    journeyNotificationCoordinator.isAuthorized
+                )
+                await pushNotificationManager.flush()
             }
             .task {
                 await activeJourneyModel.restore()
@@ -102,8 +124,40 @@ struct ApplicationEntry: App {
                 guard scenePhase == .active else { return }
                 await authSessionViewModel.sceneBecameActive()
                 await activeJourneyModel.sceneBecameActive()
+                await journeyNotificationCoordinator.sceneBecameActive()
+                await pushNotificationManager.setNotificationsAuthorized(
+                    journeyNotificationCoordinator.isAuthorized
+                )
+                await pushNotificationManager.flush()
+            }
+            .task(id: authSessionViewModel.session?.user.id) {
+                if authSessionViewModel.session != nil {
+                    await pushNotificationManager.registerForAuthenticatedSession()
+                } else {
+                    await pushNotificationManager.setAuthenticated(false)
+                }
+                await pushNotificationManager.flush()
+            }
+            .task(id: journeyNotificationCoordinator.authorizationStatus.rawValue) {
+                await pushNotificationManager.setNotificationsAuthorized(
+                    journeyNotificationCoordinator.isAuthorized
+                )
             }
         }
+    }
+
+    /// Starts the first screen's network work while the in-app launch
+    /// animation is still covering the shell. The individual views keep
+    /// their own task for refresh loops, but their initial request is already
+    /// in flight by the time they become visible.
+    private func preloadInitialData() async {
+        stationsViewModel.loadIfNeeded()
+
+        async let lines: Void = linesViewModel.loadIfNeeded()
+        async let network: Void = networkViewModel.preload()
+
+        await lines
+        await network
     }
 
     private var applicationRoot: some View {
@@ -119,6 +173,20 @@ struct ApplicationEntry: App {
             } else if !onboardingModel.isCompleted {
                 OnboardingView(onComplete: onboardingModel.complete)
                     .transition(.opacity)
+            } else if !onboardingModel.isSetupCompleted {
+                if authSessionViewModel.isSignedIn || isContinuingAsGuest {
+                    OnboardingProfileView(
+                        model: onboardingProfileModel,
+                        onComplete: onboardingModel.completeSetup
+                    )
+                    .transition(.opacity)
+                } else {
+                    OnboardingAccountView(
+                        authSessionViewModel: authSessionViewModel,
+                        onContinueAsGuest: { isContinuingAsGuest = true }
+                    )
+                    .transition(.opacity)
+                }
             } else {
                 MapShellView(
                     networkViewModel: networkViewModel,
@@ -133,13 +201,17 @@ struct ApplicationEntry: App {
                     favoriteRoutesModel: favoriteRoutesModel,
                     authSessionViewModel: authSessionViewModel,
                     profileModel: profileModel,
+                    pushNotificationManager: pushNotificationManager,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator,
                 )
                 .transition(.opacity)
             }
         }
     }
 
-    private static func makeDependencies() -> Dependencies {
+    private static func makeDependencies(
+        pushNotificationManager: PushNotificationManager
+    ) -> Dependencies {
         guard let configuration = try? AppConfiguration.bundled() else {
             let accountModel = AccountModel(
                 remote: InMemoryAccountRemote(),
@@ -184,16 +256,33 @@ struct ApplicationEntry: App {
                     client: InMemoryAuthenticationClient(session: previewSession),
                     vault: InMemoryAuthSessionVault(),
                     account: accountModel,
+                    onAuthenticatedSessionEnded: {
+                        await pushNotificationManager.unregisterCurrentInstallation()
+                        await pushNotificationManager.setAuthenticated(false)
+                    },
                 ),
                 onboardingModel: OnboardingModel(),
+                onboardingProfileModel: OnboardingProfileModel(),
+                pushNotificationManager: pushNotificationManager,
+                journeyNotificationCoordinator: JourneyNotificationCoordinator(
+                    activeJourneyManager: pushNotificationManager
+                ),
             )
         }
 
-        // The network endpoints are public; unauthorized responses keep the default no-op handler.
+        // Product endpoints remain usable anonymously; 401 events still invalidate a cached session.
         let authSessionVault = KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
+        let (unauthorizedEvents, unauthorizedContinuation) = AsyncStream<String>.makeStream()
         let transport = APITransport(
             baseURL: configuration.apiBaseURL,
             authSessionVault: authSessionVault,
+            onUnauthorized: { rejectedBearerToken in
+                unauthorizedContinuation.yield(rejectedBearerToken)
+            },
+        )
+        pushNotificationManager.configure(
+            configuration: configuration,
+            remote: LivePushNotificationRemote(transport: transport)
         )
         let accountModel = AccountModel(remote: LiveAccountRemote(transport: transport))
         accountModel.activateAnonymous()
@@ -238,8 +327,18 @@ struct ApplicationEntry: App {
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
                 vault: authSessionVault,
                 account: accountModel,
+                unauthorizedEvents: unauthorizedEvents,
+                onAuthenticatedSessionEnded: {
+                    await pushNotificationManager.unregisterCurrentInstallation()
+                    await pushNotificationManager.setAuthenticated(false)
+                },
             ),
             onboardingModel: OnboardingModel(),
+            onboardingProfileModel: OnboardingProfileModel(),
+            pushNotificationManager: pushNotificationManager,
+            journeyNotificationCoordinator: JourneyNotificationCoordinator(
+                activeJourneyManager: pushNotificationManager
+            ),
         )
     }
 
@@ -260,5 +359,8 @@ struct ApplicationEntry: App {
         let accountModel: AccountModel
         let authSessionViewModel: AuthSessionViewModel
         let onboardingModel: OnboardingModel
+        let onboardingProfileModel: OnboardingProfileModel
+        let pushNotificationManager: PushNotificationManager
+        let journeyNotificationCoordinator: JourneyNotificationCoordinator
     }
 }

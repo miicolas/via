@@ -11,6 +11,7 @@ final class AuthSessionViewModel {
     @ObservationIgnored private let client: any AuthenticationClient
     @ObservationIgnored private let vault: any AuthSessionVault
     @ObservationIgnored private let account: AccountModel
+    @ObservationIgnored private let onAuthenticatedSessionEnded: @MainActor () async -> Void
     @ObservationIgnored private(set) var anonymousSession: StoredAuthSession?
     @ObservationIgnored private var didRestore = false
     @ObservationIgnored private var isRevalidating = false
@@ -20,15 +21,19 @@ final class AuthSessionViewModel {
         client: any AuthenticationClient,
         vault: any AuthSessionVault,
         account: AccountModel,
-        unauthorizedEvents: AsyncStream<Void> = AsyncStream { _ in }
+        unauthorizedEvents: AsyncStream<String> = AsyncStream { _ in },
+        onAuthenticatedSessionEnded: @escaping @MainActor () async -> Void = {}
     ) {
         self.client = client
         self.vault = vault
         self.account = account
+        self.onAuthenticatedSessionEnded = onAuthenticatedSessionEnded
         lifecycleTask = Task { [weak self] in
-            for await _ in unauthorizedEvents {
+            for await rejectedBearerToken in unauthorizedEvents {
                 guard let self else { return }
-                await self.authenticatedRequestWasRejected()
+                await self.authenticatedRequestWasRejected(
+                    bearerToken: rejectedBearerToken
+                )
             }
         }
     }
@@ -135,7 +140,9 @@ final class AuthSessionViewModel {
         }
     }
 
-    func authenticatedRequestWasRejected() async {
+    func authenticatedRequestWasRejected(bearerToken: String) async {
+        guard let currentSession = try? await vault.load(),
+              currentSession.bearerToken == bearerToken else { return }
         if session != nil {
             await clearConfirmedSession(message: "Ta session n’est plus valide. Reconnecte-toi.")
         } else if anonymousSession != nil {
@@ -156,6 +163,7 @@ final class AuthSessionViewModel {
     func signOut() async {
         guard let displayedSession = session else { return }
         let storedSession = (try? await vault.load()) ?? displayedSession
+        await onAuthenticatedSessionEnded()
         try? await client.signOut(bearerToken: storedSession.bearerToken)
         try? await vault.clear()
         anonymousSession = nil
@@ -173,6 +181,7 @@ final class AuthSessionViewModel {
             if storedSession.user.isAnonymous {
                 try? await client.deleteAnonymousUser(bearerToken: storedSession.bearerToken)
             } else {
+                await onAuthenticatedSessionEnded()
                 try? await client.signOut(bearerToken: storedSession.bearerToken)
             }
         }
@@ -198,6 +207,7 @@ final class AuthSessionViewModel {
             defer { isDeletingAccount = false }
             do {
                 try await account.delete(using: proof)
+                await onAuthenticatedSessionEnded()
                 try await vault.clear()
                 anonymousSession = nil
                 account.activateAnonymous()
@@ -265,6 +275,7 @@ final class AuthSessionViewModel {
     }
 
     private func clearConfirmedSession(message: String) async {
+        await onAuthenticatedSessionEnded()
         try? await vault.clear()
         anonymousSession = nil
         account.activateAnonymous()

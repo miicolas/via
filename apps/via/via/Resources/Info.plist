@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Via</string>
+	<string>Metyro</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -39,14 +39,16 @@
 		<true/>
 	</dict>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Via utilise votre position pendant un trajet actif pour mettre à jour les étapes et proposer un nouvel itinéraire même lorsque l’écran est verrouillé.</string>
+	<string>Metyro utilise votre position pendant un trajet actif pour mettre à jour les étapes et proposer un nouvel itinéraire même lorsque l’écran est verrouillé.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Via utilise votre position pour trouver les gares et itinéraires proches.</string>
+	<string>Metyro utilise votre position pour trouver les gares et itinéraires proches.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Via utilise l’appareil photo uniquement pour ajouter une photo à votre profil local.</string>
+	<string>Metyro utilise l’appareil photo uniquement pour ajouter une photo à votre profil local.</string>
 	<key>NSContactsUsageDescription</key>
-	<string>Via peut remplir votre nom et votre photo de profil depuis un contact que vous choisissez.</string>
+	<string>Metyro peut remplir votre nom et votre photo de profil depuis un contact que vous choisissez.</string>
 	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
@@ -65,5 +67,7 @@
 	</array>
 	<key>VIA_API_BASE_URL</key>
 	<string>$(VIA_API_BASE_URL)</string>
+	<key>VIA_APNS_ENVIRONMENT</key>
+	<string>$(VIA_APNS_ENVIRONMENT)</string>
 </dict>
 </plist>
