@@ -35,6 +35,24 @@ struct StationDetailView: View {
                                 )
                             }
 
+                            if let peak = currentStation.peak {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    StationPeakBadge(
+                                        peak: StationPeak(
+                                            ratio: peak.ratio,
+                                            level: peak.level,
+                                            label: peak.label,
+                                            stationName: currentStation.name
+                                        )
+                                    )
+
+                                    Text("Profil habituel — IDFM, T4 2025")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .accessibilityElement(children: .combine)
+                            }
+
                             if let distanceText = currentStation.distanceText {
                                 Text(distanceText)
                             }

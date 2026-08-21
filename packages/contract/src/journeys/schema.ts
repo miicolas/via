@@ -140,6 +140,16 @@ export const journeySchema = z.object({
       label: z.string(),
     })
     .optional(),
+  /** Habitual station profile for the busiest transfer in this journey. */
+  peak: z
+    .object({
+      ratio: z.number().min(0).max(1),
+      /** `off` is omitted from journeys; a badge only exists for a warning. */
+      level: z.enum(['moderate', 'peak']),
+      stationName: z.string(),
+      label: z.string(),
+    })
+    .optional(),
   sections: z.array(journeySectionSchema).min(1),
 });
 

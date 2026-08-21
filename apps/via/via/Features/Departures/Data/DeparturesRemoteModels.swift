@@ -19,7 +19,14 @@ struct DepartureBoardDTO: Decodable {
     let source: String
     let generatedAt: Date
     let fetchedAt: Date?
+    let peak: PeakDTO?
     let groups: [Group]
+
+    struct PeakDTO: Decodable {
+        let ratio: Double
+        let level: String
+        let label: String
+    }
 
     func domain() throws -> DepartureBoard {
         guard let source = DepartureBoard.Source(rawValue: source) else {
@@ -29,6 +36,10 @@ struct DepartureBoardDTO: Decodable {
             source: source,
             generatedAt: generatedAt,
             fetchedAt: fetchedAt,
+            peak: peak.flatMap { value in
+                guard let level = PeakLevel(rawValue: value.level) else { return nil }
+                return StationPeak(ratio: value.ratio, level: level, label: value.label)
+            },
             groups: try groups.map {
                 let route = try $0.route.domain()
                 if let departureItems = $0.departureItems {

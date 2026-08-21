@@ -70,10 +70,18 @@ struct JourneyResultDTO: Decodable {
         let status: String
         let warnings: [String]
         let accessibility: AccessibilityDTO?
+        let peak: PeakDTO?
         let sections: [SectionDTO]
 
         struct AccessibilityDTO: Decodable {
             let condition: String
+            let label: String
+        }
+
+        struct PeakDTO: Decodable {
+            let ratio: Double
+            let level: String
+            let stationName: String
             let label: String
         }
 
@@ -97,6 +105,17 @@ struct JourneyResultDTO: Decodable {
                         return nil
                     }
                     return Journey.Accessibility(condition: condition, label: value.label)
+                },
+                peak: peak.flatMap { value in
+                    guard let level = PeakLevel(rawValue: value.level), level != .off else {
+                        return nil
+                    }
+                    return StationPeak(
+                        ratio: value.ratio,
+                        level: level,
+                        label: value.label,
+                        stationName: value.stationName
+                    )
                 },
                 sections: try sections.enumerated().map { index, section in
                     try section.domain(id: "\(id):\(index)")

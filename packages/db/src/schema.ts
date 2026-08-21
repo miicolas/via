@@ -8,6 +8,7 @@ import {
   integer,
   pgTable,
   primaryKey,
+  real,
   serial,
   text,
   timestamp,
@@ -157,6 +158,32 @@ export const stationFacts = pgTable(
       'station_facts_condition_check',
       sql`${table.condition} IN ('autonomous', 'staffAssistance', 'reservationRequired')`
     ),
+  ]
+);
+
+/**
+ * Relative hourly validation profiles for the three public-transit day types.
+ * `peakRatio` is calculated at import time so readers only decide the current
+ * level thresholds; the raw station-relative share remains available for
+ * future displays without exposing the source table wholesale.
+ */
+export const stationHourProfiles = pgTable(
+  'station_hour_profiles',
+  {
+    stopId: text('stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    dayType: text('day_type', { enum: ['weekday', 'saturday', 'sunday'] }).notNull(),
+    hour: integer('hour').notNull(),
+    share: real('share').notNull(),
+    peakRatio: real('peak_ratio').notNull(),
+    source: text('source').notNull(),
+    sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }).notNull(),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.stopId, table.dayType, table.hour] }),
+    index('station_hour_profiles_day_hour_idx').on(table.dayType, table.hour),
   ]
 );
 
@@ -559,5 +586,6 @@ export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
 export type TransitStopAlias = typeof transitStopAliases.$inferSelect;
 export type StationFact = typeof stationFacts.$inferSelect;
+export type StationHourProfile = typeof stationHourProfiles.$inferSelect;
 export type TransitTrip = typeof transitTrips.$inferSelect;
 export type TransitLineSchemaStop = typeof transitLineSchemaStops.$inferSelect;

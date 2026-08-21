@@ -1344,6 +1344,43 @@ internal enum Operations {
                         internal var generatedAt: Foundation.Date
                         /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/fetchedAt`.
                         internal var fetchedAt: Foundation.Date?
+                        /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/peak`.
+                        internal struct peakPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/peak/ratio`.
+                            internal var ratio: Swift.Double
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/peak/level`.
+                            internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case off = "off"
+                                case moderate = "moderate"
+                                case peak = "peak"
+                            }
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/peak/level`.
+                            internal var level: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.peakPayload.levelPayload
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/peak/label`.
+                            internal var label: Swift.String
+                            /// Creates a new `peakPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - ratio:
+                            ///   - level:
+                            ///   - label:
+                            internal init(
+                                ratio: Swift.Double,
+                                level: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.peakPayload.levelPayload,
+                                label: Swift.String
+                            ) {
+                                self.ratio = ratio
+                                self.level = level
+                                self.label = label
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case ratio
+                                case level
+                                case label
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/peak`.
+                        internal var peak: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.peakPayload?
                         /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload`.
                         internal struct groupsPayloadPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/route`.
@@ -1493,22 +1530,26 @@ internal enum Operations {
                         ///   - source:
                         ///   - generatedAt:
                         ///   - fetchedAt:
+                        ///   - peak:
                         ///   - groups:
                         internal init(
                             source: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.sourcePayload,
                             generatedAt: Foundation.Date,
                             fetchedAt: Foundation.Date? = nil,
+                            peak: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.peakPayload? = nil,
                             groups: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayload
                         ) {
                             self.source = source
                             self.generatedAt = generatedAt
                             self.fetchedAt = fetchedAt
+                            self.peak = peak
                             self.groups = groups
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case source
                             case generatedAt
                             case fetchedAt
+                            case peak
                             case groups
                         }
                     }
@@ -2082,6 +2123,48 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/accessibility`.
                             internal var accessibility: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.accessibilityPayload?
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak`.
+                            internal struct peakPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/ratio`.
+                                internal var ratio: Swift.Double
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case moderate = "moderate"
+                                    case peak = "peak"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/level`.
+                                internal var level: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload.levelPayload
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/label`.
+                                internal var label: Swift.String
+                                /// Creates a new `peakPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - ratio:
+                                ///   - level:
+                                ///   - stationName:
+                                ///   - label:
+                                internal init(
+                                    ratio: Swift.Double,
+                                    level: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload.levelPayload,
+                                    stationName: Swift.String,
+                                    label: Swift.String
+                                ) {
+                                    self.ratio = ratio
+                                    self.level = level
+                                    self.stationName = stationName
+                                    self.label = label
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case ratio
+                                    case level
+                                    case stationName
+                                    case label
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak`.
+                            internal var peak: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload?
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload`.
                             internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/type`.
@@ -2421,6 +2504,7 @@ internal enum Operations {
                             ///   - status:
                             ///   - warnings:
                             ///   - accessibility:
+                            ///   - peak:
                             ///   - sections:
                             internal init(
                                 id: Swift.String,
@@ -2433,6 +2517,7 @@ internal enum Operations {
                                 status: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.statusPayload,
                                 warnings: [Swift.String],
                                 accessibility: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.accessibilityPayload? = nil,
+                                peak: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload? = nil,
                                 sections: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayload
                             ) {
                                 self.id = id
@@ -2445,6 +2530,7 @@ internal enum Operations {
                                 self.status = status
                                 self.warnings = warnings
                                 self.accessibility = accessibility
+                                self.peak = peak
                                 self.sections = sections
                             }
                             internal enum CodingKeys: String, CodingKey {
@@ -2458,6 +2544,7 @@ internal enum Operations {
                                 case status
                                 case warnings
                                 case accessibility
+                                case peak
                                 case sections
                             }
                         }

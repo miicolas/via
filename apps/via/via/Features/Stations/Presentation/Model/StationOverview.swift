@@ -50,6 +50,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
     let departures: [StationDeparture]
     let departureSource: DepartureBoard.Source
     let departureFetchedAt: Date?
+    let peak: StationPeak?
 
     init(
         id: StationID,
@@ -60,7 +61,8 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         distanceMeters: Double?,
         departures: [StationDeparture],
         departureSource: DepartureBoard.Source,
-        departureFetchedAt: Date? = nil
+        departureFetchedAt: Date? = nil,
+        peak: StationPeak? = nil
     ) {
         self.id = id
         self.name = name
@@ -71,6 +73,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         self.departures = departures
         self.departureSource = departureSource
         self.departureFetchedAt = departureFetchedAt
+        self.peak = peak
     }
 
     var primaryMode: TransitMode {

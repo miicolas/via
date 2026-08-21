@@ -68,17 +68,20 @@ struct DepartureBoard: Sendable, Hashable {
     let source: Source
     let generatedAt: Date
     let fetchedAt: Date?
+    let peak: StationPeak?
     let groups: [DepartureGroup]
 
     init(
         source: Source,
         generatedAt: Date,
         fetchedAt: Date? = nil,
+        peak: StationPeak? = nil,
         groups: [DepartureGroup]
     ) {
         self.source = source
         self.generatedAt = generatedAt
         self.fetchedAt = fetchedAt
+        self.peak = peak
         self.groups = groups
     }
 }
