@@ -8,12 +8,34 @@ struct JourneySheetView: View {
     let journeyID: JourneyID
     let searchViewModel: SearchViewModel
     let activeJourneyModel: ActiveJourneyModel
-    let journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
-    let scheduledReminder: ScheduledJourneyReminder? = nil
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
+    let scheduledReminder: ScheduledJourneyReminder?
     var isLargeScreen: Bool
     @Binding var detent: PresentationDetent
     let onExpandMap: () -> Void
     let onOpenReport: () -> Void
+
+    init(
+        journeyID: JourneyID,
+        searchViewModel: SearchViewModel,
+        activeJourneyModel: ActiveJourneyModel,
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
+        scheduledReminder: ScheduledJourneyReminder? = nil,
+        isLargeScreen: Bool,
+        detent: Binding<PresentationDetent>,
+        onExpandMap: @escaping () -> Void,
+        onOpenReport: @escaping () -> Void
+    ) {
+        self.journeyID = journeyID
+        self.searchViewModel = searchViewModel
+        self.activeJourneyModel = activeJourneyModel
+        self.journeyNotificationCoordinator = journeyNotificationCoordinator
+        self.scheduledReminder = scheduledReminder
+        self.isLargeScreen = isLargeScreen
+        _detent = detent
+        self.onExpandMap = onExpandMap
+        self.onOpenReport = onOpenReport
+    }
 
     var body: some View {
         NavigationStack {

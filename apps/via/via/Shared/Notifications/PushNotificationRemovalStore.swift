@@ -10,8 +10,8 @@ struct PushNotificationPendingRemovals: Codable, Equatable, Sendable {
 }
 
 protocol PushNotificationRemovalStoring: Sendable {
-    func load() throws -> PushNotificationPendingRemovals
-    func save(_ removals: PushNotificationPendingRemovals) throws
+    func load() async throws -> PushNotificationPendingRemovals
+    func save(_ removals: PushNotificationPendingRemovals) async throws
 }
 
 actor LocalPushNotificationRemovalStore: PushNotificationRemovalStoring {

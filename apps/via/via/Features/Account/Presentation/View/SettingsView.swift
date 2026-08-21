@@ -7,10 +7,30 @@ struct SettingsView: View {
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
     let locationModel: LocationModel
-    let pushNotificationManager: PushNotificationManager = .preview
-    let journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
+    let pushNotificationManager: PushNotificationManager
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
 
     @Environment(\.dismiss) private var dismiss
+
+    init(
+        accountModel: AccountModel,
+        favoriteRoutesModel: FavoriteRoutesModel,
+        searchViewModel: SearchViewModel,
+        authSessionViewModel: AuthSessionViewModel,
+        profileModel: ProfileModel,
+        locationModel: LocationModel,
+        pushNotificationManager: PushNotificationManager = .preview,
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
+    ) {
+        self.accountModel = accountModel
+        self.favoriteRoutesModel = favoriteRoutesModel
+        self.searchViewModel = searchViewModel
+        self.authSessionViewModel = authSessionViewModel
+        self.profileModel = profileModel
+        self.locationModel = locationModel
+        self.pushNotificationManager = pushNotificationManager
+        self.journeyNotificationCoordinator = journeyNotificationCoordinator
+    }
 
     var body: some View {
         NavigationStack {

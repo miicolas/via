@@ -1,9 +1,9 @@
 import Foundation
 
 protocol ScheduledJourneyReminderStoring: Sendable {
-    func load() throws -> ScheduledJourneyReminder?
-    func save(_ reminder: ScheduledJourneyReminder) throws
-    func clear() throws
+    func load() async throws -> ScheduledJourneyReminder?
+    func save(_ reminder: ScheduledJourneyReminder) async throws
+    func clear() async throws
 }
 
 actor LocalScheduledJourneyReminderStore: ScheduledJourneyReminderStoring {
@@ -47,8 +47,8 @@ actor InMemoryScheduledJourneyReminderStore: ScheduledJourneyReminderStoring {
 }
 
 protocol JourneyNotificationPreferencesStoring: Sendable {
-    func load() throws -> JourneyNotificationPreferences?
-    func save(_ preferences: JourneyNotificationPreferences) throws
+    func load() async throws -> JourneyNotificationPreferences?
+    func save(_ preferences: JourneyNotificationPreferences) async throws
 }
 
 actor UserDefaultsJourneyNotificationPreferencesStore: JourneyNotificationPreferencesStoring {

@@ -154,7 +154,7 @@ struct JourneyDetailView: View {
         if prefersGoAction, activeJourneyModel.session?.journey.id != journey.id {
             return .go
         }
-        activeJourneyModel.activationAction(for: journey, at: date)
+        return activeJourneyModel.activationAction(for: journey, at: date)
     }
 
     private func selectSection(_ sectionID: String) {
