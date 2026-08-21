@@ -17,6 +17,7 @@ export type RedisClient = {
   set: (key: string, value: string, options?: SetOptions) => Promise<string | null>;
   incr: (key: string) => Promise<number>;
   expire: (key: string, seconds: number) => Promise<number>;
+  del: (key: string) => Promise<number>;
 };
 
 /**
@@ -41,4 +42,5 @@ export const redis: RedisClient = {
   },
   incr: (key) => client.incr(key),
   expire: (key, seconds) => client.expire(key, seconds),
+  del: (key) => client.del(key),
 };
