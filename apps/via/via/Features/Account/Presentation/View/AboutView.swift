@@ -7,7 +7,7 @@ struct AboutView: View {
                 MarkBadge(tint: .blue, size: 88)
 
                 VStack(spacing: 6) {
-                    Text("Via")
+                    Text("Metyro")
                         .font(.largeTitle.bold())
                     Text("Version \(Bundle.main.marketingVersion) (\(Bundle.main.buildNumber))")
                         .foregroundStyle(.secondary)

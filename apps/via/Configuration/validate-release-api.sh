@@ -8,7 +8,7 @@ fi
 
 case "${VIA_API_BASE_URL:-}" in
   ""|*.invalid/*|*.invalid)
-    echo "error: VIA_API_BASE_URL must be a real HTTPS production URL before archiving Via."
+    echo "error: VIA_API_BASE_URL must be a real HTTPS production URL before archiving Metyro."
     exit 1
     ;;
   https://*) ;;
@@ -17,4 +17,3 @@ case "${VIA_API_BASE_URL:-}" in
     exit 1
     ;;
 esac
-

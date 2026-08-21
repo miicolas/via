@@ -32,7 +32,7 @@ struct ProfileEditorView: View {
                                 .font(.largeTitle.bold())
                                 .multilineTextAlignment(.center)
 
-                            Text("Personnalise la façon dont tu apparais dans Via.")
+                            Text("Personnalise la façon dont tu apparais dans Metyro.")
                                 .font(.title3)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
@@ -271,8 +271,8 @@ private enum PresentedAlert: String, Identifiable {
 
     var message: String {
         switch self {
-        case .cameraDenied: "Autorise Via à utiliser la caméra dans les réglages iOS."
-        case .contactsDenied: "Autorise Via à accéder aux contacts dans les réglages iOS."
+        case .cameraDenied: "Autorise Metyro à utiliser la caméra dans les réglages iOS."
+        case .contactsDenied: "Autorise Metyro à accéder aux contacts dans les réglages iOS."
         case .invalidImage: "Cette photo n’a pas pu être chargée. Choisis-en une autre."
         }
     }

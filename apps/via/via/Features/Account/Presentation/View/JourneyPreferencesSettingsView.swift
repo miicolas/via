@@ -20,7 +20,7 @@ struct JourneyPreferencesSettingsView: View {
             } header: {
                 Text("MODES DE TRANSPORT")
             } footer: {
-                Text("Via privilégie ou évite ces modes lorsqu’un trajet ne précise pas de préférence.")
+                Text("Metyro privilégie ou évite ces modes lorsqu’un trajet ne précise pas de préférence.")
             }
 
             Section {
@@ -40,7 +40,7 @@ struct JourneyPreferencesSettingsView: View {
             } header: {
                 Text("ACCESSIBILITÉ")
             } footer: {
-                Text("Via demande un itinéraire accessible, même s’il est plus long. Les pannes d’ascenseur en temps réel peuvent ne pas être connues.")
+                Text("Metyro demande un itinéraire accessible, même s’il est plus long. Les pannes d’ascenseur en temps réel peuvent ne pas être connues.")
             }
         }
         .navigationTitle("Préférences de trajet")

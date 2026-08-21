@@ -17,7 +17,7 @@ struct NaturalJourneyLoadingView: View {
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Via comprend ta demande : \(phrase)")
+        .accessibilityLabel("Metyro comprend ta demande : \(phrase)")
         .accessibilityAddTraits(.updatesFrequently)
     }
 }

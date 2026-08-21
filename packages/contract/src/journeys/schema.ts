@@ -110,6 +110,40 @@ export const journeyRouteSchema = z.object({
   textColor: z.string(),
 });
 
+export const boardingPositionZoneSchema = z.enum(['front', 'middle', 'rear']);
+export const boardingPositionEquipmentSchema = z.enum(['escalator', 'lift', 'stairs']);
+
+/**
+ * Where to stand on the platform before the train arrives, so its doors open in
+ * front of the exit or the connection this traveller needs next.
+ *
+ * `car` counts from the head of the train in its direction of travel, so the
+ * advice only holds for the direction of the section carrying it. `carCount` is
+ * the line's nominal train length: a short trainset makes the number optimistic,
+ * which is why `zone` ships alongside it and is what the app leads with.
+ *
+ * Only the RATP metro and RER A/B publish this, and only the realtime planner
+ * resolves the quay it is keyed by — absent everywhere else.
+ */
+export const boardingPositionSchema = z.object({
+  car: z.int().min(1),
+  carCount: z.int().min(1),
+  zone: boardingPositionZoneSchema,
+  /** What the advice optimizes for: leaving the network, or catching the next line. */
+  reason: z.enum(['exit', 'transfer']),
+  equipment: boardingPositionEquipmentSchema.optional(),
+});
+
+/** The station exit nearest the journey's destination, with the number on its signage. */
+export const journeyExitSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  number: z.int().optional(),
+  coordinate: coordinateSchema,
+  /** Straight line from the exit to the destination — an order of magnitude, not a route. */
+  walkingMeters: z.int().nonnegative().optional(),
+});
+
 export const journeySectionSchema = z.object({
   type: journeySectionTypeSchema,
   durationSeconds: z.number().int().nonnegative(),
@@ -122,6 +156,10 @@ export const journeySectionSchema = z.object({
   direction: z.string().optional(),
   platform: z.string().optional(),
   stops: z.array(journeyStopSchema).default([]),
+  /** Followed when boarding this section; computed from where it ends. */
+  boardingPosition: boardingPositionSchema.optional(),
+  /** Only ever on the last transit section — where to leave the network. */
+  exit: journeyExitSchema.optional(),
 });
 
 export const journeySchema = z.object({

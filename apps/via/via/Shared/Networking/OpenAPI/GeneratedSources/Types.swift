@@ -2434,6 +2434,132 @@ internal enum Operations {
                                 internal typealias stopsPayload = [Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayloadPayload]
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/stops`.
                                 internal var stops: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayload?
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition`.
+                                internal struct boardingPositionPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/car`.
+                                    internal var car: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/carCount`.
+                                    internal var carCount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/zone`.
+                                    internal enum zonePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case front = "front"
+                                        case middle = "middle"
+                                        case rear = "rear"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/zone`.
+                                    internal var zone: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/reason`.
+                                    internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case exit = "exit"
+                                        case transfer = "transfer"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/reason`.
+                                    internal var reason: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/equipment`.
+                                    internal enum equipmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case escalator = "escalator"
+                                        case lift = "lift"
+                                        case stairs = "stairs"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/equipment`.
+                                    internal var equipment: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload?
+                                    /// Creates a new `boardingPositionPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - car:
+                                    ///   - carCount:
+                                    ///   - zone:
+                                    ///   - reason:
+                                    ///   - equipment:
+                                    internal init(
+                                        car: Swift.Int,
+                                        carCount: Swift.Int,
+                                        zone: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload,
+                                        reason: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload,
+                                        equipment: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload? = nil
+                                    ) {
+                                        self.car = car
+                                        self.carCount = carCount
+                                        self.zone = zone
+                                        self.reason = reason
+                                        self.equipment = equipment
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case car
+                                        case carCount
+                                        case zone
+                                        case reason
+                                        case equipment
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition`.
+                                internal var boardingPosition: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload?
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit`.
+                                internal struct exitPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit/number`.
+                                    internal var number: Swift.Int?
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit/coordinate`.
+                                    internal var coordinate: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload.coordinatePayload
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit/walkingMeters`.
+                                    internal var walkingMeters: Swift.Int?
+                                    /// Creates a new `exitPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - name:
+                                    ///   - number:
+                                    ///   - coordinate:
+                                    ///   - walkingMeters:
+                                    internal init(
+                                        id: Swift.String,
+                                        name: Swift.String,
+                                        number: Swift.Int? = nil,
+                                        coordinate: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload.coordinatePayload,
+                                        walkingMeters: Swift.Int? = nil
+                                    ) {
+                                        self.id = id
+                                        self.name = name
+                                        self.number = number
+                                        self.coordinate = coordinate
+                                        self.walkingMeters = walkingMeters
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case name
+                                        case number
+                                        case coordinate
+                                        case walkingMeters
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/exit`.
+                                internal var exit: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload?
                                 /// Creates a new `sectionsPayloadPayload`.
                                 ///
                                 /// - Parameters:
@@ -2448,6 +2574,8 @@ internal enum Operations {
                                 ///   - direction:
                                 ///   - platform:
                                 ///   - stops:
+                                ///   - boardingPosition:
+                                ///   - exit:
                                 internal init(
                                     _type: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload._typePayload,
                                     durationSeconds: Swift.Int,
@@ -2459,7 +2587,9 @@ internal enum Operations {
                                     route: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.routePayload? = nil,
                                     direction: Swift.String? = nil,
                                     platform: Swift.String? = nil,
-                                    stops: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayload? = nil
+                                    stops: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayload? = nil,
+                                    boardingPosition: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload? = nil,
+                                    exit: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload? = nil
                                 ) {
                                     self._type = _type
                                     self.durationSeconds = durationSeconds
@@ -2472,6 +2602,8 @@ internal enum Operations {
                                     self.direction = direction
                                     self.platform = platform
                                     self.stops = stops
+                                    self.boardingPosition = boardingPosition
+                                    self.exit = exit
                                 }
                                 internal enum CodingKeys: String, CodingKey {
                                     case _type = "type"
@@ -2485,6 +2617,8 @@ internal enum Operations {
                                     case direction
                                     case platform
                                     case stops
+                                    case boardingPosition
+                                    case exit
                                 }
                             }
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sections`.

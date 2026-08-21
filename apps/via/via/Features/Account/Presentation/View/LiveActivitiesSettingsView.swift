@@ -10,7 +10,7 @@ struct LiveActivitiesSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Suis ton trajet sans rouvrir Via.")
+                Text("Suis ton trajet sans rouvrir Metyro.")
                     .font(.largeTitle.bold())
 
                 LiveActivityPreview()

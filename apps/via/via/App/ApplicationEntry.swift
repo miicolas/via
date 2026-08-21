@@ -16,6 +16,7 @@ struct ApplicationEntry: App {
     @State private var reportViewModel: ReportViewModel
     @State private var authSessionViewModel: AuthSessionViewModel
     @State private var onboardingModel: OnboardingModel
+    @State private var onboardingProfileModel: OnboardingProfileModel
     @State private var locationModel: LocationModel
     @State private var accountModel: AccountModel
     @State private var favoriteRoutesModel: FavoriteRoutesModel
@@ -79,6 +80,9 @@ struct ApplicationEntry: App {
         _onboardingModel = State(
             initialValue: dependencies.onboardingModel,
         )
+        _onboardingProfileModel = State(
+            initialValue: dependencies.onboardingProfileModel,
+        )
         _locationModel = State(initialValue: dependencies.locationModel)
         _accountModel = State(initialValue: dependencies.accountModel)
         _favoriteRoutesModel = State(
@@ -137,6 +141,20 @@ struct ApplicationEntry: App {
             } else if !onboardingModel.isCompleted {
                 OnboardingView(onComplete: onboardingModel.complete)
                     .transition(.opacity)
+            } else if !onboardingModel.isSetupCompleted {
+                if authSessionViewModel.isSignedIn {
+                    OnboardingProfileView(
+                        model: onboardingProfileModel,
+                        onComplete: onboardingModel.completeSetup
+                    )
+                    .transition(.opacity)
+                } else {
+                    OnboardingAccountView(
+                        authSessionViewModel: authSessionViewModel,
+                        onContinueAsGuest: onboardingModel.completeSetup
+                    )
+                    .transition(.opacity)
+                }
             } else {
                 MapShellView(
                     networkViewModel: networkViewModel,
@@ -204,14 +222,19 @@ struct ApplicationEntry: App {
                     account: accountModel,
                 ),
                 onboardingModel: OnboardingModel(),
+                onboardingProfileModel: OnboardingProfileModel(),
             )
         }
 
-        // The network endpoints are public; unauthorized responses keep the default no-op handler.
+        // Product endpoints remain usable anonymously; 401 events still invalidate a cached session.
         let authSessionVault = KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
+        let (unauthorizedEvents, unauthorizedContinuation) = AsyncStream<Void>.makeStream()
         let transport = APITransport(
             baseURL: configuration.apiBaseURL,
             authSessionVault: authSessionVault,
+            onUnauthorized: {
+                unauthorizedContinuation.yield(())
+            },
         )
         let accountModel = AccountModel(remote: LiveAccountRemote(transport: transport))
         accountModel.activateAnonymous()
@@ -256,8 +279,10 @@ struct ApplicationEntry: App {
                 client: BetterAuthClient(baseURL: configuration.apiBaseURL),
                 vault: authSessionVault,
                 account: accountModel,
+                unauthorizedEvents: unauthorizedEvents,
             ),
             onboardingModel: OnboardingModel(),
+            onboardingProfileModel: OnboardingProfileModel(),
         )
     }
 
@@ -278,5 +303,6 @@ struct ApplicationEntry: App {
         let accountModel: AccountModel
         let authSessionViewModel: AuthSessionViewModel
         let onboardingModel: OnboardingModel
+        let onboardingProfileModel: OnboardingProfileModel
     }
 }

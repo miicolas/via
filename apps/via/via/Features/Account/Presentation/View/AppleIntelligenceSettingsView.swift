@@ -59,7 +59,7 @@ struct AppleIntelligenceSettingsView: View {
         case .active:
             "Décris ton trajet avec tes propres mots. Le traitement reste sur l’appareil."
         case .explanation(.enableAppleIntelligence):
-            "Active Apple Intelligence dans Réglages > Apple Intelligence et Siri, puis reviens dans Via."
+            "Active Apple Intelligence dans Réglages > Apple Intelligence et Siri, puis reviens dans Metyro."
         case .explanation(.modelNotReady):
             "Le modèle n’est pas encore prêt. Garde l’appareil connecté au Wi-Fi et à l’alimentation."
         case .explanation(.systemUnavailable):

@@ -1,5 +1,5 @@
 {
-  "id": "2d6305fb-c101-4e09-8df5-64a5d149a1bc",
+  "id": "32690afc-0f16-4577-88d8-33779bb07424",
   "prevId": "2a89bdc9-f695-4576-aee2-27ba88ca55e8",
   "version": "7",
   "dialect": "postgresql",
@@ -536,6 +536,98 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.boarding_positions": {
+      "name": "boarding_positions",
+      "schema": "",
+      "columns": {
+        "from_quay_id": {
+          "name": "from_quay_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_kind": {
+          "name": "target_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "car": {
+          "name": "car",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "car_count": {
+          "name": "car_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "zone": {
+          "name": "zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "equipment": {
+          "name": "equipment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_updated_at": {
+          "name": "source_updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imported_at": {
+          "name": "imported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "boarding_positions_from_quay_id_target_id_pk": {
+          "name": "boarding_positions_from_quay_id_target_id_pk",
+          "columns": [
+            "from_quay_id",
+            "target_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "boarding_positions_car_check": {
+          "name": "boarding_positions_car_check",
+          "value": "\"boarding_positions\".\"car\" BETWEEN 1 AND \"boarding_positions\".\"car_count\""
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.import_meta": {
       "name": "import_meta",
       "schema": "",
@@ -669,6 +761,124 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.station_exits": {
+      "name": "station_exits",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "stop_id": {
+          "name": "stop_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location": {
+          "name": "location",
+          "type": "geometry(Point,4326)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_ref": {
+          "name": "source_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_updated_at": {
+          "name": "source_updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imported_at": {
+          "name": "imported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "station_exits_stop_idx": {
+          "name": "station_exits_stop_idx",
+          "columns": [
+            {
+              "expression": "stop_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "station_exits_location_idx": {
+          "name": "station_exits_location_idx",
+          "columns": [
+            {
+              "expression": "location",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "gist",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "station_exits_stop_id_transit_stops_id_fk": {
+          "name": "station_exits_stop_id_transit_stops_id_fk",
+          "tableFrom": "station_exits",
+          "tableTo": "transit_stops",
+          "columnsFrom": [
+            "stop_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.station_facts": {
       "name": "station_facts",
       "schema": "",
@@ -777,112 +987,6 @@
           "value": "\"station_facts\".\"condition\" IN ('autonomous', 'staffAssistance', 'reservationRequired')"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.station_hour_profiles": {
-      "name": "station_hour_profiles",
-      "schema": "",
-      "columns": {
-        "stop_id": {
-          "name": "stop_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "day_type": {
-          "name": "day_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hour": {
-          "name": "hour",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "share": {
-          "name": "share",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "peak_ratio": {
-          "name": "peak_ratio",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source": {
-          "name": "source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_updated_at": {
-          "name": "source_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "imported_at": {
-          "name": "imported_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "station_hour_profiles_day_hour_idx": {
-          "name": "station_hour_profiles_day_hour_idx",
-          "columns": [
-            {
-              "expression": "day_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "hour",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "station_hour_profiles_stop_id_transit_stops_id_fk": {
-          "name": "station_hour_profiles_stop_id_transit_stops_id_fk",
-          "tableFrom": "station_hour_profiles",
-          "tableTo": "transit_stops",
-          "columnsFrom": [
-            "stop_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "station_hour_profiles_stop_id_day_type_hour_pk": {
-          "name": "station_hour_profiles_stop_id_day_type_hour_pk",
-          "columns": [
-            "stop_id",
-            "day_type",
-            "hour"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.transit_line_directions": {

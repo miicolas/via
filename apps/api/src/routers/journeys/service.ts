@@ -10,6 +10,7 @@ import {
   filterAndAnnotateAccessibleJourneys,
 } from './accessibility';
 import { annotatePeakJourneys } from './peak';
+import { annotateWayfinding } from './wayfinding';
 
 type PlannedJourneys = {
   status: 'ready' | 'no-route' | 'unavailable';
@@ -93,7 +94,13 @@ export function createJourneyPlanner({
         ttlSeconds: GTFS_TTL_SECONDS,
       });
 
-      const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
+      /**
+       * Wayfinding rides inside the cached value rather than decorating the
+       * response afterwards: it is a pure function of the journeys and the
+       * destination, and the destination is already part of the cache key, so
+       * two callers sharing an entry share the same exit.
+       */
+      const planned = async () => {
         if (!idfm) return gtfsFallback();
 
         const personal = await tryConsumePersonalJourneyBudget(
@@ -163,6 +170,17 @@ export function createJourneyPlanner({
         return {
           value: realtime ?? (await planWithGtfsConstraint(gtfs, input, requestedAt, now, signal)),
           ttlSeconds: IDFM_TTL_SECONDS,
+        };
+      };
+
+      const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
+        const { value, ttlSeconds } = await planned();
+        return {
+          value: {
+            ...value,
+            journeys: await annotateWayfinding(value.journeys, input.destination.coordinate),
+          },
+          ttlSeconds,
         };
       });
 

@@ -12,7 +12,7 @@ enum OnboardingPage: Int, CaseIterable, Hashable {
 
     var title: String {
         switch self {
-        case .welcome: "Bienvenue dans Via"
+        case .welcome: "Bienvenue dans Metyro"
         case .stations: "Tes stations en direct"
         case .disruptions: "Anticipe les perturbations"
         case .intelligentSearch: "Décris simplement ton trajet"
@@ -30,7 +30,7 @@ enum OnboardingPage: Int, CaseIterable, Hashable {
         case .disruptions:
             "Visualise l’état des lignes et les travaux avant de partir."
         case .intelligentSearch:
-            "Via comprend les lieux, l’heure et les transports à éviter."
+            "Metyro comprend les lieux, l’heure et les transports à éviter."
         case .preferences:
             "Préfère ou évite certains transports et demande un trajet PMR via des stations accessibles."
         case .liveActivity:

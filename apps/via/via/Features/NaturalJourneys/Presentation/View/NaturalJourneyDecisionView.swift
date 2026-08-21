@@ -102,9 +102,9 @@ private extension NaturalJourneyDecision {
         case let .modeConflict(mode, _):
             "Deux contraintes se contredisent pour \(mode.naturalLanguageNameWithArticle). Laquelle veux-tu conserver ?"
         case .unsupportedConstraints:
-            "Via ne sait pas encore appliquer cette contrainte."
+            "Metyro ne sait pas encore appliquer cette contrainte."
         case .pastDate:
-            "La date était explicite, Via ne la déplacera pas silencieusement."
+            "La date était explicite, Metyro ne la déplacera pas silencieusement."
         case .timeConflict:
             "Le moteur accepte une heure de départ ou une heure d’arrivée."
         }

@@ -9,6 +9,13 @@ final class OnboardingModelTests: XCTestCase {
         )
     }
 
+    func testUsesASeparateSetupCompletionKey() {
+        XCTAssertEqual(
+            OnboardingStore.setupCompletionKey,
+            "metyro.onboarding.setup.completed.v1"
+        )
+    }
+
     @MainActor
     func testMissingPreferenceRequiresOnboarding() {
         let (defaults, suiteName) = makeDefaults()
@@ -17,6 +24,7 @@ final class OnboardingModelTests: XCTestCase {
         let model = OnboardingModel(store: OnboardingStore(defaults: defaults))
 
         XCTAssertFalse(model.isCompleted)
+        XCTAssertFalse(model.isSetupCompleted)
         XCTAssertNil(defaults.object(forKey: OnboardingStore.completionKey))
     }
 
@@ -30,7 +38,23 @@ final class OnboardingModelTests: XCTestCase {
         model.complete()
 
         XCTAssertTrue(model.isCompleted)
+        XCTAssertFalse(model.isSetupCompleted)
         XCTAssertTrue(OnboardingModel(store: store).isCompleted)
+    }
+
+    @MainActor
+    func testSetupCompletionPersistsSeparatelyFromPresentation() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = OnboardingStore(defaults: defaults)
+        let model = OnboardingModel(store: store)
+        model.complete()
+        model.completeSetup()
+
+        let restored = OnboardingModel(store: store)
+        XCTAssertTrue(restored.isCompleted)
+        XCTAssertTrue(restored.isSetupCompleted)
     }
 
     @MainActor
@@ -52,11 +76,15 @@ final class OnboardingModelTests: XCTestCase {
         let store = OnboardingStore(defaults: defaults)
         let model = OnboardingModel(store: store)
         model.complete()
+        model.completeSetup()
         model.reset()
 
         XCTAssertFalse(model.isCompleted)
+        XCTAssertFalse(model.isSetupCompleted)
         XCTAssertFalse(OnboardingModel(store: store).isCompleted)
+        XCTAssertFalse(OnboardingModel(store: store).isSetupCompleted)
         XCTAssertNil(defaults.object(forKey: OnboardingStore.completionKey))
+        XCTAssertNil(defaults.object(forKey: OnboardingStore.setupCompletionKey))
     }
 
     @MainActor

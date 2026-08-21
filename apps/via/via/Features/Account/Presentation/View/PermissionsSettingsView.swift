@@ -28,7 +28,7 @@ struct PermissionsSettingsView: View {
                     status: contactsStatus
                 )
             } footer: {
-                Text("Via demande chaque autorisation uniquement au moment où la fonctionnalité en a besoin.")
+                Text("Metyro demande chaque autorisation uniquement au moment où la fonctionnalité en a besoin.")
             }
 
             Section {

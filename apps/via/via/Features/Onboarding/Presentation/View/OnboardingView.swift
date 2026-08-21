@@ -179,7 +179,7 @@ struct OnboardingView: View {
         .padding(.horizontal, 30)
         .accessibilityHint(
             currentPage.isFinal
-                ? "Termine la présentation et ouvre Via"
+                ? "Termine la présentation et ouvre Metyro"
                 : "Affiche l’étape suivante"
         )
     }
