@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     let accountModel: AccountModel
+    let favoriteRoutesModel: FavoriteRoutesModel
     let searchViewModel: SearchViewModel
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
@@ -63,7 +64,10 @@ struct SettingsView: View {
 
                 Section("GÉRER") {
                     NavigationLink {
-                        FavoritesSettingsView(accountModel: accountModel)
+                        FavoritesSettingsView(
+                            accountModel: accountModel,
+                            routesModel: favoriteRoutesModel
+                        )
                     } label: {
                         SettingsRow(
                             title: "Stations favorites",
@@ -173,6 +177,9 @@ struct SettingsView: View {
 
     SettingsView(
         accountModel: accountModel,
+        favoriteRoutesModel: FavoriteRoutesModel(
+            networkRepository: InMemoryNetworkRepository.mapPreview
+        ),
         searchViewModel: SearchViewModel(
             repository: InMemorySearchRepository.preview,
             journeyRepository: InMemoryJourneyRepository(result: .mapPreview),

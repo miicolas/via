@@ -18,6 +18,7 @@ struct ApplicationEntry: App {
     @State private var onboardingModel: OnboardingModel
     @State private var locationModel: LocationModel
     @State private var accountModel: AccountModel
+    @State private var favoriteRoutesModel: FavoriteRoutesModel
     @State private var profileModel: ProfileModel
 
     init() {
@@ -80,6 +81,11 @@ struct ApplicationEntry: App {
         )
         _locationModel = State(initialValue: dependencies.locationModel)
         _accountModel = State(initialValue: dependencies.accountModel)
+        _favoriteRoutesModel = State(
+            initialValue: FavoriteRoutesModel(
+                networkRepository: dependencies.networkRepository,
+            ),
+        )
         _profileModel = State(initialValue: ProfileModel())
     }
 
@@ -106,6 +112,7 @@ struct ApplicationEntry: App {
                         onboardingModel: onboardingModel,
                         locationModel: locationModel,
                         accountModel: accountModel,
+                        favoriteRoutesModel: favoriteRoutesModel,
                         authSessionViewModel: authSessionViewModel,
                         profileModel: profileModel,
                     )

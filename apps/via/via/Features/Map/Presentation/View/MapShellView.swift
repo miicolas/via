@@ -21,6 +21,7 @@ struct MapShellView: View {
     let onboardingModel: OnboardingModel
     let locationModel: LocationModel
     let accountModel: AccountModel
+    let favoriteRoutesModel: FavoriteRoutesModel
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
 
@@ -49,6 +50,7 @@ struct MapShellView: View {
         onboardingModel: OnboardingModel,
         locationModel: LocationModel,
         accountModel: AccountModel,
+        favoriteRoutesModel: FavoriteRoutesModel,
         authSessionViewModel: AuthSessionViewModel,
         profileModel: ProfileModel
     ) {
@@ -62,6 +64,7 @@ struct MapShellView: View {
         self.onboardingModel = onboardingModel
         self.locationModel = locationModel
         self.accountModel = accountModel
+        self.favoriteRoutesModel = favoriteRoutesModel
         self.authSessionViewModel = authSessionViewModel
         self.profileModel = profileModel
     }
@@ -276,6 +279,7 @@ struct MapShellView: View {
             case .settings:
                 SettingsView(
                     accountModel: accountModel,
+                    favoriteRoutesModel: favoriteRoutesModel,
                     searchViewModel: searchViewModel,
                     authSessionViewModel: authSessionViewModel,
                     profileModel: profileModel,
@@ -391,6 +395,9 @@ struct MapShellView: View {
         onboardingModel: OnboardingModel(store: OnboardingStore(defaults: .standard)),
         locationModel: locationModel,
         accountModel: accountModel,
+        favoriteRoutesModel: FavoriteRoutesModel(
+            networkRepository: InMemoryNetworkRepository.mapPreview
+        ),
         authSessionViewModel: AuthSessionViewModel(
             client: InMemoryAuthenticationClient(session: StoredAuthSession(
                 bearerToken: "preview.token",

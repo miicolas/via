@@ -4,8 +4,11 @@ import SwiftUI
 /// quickly, either by swiping a row or by emptying the whole list.
 struct FavoritesSettingsView: View {
     let accountModel: AccountModel
+    let routesModel: FavoriteRoutesModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmClearAll = false
+    @State private var editMode: EditMode = .inactive
 
     private var favorites: [FavoriteStation] {
         accountModel.favorites
@@ -24,7 +27,10 @@ struct FavoritesSettingsView: View {
             } else {
                 Section {
                     ForEach(favorites) { favorite in
-                        FavoriteStationRow(favorite: favorite)
+                        FavoriteStationRow(
+                            favorite: favorite,
+                            routes: routesModel.routesByStationID[favorite.stationID]
+                        )
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     remove(favorite)
@@ -49,14 +55,38 @@ struct FavoritesSettingsView: View {
                 }
             }
         }
+        .task(id: favorites.map(\.stationID)) {
+            await routesModel.load(for: favorites)
+        }
         .navigationTitle("Favoris")
         .navigationBarTitleDisplayMode(.large)
+        .environment(\.editMode, $editMode)
         .toolbar {
             if !favorites.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    EditButton()
+                    Button {
+                        withAnimation {
+                            editMode = editMode.isEditing ? .inactive : .active
+                        }
+                    } label: {
+                        Image(systemName: editMode.isEditing ? "checkmark" : "pencil")
+                            .contentTransition(
+                                reduceMotion
+                                    ? .identity
+                                    : .symbolEffect(
+                                        .replace.magic(fallback: .offUp.byLayer),
+                                        options: .nonRepeating
+                                    )
+                            )
+                    }
+                    .accessibilityLabel("Modifier la liste")
+                    .accessibilityValue(editMode.isEditing ? "Actif" : "Inactif")
+                    .accessibilityHint("Active la réorganisation et la suppression des favoris.")
                 }
             }
+        }
+        .onChange(of: favorites.isEmpty) { _, isEmpty in
+            if isEmpty { editMode = .inactive }
         }
         .confirmationDialog(
             "Supprimer tous les favoris ?",
@@ -89,33 +119,6 @@ struct FavoritesSettingsView: View {
     }
 }
 
-private struct FavoriteStationRow: View {
-    let favorite: FavoriteStation
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "star.fill")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.orange)
-                .frame(width: 32)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(favorite.name)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-
-                Text("Ajoutée \(favorite.savedAt.formatted(.relative(presentation: .named)))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 8)
-        }
-        .frame(minHeight: 50)
-        .contentShape(Rectangle())
-    }
-}
-
 #Preview("Favoris") {
     let accountModel: AccountModel = {
         let model = AccountModel(
@@ -123,18 +126,22 @@ private struct FavoriteStationRow: View {
             synchronizationEnabled: false
         )
         model.activateAnonymous()
-        model.toggleFavorite(
-            stationID: StationID(rawValue: "1"),
-            name: "Châtelet"
-        )
-        model.toggleFavorite(
-            stationID: StationID(rawValue: "2"),
-            name: "Gare de Lyon"
-        )
+        for station in StationsArea.mapPreview.stations.prefix(2) {
+            model.toggleFavorite(
+                stationID: station.id,
+                name: station.name,
+                coordinate: station.coordinate
+            )
+        }
         return model
     }()
 
     NavigationStack {
-        FavoritesSettingsView(accountModel: accountModel)
+        FavoritesSettingsView(
+            accountModel: accountModel,
+            routesModel: FavoriteRoutesModel(
+                networkRepository: InMemoryNetworkRepository.mapPreview
+            )
+        )
     }
 }
