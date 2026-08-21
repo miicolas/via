@@ -45,7 +45,7 @@ Use this skill for both new UI and refactors. Preserve the existing domain behav
 Use the existing neutral component files and extract new ones only when the pattern has a stable seam. The current vocabulary is:
 
 - `flightySurface`, `SectionHeader`, and `StatusBadgeView` for surfaces and status.
-- `EmptyStateView`, `LoadingStateView`, and `ErrorStateView` for explicit state contracts.
+- `EmptyStateView` plus the `EmptyState` presets for every empty, unavailable, and failed state — one component, never `ContentUnavailableView` and never a feature-local column. Loading stays `SkeletonGate` / `SkeletonList` / `LoadingStatus`.
 - `LineBadgeView`, `StationRow`, `NearbyStationCard`, `LineStatusCard`, and `DepartureLineRow` for transit data.
 - `SearchTokenField`, `SearchResultRow`, `PlaceSearchResultsList`, `LineSearchResultsSection`, and `NaturalJourneySuggestionRow` for the staged search flow.
 - `AIBadge`, `AIBeamButtonStyle`, `AISurfaceStyle`, and `AIOnboardingCard` for AI/PRO emphasis.

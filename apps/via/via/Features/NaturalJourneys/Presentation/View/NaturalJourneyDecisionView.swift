@@ -9,10 +9,12 @@ struct NaturalJourneyDecisionView: View {
     let onModify: () -> Void
 
     var body: some View {
-        NaturalJourneyStateCard(
-            systemImage: decision.systemImage,
-            title: decision.title,
-            message: decision.message,
+        EmptyStateView(
+            .ai(
+                systemImage: decision.systemImage,
+                title: decision.title,
+                message: decision.message,
+            ),
         ) {
             content
         }

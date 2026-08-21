@@ -51,17 +51,13 @@ struct SearchResultsSection: View {
                 }
 
             case .empty:
-                SearchEmptyStateView(
-                    message: "Essayez un autre nom de station ou d’adresse."
-                )
+                EmptyStateView(.noResults())
 
             case .failed:
-                SearchEmptyStateView(
-                    title: "Recherche indisponible",
-                    message: "Vérifiez votre connexion puis réessayez.",
-                    actionTitle: "Réessayer",
-                    action: onRetry
-                )
+                EmptyStateView(.offline(title: "Recherche indisponible")) {
+                    RetryButton(action: onRetry)
+                        .primaryAction()
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -21,6 +21,14 @@
 - Never ship a stock control that renders its own word — `EditButton()`, a `Toggle` with a title, a `Text`-labelled toolbar item. Rebuild it as a symbol button over the same state.
 - A symbol that changes with state animates the change: `contentTransition(.symbolEffect(.replace.magic(fallback: .offUp.byLayer), options: .nonRepeating))`, degraded to `.identity` when `accessibilityReduceMotion` is on. `StationDetailView`'s favourite star is the reference.
 
+## Empty states
+
+- Nothing to show is a designed screen, not an absence. Every empty, unavailable, or failed state goes through `EmptyStateView` with an `EmptyState` (`via/Shared/Presentation/View/`) — one centred column, one optional glyph, one title, one sentence, and the way out underneath.
+- Never `ContentUnavailableView`: it draws Apple's grey, ignores Via's typography, and offers no action. Never a column hand-written inside a feature either — a state Via has already worded lives as a `static` on `EmptyState`, so two screens cannot word it differently.
+- The way out is a real `Button` carrying `primaryAction()` / `secondaryAction()`, full width. A sentence pointing at a control elsewhere on screen uses `emptyStateHint()` instead, so it stays text and never competes with the action below it.
+- The column hugs its content. Filling the screen is the container's call (`.frame(maxHeight: .infinity)`), which is what lets the same component sit in a `List` `Section` and in a full-height overlay.
+- Loading keeps its own vocabulary: `SkeletonGate` / `SkeletonList` wherever there is geometry to preserve, `EmptyState.searching(_:)` only where there is none.
+
 ## Agent skills
 
 ### Issue tracker

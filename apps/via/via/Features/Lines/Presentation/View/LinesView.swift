@@ -61,13 +61,26 @@ struct LinesView: View {
                     .background(.background)
                 } else if isSearching, viewModel.sections.isEmpty,
                           viewModel.extraSearchResults.isEmpty {
-                    ContentUnavailableView.search(text: viewModel.searchText)
-                } else if case .failed(_, nil) = viewModel.board {
-                    ContentUnavailableView(
-                        "Lignes indisponibles",
-                        systemImage: "wifi.exclamationmark",
-                        description: Text("Impossible de charger l’état du réseau. Réessayez.")
+                    EmptyStateView(
+                        .noResults(
+                            query: viewModel.searchText,
+                            message: "Essayez un autre nom de ligne ou de mode.",
+                        ),
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.background)
+                } else if case .failed(_, nil) = viewModel.board {
+                    EmptyStateView(
+                        .offline(
+                            title: "Lignes indisponibles",
+                            message: "Impossible de charger l’état du réseau. Réessayez.",
+                        ),
+                    ) {
+                        RetryButton { Task { await viewModel.refresh() } }
+                            .primaryAction()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.background)
                 }
             }
             .refreshable { await viewModel.refresh() }

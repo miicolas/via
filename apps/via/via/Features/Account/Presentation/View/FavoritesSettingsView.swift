@@ -18,11 +18,8 @@ struct FavoritesSettingsView: View {
         List {
             if favorites.isEmpty {
                 Section {
-                    ContentUnavailableView(
-                        "Aucune station favorite",
-                        systemImage: "star",
-                        description: Text("Ajoute une station en favori depuis sa fiche pour la retrouver ici.")
-                    )
+                    EmptyStateView(.noFavorites)
+                        .listRowBackground(Color.clear)
                 }
             } else {
                 Section {

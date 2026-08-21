@@ -62,11 +62,17 @@ struct LineDetailView: View {
                 .frame(maxHeight: .infinity, alignment: .top)
                 .background(.background)
             } else if case .failed(_, nil) = viewModel.detail {
-                ContentUnavailableView(
-                    "Ligne indisponible",
-                    systemImage: "wifi.exclamationmark",
-                    description: Text("Impossible de charger cette ligne. Réessayez.")
-                )
+                EmptyStateView(
+                    .offline(
+                        title: "Ligne indisponible",
+                        message: "Impossible de charger cette ligne. Réessayez.",
+                    ),
+                ) {
+                    RetryButton { Task { await viewModel.refresh() } }
+                        .primaryAction()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.background)
             }
         }
     }

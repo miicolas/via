@@ -31,10 +31,12 @@ struct NaturalJourneyClarificationView: View {
     }
 
     var body: some View {
-        NaturalJourneyStateCard(
-            systemImage: "questionmark.bubble",
-            title: "Un détail manque",
-            message: field.question,
+        EmptyStateView(
+            .ai(
+                systemImage: "questionmark.bubble",
+                title: "Un détail manque",
+                message: field.question,
+            ),
         ) {
             if field.target == .time {
                 timeChoices

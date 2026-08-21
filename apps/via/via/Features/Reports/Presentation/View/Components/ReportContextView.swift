@@ -10,12 +10,7 @@ struct ReportContextView: View {
         Group {
             switch state {
             case .idle, .loading:
-                HStack(spacing: 12) {
-                    ProgressView()
-                    Text("Recherche de la station la plus proche…")
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                EmptyStateView(.searching("Recherche de la station la plus proche…"))
 
             case .resolved(let selection):
                 Button(action: onChooseStation) {
@@ -30,6 +25,7 @@ struct ReportContextView: View {
                             .accessibilityHidden(true)
                     }
                     .contentShape(Rectangle())
+                    .padding(16)
                 }
                 .buttonStyle(.plain)
                 .disabled(!isEditable)
@@ -38,27 +34,31 @@ struct ReportContextView: View {
 
             case .unavailable(let authorization):
                 unavailableContent(
-                    title: "Localisation indisponible",
-                    message: message(for: authorization),
-                    showsRetry: true
+                    .locationBlocked(
+                        title: "Localisation indisponible",
+                        message: message(for: authorization),
+                    ),
+                    showsRetry: true,
                 )
 
             case .empty:
                 unavailableContent(
-                    title: "Aucune station trouvée",
-                    message: "Choisissez la station concernée pour continuer.",
-                    showsRetry: false
+                    EmptyState(
+                        systemImage: "mappin.slash",
+                        title: "Aucune station trouvée",
+                        message: "Choisissez la station concernée pour continuer.",
+                    ),
+                    showsRetry: false,
                 )
 
             case .error(let error):
                 unavailableContent(
-                    title: "Stations indisponibles",
-                    message: message(for: error),
-                    showsRetry: true
+                    .offline(title: "Stations indisponibles", message: message(for: error)),
+                    showsRetry: true,
                 )
             }
         }
-        .padding(16)
+        .frame(maxWidth: .infinity)
         .background(.secondary.opacity(0.08), in: RoundedRectangle(
             cornerRadius: 20,
             style: .continuous
@@ -81,32 +81,18 @@ struct ReportContextView: View {
         }
     }
 
-    private func unavailableContent(
-        title: String,
-        message: String,
-        showsRetry: Bool
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label(title, systemImage: "location.slash.fill")
-                .font(.headline)
+    private func unavailableContent(_ state: EmptyState, showsRetry: Bool) -> some View {
+        EmptyStateView(state) {
+            Button("Choisir une station", systemImage: "mappin.and.ellipse", action: onChooseStation)
+                .primaryAction()
+                .disabled(!isEditable)
 
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            VStack(spacing: 10) {
-                Button("Choisir une station", systemImage: "mappin.and.ellipse", action: onChooseStation)
-                    .primaryAction()
+            if showsRetry {
+                RetryButton(action: onRetry)
+                    .secondaryAction()
                     .disabled(!isEditable)
-
-                if showsRetry {
-                    RetryButton(action: onRetry)
-                        .secondaryAction()
-                        .disabled(!isEditable)
-                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func message(for authorization: LocationAuthorization) -> String {

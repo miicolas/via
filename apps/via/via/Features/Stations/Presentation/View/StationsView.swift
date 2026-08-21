@@ -98,7 +98,7 @@ struct StationsView: View {
         case let .loaded(station):
             stationList(station)
         case .empty:
-            StationsEmptyStateView(onOpenSearch: onOpenSearch)
+            emptyContent
         case let .locationUnavailable(authorization):
             unavailableContent(for: authorization)
         case let .failed(error, previous):
@@ -170,22 +170,47 @@ struct StationsView: View {
         }
     }
 
+    private var emptyContent: some View {
+        stateContent(EmptyState(title: "Trouvez une station"), onRetry: nil)
+    }
+
     private func unavailableContent(for authorization: LocationAuthorization) -> some View {
-        StationsEmptyStateView(
-            title: "Localisation indisponible",
-            message: message(for: authorization),
-            onOpenSearch: onOpenSearch,
+        stateContent(
+            EmptyState(
+                title: "Localisation indisponible",
+                message: message(for: authorization),
+            ),
             onRetry: viewModel.retry,
         )
     }
 
     private func errorContent(for error: ViaError) -> some View {
-        StationsEmptyStateView(
-            title: "Stations indisponibles",
-            message: message(for: error),
-            onOpenSearch: onOpenSearch,
+        stateContent(
+            EmptyState(
+                title: "Stations indisponibles",
+                message: message(for: error),
+            ),
             onRetry: viewModel.retry,
         )
+    }
+
+    /// Every dead end on this screen points at the same place: Search is the
+    /// only way to reach a station when the map cannot supply one. No glyph —
+    /// the sentence already carries the one symbol that matters.
+    private func stateContent(_ state: EmptyState, onRetry: (() -> Void)?) -> some View {
+        EmptyStateView(state) {
+            Button(action: onOpenSearch) {
+                Text("Touchez \(Image(systemName: "magnifyingglass.circle.fill")) Recherche pour trouver une station près de vous")
+            }
+            .emptyStateHint()
+            .accessibilityLabel("Ouvrir Recherche pour trouver une station")
+
+            if let onRetry {
+                RetryButton(action: onRetry)
+                    .secondaryAction()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func message(for authorization: LocationAuthorization) -> String {
@@ -268,9 +293,4 @@ struct StationsView: View {
         onOpenProfile: {},
         onOpenSettings: {}
     )
-}
-
-#Preview("Empty state") {
-    StationsEmptyStateView(onOpenSearch: {})
-        .frame(height: 500)
 }
