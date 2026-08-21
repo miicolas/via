@@ -2,7 +2,6 @@ import SwiftUI
 
 struct NaturalJourneySheet: View {
     let viewModel: SearchViewModel
-    @Binding var detent: PresentationDetent
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isInputFocused: Bool
@@ -60,10 +59,16 @@ struct NaturalJourneySheet: View {
         }
         .onChange(of: viewModel.naturalSearchState, initial: true) { _, state in
             if NaturalJourneyPresentationPolicy.expandsForInput(state) {
-                detent = .large
                 Task { @MainActor in isInputFocused = true }
             } else {
                 isInputFocused = false
+            }
+        }
+        .onDisappear {
+            // A swipe-down dismissal never routes through the Close button, so
+            // reset the view model here to keep it in sync with the sheet.
+            if viewModel.isNaturalSearchPresented {
+                viewModel.dismissNaturalSearch()
             }
         }
     }

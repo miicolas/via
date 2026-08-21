@@ -13,6 +13,8 @@ struct JourneyDetailView: View {
     @State private var isActivationExplanationPresented = false
     @State private var isActivating = false
 
+    @Environment(\.dismiss) private var dismiss
+
     init(
         journey: Journey,
         destination: JourneyDestination,
@@ -57,6 +59,11 @@ struct JourneyDetailView: View {
         .navigationTitle("Détail du trajet")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(role: .close) {
+                    dismiss()
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Carte", systemImage: "map", action: expandMap)
                     .accessibilityHint("Réduit la fiche pour explorer le trajet sur la carte")
@@ -70,9 +77,6 @@ struct JourneyDetailView: View {
         }
         .onAppear {
             onHighlightSection(highlightedSectionID)
-            // The full-screen map behind the sheet is the only map now: make
-            // room for it instead of drawing a second one inside the sheet.
-            onExpandMap()
         }
         .onDisappear {
             onHighlightSection(nil)

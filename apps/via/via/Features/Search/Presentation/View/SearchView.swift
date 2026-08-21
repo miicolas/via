@@ -7,16 +7,13 @@ struct SearchView: View {
     let viewModel: SearchViewModel
     let activeJourneyModel: ActiveJourneyModel
     let onClose: () -> Void
-    let onExpandJourneyMap: () -> Void
-    let onOpenReport: () -> Void
-    @Binding var sheetDetent: PresentationDetent
+    let onInspectJourney: (Journey) -> Void
+    let onShowActiveJourney: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var inputTransitionNamespace
     @State private var isDeparturePickerPresented = false
-    @State private var inspectedJourney: Journey?
-    @State private var isActiveJourneyPresented = false
     @State private var isNaturalDatePickerPresented = false
     @State private var isNaturalOptionsPresented = false
     @State private var isAccessibilityInfoPresented = false
@@ -24,66 +21,42 @@ struct SearchView: View {
     init(
         viewModel: SearchViewModel,
         activeJourneyModel: ActiveJourneyModel,
-        sheetDetent: Binding<PresentationDetent> = .constant(.large),
         onClose: @escaping () -> Void = {},
-        onExpandJourneyMap: @escaping () -> Void = {},
-        onOpenReport: @escaping () -> Void = {},
+        onInspectJourney: @escaping (Journey) -> Void = { _ in },
+        onShowActiveJourney: @escaping () -> Void = {},
     ) {
         self.viewModel = viewModel
         self.activeJourneyModel = activeJourneyModel
-        _sheetDetent = sheetDetent
         self.onClose = onClose
-        self.onExpandJourneyMap = onExpandJourneyMap
-        self.onOpenReport = onOpenReport
+        self.onInspectJourney = onInspectJourney
+        self.onShowActiveJourney = onShowActiveJourney
     }
 
     var body: some View {
         @Bindable var viewModel = viewModel
 
-        Group {
-            if viewModel.isNaturalSearchPresented {
-                NaturalJourneySheet(viewModel: viewModel, detent: $sheetDetent)
-                    .toolbarVisibility(.hidden, for: .tabBar)
-            } else {
-                NavigationStack {
-                    searchContent(viewModel: $viewModel)
-                        .navigationTitle("Recherche")
-                        .navigationSubtitle(viewModel.subtitle)
-                        .toolbarTitleDisplayMode(.inlineLarge)
-                        .toolbar {
-                            ToolbarItem(placement: .largeSubtitle) {
-                                departureMenu(viewModel: $viewModel)
-                            }
-                            ToolbarItem(placement: .subtitle) {
-                                departureMenu(viewModel: $viewModel)
-                            }
-                            activeJourneyToolbarItem
-                            ToolbarItem(placement: .topBarTrailing) {
-                                searchFiltersMenu
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button(role: .close) {
-                                    onClose()
-                                }
-                            }
+        NavigationStack {
+            searchContent(viewModel: $viewModel)
+                .navigationTitle("Recherche")
+                .navigationSubtitle(viewModel.subtitle)
+                .toolbarTitleDisplayMode(.inlineLarge)
+                .toolbar {
+                    ToolbarItem(placement: .largeSubtitle) {
+                        departureMenu(viewModel: $viewModel)
+                    }
+                    ToolbarItem(placement: .subtitle) {
+                        departureMenu(viewModel: $viewModel)
+                    }
+                    activeJourneyToolbarItem
+                    ToolbarItem(placement: .topBarTrailing) {
+                        searchFiltersMenu
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(role: .close) {
+                            onClose()
                         }
-                        .navigationDestination(item: $inspectedJourney) { journey in
-                            if let destination = viewModel.journeyDestination {
-                                JourneyDetailView(
-                                    journey: journey,
-                                    destination: destination,
-                                    source: viewModel.journeyResult?.source,
-                                    activeJourneyModel: activeJourneyModel,
-                                    onHighlightSection: viewModel.highlightJourneySection,
-                                    onExpandMap: onExpandJourneyMap,
-                                )
-                            }
-                        }
-                        .navigationDestination(isPresented: $isActiveJourneyPresented) {
-                            activeJourneyDestination
-                        }
+                    }
                 }
-            }
         }
         .opacity(tabVisibilityProgress)
         .scrollEdgeEffectStyle(.soft, for: .vertical)
@@ -117,18 +90,6 @@ struct SearchView: View {
         .sheet(isPresented: $isAccessibilityInfoPresented) {
             SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
         }
-        .onAppear(perform: synchronizeActiveJourneyPresentation)
-        .onChange(of: activeJourneyModel.session?.journey.id) { _, _ in
-            synchronizeActiveJourneyPresentation()
-        }
-        .onChange(of: activeJourneyModel.arrival?.journeyID) { _, _ in
-            synchronizeActiveJourneyPresentation()
-        }
-        .onChange(of: viewModel.isNaturalSearchPresented) { _, isPresented in
-            if !isPresented {
-                sheetDetent = .large
-            }
-        }
     }
 
     private var searchFiltersMenu: some View {
@@ -143,21 +104,6 @@ struct SearchView: View {
         )
     }
 
-    @ViewBuilder
-    private var activeJourneyDestination: some View {
-        if let arrival = activeJourneyModel.arrival {
-            JourneyArrivalView(
-                arrival: arrival,
-                onComplete: activeJourneyModel.completeArrival,
-            )
-        } else if activeJourneyModel.isActive {
-            ActiveJourneyPanelView(
-                model: activeJourneyModel,
-                onOpenReport: onOpenReport,
-            )
-        }
-    }
-
     private var hasActiveJourneySurface: Bool {
         activeJourneyModel.isActive || activeJourneyModel.arrival != nil
     }
@@ -167,14 +113,10 @@ struct SearchView: View {
         if hasActiveJourneySurface {
             ToolbarItem(placement: .topBarLeading) {
                 Button("Trajet actif", systemImage: "location.fill") {
-                    isActiveJourneyPresented = true
+                    onShowActiveJourney()
                 }
             }
         }
-    }
-
-    private func synchronizeActiveJourneyPresentation() {
-        isActiveJourneyPresented = hasActiveJourneySurface
     }
 
     private func departureMenu(viewModel: Bindable<SearchViewModel>) -> some View {
@@ -238,7 +180,7 @@ struct SearchView: View {
                         selectedJourneyID: viewModel.wrappedValue.selectedJourneyID,
                         onSelectJourney: { journey in
                             viewModel.wrappedValue.selectJourney(journey)
-                            inspectedJourney = journey
+                            onInspectJourney(journey)
                         },
                         onRetry: viewModel.wrappedValue.retryJourney,
                         onEdit: viewModel.wrappedValue.editDestination,
@@ -273,7 +215,6 @@ struct SearchView: View {
                         AIEntryButton(
                             isDiscoverable: viewModel.wrappedValue.showsNaturalSearchDiscovery,
                         ) {
-                            sheetDetent = .large
                             viewModel.wrappedValue.openNaturalSearch()
                         }
                     }
