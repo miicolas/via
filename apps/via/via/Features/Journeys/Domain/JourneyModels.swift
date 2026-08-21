@@ -57,6 +57,33 @@ struct JourneyRoute: Codable, Sendable, Hashable, Identifiable {
     let textColorHex: String
 }
 
+/// Where to stand on the platform so the doors open in front of what comes next.
+///
+/// `car` counts from the head of the train in its direction of travel, so the
+/// advice belongs to the section that carries it and to no other. `carCount` is
+/// the line's nominal train length: a short trainset makes the number
+/// optimistic, which is why the interface leads with `zone`.
+struct JourneyBoardingPosition: Codable, Sendable, Hashable {
+    enum Zone: String, Codable, Sendable, Hashable { case front, middle, rear }
+    enum Reason: String, Codable, Sendable, Hashable { case exit, transfer }
+    enum Equipment: String, Codable, Sendable, Hashable { case escalator, lift, stairs }
+
+    let car: Int
+    let carCount: Int
+    let zone: Zone
+    let reason: Reason
+    let equipment: Equipment?
+}
+
+/// The station exit nearest the destination, named as its signage names it.
+struct JourneyExit: Codable, Sendable, Hashable, Identifiable {
+    let id: String
+    let name: String
+    let number: Int?
+    let coordinate: GeoCoordinate
+    let walkingMeters: Int?
+}
+
 struct JourneySection: Codable, Sendable, Hashable, Identifiable {
     enum Kind: String, Codable, Sendable, Hashable { case walk, wait, transfer, transit }
 
@@ -72,6 +99,42 @@ struct JourneySection: Codable, Sendable, Hashable, Identifiable {
     let direction: String?
     let platform: String?
     let stops: [JourneyStop]
+    /// Followed when boarding, decided by where this section ends.
+    let boardingPosition: JourneyBoardingPosition?
+    /// Only ever on the last transit section — where to leave the network.
+    let exit: JourneyExit?
+
+    init(
+        id: String,
+        kind: Kind,
+        durationSeconds: Int,
+        from: JourneyPlace,
+        to: JourneyPlace,
+        departureAt: Date?,
+        arrivalAt: Date?,
+        geometry: [GeoCoordinate],
+        route: JourneyRoute?,
+        direction: String?,
+        platform: String?,
+        stops: [JourneyStop],
+        boardingPosition: JourneyBoardingPosition? = nil,
+        exit: JourneyExit? = nil
+    ) {
+        self.id = id
+        self.kind = kind
+        self.durationSeconds = durationSeconds
+        self.from = from
+        self.to = to
+        self.departureAt = departureAt
+        self.arrivalAt = arrivalAt
+        self.geometry = geometry
+        self.route = route
+        self.direction = direction
+        self.platform = platform
+        self.stops = stops
+        self.boardingPosition = boardingPosition
+        self.exit = exit
+    }
 }
 
 struct Journey: Codable, Sendable, Hashable, Identifiable {

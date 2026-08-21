@@ -39,6 +39,7 @@ import { importSchedules, type ScheduledTrip } from './schedule/import-schedules
 import { addScheduledTrip } from './schedule/scheduled-trips';
 import { importShapes } from './shapes/import-shapes';
 import { refreshAccessibilitySnapshot } from './accessibility/import-accessibility';
+import { refreshWayfindingSnapshot } from './wayfinding/import-wayfinding';
 
 /**
  * A route once its required fields have actually been checked.
@@ -479,6 +480,24 @@ async function refreshAccessibilityData() {
   });
 }
 
+async function refreshWayfindingData() {
+  await step('Refreshing IDFM station exits and boarding positions', async () => {
+    try {
+      const result = await refreshWayfindingSnapshot();
+      logStep(
+        `Imported ${formatCount(result.exits)} station exits ` +
+          `(source ${result.exitsUpdatedAt ?? 'date inconnue'}) and ` +
+          `${formatCount(result.positions)} boarding positions ` +
+          `(source ${result.positionsUpdatedAt ?? 'date inconnue'}).`
+      );
+    } catch (cause) {
+      // Same rule as accessibility: a snapshot of someone else's referential
+      // never gets to fail a completed network import.
+      console.error('[worker] wayfinding snapshot unchanged', cause);
+    }
+  });
+}
+
 try {
   logStep(`Importing ${gtfsPath}`);
   const feedHash = await hashGtfsFeed(gtfsPath);
@@ -507,6 +526,9 @@ try {
     logStep(`Import complete in ${formatDuration(performance.now() - importStartedAt)}.`);
   }
   await refreshAccessibilityData();
+  // After the network: exits hang off `transit_stops` and boarding positions off
+  // `transit_stop_aliases`, both written by the import above.
+  await refreshWayfindingData();
 } finally {
   await client.end();
 }

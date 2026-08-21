@@ -180,7 +180,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                     sectionIndex: node.sectionIndex,
                     colorHex: nil
                 )
-            case .board(let stop, let route, _, _):
+            case .board(let stop, let route, _, _, _):
                 JourneyMapStop(
                     id: node.id,
                     name: stop.name,
@@ -189,7 +189,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                     sectionIndex: node.sectionIndex,
                     colorHex: route?.colorHex
                 )
-            case .alight(let stop):
+            case .alight(let stop, _):
                 JourneyMapStop(
                     id: node.id,
                     name: stop.name,

@@ -83,7 +83,7 @@ struct JourneyTimelineNodeRow: View {
             place(name, caption: "Départ")
         case .destination(let name):
             place(name, caption: "Arrivée", symbol: "flag.checkered")
-        case .board(let stop, let route, let direction, let platform):
+        case .board(let stop, let route, let direction, let platform, let position):
             VStack(alignment: .leading, spacing: 8) {
                 JourneyLegHeaderView(
                     route: route,
@@ -92,16 +92,24 @@ struct JourneyTimelineNodeRow: View {
                     durationSeconds: node.durationSeconds,
                     isDimmed: state == .done
                 )
-                Text(stop.name)
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(stop.name)
+                        .font(.headline)
+                    if let position {
+                        JourneyBoardingPositionView(position: position, isDimmed: state == .done)
+                    }
+                }
             }
-        case .alight(let stop):
+        case .alight(let stop, let exit):
             VStack(alignment: .leading, spacing: 3) {
                 Text(stop.name)
                     .font(.headline)
                 Label("Descendre ici", systemImage: "arrow.down.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                if let exit {
+                    JourneyExitView(exit: exit, isDimmed: state == .done)
+                }
             }
         case .walk(let destination):
             movement("Marcher jusqu'à \(destination)", symbol: "figure.walk")
@@ -200,13 +208,19 @@ struct JourneyTimelineNodeRow: View {
         let base: String = switch node.kind {
         case .origin(let name): "Départ de \(name) à \(time)"
         case .destination(let name): "Arrivée à \(name) à \(time)"
-        case .board(let stop, let route, let direction, _):
+        case .board(let stop, let route, let direction, let platform, let position):
             [
                 "Monter à \(stop.name) à \(time)",
                 route.map { "\($0.mode.displayName) \($0.shortName)" },
                 direction.map { "direction \($0)" },
+                platform.map { "quai \($0)" },
+                position.map { JourneyBoardingPositionView(position: $0).accessibilityLabel },
             ].compactMap(\.self).joined(separator: ", ")
-        case .alight(let stop): "Descendre à \(stop.name) à \(time)"
+        case .alight(let stop, let exit):
+            [
+                "Descendre à \(stop.name) à \(time)",
+                exit.map { JourneyExitView(exit: $0).accessibilityLabel },
+            ].compactMap(\.self).joined(separator: ". ")
         case .walk(let destination):
             "Marcher \(JourneyFormatting.duration(node.durationSeconds)) jusqu'à \(destination)"
         case .wait(let place):

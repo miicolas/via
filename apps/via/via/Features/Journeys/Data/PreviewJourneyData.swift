@@ -211,7 +211,14 @@ private func previewJourney(
                 route: rer,
                 direction: "Saint-Germain-en-Laye",
                 platform: "A",
-                stops: []
+                stops: [],
+                boardingPosition: JourneyBoardingPosition(
+                    car: 4,
+                    carCount: 8,
+                    zone: .middle,
+                    reason: .transfer,
+                    equipment: .escalator
+                )
             ),
             JourneySection(
                 id: "\(id):transfer",
@@ -239,7 +246,21 @@ private func previewJourney(
                 route: metro,
                 direction: "La Défense",
                 platform: "1",
-                stops: []
+                stops: [],
+                boardingPosition: JourneyBoardingPosition(
+                    car: 5,
+                    carCount: 5,
+                    zone: .rear,
+                    reason: .exit,
+                    equipment: nil
+                ),
+                exit: JourneyExit(
+                    id: "preview:exit",
+                    name: "Parvis de la Défense",
+                    number: 3,
+                    coordinate: destination.coordinate,
+                    walkingMeters: 180
+                )
             ),
             JourneySection(
                 id: "\(id):walk-end",

@@ -24,6 +24,7 @@
     "gtfs:import": "bun --env-file=.env apps/worker/src/index.ts",
     "gtfs:import:metro": "bun --env-file=.env apps/worker/src/index.ts",
     "accessibility:import": "bun --env-file=.env apps/worker/src/accessibility/cli.ts",
+    "wayfinding:import": "bun --env-file=.env apps/worker/src/wayfinding/cli.ts",
     "check:transit-alignment": "bun --env-file=.env scripts/check-transit-map-alignment.ts",
     "generate:openapi": "bun scripts/generate-openapi.ts",
     "generate:swift-client": "swift package --package-path apps/via --allow-writing-to-package-directory generate-code-from-openapi --target ViaGeneratedAPI",

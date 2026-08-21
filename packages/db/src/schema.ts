@@ -160,6 +160,85 @@ export const stationFacts = pgTable(
   ]
 );
 
+/**
+ * A street-level way in or out of a station, as the IDFM stop referential
+ * declares it: the door a traveller is told to take, `number` being the figure
+ * printed on the signage above it.
+ *
+ * Not a `station_facts` kind: that table holds one row per station per kind, and
+ * a station has many exits. Same provenance columns, deliberately — both are
+ * snapshots of an external referential and both must be able to say how old they
+ * are.
+ */
+export const stationExits = pgTable(
+  'station_exits',
+  {
+    /** The referential's access id, prefixed like every other IDFM id we store. */
+    id: text('id').primaryKey(),
+    stopId: text('stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    /** Street-facing name, e.g. 'pl. du Châtelet'. */
+    name: text('name').notNull(),
+    /** The number riders see on the signage; absent from a few accesses. */
+    number: integer('number'),
+    detail: text('detail'),
+    location: pointWgs84('location').notNull(),
+    source: text('source').notNull(),
+    sourceRef: text('source_ref').notNull(),
+    sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('station_exits_stop_idx').on(table.stopId),
+    index('station_exits_location_idx').using('gist', table.location),
+  ]
+);
+
+export const BOARDING_POSITION_ZONES = ['front', 'middle', 'rear'] as const;
+export type BoardingPositionZone = (typeof BOARDING_POSITION_ZONES)[number];
+
+export const BOARDING_POSITION_EQUIPMENTS = ['escalator', 'lift', 'stairs'] as const;
+export type BoardingPositionEquipment = (typeof BOARDING_POSITION_EQUIPMENTS)[number];
+
+/**
+ * Which carriage to ride in so the doors open in front of a given exit or
+ * connecting platform.
+ *
+ * Keyed by *quay*, not by station: a quay is direction-specific, and the advice
+ * flips with the direction — Châtelet line 7 is carriage 5 of 5 from one quay
+ * and carriage 1 of 5 from the other, because carriages count from the head of
+ * the train. Collapsing the two into a station would silently send half the
+ * riders to the wrong end of the platform. That is also why `fromQuayId` and
+ * `targetId` carry no foreign key: `transit_stops` holds canonical stations, and
+ * these are one level finer. The importer validates them against
+ * `transit_stop_aliases` instead.
+ */
+export const boardingPositions = pgTable(
+  'boarding_positions',
+  {
+    /** The quay the traveller arrives on, e.g. 'IDFM:463060'. */
+    fromQuayId: text('from_quay_id').notNull(),
+    /** A `station_exits.id` or, for a connection, the next line's quay id. */
+    targetId: text('target_id').notNull(),
+    targetKind: text('target_kind', { enum: ['exit', 'transfer'] }).notNull(),
+    routeId: text('route_id').notNull(),
+    car: integer('car').notNull(),
+    /** The line's nominal train length — a short trainset makes this optimistic. */
+    carCount: integer('car_count').notNull(),
+    zone: text('zone', { enum: BOARDING_POSITION_ZONES }).notNull(),
+    /** What the walk from the doors to the target uses, when the source says so. */
+    equipment: text('equipment', { enum: BOARDING_POSITION_EQUIPMENTS }),
+    source: text('source').notNull(),
+    sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.fromQuayId, table.targetId] }),
+    check('boarding_positions_car_check', sql`${table.car} BETWEEN 1 AND ${table.carCount}`),
+  ]
+);
+
 export const transitRoutePatternStops = pgTable(
   'transit_route_pattern_stops',
   {
