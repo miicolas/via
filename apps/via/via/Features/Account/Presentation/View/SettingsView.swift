@@ -63,6 +63,18 @@ struct SettingsView: View {
 
                 Section("GÉRER") {
                     NavigationLink {
+                        FavoritesSettingsView(accountModel: accountModel)
+                    } label: {
+                        SettingsRow(
+                            title: "Stations favorites",
+                            systemImage: "star.fill",
+                            subtitle: "Consulter et supprimer",
+                            tint: .orange,
+                            value: favoritesCount
+                        )
+                    }
+
+                    NavigationLink {
                         AccountDataSettingsView(
                             accountModel: accountModel,
                             authSessionViewModel: authSessionViewModel,
@@ -106,6 +118,11 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var favoritesCount: String? {
+        let count = accountModel.favorites.count
+        return count > 0 ? "\(count)" : nil
     }
 
     private var intelligenceStatus: String {
