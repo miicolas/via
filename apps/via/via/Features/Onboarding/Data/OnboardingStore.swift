@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 struct OnboardingStore {
-    static let completionKey = "via.onboarding.completed.v2"
+    static let completionKey = "via.onboarding.completed.v3"
 
     private let defaults: UserDefaults
 
@@ -39,10 +39,6 @@ final class OnboardingModel {
         guard !isCompleted else { return }
         store.markCompleted()
         isCompleted = true
-    }
-
-    func skip() {
-        complete()
     }
 
     func reset() {

@@ -138,7 +138,7 @@ struct GeneratedRouteIntent {
     @Guide(description: "Contraintes comprises mais non prises en charge; marche maximale, accessibilité, ligne précise, coût ou confort", .maximumCount(3))
     var unsupportedConstraints: [String]
 
-    func domain(now: Date) throws(NaturalIntentParsingError) -> RouteIntent {
+    func domain(now: Date, phrase: String) throws(NaturalIntentParsingError) -> RouteIntent {
         let mappedOrigin: RouteOriginIntent
         switch origin.kind {
         case .currentLocation:
@@ -190,7 +190,7 @@ struct GeneratedRouteIntent {
         } else {
             do {
                 resolvedTime = try NaturalDateTimeResolver.resolve(
-                    timeConstraint.dateTime.domain,
+                    timeConstraint.dateTime.domain.correctingSingleExactTime(in: phrase),
                     now: now
                 )
             } catch {

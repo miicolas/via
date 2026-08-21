@@ -30,14 +30,17 @@ struct JourneyPreferencesSettingsView: View {
                         set: { searchViewModel.setRequiresAccessibleStations($0) }
                     )
                 ) {
-                    Label("PMR", systemImage: "figure.roll")
-                        .labelStyle(.iconOnly)
+                    SettingsRow(
+                        title: "Trajets PMR",
+                        systemImage: "figure.roll",
+                        subtitle: "Stations et ascenseurs accessibles",
+                        tint: .accentColor
+                    )
                 }
-                .accessibilityLabel("PMR")
             } header: {
                 Text("ACCESSIBILITÉ")
             } footer: {
-                Text("Via demande un itinéraire accessible, même s’il est nettement plus long.")
+                Text("Via demande un itinéraire accessible, même s’il est plus long. Les pannes d’ascenseur en temps réel peuvent ne pas être connues.")
             }
         }
         .navigationTitle("Préférences de trajet")

@@ -91,34 +91,7 @@ struct ApplicationEntry: App {
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                if isShowingLaunchAnimation {
-                    LaunchAnimationView {
-                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
-                            isShowingLaunchAnimation = false
-                        }
-                    }
-                    .transition(.opacity)
-                    .zIndex(1)
-                } else {
-                    MapShellView(
-                        networkViewModel: networkViewModel,
-                        stationsViewModel: stationsViewModel,
-                        linesViewModel: linesViewModel,
-                        selectedStationModel: selectedStationModel,
-                        searchViewModel: searchViewModel,
-                        activeJourneyModel: activeJourneyModel,
-                        reportViewModel: reportViewModel,
-                        onboardingModel: onboardingModel,
-                        locationModel: locationModel,
-                        accountModel: accountModel,
-                        favoriteRoutesModel: favoriteRoutesModel,
-                        authSessionViewModel: authSessionViewModel,
-                        profileModel: profileModel,
-                    )
-                    .transition(.opacity)
-                }
-            }
+            applicationRoot
             .task {
                 await authSessionViewModel.restore()
             }
@@ -129,6 +102,39 @@ struct ApplicationEntry: App {
                 guard scenePhase == .active else { return }
                 await authSessionViewModel.sceneBecameActive()
                 await activeJourneyModel.sceneBecameActive()
+            }
+        }
+    }
+
+    private var applicationRoot: some View {
+        ZStack {
+            if isShowingLaunchAnimation {
+                LaunchAnimationView {
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
+                        isShowingLaunchAnimation = false
+                    }
+                }
+                .transition(.opacity)
+                .zIndex(1)
+            } else if !onboardingModel.isCompleted {
+                OnboardingView(onComplete: onboardingModel.complete)
+                    .transition(.opacity)
+            } else {
+                MapShellView(
+                    networkViewModel: networkViewModel,
+                    stationsViewModel: stationsViewModel,
+                    linesViewModel: linesViewModel,
+                    selectedStationModel: selectedStationModel,
+                    searchViewModel: searchViewModel,
+                    activeJourneyModel: activeJourneyModel,
+                    reportViewModel: reportViewModel,
+                    locationModel: locationModel,
+                    accountModel: accountModel,
+                    favoriteRoutesModel: favoriteRoutesModel,
+                    authSessionViewModel: authSessionViewModel,
+                    profileModel: profileModel,
+                )
+                .transition(.opacity)
             }
         }
     }

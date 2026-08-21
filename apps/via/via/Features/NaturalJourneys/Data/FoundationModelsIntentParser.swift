@@ -57,7 +57,7 @@ struct FoundationModelsIntentParser: NaturalIntentParsing {
                 options: Self.generationOptions
             )
             try Task.checkCancellation()
-            let intent = try response.content.domain(now: now)
+            let intent = try response.content.domain(now: now, phrase: phrase)
             guard let explicitOrigin = ExplicitRouteSyntax.originQuery(in: phrase) else {
                 return intent
             }

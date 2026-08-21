@@ -65,7 +65,6 @@ final class AccountLocalStore: @unchecked Sendable {
             var user = load(for: .user(userID))
             let merged = merge(user: user, anonymous: anonymous)
             user.favorites = merged.favorites
-            user.recents = merged.recents
             user.places = merged.places
             user.preferences = merged.preferences
 
@@ -86,7 +85,6 @@ final class AccountLocalStore: @unchecked Sendable {
             let snapshot = loadActive()
             return AccountSnapshot(
                 favorites: snapshot.favorites.sorted { $0.savedAt > $1.savedAt },
-                recentSearches: snapshot.recents.sorted { $0.savedAt > $1.savedAt },
                 places: snapshot.places.sorted { $0.savedAt > $1.savedAt },
                 transportPreferences: snapshot.preferences
             )
@@ -113,24 +111,6 @@ final class AccountLocalStore: @unchecked Sendable {
     func removeFavorite(stationID: String, now: Date = .now) {
         locked {
             _ = mutate(.removeFavorite(stationID: stationID, at: now))
-        }
-    }
-
-    func upsertRecent(_ recent: RecentSearch) {
-        locked {
-            _ = mutate(.upsertRecent(recent))
-        }
-    }
-
-    func removeRecent(id: String, now: Date = .now) {
-        locked {
-            _ = mutate(.removeRecent(id: id, at: now))
-        }
-    }
-
-    func clearRecents(now: Date = .now) {
-        locked {
-            _ = mutate(.clearRecents(at: now))
         }
     }
 
@@ -168,7 +148,6 @@ final class AccountLocalStore: @unchecked Sendable {
             }
             var snapshot = AccountLocalSnapshot(
                 favorites: result.favorites,
-                recents: result.recents,
                 places: result.places,
                 preferences: result.preferences,
                 pendingOperations: remaining
@@ -183,19 +162,11 @@ final class AccountLocalStore: @unchecked Sendable {
     private func activate(scope: AccountScope) {
         locked {
             activeScope = scope
+            defaults.removeObject(forKey: Self.legacyRecentsKey)
             let key = storageKey(for: scope)
             guard defaults.data(forKey: key) == nil else { return }
 
-            var snapshot = AccountLocalSnapshot()
-            if let legacy = defaults.data(forKey: Self.legacyRecentsKey),
-               let recents = try? JSONDecoder.via.decode([RecentSearch].self, from: legacy) {
-                snapshot.recents = Array(
-                    recents.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.recentLimit)
-                )
-                snapshot.pendingOperations = snapshot.recents.map(Self.recentUpsertOperation)
-                defaults.removeObject(forKey: Self.legacyRecentsKey)
-            }
-            save(snapshot, for: scope)
+            save(AccountLocalSnapshot(), for: scope)
         }
     }
 
@@ -212,9 +183,17 @@ final class AccountLocalStore: @unchecked Sendable {
 
     private func load(for scope: AccountScope) -> AccountLocalSnapshot {
         if let cachedSnapshot, cachedSnapshot.scope == scope { return cachedSnapshot.snapshot }
-        let snapshot = defaults.data(forKey: storageKey(for: scope))
+        let stored = defaults.data(forKey: storageKey(for: scope))
+        var snapshot = stored
             .flatMap { try? JSONDecoder.via.decode(AccountLocalSnapshot.self, from: $0) }
             ?? AccountLocalSnapshot()
+        snapshot.pendingOperations.removeAll { $0.kind.isLegacyRecent }
+        // Re-encoding also drops the retired `recents` key that builds before
+        // device-local search history wrote into this blob, so the history
+        // does not survive on disk.
+        if let rewritten = try? JSONEncoder.via.encode(snapshot), rewritten != stored {
+            defaults.set(rewritten, forKey: storageKey(for: scope))
+        }
         cachedSnapshot = (scope, snapshot)
         return snapshot
     }
@@ -256,13 +235,6 @@ final class AccountLocalStore: @unchecked Sendable {
             }
         }
 
-        var recentsByID = Dictionary(uniqueKeysWithValues: user.recents.map { ($0.id, $0) })
-        for recent in anonymous.recents {
-            if recent.savedAt >= (recentsByID[recent.id]?.savedAt ?? .distantPast) {
-                recentsByID[recent.id] = recent
-            }
-        }
-
         var placesByID = Dictionary(uniqueKeysWithValues: user.places.map { ($0.id, $0) })
         for place in anonymous.places {
             if place.updatedAt >= (placesByID[place.id]?.updatedAt ?? .distantPast) {
@@ -279,7 +251,6 @@ final class AccountLocalStore: @unchecked Sendable {
         }
         var merged = AccountLocalSnapshot(
             favorites: Array(favoritesByID.values.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.favoriteLimit)),
-            recents: Array(recentsByID.values.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.recentLimit)),
             places: places,
             preferences: anonymous.preferences.updatedAt >= user.preferences.updatedAt
                 ? anonymous.preferences
@@ -296,12 +267,6 @@ final class AccountLocalStore: @unchecked Sendable {
                 merged.favorites.removeAll {
                     $0.stationID == operation.stationID && $0.updatedAt <= operation.occurredAt
                 }
-            case .recentRemove:
-                merged.recents.removeAll {
-                    $0.id == operation.recentID && $0.savedAt <= operation.occurredAt
-                }
-            case .recentClear:
-                merged.recents.removeAll { $0.savedAt <= operation.occurredAt }
             case .placeRemove:
                 merged.places.removeAll {
                     $0.id == operation.placeID && $0.updatedAt <= operation.occurredAt
@@ -318,7 +283,6 @@ final class AccountLocalStore: @unchecked Sendable {
         var operations = snapshot.favorites.map {
             AccountSyncOperation(kind: .favoriteUpsert, occurredAt: $0.updatedAt, station: $0)
         }
-        operations.append(contentsOf: snapshot.recents.map(Self.recentUpsertOperation))
         operations.append(contentsOf: snapshot.places.map {
             AccountSyncOperation(kind: .placeUpsert, occurredAt: $0.updatedAt, place: $0)
         })
@@ -330,10 +294,6 @@ final class AccountLocalStore: @unchecked Sendable {
             ))
         }
         return operations
-    }
-
-    private static func recentUpsertOperation(_ recent: RecentSearch) -> AccountSyncOperation {
-        AccountSyncOperation(kind: .recentUpsert, occurredAt: recent.savedAt, recent: recent)
     }
 
     private func trimOperations(_ snapshot: inout AccountLocalSnapshot) {
@@ -350,9 +310,19 @@ final class AccountLocalStore: @unchecked Sendable {
 private extension AccountLocalSnapshot {
     var isEmpty: Bool {
         favorites.isEmpty
-            && recents.isEmpty
             && places.isEmpty
             && preferences == .empty
             && pendingOperations.isEmpty
+    }
+}
+
+private extension AccountSyncOperation.Kind {
+    var isLegacyRecent: Bool {
+        switch self {
+        case .recentUpsert, .recentRemove, .recentClear:
+            true
+        default:
+            false
+        }
     }
 }

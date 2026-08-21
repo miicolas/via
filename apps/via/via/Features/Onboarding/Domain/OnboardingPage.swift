@@ -1,0 +1,78 @@
+import SwiftUI
+import UIKit
+
+/// The screenshots the first-run carousel walks through, in order.
+enum OnboardingPage: Int, CaseIterable, Hashable {
+    case welcome
+    case stations
+    case disruptions
+    case intelligentSearch
+    case preferences
+    case liveActivity
+
+    var title: String {
+        switch self {
+        case .welcome: "Bienvenue dans Via"
+        case .stations: "Tes stations en direct"
+        case .disruptions: "Anticipe les perturbations"
+        case .intelligentSearch: "Décris simplement ton trajet"
+        case .preferences: "Tes préférences, ton trajet"
+        case .liveActivity: "Gère ton trajet en direct"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .welcome:
+            "Tes trajets franciliens, plus simples et plus intelligents."
+        case .stations:
+            "Repère les stations proches et consulte les prochains passages."
+        case .disruptions:
+            "Visualise l’état des lignes et les travaux avant de partir."
+        case .intelligentSearch:
+            "Via comprend les lieux, l’heure et les transports à éviter."
+        case .preferences:
+            "Préfère ou évite certains transports et demande un trajet PMR via des stations accessibles."
+        case .liveActivity:
+            "Suis ta progression, les prochaines étapes et les correspondances jusqu’à l’arrivée."
+        }
+    }
+
+    var assetName: String {
+        switch self {
+        case .welcome: "OnboardingWelcome"
+        case .stations: "OnboardingStations"
+        case .disruptions: "OnboardingDisruptions"
+        case .intelligentSearch: "OnboardingAI"
+        case .preferences: "OnboardingPreferences"
+        case .liveActivity: "OnboardingLiveActivity"
+        }
+    }
+
+    var screenshot: UIImage? {
+        UIImage(named: assetName)
+    }
+
+    var isFinal: Bool {
+        self == Self.allCases.last
+    }
+
+    var zoomScale: CGFloat {
+        switch self {
+        case .welcome, .liveActivity: 1
+        case .stations: 1.15
+        case .disruptions, .intelligentSearch: 1.2
+        case .preferences: 1.08
+        }
+    }
+
+    var zoomAnchor: UnitPoint {
+        switch self {
+        case .welcome, .liveActivity: .center
+        case .stations: UnitPoint(x: 0.5, y: 0.3)
+        case .disruptions: UnitPoint(x: 0.5, y: 0.25)
+        case .intelligentSearch: UnitPoint(x: 0.5, y: 0.3)
+        case .preferences: UnitPoint(x: 0.5, y: 0.38)
+        }
+    }
+}

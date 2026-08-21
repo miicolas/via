@@ -63,6 +63,7 @@ final class SearchViewModelTests: XCTestCase {
     }
 
     func testNaturalSearchReadyResultUsesTheExistingJourneyPresentation() async {
+        let recentStore = InMemoryRecentSearchStore()
         let interpretation = NaturalJourneyInterpretation(
             originLabel: "Ma position",
             destination: JourneyPlaceSelection(.previewStation).journeyDestination,
@@ -86,6 +87,7 @@ final class SearchViewModelTests: XCTestCase {
             naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
                 hasSeenOnboarding: true,
             ),
+            recentSearchStore: recentStore,
         )
         model.naturalQuery = "Châtelet demain avant 8 h, sans RER"
 
@@ -99,6 +101,7 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(model.naturalJourneyCriteria?.datetimeRepresents, .arrival)
         XCTAssertEqual(model.naturalJourneyCriteria?.excludedModes, [.rer])
         XCTAssertFalse(model.isNaturalSearchPresented)
+        XCTAssertTrue(recentStore.load().isEmpty)
         let requests = await naturalRepository.requests
         XCTAssertEqual(requests, [.submit(
             query: "Châtelet demain avant 8 h, sans RER",
@@ -127,7 +130,7 @@ final class SearchViewModelTests: XCTestCase {
                 hasSeenOnboarding: true,
             ),
             naturalJourneyMetrics: metrics,
-            metricsNow: { Date(timeIntervalSince1970: 42) },
+            now: { Date(timeIntervalSince1970: 42) },
         )
         model.naturalQuery = "Nation demain avant 8 h"
 
@@ -526,6 +529,7 @@ final class SearchViewModelTests: XCTestCase {
             repository: InMemorySearchRepository.preview,
             journeyRepository: journeys,
             locationModel: location,
+            recentSearchStore: InMemoryRecentSearchStore(),
         )
 
         model.updateQuery("cha")
@@ -794,6 +798,81 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(model.selectedDeparture, .currentLocation)
     }
 
+    func testResetSearchReturnsTheWholeSurfaceToItsInitialState() async {
+        let model = makeModel(journeyRepository: JourneyRepositoryRecorder(result: .mapPreview))
+
+        model.selectDeparture(.manual(.previewAddress))
+        model.query = "châtelet"
+        model.selectDestination(.previewStation)
+        await waitForStep(model, .results)
+
+        XCTAssertTrue(model.canResetSearch)
+
+        model.resetSearch()
+
+        XCTAssertEqual(model.step, .destination)
+        XCTAssertEqual(model.query, "")
+        XCTAssertEqual(model.results, [])
+        XCTAssertEqual(model.loadState, .idle)
+        XCTAssertEqual(model.accessibilitySource.status, .unavailable)
+        XCTAssertNil(model.selectedDestination)
+        XCTAssertEqual(model.selectedDeparture, .currentLocation)
+        XCTAssertNil(model.journeyResult)
+        XCTAssertNil(model.mapPresentation)
+        XCTAssertNil(model.highlightedJourneySectionID)
+        XCTAssertNil(model.naturalJourneyCriteria)
+        XCTAssertFalse(model.canResetSearch)
+    }
+
+    func testClassicDestinationIsRecordedLocallyAndControlsRecentsVisibility() async {
+        let store = InMemoryRecentSearchStore()
+        let savedAt = Date(timeIntervalSince1970: 100)
+        let model = makeModel(
+            journeyRepository: JourneyRepositoryRecorder(result: .mapPreview),
+            now: { savedAt },
+            recentSearchStore: store,
+        )
+
+        model.selectDestination(.previewStation)
+        await waitForStep(model, .results)
+        model.resetSearch()
+
+        XCTAssertEqual(model.recentSearches.map(\.id), [SearchResult.previewStation.id])
+        XCTAssertEqual(model.recentSearches.first?.savedAt, savedAt)
+        XCTAssertTrue(model.showsRecentSearches)
+
+        model.query = "na"
+        XCTAssertFalse(model.showsRecentSearches)
+        model.query = ""
+        model.removeRecentSearch(id: SearchResult.previewStation.id)
+        XCTAssertTrue(model.recentSearches.isEmpty)
+        XCTAssertFalse(model.showsRecentSearches)
+    }
+
+    func testSelectingARecentDestinationReordersItAndPlansTheJourney() async {
+        let store = InMemoryRecentSearchStore()
+        let recent = RecentSearch(result: .previewAddress, savedAt: .distantPast)
+        _ = store.upsert(recent)
+        let journeys = JourneyRepositoryRecorder(result: .mapPreview)
+        let model = makeModel(
+            journeyRepository: journeys,
+            now: { Date(timeIntervalSince1970: 100) },
+            recentSearchStore: store,
+        )
+
+        model.selectRecentSearch(recent)
+        await waitForStep(model, .results)
+
+        XCTAssertEqual(model.selectedDestination, .previewAddress)
+        XCTAssertEqual(model.recentSearches.first?.id, recent.id)
+        XCTAssertEqual(model.recentSearches.first?.savedAt, Date(timeIntervalSince1970: 100))
+        let requests = await journeys.requests()
+        XCTAssertEqual(requests.count, 1)
+
+        model.clearRecentSearches()
+        XCTAssertTrue(model.recentSearches.isEmpty)
+    }
+
     private func makeModel(
         repository: any SearchRepository = InMemorySearchRepository.preview,
         journeyRepository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
@@ -802,7 +881,8 @@ final class SearchViewModelTests: XCTestCase {
         naturalLanguageAvailability: NaturalLanguageAvailability = .unavailable(.deviceNotEligible),
         naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring = InMemoryNaturalJourneyOnboardingStore(),
         naturalJourneyMetrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
-        metricsNow: @escaping @Sendable () -> Date = { .now },
+        now: @escaping @Sendable () -> Date = { .now },
+        recentSearchStore: any RecentSearchStoring = InMemoryRecentSearchStore(),
     ) -> SearchViewModel {
         SearchViewModel(
             repository: repository,
@@ -812,7 +892,8 @@ final class SearchViewModelTests: XCTestCase {
             naturalLanguageAvailability: { naturalLanguageAvailability },
             naturalJourneyOnboardingStore: naturalJourneyOnboardingStore,
             naturalJourneyMetrics: naturalJourneyMetrics,
-            metricsNow: metricsNow,
+            now: now,
+            recentSearchStore: recentSearchStore,
         )
     }
 

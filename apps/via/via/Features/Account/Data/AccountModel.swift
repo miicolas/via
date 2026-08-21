@@ -45,7 +45,6 @@ final class AccountModel {
 
     var isAnonymous: Bool { activeScope == .anonymous }
     var favorites: [FavoriteStation] { snapshot.favorites }
-    var recentSearches: [RecentSearch] { snapshot.recentSearches }
     var places: [SavedPlace] { snapshot.places }
     var transportPreferences: TransportPreferences { snapshot.transportPreferences }
 
@@ -124,24 +123,6 @@ final class AccountModel {
 
     func removePlace(id: String) {
         store.removePlace(id: id, now: now())
-        refresh(syncState: syncState)
-        scheduleSynchronization()
-    }
-
-    func recordRecentSearch(_ result: SearchResult) {
-        store.upsertRecent(RecentSearch(result: result, savedAt: now()))
-        refresh(syncState: syncState)
-        scheduleSynchronization()
-    }
-
-    func clearRecentSearches() {
-        store.clearRecents(now: now())
-        refresh(syncState: syncState)
-        scheduleSynchronization()
-    }
-
-    func removeRecentSearch(id: String) {
-        store.removeRecent(id: id, now: now())
         refresh(syncState: syncState)
         scheduleSynchronization()
     }

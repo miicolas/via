@@ -17,6 +17,7 @@ struct SearchView: View {
     @State private var isNaturalDatePickerPresented = false
     @State private var isNaturalOptionsPresented = false
     @State private var isAccessibilityInfoPresented = false
+    @State private var isClearRecentsConfirmationPresented = false
 
     init(
         viewModel: SearchViewModel,
@@ -48,6 +49,15 @@ struct SearchView: View {
                         departureMenu(viewModel: $viewModel)
                     }
                     activeJourneyToolbarItem
+                    if viewModel.canResetSearch {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Nouvelle recherche", systemImage: "arrow.counterclockwise") {
+                                viewModel.resetSearch()
+                            }
+                            .labelStyle(.iconOnly)
+                            .accessibilityHint("Efface le trajet et le point de départ sélectionnés")
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         searchFiltersMenu
                     }
@@ -89,6 +99,18 @@ struct SearchView: View {
         }
         .sheet(isPresented: $isAccessibilityInfoPresented) {
             SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
+        }
+        .confirmationDialog(
+            "Effacer les recherches récentes ?",
+            isPresented: $isClearRecentsConfirmationPresented,
+            titleVisibility: .visible,
+        ) {
+            Button("Effacer les recherches récentes", role: .destructive) {
+                viewModel.clearRecentSearches()
+            }
+            Button("Annuler", role: .cancel) {}
+        } message: {
+            Text("Cette action supprime les destinations enregistrées sur cet appareil.")
         }
     }
 
@@ -147,13 +169,78 @@ struct SearchView: View {
     }
 
     private func searchContent(viewModel: Bindable<SearchViewModel>) -> some View {
+        Group {
+            if viewModel.wrappedValue.step == .destination {
+                destinationSearchContent(viewModel: viewModel)
+            } else {
+                journeySearchContent(viewModel: viewModel)
+            }
+        }
+    }
+
+    private func destinationSearchContent(viewModel: Bindable<SearchViewModel>) -> some View {
+        List {
+            inputStage(viewModel: viewModel)
+                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 10, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+
+            if viewModel.wrappedValue.showsRecentSearches {
+                Section {
+                    ForEach(viewModel.wrappedValue.recentSearches) { recent in
+                        SearchResultRow(
+                            result: recent.searchResult,
+                            accessibilityHint: "Relance un trajet vers cette destination",
+                        ) {
+                            viewModel.wrappedValue.selectRecentSearch(recent)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button("Supprimer", systemImage: "trash", role: .destructive) {
+                                viewModel.wrappedValue.removeRecentSearch(id: recent.id)
+                            }
+                            .labelStyle(.iconOnly)
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Text("Récentes")
+
+                        Spacer()
+
+                        Button("Tout effacer", systemImage: "trash", role: .destructive) {
+                            isClearRecentsConfirmationPresented = true
+                        }
+                        .labelStyle(.iconOnly)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityHint("Demande confirmation avant de supprimer tout l’historique local")
+                    }
+                }
+            }
+
+            if viewModel.wrappedValue.loadState != .idle {
+                SearchResultsSection(
+                    state: viewModel.wrappedValue.loadState,
+                    results: viewModel.wrappedValue.results,
+                    onRetry: viewModel.wrappedValue.retry,
+                    onSelect: viewModel.wrappedValue.selectDestination,
+                )
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 24, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .animation(inputAnimation, value: viewModel.wrappedValue.step)
+    }
+
+    private func journeySearchContent(viewModel: Bindable<SearchViewModel>) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 inputStage(viewModel: viewModel)
 
-                if let criteria = viewModel.wrappedValue.naturalJourneyCriteria,
-                   viewModel.wrappedValue.step != .destination
-                {
+                if let criteria = viewModel.wrappedValue.naturalJourneyCriteria {
                     NaturalJourneyCriteriaView(
                         criteria: criteria,
                         journeyCount: viewModel.wrappedValue.journeyResult?.journeys.count ?? 0,
@@ -164,14 +251,7 @@ struct SearchView: View {
                     )
                 }
 
-                if viewModel.wrappedValue.step == .destination {
-                    SearchResultsSection(
-                        state: viewModel.wrappedValue.loadState,
-                        results: viewModel.wrappedValue.results,
-                        onRetry: viewModel.wrappedValue.retry,
-                        onSelect: viewModel.wrappedValue.selectDestination,
-                    )
-                } else if let destination = viewModel.wrappedValue.selectedDestination {
+                if let destination = viewModel.wrappedValue.selectedDestination {
                     SearchJourneyResultsView(
                         step: viewModel.wrappedValue.step,
                         result: viewModel.wrappedValue.journeyResult,

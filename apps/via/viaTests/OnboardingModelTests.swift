@@ -2,10 +2,10 @@ import XCTest
 @testable import Via
 
 final class OnboardingModelTests: XCTestCase {
-    func testUsesVersionTwoCompletionKey() {
+    func testUsesVersionThreeCompletionKey() {
         XCTAssertEqual(
             OnboardingStore.completionKey,
-            "via.onboarding.completed.v2"
+            "via.onboarding.completed.v3"
         )
     }
 
@@ -34,14 +34,14 @@ final class OnboardingModelTests: XCTestCase {
     }
 
     @MainActor
-    func testSkipUsesTheSameCompletionState() {
+    func testVersionTwoCompletionDoesNotCompleteVersionThreeOnboarding() {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
+        defaults.set(true, forKey: "via.onboarding.completed.v2")
         let model = OnboardingModel(store: OnboardingStore(defaults: defaults))
-        model.skip()
 
-        XCTAssertTrue(model.isCompleted)
+        XCTAssertFalse(model.isCompleted)
     }
 
     @MainActor

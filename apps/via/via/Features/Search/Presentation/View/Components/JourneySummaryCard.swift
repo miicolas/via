@@ -65,9 +65,7 @@ struct JourneySummaryCard: View {
             }
 
             if let accessibility = journey.accessibility {
-                Label(accessibility.label, systemImage: "figure.roll")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(accessibility.condition == .autonomous ? Color.green : Color.orange)
+                PMRBadgeView(accessibilityLabel: accessibility.label, size: 24)
             }
 
             if !journey.warnings.isEmpty {

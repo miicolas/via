@@ -5,6 +5,7 @@ struct AccountDataSettingsView: View {
     let accountModel: AccountModel
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
+    let onEraseLocalSearches: @MainActor () -> Void
 
     @State private var confirmation: Confirmation?
     @State private var deletionAuthorizer = AppleDeletionAuthorizer()
@@ -19,7 +20,7 @@ struct AccountDataSettingsView: View {
                     Label("Exporter mes données", systemImage: "square.and.arrow.up")
                 }
             } footer: {
-                Text("L’export JSON contient les favoris, lieux, recherches récentes et préférences. Il ne contient aucun identifiant Apple ni jeton de session.")
+                Text("L’export JSON contient les favoris, lieux et préférences. Il ne contient ni recherches récentes, ni identifiant Apple, ni jeton de session.")
             }
 
             Section("SUR CET APPAREIL") {
@@ -81,6 +82,7 @@ struct AccountDataSettingsView: View {
             Task {
                 await authSessionViewModel.eraseDeviceData()
                 profileModel.eraseAllProfiles()
+                onEraseLocalSearches()
             }
         case .signOut:
             Task { await authSessionViewModel.signOut() }
