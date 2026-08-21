@@ -8,6 +8,7 @@
 const POST_PROCEDURES = new Set([
   'account.delete',
   'account.sync',
+  'naturalJourneys.submit',
 ]);
 
 export function rpcMethod(path: readonly string[]): 'GET' | 'POST' {

@@ -28,6 +28,11 @@ export function fakeRedis() {
       expiries.set(key, seconds);
       return 1;
     }) as RedisClient['expire'],
+    del: (async (key: string) => {
+      const existed = store.delete(key);
+      expiries.delete(key);
+      return existed ? 1 : 0;
+    }) as RedisClient['del'],
   };
 
   return { client, store, expiries };
