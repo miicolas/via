@@ -23,12 +23,14 @@ type SectionCandidate = {
 
 type ResolvedGroup = {
   group: JourneyDepartureChoiceGroup;
-  next?: SectionCandidate;
+  alternatives: SectionCandidate[];
   currentRevision?: SectionCandidate;
 };
 
 type SectionCandidates = {
   currentRevision?: SectionCandidate;
+  /** The latest matching service before the selected one, still in the future. */
+  previous?: SectionCandidate;
   next?: SectionCandidate;
   failed?: boolean;
 };
@@ -74,12 +76,16 @@ export function createJourneyDepartureChoicesModule(
           index,
           id,
           planner,
+          clock.now(),
           context
         ).catch((error) => {
           if (context.signal?.aborted) throw error;
           return { failed: true as const };
         });
-        const { next, currentRevision } = candidates;
+        const { previous, next, currentRevision } = candidates;
+        const alternatives = [previous, next].filter(
+          (candidate): candidate is SectionCandidate => candidate !== undefined
+        );
         const nextSource = next?.source === 'idfm-realtime'
           ? 'realtime' as const
           : 'theoretical' as const;
@@ -87,30 +93,27 @@ export function createJourneyDepartureChoicesModule(
         const fetchedAt = candidates.failed ? undefined : clock.now().toISOString();
         const currentId = departureId(id, section);
         const currentTiming = departureTiming(section, source);
+        // Chronological, so the row reads as a timeline the traveller steps
+        // along: the service before, the one held, the one after.
+        const choices = [
+          ...(previous ? [choiceFor(previous)] : []),
+          {
+            id: currentId,
+            ...currentTiming,
+            source,
+            isSelected: true,
+          },
+          ...(next ? [choiceFor(next)] : []),
+        ];
         return {
           group: {
             sectionId: id,
-            availability: next ? 'ready' : 'unavailable',
+            availability: alternatives.length > 0 ? 'ready' : 'unavailable',
             source,
             fetchedAt,
-            choices: [
-              {
-                id: currentId,
-                ...currentTiming,
-                source,
-                isSelected: true,
-              },
-              ...(next
-                ? [{
-                    id: next.id,
-                    ...departureTiming(next.section, nextSource),
-                    source: nextSource,
-                    isSelected: false,
-                  }]
-                : []),
-            ],
+            choices,
           },
-          next,
+          alternatives,
           currentRevision,
         };
       })
@@ -148,15 +151,18 @@ export function createJourneyDepartureChoicesModule(
       const selected = initial.find(
         ({ group }) => group.sectionId === selection.sectionId
       );
-      if (!selected || selected.next?.id !== selection.departureId) {
+      const chosen = selected?.alternatives.find(
+        (candidate) => candidate.id === selection.departureId
+      );
+      if (!chosen) {
         throw new DepartureChoiceUnavailableError('The selected departure is no longer available');
       }
 
       const revised = spliceJourney(
         input.journey,
         selection.sectionId,
-        selected.next.journey,
-        selected.next.section
+        chosen.journey,
+        chosen.section
       );
       if (revised === input.journey) {
         throw new DepartureChoiceUnavailableError('The selected departure has no downstream journey');
@@ -177,52 +183,103 @@ async function sectionCandidates(
   sectionIndex: number,
   id: string,
   planner: JourneyPlanner,
+  now: Date,
   context: ResolveContext
 ): Promise<SectionCandidates> {
   if (!section.departureAt || !section.route) return {};
   const firstStop = section.stops[0];
-  const requestedAt = new Date(new Date(section.departureAt).getTime() - 5 * 60_000).toISOString();
-  const result = await planner.plan(
-    {
-      origin: section.from.coordinate,
-      destination: input.destination,
-      limit: 6,
-      requestedAt,
-      datetimeRepresents: 'departure',
-      requiredModes: input.policy.requiredModes,
-      excludedModes: input.policy.excludedModes,
-      preferredModes: input.policy.preferredModes,
-      requiresAccessibleStations: input.policy.requiresAccessibleStations,
-      originStationId: firstStop?.stationId ?? firstStop?.id,
-    },
-    context
-  );
-
   const originalDeparture = Date.parse(section.departureAt);
-  let currentRevision: SectionCandidate | undefined;
-  let next: SectionCandidate | undefined;
-  for (const journey of result.journeys) {
-    const candidate = journey.sections.find(
-      (candidateSection) => candidateSection.type === 'transit'
-    );
-    if (!candidate?.departureAt || !sameTransit(section, candidate)) continue;
-    const resolved = {
-      id: departureId(id, candidate),
-      journey,
-      section: candidate,
-      source: result.source,
-    };
-    if (section.serviceId && candidate.serviceId === section.serviceId) {
-      if (hasTimingRevision(section, candidate)) currentRevision = resolved;
-      continue;
-    }
-    if (Date.parse(candidate.departureAt) <= originalDeparture) continue;
-    if (!next || Date.parse(candidate.departureAt) < Date.parse(next.section.departureAt!)) {
-      next = resolved;
-    }
-  }
 
-  return { currentRevision, next };
+  const scan = async (
+    requestedAt: string,
+    datetimeRepresents: 'departure' | 'arrival' = 'departure'
+  ): Promise<SectionCandidates> => {
+    const result = await planner.plan(
+      {
+        origin: section.from.coordinate,
+        destination: input.destination,
+        limit: 6,
+        requestedAt,
+        datetimeRepresents,
+        requiredModes: input.policy.requiredModes,
+        excludedModes: input.policy.excludedModes,
+        preferredModes: input.policy.preferredModes,
+        requiresAccessibleStations: input.policy.requiresAccessibleStations,
+        originStationId: firstStop?.stationId ?? firstStop?.id,
+      },
+      context
+    );
+
+    let currentRevision: SectionCandidate | undefined;
+    let previous: SectionCandidate | undefined;
+    let next: SectionCandidate | undefined;
+    for (const journey of result.journeys) {
+      const candidate = journey.sections.find(
+        (candidateSection) => candidateSection.type === 'transit'
+      );
+      if (!candidate?.departureAt || !sameTransit(section, candidate)) continue;
+      const resolved = {
+        id: departureId(id, candidate),
+        journey,
+        section: candidate,
+        source: result.source,
+      };
+      if (section.serviceId && candidate.serviceId === section.serviceId) {
+        if (hasTimingRevision(section, candidate)) currentRevision = resolved;
+        continue;
+      }
+      const departsAt = Date.parse(candidate.departureAt);
+      if (departsAt > originalDeparture) {
+        if (!next || departsAt < Date.parse(next.section.departureAt!)) next = resolved;
+      } else if (departsAt < originalDeparture && departsAt > now.getTime()) {
+        // A service that has already left is not a choice, so stepping back
+        // can only ever walk back towards now — never past it.
+        if (!previous || departsAt > Date.parse(previous.section.departureAt!)) {
+          previous = resolved;
+        }
+      }
+    }
+    return { currentRevision, previous, next };
+  };
+
+  /** A second opinion never gets to cost the answers the first pass gave. */
+  const scanSafe = async (
+    requestedAt: string,
+    datetimeRepresents: 'departure' | 'arrival' = 'departure'
+  ) =>
+    scan(requestedAt, datetimeRepresents).catch((error) => {
+      if (context.signal?.aborted) throw error;
+      return {} as SectionCandidates;
+    });
+
+  // Asked from just before the selected departure, the planner answers with the
+  // best itineraries leaving around then — and it prunes dominated ones, so the
+  // *next* service on this very line, arriving later for no fewer transfers, is
+  // exactly the kind of answer it drops. This pass still owns the revision of
+  // the selected service, since only it can see that service at all.
+  const around = await scan(new Date(originalDeparture - 5 * 60_000).toISOString());
+
+  const [after, before] = await Promise.all([
+    // Ask again from the minute after this departure: with the boarded service
+    // out of reach, the one behind it becomes the earliest answer rather than a
+    // dominated one.
+    around.next
+      ? Promise.resolve(around)
+      : scanSafe(new Date(originalDeparture + 60_000).toISOString()),
+    // Backwards needs the other search entirely: a departure-anchored plan can
+    // only ever look forward. Anchored on an arrival a minute earlier than the
+    // one held, the reverse search returns the latest departures that still make
+    // it — which is the service just before this one.
+    around.previous
+      ? Promise.resolve(around)
+      : scanSafe(new Date(Date.parse(input.journey.arrivalAt) - 60_000).toISOString(), 'arrival'),
+  ]);
+
+  return {
+    currentRevision: around.currentRevision,
+    previous: before.previous,
+    next: after.next,
+  };
 }
 
 function hasTimingRevision(current: JourneySection, candidate: JourneySection) {
@@ -343,6 +400,17 @@ function rebuiltWait(
     arrivalAt: transit.departureAt,
     geometry: [],
     stops: [],
+  };
+}
+
+/** An alternative service, timed and labelled by the feed that produced it. */
+function choiceFor(candidate: SectionCandidate) {
+  const source = candidate.source === 'idfm-realtime' ? 'realtime' as const : 'theoretical' as const;
+  return {
+    id: candidate.id,
+    ...departureTiming(candidate.section, source),
+    source,
+    isSelected: false,
   };
 }
 

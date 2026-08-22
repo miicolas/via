@@ -1,13 +1,14 @@
 import SwiftUI
 
-/// A street-level recommended exit. The number is the useful map label; the
-/// glass square keeps it distinct from circular stations and route beads.
+/// A street-level recommended exit. The pictogram is what makes it readable as
+/// an exit rather than a line, and the capsule keeps it distinct from circular
+/// stations and route beads.
 struct JourneyExitAnnotationView: View {
   let exit: JourneyMapExit
   var isDimmed = false
 
   var body: some View {
-    JourneyExitBadge(number: exit.number, size: 44)
+    JourneyExitBadge(number: exit.number, height: 28)
       .shadow(color: .black.opacity(0.2), radius: 3, y: 2)
       .opacity(isDimmed ? 0.4 : 1)
       .accessibilityElement(children: .ignore)

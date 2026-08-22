@@ -5791,8 +5791,6 @@ internal enum Operations {
                                 }
                                 /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/source`.
                                 internal var source: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayloadPayload.sourcePayload?
-                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/fetchedAt`.
-                                internal var fetchedAt: Foundation.Date?
                                 /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/isSelected`.
                                 internal var isSelected: Swift.Bool
                                 /// Creates a new `choicesPayloadPayload`.
@@ -5803,7 +5801,6 @@ internal enum Operations {
                                 ///   - expectedAt:
                                 ///   - status:
                                 ///   - source:
-                                ///   - fetchedAt:
                                 ///   - isSelected:
                                 internal init(
                                     id: Swift.String,
@@ -5811,7 +5808,6 @@ internal enum Operations {
                                     expectedAt: Foundation.Date? = nil,
                                     status: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayloadPayload.statusPayload,
                                     source: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayloadPayload.sourcePayload? = nil,
-                                    fetchedAt: Foundation.Date? = nil,
                                     isSelected: Swift.Bool
                                 ) {
                                     self.id = id
@@ -5819,7 +5815,6 @@ internal enum Operations {
                                     self.expectedAt = expectedAt
                                     self.status = status
                                     self.source = source
-                                    self.fetchedAt = fetchedAt
                                     self.isSelected = isSelected
                                 }
                                 internal enum CodingKeys: String, CodingKey {
@@ -5828,7 +5823,6 @@ internal enum Operations {
                                     case expectedAt
                                     case status
                                     case source
-                                    case fetchedAt
                                     case isSelected
                                 }
                             }

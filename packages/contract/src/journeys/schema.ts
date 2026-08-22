@@ -256,7 +256,7 @@ export const journeyDepartureChoiceGroupSchema = z.object({
   availability: z.enum(['ready', 'unavailable']),
   source: z.enum(['realtime', 'theoretical']).optional(),
   fetchedAt: z.iso.datetime({ offset: true }).optional(),
-  choices: z.array(journeyDepartureChoiceSchema).max(2),
+  choices: z.array(journeyDepartureChoiceSchema).max(3),
 });
 
 export const journeyDepartureChoicesResponseSchema = z.object({

@@ -3382,7 +3382,7 @@
                           },
                           "choices": {
                             "type": "array",
-                            "maxItems": 2,
+                            "maxItems": 3,
                             "items": {
                               "type": "object",
                               "properties": {
@@ -3418,10 +3418,6 @@
                                     "theoretical"
                                   ],
                                   "type": "string"
-                                },
-                                "fetchedAt": {
-                                  "type": "string",
-                                  "format": "date-time"
                                 },
                                 "isSelected": {
                                   "type": "boolean"

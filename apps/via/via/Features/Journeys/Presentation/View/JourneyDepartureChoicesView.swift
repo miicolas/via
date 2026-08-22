@@ -1,7 +1,10 @@
 import SwiftUI
 
-/// The selected service and the next compatible one, shared by planning and
-/// live guidance. It never owns network work; it only reports intent upward.
+/// The service held, with the compatible one before it and the one after,
+/// chronologically. Choosing either re-centres the row on that departure, so a
+/// traveller steps forward or back one passage at a time for as long as the
+/// line runs. Shared by planning and live guidance; it never owns network work,
+/// it only reports intent upward.
 struct JourneyDepartureChoicesView: View {
     let route: JourneyRoute?
     let group: JourneyDepartureChoiceGroup?
@@ -46,15 +49,11 @@ struct JourneyDepartureChoicesView: View {
 
     @ViewBuilder
     private func choiceButtons(_ group: JourneyDepartureChoiceGroup) -> some View {
-        ForEach(group.choices.prefix(2)) { choice in
+        ForEach(group.choices) { choice in
             Button {
                 onSelect(choice)
             } label: {
                 HStack(spacing: 7) {
-                    if let route {
-                        LineBadgeView(route: route.badge, size: 22)
-                    }
-
                     VStack(alignment: .leading, spacing: 1) {
                         HStack(alignment: .firstTextBaseline, spacing: 5) {
                             Image(systemName: choice.source.systemImage)
@@ -110,7 +109,7 @@ struct JourneyDepartureChoicesView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(accessibilityLabel(choice))
             .accessibilityAddTraits(choice.isSelected ? [.isSelected] : [])
-            .accessibilityHint(choice.isSelected ? "Passage retenu" : "Décale la suite du trajet")
+            .accessibilityHint(hint(for: choice, in: group))
         }
     }
 
@@ -120,7 +119,7 @@ struct JourneyDepartureChoicesView: View {
             Image(systemName: group.source.systemImage)
             Text(group.source.title)
             if group.availability == .unavailable {
-                Text("· Aucun passage suivant")
+                Text("· Aucun autre passage")
             }
         }
         .font(.caption2.weight(.medium))
@@ -150,6 +149,23 @@ struct JourneyDepartureChoicesView: View {
                 .iconAction(size: .small)
                 .accessibilityLabel("Réessayer les horaires directs")
         }
+    }
+
+    /// Which way this choice moves the journey, read off the chronological row
+    /// rather than the clock: a delayed later service can still print an earlier
+    /// time than the one held.
+    private func hint(
+        for choice: JourneyDepartureChoice,
+        in group: JourneyDepartureChoiceGroup
+    ) -> String {
+        guard !choice.isSelected else { return "Passage retenu" }
+        guard
+            let index = group.choices.firstIndex(of: choice),
+            let selected = group.choices.firstIndex(where: \.isSelected)
+        else { return "Décale la suite du trajet" }
+        return index < selected
+            ? "Avance la suite du trajet au passage précédent"
+            : "Décale la suite du trajet au passage suivant"
     }
 
     private func showsScheduledTime(_ choice: JourneyDepartureChoice) -> Bool {
@@ -186,6 +202,6 @@ struct JourneyDepartureChoicesView: View {
 
     private func freshnessLabel(_ date: Date?) -> String {
         guard let date else { return "Fraîcheur inconnue" }
-        return "Actualisé \(date.formatted(.relative(presentation: .named)))"
+        return "Actualisé \(RelativeTimeFormatting.spelled(date))"
     }
 }

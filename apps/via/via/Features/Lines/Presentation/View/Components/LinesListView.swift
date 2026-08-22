@@ -19,7 +19,7 @@ struct LinesListView: View {
           fetchedAt: fetchedAt,
           isRefreshing: isRefreshing
         )
-        .linesCardRow(top: 8, bottom: 14)
+        .linesCardRow(top: 4, bottom: 4)
       }
 
       if showsUnavailableBanner {
