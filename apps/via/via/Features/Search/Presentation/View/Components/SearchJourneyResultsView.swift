@@ -82,13 +82,20 @@ struct SearchJourneyResultsView: View {
     }
 
     private func resultsContent(_ result: JourneyResult) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if result.journeys.count == 1 {
-                Text("1 itinéraire")
-                    .font(.headline)
-            } else {
-                Text("\(result.journeys.count) itinéraires")
-                    .font(.headline)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Choisir un itinéraire")
+                    .font(.title3.weight(.bold))
+
+                Spacer()
+
+                Text(result.journeys.count, format: .number)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(.secondary.opacity(0.1), in: Capsule())
+                    .accessibilityLabel("\(result.journeys.count) itinéraires proposés")
             }
 
             ForEach(Array(result.journeys.prefix(4))) { journey in
@@ -179,128 +186,4 @@ private extension ViaError {
             "Une erreur inattendue est survenue."
         }
     }
-}
-
-#Preview("Résultats chargés") {
-    SearchJourneyResultsView(
-        step: .results,
-        result: .mapPreview,
-        selectedJourneyID: JourneyResult.mapPreview.journeys.first?.id,
-        onSelectJourney: { _ in },
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Quatre variantes") {
-    SearchJourneyResultsView(
-        step: .results,
-        result: .mapPreview,
-        selectedJourneyID: nil,
-        onSelectJourney: { _ in },
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Perturbation") {
-    SearchJourneyResultsView(
-        step: .results,
-        result: SearchJourneyPreviewData.disrupted,
-        selectedJourneyID: nil,
-        onSelectJourney: { _ in },
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Données théoriques") {
-    SearchJourneyResultsView(
-        step: .results,
-        result: SearchJourneyPreviewData.theoretical,
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Chargement") {
-    SearchJourneyResultsView(
-        step: .planning,
-        result: nil,
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Aucun itinéraire") {
-    SearchJourneyResultsView(
-        step: .noRoute,
-        result: SearchJourneyPreviewData.noRoute,
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Erreur") {
-    SearchJourneyResultsView(
-        step: .failed(.unavailable),
-        result: nil,
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Localisation bloquée") {
-    SearchJourneyResultsView(
-        step: .locationBlocked(.denied),
-        result: nil,
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-private enum SearchJourneyPreviewData {
-    static let noRoute = JourneyResult(
-        status: .noRoute,
-        source: .realtime,
-        generatedAt: .now,
-        journeys: []
-    )
-
-    static let theoretical = JourneyResult(
-        status: .ready,
-        source: .theoretical,
-        generatedAt: .now,
-        journeys: JourneyResult.mapPreview.journeys
-    )
-
-    static let disrupted: JourneyResult = {
-        let base = JourneyResult.mapPreview.journeys[0]
-        let disruptedJourney = Journey(
-            id: base.id,
-            qualifier: base.qualifier,
-            durationSeconds: base.durationSeconds,
-            walkingDurationSeconds: base.walkingDurationSeconds,
-            transferCount: base.transferCount,
-            departureAt: base.departureAt,
-            arrivalAt: base.arrivalAt,
-            status: .disrupted,
-            warnings: ["La ligne A est perturbée"],
-            sections: base.sections
-        )
-        return JourneyResult(
-            status: .ready,
-            source: .realtime,
-            generatedAt: .now,
-            journeys: [disruptedJourney] + Array(JourneyResult.mapPreview.journeys.dropFirst())
-        )
-    }()
 }

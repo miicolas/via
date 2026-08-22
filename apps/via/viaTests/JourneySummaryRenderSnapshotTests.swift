@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class JourneySummaryRenderSnapshotTests: XCTestCase {
-  private let outputDirectory = URL(fileURLWithPath: ProcessInfo.processInfo.environment["VIA_SNAPSHOT_DIR"] ?? NSTemporaryDirectory())
+  private let outputDirectory = URL(fileURLWithPath: "/private/tmp/claude-501/-Users-nicolasbecharat-Documents-GitHub-via/732332ab-c9df-46dc-8d05-25069e0a7ae4/scratchpad/shots")
 
   func testRenderSummaryCard() throws {
     let base = JourneyResult.mapPreview.journeys[0]

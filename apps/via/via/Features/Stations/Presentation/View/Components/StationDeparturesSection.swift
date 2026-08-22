@@ -25,8 +25,17 @@ struct StationDeparturesSection: View {
           )
         )
       } else if loadingState == .loading && departures.isEmpty {
-        LoadingStatus(label: "Chargement des passages…")
-          .frame(maxWidth: .infinity, minHeight: 88)
+        // The desserte is already known, so the first load draws one placeholder
+        // row per line instead of a spinner — the board keeps its geometry and
+        // the rows settle in place.
+        SkeletonGate(isLoading: true) {
+          SkeletonList(
+            count: routes.count,
+            label: "Chargement des prochains passages…",
+            row: .departure,
+            separator: .divider(leadingInset: 50)
+          )
+        }
       } else {
         departureRows
 
