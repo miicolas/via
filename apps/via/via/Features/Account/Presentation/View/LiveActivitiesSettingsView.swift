@@ -15,7 +15,7 @@ struct LiveActivitiesSettingsView: View {
 
                 LiveActivityPreview()
 
-                Text("Les prochaines étapes restent visibles sur l’écran verrouillé et dans Dynamic Island pendant un trajet actif.")
+                Text("Les prochaines étapes, le temps avant le départ et l’arrivée restent visibles sur l’écran verrouillé et dans Dynamic Island pendant un trajet actif.")
                     .font(.title3)
 
                 Label(

@@ -15,6 +15,9 @@ import type { ApiContext } from './orpc/implementer';
 import { getOpenApiDocument } from './orpc/openapi';
 import { auth } from './auth/auth';
 import { requireAuth } from './auth/session';
+import { redis } from './redis';
+import { transitNetworkCacheVersion } from './routers/departures/network-version';
+import { versionedPayloadCache } from './http/versioned-payload-cache';
 
 const app = new Hono<AppEnv>();
 
@@ -29,6 +32,19 @@ app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
 app.use('/api/*', requireAuth);
 app.use('/rpc/*', requireAuth);
+
+/**
+ * The rail map is the one payload big enough for re-encoding it per request to
+ * show up: 1.14 MB that only changes when a GTFS import bumps the network
+ * version. Mounted here — inside `compress()`, outside `etag()` — so the miss
+ * path still produces hono's own ETag while hits skip the handler, the zod
+ * revalidation, the digest and the gzip entirely. Both transports serve the
+ * same procedure, so both get their own entry.
+ */
+const railMapCache = versionedPayloadCache(() => transitNetworkCacheVersion(redis));
+app.use('/api/network/rail-map', railMapCache);
+app.use('/rpc/network/railMap', railMapCache);
+
 app.use('/api/*', etag());
 app.use('/rpc/*', etag());
 

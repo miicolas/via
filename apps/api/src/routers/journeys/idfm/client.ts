@@ -47,13 +47,13 @@ export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Da
   url.searchParams.set(
     'from',
     input.originStationId
-      ? `stop_area:${input.originStationId}`
+      ? navitiaStopId(input.originStationId)
       : `${input.origin.longitude};${input.origin.latitude}`
   );
   url.searchParams.set(
     'to',
     input.destination.kind === 'station'
-      ? `stop_area:${input.destination.id}`
+      ? navitiaStopId(input.destination.id)
       : `${input.destination.coordinate.longitude};${input.destination.coordinate.latitude}`
   );
   url.searchParams.set('count', String(input.limit));
@@ -71,6 +71,12 @@ export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Da
     url.searchParams.append('forbidden_uris[]', physicalModeUri(mode));
   }
   return url;
+}
+
+function navitiaStopId(id: string) {
+  return id.startsWith('stop_area:') || id.startsWith('stop_point:')
+    ? id
+    : `stop_area:${id}`;
 }
 
 function physicalModeUri(mode: JourneyMode) {

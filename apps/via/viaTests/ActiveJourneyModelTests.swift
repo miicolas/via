@@ -22,7 +22,13 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertTrue(location.backgroundAuthorizationGranted)
         XCTAssertEqual(first.activationAction(for: journey, at: now), .active)
 
-        let restored = makeModel(location: location, store: store, now: now)
+        let restoredActivityManager = RecordingJourneyActivityManager()
+        let restored = makeModel(
+            location: location,
+            store: store,
+            activityManager: restoredActivityManager,
+            now: now
+        )
         await restored.restore()
 
         XCTAssertEqual(restored.session?.journey, journey)
@@ -31,6 +37,8 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertTrue(restored.requiresResume)
         XCTAssertFalse(restored.isTracking)
         XCTAssertTrue(restored.session?.allowsBackgroundTracking == true)
+        let pausedState = await restoredActivityManager.lastUpdate
+        XCTAssertEqual(pausedState?.phase, JourneyActivityAttributes.Phase.paused)
         XCTAssertEqual(restored.activationAction(for: journey, at: now), .resume)
 
         await restored.resume()
@@ -66,6 +74,40 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertTrue(model.isTracking)
         XCTAssertNotNil(model.session?.lastCoordinate)
         XCTAssertTrue(adapter.backgroundAuthorizationGranted)
+    }
+
+    func testLiveActivityStateKeepsDepartureCountdownSemantic() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let activityManager = RecordingJourneyActivityManager()
+        let model = makeModel(
+            activityManager: activityManager,
+            now: journey.departureAt.addingTimeInterval(-5 * 60)
+        )
+
+        await model.activate(
+            journey: journey,
+            destination: destination,
+            source: .realtime
+        )
+
+        let state = await activityManager.lastStart
+        XCTAssertEqual(state?.phase, JourneyActivityAttributes.Phase.scheduled)
+        XCTAssertEqual(state?.departureAt, journey.departureAt)
+        XCTAssertEqual(state?.phaseTitle, "Départ")
+        XCTAssertEqual(state?.instructionTitle, "Trajet vers La Défense")
+    }
+
+    func testLiveActivityDeepLinkTargetsTheActiveJourney() {
+        let url = JourneyActivityAttributes(journeyID: "test:journey").journeyURL
+        let components = url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
+
+        XCTAssertEqual(url?.scheme, "via")
+        XCTAssertEqual(url?.host, "journey")
+        XCTAssertEqual(url?.path.removingPercentEncoding, "/test:journey")
+        XCTAssertEqual(
+            components?.queryItems?.first(where: { $0.name == "mode" })?.value,
+            "active"
+        )
     }
 
     func testManualProgressControlsRemainInsideJourneyBounds() async {
@@ -479,13 +521,16 @@ private actor SuspendedJourneyRepository: JourneyRepository {
 }
 
 private actor RecordingJourneyActivityManager: JourneyActivityManaging {
+    private(set) var lastStart: JourneyActivityAttributes.ContentState?
     private(set) var lastUpdate: JourneyActivityAttributes.ContentState?
 
     func start(
         attributes: JourneyActivityAttributes,
         state: JourneyActivityAttributes.ContentState,
         staleAt: Date
-    ) {}
+    ) {
+        lastStart = state
+    }
 
     func update(
         journeyID: JourneyID,
