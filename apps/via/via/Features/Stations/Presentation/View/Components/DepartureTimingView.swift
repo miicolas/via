@@ -187,59 +187,22 @@ struct DepartureTimingView: View {
     }
 
     private func waitingTime(for date: Date, now: Date) -> some View {
-        let minutes = DepartureTimingMath.minutesUntil(date, now: now)
-        let exactTime = timeText(date)
-
-        return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                statusIcon
-
-                if minutes < 60 {
-                    Text("\(minutes)")
-                        .font(.system(.title2, design: .rounded).weight(.bold))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-                        .contentTransition(.numericText(countsDown: true))
-
-                    Text("MIN")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .tracking(0.3)
-                } else {
-                    Text(exactTime)
-                        .font(.headline.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.primary)
-
-                    Text("départ")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 5)
-        .background(statusColor.opacity(0.10), in: Capsule())
-        .fixedSize(horizontal: true, vertical: false)
+        DepartureCountdownView(
+            departureAt: date,
+            isLive: source == .realtime,
+            role: departureTimeColorRole(status: departure.status, source: source)
+        )
         .layoutPriority(2)
-        .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "Dans \(minutes) \(minutes == 1 ? "minute" : "minutes"), à \(exactTime), " +
-                statusText
+            [DepartureCountdownView.spokenWait(until: date, now: now), statusText]
+                .compactMap(\.self)
+                .joined(separator: ", ")
         )
     }
 
-    private var statusIcon: some View {
-        Image(systemName: source == .realtime
-            ? "dot.radiowaves.up.forward"
-            : "clock")
-            .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(statusColor)
-            .frame(width: 17, height: 17)
-            .accessibilityHidden(true)
-    }
-
-    private var statusText: String {
+    /// What the status is called, or nothing when the time already says it: an
+    /// ordinary scheduled departure has no announcement to make.
+    private var statusText: String? {
         switch departure.status {
         case .cancelled:
             "Annulé"
@@ -260,15 +223,11 @@ struct DepartureTimingView: View {
             case .realtime:
                 "Temps réel"
             case .theoretical:
-                "Horaire théorique"
+                nil
             case .unavailable:
                 "Indisponible"
             }
         }
-    }
-
-    private var statusColor: Color {
-        departureTimeColorRole(status: departure.status, source: source).color
     }
 
     private func timeText(_ date: Date) -> String {

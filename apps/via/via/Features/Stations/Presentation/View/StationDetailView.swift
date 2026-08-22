@@ -28,7 +28,8 @@ struct StationDetailView: View {
               distanceText: currentStation.distanceText,
               sourceText: selection.loadingState == .loaded
                 || currentStation.departureSource != .unavailable
-                ? currentStation.sourceText : nil
+                ? currentStation.sourceText : nil,
+              sourceSystemImage: currentStation.sourceSystemImage
             )
 
             StationDeparturesSection(

@@ -251,12 +251,10 @@ struct JourneySummaryCard: View {
         color: .red
       )
     }
+    // A scheduled journey wears no badge: the badge exists to mark live data,
+    // and marking its absence too makes both meaningless.
     if source == .theoretical || journey.status == .theoretical {
-      return JourneyServiceStatus(
-        title: "Théorique",
-        systemImage: "clock",
-        color: .secondary
-      )
+      return nil
     }
     return JourneyServiceStatus(
       title: "Temps réel",

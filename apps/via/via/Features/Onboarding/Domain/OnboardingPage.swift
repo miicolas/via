@@ -53,6 +53,23 @@ enum OnboardingPage: Int, CaseIterable, Hashable {
         UIImage(named: assetName)
     }
 
+    /// Every page is the same device capture, so the carousel can lay itself
+    /// out from the ratio instead of measuring what it draws — a box that
+    /// sizes itself from its own first layout pass freezes the plateau's
+    /// height before the panel below has one.
+    static let screenshotAspectRatio: CGFloat = {
+        guard let size = OnboardingPage.welcome.screenshot?.size, size.height > 0 else { return 1 }
+        return size.width / size.height
+    }()
+
+    /// The 180 pt of device corner the capture carries in its own pixel space,
+    /// held as a fraction of its height so the clip follows however large the
+    /// carousel ends up drawn.
+    static let screenshotCornerRatio: CGFloat = {
+        guard let size = OnboardingPage.welcome.screenshot?.size, size.height > 0 else { return 0 }
+        return 180 / size.height
+    }()
+
     var isFinal: Bool {
         self == Self.allCases.last
     }

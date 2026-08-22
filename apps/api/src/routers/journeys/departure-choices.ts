@@ -1,5 +1,7 @@
 import type {
+  DepartureStatus,
   Journey,
+  JourneyDepartureChoice,
   JourneyDepartureChoiceGroup,
   JourneyDepartureChoicesInput,
   JourneyDepartureChoicesResponse,
@@ -8,12 +10,14 @@ import type {
 
 import { qualifyDepartureStatus } from '../departures/status';
 import type { JourneyPlanner } from './service';
+import { selectTimetableRuns, type TimetableRunReader } from './timetable-runs';
 
 type ResolveContext = {
   identity: string;
   signal?: AbortSignal;
 };
 
+/** An alternative the planner has already turned into a complete itinerary. */
 type SectionCandidate = {
   id: string;
   journey: Journey;
@@ -21,17 +25,32 @@ type SectionCandidate = {
   source: 'idfm-realtime' | 'gtfs-theoretical' | undefined;
 };
 
+/**
+ * One other passage on offer. The timetable can name a passage long before
+ * anything has planned around it, so `candidate` is optional: a choice the
+ * traveller never picks is never planned.
+ */
+type Alternative = {
+  id: string;
+  departureAt: string;
+  scheduledAt?: string;
+  expectedAt?: string;
+  status: DepartureStatus;
+  source: 'realtime' | 'theoretical';
+  candidate?: SectionCandidate;
+};
+
 type ResolvedGroup = {
   group: JourneyDepartureChoiceGroup;
-  alternatives: SectionCandidate[];
+  section: JourneySection;
+  alternatives: Alternative[];
   currentRevision?: SectionCandidate;
 };
 
 type SectionCandidates = {
   currentRevision?: SectionCandidate;
-  /** The latest matching service before the selected one, still in the future. */
-  previous?: SectionCandidate;
-  next?: SectionCandidate;
+  /** Every matching service, chronological, the held one excluded. */
+  matches: SectionCandidate[];
   failed?: boolean;
 };
 
@@ -44,6 +63,13 @@ export type JourneyDepartureChoicesModule = {
 
 export class DepartureChoiceUnavailableError extends Error {}
 
+/** How many passages either side of the held one the traveller may step through. */
+const CHOICES_PER_SIDE = 3;
+/** How far the timetable is scanned around the held departure. */
+const TIMETABLE_WINDOW_MS = 90 * 60_000;
+/** A planned itinerary this far from the run it was asked for is another train. */
+const MATERIALISATION_TOLERANCE_MS = 20 * 60_000;
+
 /**
  * Keeps live passage discovery and journey splicing behind one interface. The
  * app submits the itinerary it is displaying and receives another complete,
@@ -51,7 +77,8 @@ export class DepartureChoiceUnavailableError extends Error {}
  */
 export function createJourneyDepartureChoicesModule(
   planner: JourneyPlanner,
-  clock: { now: () => Date }
+  clock: { now: () => Date },
+  readTimetableRuns: TimetableRunReader = selectTimetableRuns
 ): JourneyDepartureChoicesModule {
   const resolveGroups = async (
     input: JourneyDepartureChoicesInput,
@@ -70,55 +97,80 @@ export function createJourneyDepartureChoicesModule(
       transitSections.map(async ({ section, index, id }) => {
         // One provider failure must not erase fresh choices already resolved
         // for the other legs; its group simply keeps the selected service.
-        const candidates: SectionCandidates = await sectionCandidates(
+        const planned: SectionCandidates = await plannedCandidates(
           input,
           section,
-          index,
           id,
           planner,
           clock.now(),
           context
         ).catch((error) => {
           if (context.signal?.aborted) throw error;
-          return { failed: true as const };
+          return { matches: [], failed: true as const };
         });
-        const { previous, next, currentRevision } = candidates;
-        const alternatives = [previous, next].filter(
-          (candidate): candidate is SectionCandidate => candidate !== undefined
-        );
-        const nextSource = next?.source === 'idfm-realtime'
-          ? 'realtime' as const
-          : 'theoretical' as const;
-        const source = section.timingSource ?? nextSource;
-        const fetchedAt = candidates.failed ? undefined : clock.now().toISOString();
+
+        const scheduled = await timetableAlternatives(
+          section,
+          id,
+          readTimetableRuns,
+          clock.now()
+        ).catch((error) => {
+          if (context.signal?.aborted) throw error;
+          return [];
+        });
+
+        const source = section.timingSource ?? sourceOf(planned.matches[0]?.source);
         const currentId = departureId(id, section);
         const currentTiming = departureTiming(section, source);
+        const currentDepartureAt = section.departureAt!;
+
+        const alternatives = stepRange(
+          merge(planned.matches, scheduled, currentId),
+          Date.parse(currentDepartureAt),
+          boardingReadyAt(input.journey.sections, index, clock.now())
+        );
+        const fetchedAt = planned.failed && scheduled.length === 0
+          ? undefined
+          : clock.now().toISOString();
+
         // Chronological, so the row reads as a timeline the traveller steps
-        // along: the service before, the one held, the one after.
-        const choices = [
-          ...(previous ? [choiceFor(previous)] : []),
+        // along: the services before, the one held, the ones after.
+        const choices: JourneyDepartureChoice[] = [
+          ...alternatives
+            .filter((alternative) => Date.parse(alternative.departureAt) < Date.parse(currentDepartureAt))
+            .map(toChoice),
           {
             id: currentId,
             ...currentTiming,
             source,
             isSelected: true,
           },
-          ...(next ? [choiceFor(next)] : []),
+          ...alternatives
+            .filter((alternative) => Date.parse(alternative.departureAt) >= Date.parse(currentDepartureAt))
+            .map(toChoice),
         ];
+
         return {
           group: {
             sectionId: id,
-            availability: alternatives.length > 0 ? 'ready' : 'unavailable',
+            availability: alternatives.length > 0 ? ('ready' as const) : ('unavailable' as const),
             source,
             fetchedAt,
             choices,
           },
+          section,
           alternatives,
-          currentRevision,
+          currentRevision: planned.currentRevision,
         };
       })
     );
   };
+
+  const respond = (journey: Journey, groups: ResolvedGroup[]): JourneyDepartureChoicesResponse => ({
+    journey,
+    generatedAt: clock.now().toISOString(),
+    groups: groups.map((resolved) => resolved.group),
+  });
 
   return {
     resolve: async (input, context) => {
@@ -135,58 +187,196 @@ export function createJourneyDepartureChoicesModule(
             automaticRevision.section
           );
           const refreshed = await resolveGroups({ ...input, journey: revised }, context);
-          return {
-            journey: revised,
-            generatedAt: clock.now().toISOString(),
-            groups: refreshed.map((resolved) => resolved.group),
-          };
+          return respond(revised, refreshed);
         }
-        return {
-          journey: input.journey,
-          generatedAt: clock.now().toISOString(),
-          groups: initial.map((resolved) => resolved.group),
-        };
+        return respond(input.journey, initial);
       }
 
-      const selected = initial.find(
-        ({ group }) => group.sectionId === selection.sectionId
-      );
+      const selected = initial.find(({ group }) => group.sectionId === selection.sectionId);
       const chosen = selected?.alternatives.find(
-        (candidate) => candidate.id === selection.departureId
+        (alternative) => alternative.id === selection.departureId
       );
-      if (!chosen) {
+      if (!selected || !chosen) {
+        throw new DepartureChoiceUnavailableError('The selected departure is no longer available');
+      }
+
+      // A choice read off the timetable has no itinerary yet: only the one the
+      // traveller actually picks is worth planning.
+      const candidate = chosen.candidate
+        ?? (await materialise(input, selected.section, selection.sectionId, chosen, planner, context));
+      if (!candidate) {
         throw new DepartureChoiceUnavailableError('The selected departure is no longer available');
       }
 
       const revised = spliceJourney(
         input.journey,
         selection.sectionId,
-        chosen.journey,
-        chosen.section
+        candidate.journey,
+        candidate.section
       );
       if (revised === input.journey) {
         throw new DepartureChoiceUnavailableError('The selected departure has no downstream journey');
       }
-      const refreshed = await resolveGroups({ ...input, journey: revised, selection: undefined }, context);
-      return {
-        journey: revised,
-        generatedAt: clock.now().toISOString(),
-        groups: refreshed.map((resolved) => resolved.group),
-      };
+      const refreshed = await resolveGroups(
+        { ...input, journey: revised, selection: undefined },
+        context
+      );
+      return respond(revised, refreshed);
     },
   };
 }
 
-async function sectionCandidates(
+/**
+ * The alternatives around the held departure, nearest first, capped either
+ * side. Chronological order is read off the departure instants rather than the
+ * clock, so a delayed later service still lands after the one held.
+ */
+function stepRange(alternatives: Alternative[], currentDepartureAt: number, readyAt: number) {
+  const catchable = alternatives.filter(
+    (alternative) => Date.parse(alternative.departureAt) > readyAt
+  );
+  const before = catchable
+    .filter((alternative) => Date.parse(alternative.departureAt) < currentDepartureAt)
+    .slice(-CHOICES_PER_SIDE);
+  const after = catchable
+    .filter((alternative) => Date.parse(alternative.departureAt) >= currentDepartureAt)
+    .slice(0, CHOICES_PER_SIDE);
+  return [...before, ...after];
+}
+
+/**
+ * The earliest a passage of this leg could be boarded: not simply "after now",
+ * but after the traveller has actually reached the platform. Offering the train
+ * leaving in two minutes when five minutes of walking still stand in the way is
+ * a choice they cannot take.
+ */
+function boardingReadyAt(sections: JourneySection[], index: number, now: Date) {
+  for (let previous = index - 1; previous >= 0; previous -= 1) {
+    const section = sections[previous]!;
+    // A wait *is* time on the platform, so it does not push the floor out.
+    if (section.type === 'wait') continue;
+    return Math.max(now.getTime(), section.arrivalAt ? Date.parse(section.arrivalAt) : 0);
+  }
+  return now.getTime();
+}
+
+/** Planned alternatives win over scheduled ones: they already carry a journey. */
+function merge(
+  planned: SectionCandidate[],
+  scheduled: Alternative[],
+  currentId: string
+): Alternative[] {
+  const byId = new Map<string, Alternative>();
+  for (const alternative of scheduled) byId.set(alternative.id, alternative);
+  for (const candidate of planned) byId.set(candidate.id, alternativeFor(candidate));
+  byId.delete(currentId);
+  return [...byId.values()].sort((a, b) => Date.parse(a.departureAt) - Date.parse(b.departureAt));
+}
+
+function toChoice(alternative: Alternative): JourneyDepartureChoice {
+  return {
+    id: alternative.id,
+    scheduledAt: alternative.scheduledAt,
+    expectedAt: alternative.expectedAt,
+    status: alternative.status,
+    source: alternative.source,
+    isSelected: false,
+  };
+}
+
+/** The other runs of this line between the same two stops, straight from the schedule. */
+async function timetableAlternatives(
+  section: JourneySection,
+  id: string,
+  readTimetableRuns: TimetableRunReader,
+  now: Date
+): Promise<Alternative[]> {
+  if (!section.departureAt || !section.route) return [];
+  const boarding = section.stops[0];
+  const alighting = section.stops.at(-1);
+  if (!boarding || !alighting || section.stops.length < 2) return [];
+
+  const anchor = Date.parse(section.departureAt);
+  const runs = await readTimetableRuns({
+    routeId: section.route.id,
+    boardingStopIds: stopIdentifiers(boarding),
+    alightingStopIds: stopIdentifiers(alighting),
+    from: new Date(Math.max(now.getTime(), anchor - TIMETABLE_WINDOW_MS)),
+    to: new Date(anchor + TIMETABLE_WINDOW_MS),
+  });
+
+  return runs.map((run) => ({
+    id: `departure:${id}:${run.tripId}`,
+    departureAt: run.departureAt,
+    scheduledAt: run.departureAt,
+    status: 'scheduled' as const,
+    source: 'theoretical' as const,
+  }));
+}
+
+function stopIdentifiers(stop: { id: string; stationId?: string }) {
+  return [stop.stationId, stop.id].filter((value): value is string => Boolean(value));
+}
+
+/**
+ * Plans the one run the traveller picked. Anchored a minute before it leaves
+ * with the boarding station pinned, the planner's earliest answer on that line
+ * is that very run — matched on the trip id where both sides name it, on the
+ * clock otherwise.
+ */
+async function materialise(
   input: JourneyDepartureChoicesInput,
   section: JourneySection,
-  sectionIndex: number,
+  id: string,
+  alternative: Alternative,
+  planner: JourneyPlanner,
+  context: ResolveContext
+): Promise<SectionCandidate | undefined> {
+  const target = Date.parse(alternative.departureAt);
+  const result = await planner.plan(
+    {
+      origin: section.from.coordinate,
+      destination: input.destination,
+      limit: 6,
+      requestedAt: new Date(target - 60_000).toISOString(),
+      datetimeRepresents: 'departure',
+      requiredModes: input.policy.requiredModes,
+      excludedModes: input.policy.excludedModes,
+      preferredModes: input.policy.preferredModes,
+      requiresAccessibleStations: input.policy.requiresAccessibleStations,
+      originStationId: section.stops[0]?.stationId ?? section.stops[0]?.id,
+    },
+    context
+  );
+
+  let best: { candidate: SectionCandidate; distance: number } | undefined;
+  for (const journey of result.journeys) {
+    const candidate = journey.sections.find((value) => value.type === 'transit');
+    if (!candidate?.departureAt || !sameTransit(section, candidate)) continue;
+    const resolved = {
+      id: departureId(id, candidate),
+      journey,
+      section: candidate,
+      source: result.source,
+    };
+    if (resolved.id === alternative.id) return resolved;
+    const distance = Math.abs(Date.parse(candidate.departureAt) - target);
+    if (distance <= MATERIALISATION_TOLERANCE_MS && (!best || distance < best.distance)) {
+      best = { candidate: resolved, distance };
+    }
+  }
+  return best?.candidate;
+}
+
+async function plannedCandidates(
+  input: JourneyDepartureChoicesInput,
+  section: JourneySection,
   id: string,
   planner: JourneyPlanner,
   now: Date,
   context: ResolveContext
 ): Promise<SectionCandidates> {
-  if (!section.departureAt || !section.route) return {};
+  if (!section.departureAt || !section.route) return { matches: [] };
   const firstStop = section.stops[0];
   const originalDeparture = Date.parse(section.departureAt);
 
@@ -211,8 +401,7 @@ async function sectionCandidates(
     );
 
     let currentRevision: SectionCandidate | undefined;
-    let previous: SectionCandidate | undefined;
-    let next: SectionCandidate | undefined;
+    const matches: SectionCandidate[] = [];
     for (const journey of result.journeys) {
       const candidate = journey.sections.find(
         (candidateSection) => candidateSection.type === 'transit'
@@ -228,18 +417,12 @@ async function sectionCandidates(
         if (hasTimingRevision(section, candidate)) currentRevision = resolved;
         continue;
       }
-      const departsAt = Date.parse(candidate.departureAt);
-      if (departsAt > originalDeparture) {
-        if (!next || departsAt < Date.parse(next.section.departureAt!)) next = resolved;
-      } else if (departsAt < originalDeparture && departsAt > now.getTime()) {
-        // A service that has already left is not a choice, so stepping back
-        // can only ever walk back towards now — never past it.
-        if (!previous || departsAt > Date.parse(previous.section.departureAt!)) {
-          previous = resolved;
-        }
-      }
+      // A service that has already left is not a choice, so stepping back can
+      // only ever walk back towards now — never past it.
+      if (Date.parse(candidate.departureAt) <= now.getTime()) continue;
+      matches.push(resolved);
     }
-    return { currentRevision, previous, next };
+    return { currentRevision, matches };
   };
 
   /** A second opinion never gets to cost the answers the first pass gave. */
@@ -249,7 +432,7 @@ async function sectionCandidates(
   ) =>
     scan(requestedAt, datetimeRepresents).catch((error) => {
       if (context.signal?.aborted) throw error;
-      return {} as SectionCandidates;
+      return { matches: [] } as SectionCandidates;
     });
 
   // Asked from just before the selected departure, the planner answers with the
@@ -258,27 +441,39 @@ async function sectionCandidates(
   // exactly the kind of answer it drops. This pass still owns the revision of
   // the selected service, since only it can see that service at all.
   const around = await scan(new Date(originalDeparture - 5 * 60_000).toISOString());
+  const hasLater = around.matches.some(
+    (candidate) => Date.parse(candidate.section.departureAt!) > originalDeparture
+  );
+  const hasEarlier = around.matches.some(
+    (candidate) => Date.parse(candidate.section.departureAt!) < originalDeparture
+  );
 
   const [after, before] = await Promise.all([
     // Ask again from the minute after this departure: with the boarded service
     // out of reach, the one behind it becomes the earliest answer rather than a
     // dominated one.
-    around.next
+    hasLater
       ? Promise.resolve(around)
       : scanSafe(new Date(originalDeparture + 60_000).toISOString()),
     // Backwards needs the other search entirely: a departure-anchored plan can
     // only ever look forward. Anchored on an arrival a minute earlier than the
     // one held, the reverse search returns the latest departures that still make
     // it — which is the service just before this one.
-    around.previous
+    hasEarlier
       ? Promise.resolve(around)
       : scanSafe(new Date(Date.parse(input.journey.arrivalAt) - 60_000).toISOString(), 'arrival'),
   ]);
 
+  const matches = new Map<string, SectionCandidate>();
+  for (const candidate of [...around.matches, ...after.matches, ...before.matches]) {
+    matches.set(candidate.id, candidate);
+  }
+
   return {
     currentRevision: around.currentRevision,
-    previous: before.previous,
-    next: after.next,
+    matches: [...matches.values()].sort(
+      (a, b) => Date.parse(a.section.departureAt!) - Date.parse(b.section.departureAt!)
+    ),
   };
 }
 
@@ -289,6 +484,15 @@ function hasTimingRevision(current: JourneySection, candidate: JourneySection) {
     || current.scheduledArrivalAt !== candidate.scheduledArrivalAt;
 }
 
+/**
+ * Whether a planned ride is another passage of the ride being replaced: the
+ * same line, still putting the traveller off where they meant to get off.
+ *
+ * The headsign is deliberately not part of it. On a RER, consecutive trains
+ * towards the same platform carry different mission codes — SARA then ELBA —
+ * so comparing them rejected every alternative and left the traveller with the
+ * one train the planner happened to pick.
+ */
 function sameTransit(original: JourneySection, candidate: JourneySection) {
   if (!original.route || !candidate.route) return false;
   const sameRoute = original.route.id === candidate.route.id
@@ -300,7 +504,7 @@ function sameTransit(original: JourneySection, candidate: JourneySection) {
 
   const originalAlighting = original.stops.at(-1);
   const candidateAlighting = candidate.stops.at(-1);
-  const sameAlighting = Boolean(
+  return Boolean(
     originalAlighting?.id
       && candidateAlighting?.id
       && normalize(originalAlighting.id) === normalize(candidateAlighting.id)
@@ -309,11 +513,14 @@ function sameTransit(original: JourneySection, candidate: JourneySection) {
       && candidateAlighting?.stationId
       && normalize(originalAlighting.stationId) === normalize(candidateAlighting.stationId)
   ) || normalize(original.to.name) === normalize(candidate.to.name)
-    || normalize(originalAlighting?.name) === normalize(candidateAlighting?.name);
-  if (!sameAlighting) return false;
-
-  if (!original.direction || !candidate.direction) return true;
-  return normalize(original.direction) === normalize(candidate.direction);
+    || normalize(originalAlighting?.name) === normalize(candidateAlighting?.name)
+    // A mission that runs past the stop the traveller wanted still serves them.
+    || candidate.stops.some(
+      (stop) =>
+        normalize(stop.id) === normalize(originalAlighting?.id)
+        || (Boolean(stop.stationId)
+          && normalize(stop.stationId) === normalize(originalAlighting?.stationId))
+    );
 }
 
 function spliceJourney(
@@ -404,14 +611,20 @@ function rebuiltWait(
 }
 
 /** An alternative service, timed and labelled by the feed that produced it. */
-function choiceFor(candidate: SectionCandidate) {
-  const source = candidate.source === 'idfm-realtime' ? 'realtime' as const : 'theoretical' as const;
+function alternativeFor(candidate: SectionCandidate): Alternative {
+  const source = sourceOf(candidate.source);
+  const timing = departureTiming(candidate.section, source);
   return {
     id: candidate.id,
-    ...departureTiming(candidate.section, source),
+    departureAt: candidate.section.departureAt!,
+    ...timing,
     source,
-    isSelected: false,
+    candidate,
   };
+}
+
+function sourceOf(source: 'idfm-realtime' | 'gtfs-theoretical' | undefined) {
+  return source === 'idfm-realtime' ? ('realtime' as const) : ('theoretical' as const);
 }
 
 function sectionId(journey: Journey, section: JourneySection, index: number) {
@@ -428,7 +641,7 @@ function departureId(sectionId: string, section: JourneySection) {
  * the shared 120 s threshold and the shared refusal to manufacture `on_time`
  * without a scheduled time — not a second rule with its own cutoff.
  *
- * A theoretical feed reports no delay at all, so it stays `scheduled`.
+ * A schedule-only feed reports no delay at all, so it stays `scheduled`.
  */
 function departureTiming(
   section: JourneySection,

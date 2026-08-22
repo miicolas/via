@@ -151,13 +151,6 @@ struct ActiveJourneyPanelView: View {
                 systemImage: "exclamationmark.triangle.fill",
                 color: .red
             )
-        } else if model.usesTheoreticalTimes {
-            statusBanner(
-                title: "Horaires théoriques",
-                message: "Les horaires ne sont pas actualisés en temps réel.",
-                systemImage: "clock.badge.questionmark",
-                color: .gray
-            )
         }
 
         if let warnings = model.journey?.warnings, !warnings.isEmpty {

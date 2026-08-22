@@ -85,14 +85,25 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         return DistanceFormatting.text(meters: distanceMeters)
     }
 
-    var sourceText: String {
+    /// The feed, named only when there is something to say about it: live, or
+    /// missing. A schedule board simply shows its times.
+    var sourceText: String? {
         switch departureSource {
         case .realtime:
             "Temps réel"
         case .theoretical:
-            "Théorique"
+            nil
         case .unavailable:
             "Horaires indisponibles"
+        }
+    }
+
+    /// The glyph that goes with `sourceText`, so the live line never wears the
+    /// clock the schedule used to.
+    var sourceSystemImage: String {
+        switch departureSource {
+        case .realtime: "dot.radiowaves.up.forward"
+        case .theoretical, .unavailable: "wifi.slash"
         }
     }
 
