@@ -42,6 +42,7 @@ import { importSchedules, type ScheduledTrip } from './schedule/import-schedules
 import { addScheduledTrip } from './schedule/scheduled-trips';
 import { importShapes } from './shapes/import-shapes';
 import { refreshAccessibilitySnapshot } from './accessibility/import-accessibility';
+import { refreshStationPeakSnapshot } from './station-peaks/import-station-peaks';
 import { refreshWayfindingSnapshot } from './wayfinding/import-wayfinding';
 
 /**
@@ -527,6 +528,24 @@ async function refreshWayfindingData() {
   });
 }
 
+async function refreshStationPeakData() {
+  await step('Refreshing IDFM station hourly profiles', async () => {
+    try {
+      const result = await refreshStationPeakSnapshot();
+      logStep(
+        result.skipped
+          ? `Station hourly profiles already current (source ${result.sourceUpdatedAt}).`
+          : `Imported ${formatCount(result.imported)} station hourly profiles ` +
+            `(source ${result.sourceUpdatedAt ?? 'date inconnue'}).`
+      );
+    } catch (cause) {
+      // Same rule as accessibility and wayfinding: affluence is an enrichment,
+      // and its source outage never gets to fail a completed network import.
+      console.error('[worker] station peak snapshot unchanged', cause);
+    }
+  });
+}
+
 async function runImport(path: string) {
   logStep(`Importing ${path}`);
   const feedHash = await hashGtfsFeed(path);
@@ -566,6 +585,10 @@ async function runImport(path: string) {
   // After the network: exits hang off `transit_stops` and boarding positions off
   // `transit_stop_aliases`, both written by the import above.
   await refreshWayfindingData();
+  // Profiles are keyed by `transit_stops.id`, so they too need the network the
+  // import just wrote — without this pass the table stays empty and journeys
+  // never carry an affluence annotation.
+  await refreshStationPeakData();
 }
 
 try {

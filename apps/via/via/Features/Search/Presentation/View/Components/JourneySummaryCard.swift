@@ -277,7 +277,11 @@ struct JourneySummaryCard: View {
       value += ", \(accessibility.label)"
     }
     if let peak = journey.peak {
-      value += ", affluence \(peak.label)"
+      // The annotation can now come from any platform the journey uses, so the
+      // station has to be said — "affluence heure la plus chargée" alone no
+      // longer tells you where.
+      value += peak.stationName.map { ", affluence à \($0) : \(peak.label)" }
+        ?? ", affluence \(peak.label)"
     }
     if !journey.warnings.isEmpty {
       value += ", avertissement : \(journey.warnings.formatted())"

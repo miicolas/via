@@ -1,55 +1,63 @@
 import SwiftUI
 
+/// The verdict on the network, as one status line rather than a card. The lines
+/// themselves are what the traveller came for, so the summary spends a single
+/// row and hands the screen straight over to them.
 struct LinesNetworkSummaryView: View {
   var summary: LineNetworkSummary
   var fetchedAt: Date?
   var isRefreshing: Bool
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      HStack(alignment: .top, spacing: 14) {
-        LineConditionBadge(condition: summary.leadingCondition)
+    HStack(spacing: 7) {
+      Image(systemName: summary.leadingCondition.systemImage)
+        .foregroundStyle(summary.leadingCondition.tint)
+        .accessibilityHidden(true)
 
-        VStack(alignment: .leading, spacing: 4) {
-          Text(summary.headline)
-            .font(.title3.weight(.bold))
-            .foregroundStyle(.primary)
+      Text(summary.headline)
+        .fontWeight(.semibold)
 
-          Text(summary.detail)
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+      if let trailingDetail = summary.trailingDetail {
+        Text("· \(trailingDetail)")
+          .foregroundStyle(.secondary)
       }
 
-      Divider()
+      Spacer(minLength: 8)
 
       freshness
     }
-    .padding(18)
-    .background(.secondary.opacity(0.08), in: .rect(cornerRadius: 22))
-    .accessibilityElement(children: .combine)
+    .font(.footnote)
+    .lineLimit(1)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("\(summary.headline). \(summary.detail)")
+    .accessibilityValue(freshnessLabel)
   }
 
   @ViewBuilder
   private var freshness: some View {
     if isRefreshing {
-      LoadingStatus(label: "Actualisation…")
+      ProgressView()
+        .controlSize(.mini)
+        .accessibilityHidden(true)
     } else {
-      HStack(spacing: 8) {
-        if let fetchedAt {
-          Image(systemName: "clock")
-            .accessibilityHidden(true)
-          Text("Mis à jour \(fetchedAt, format: .relative(presentation: .named))")
-        } else {
-          Image(systemName: "wifi.exclamationmark")
-            .accessibilityHidden(true)
-          Text("État en temps réel indisponible")
-        }
+      Label {
+        Text(freshnessTitle)
+      } icon: {
+        Image(systemName: fetchedAt == nil ? "wifi.exclamationmark" : "clock")
       }
-      .font(.caption)
       .foregroundStyle(.secondary)
+      .accessibilityHidden(true)
     }
+  }
+
+  private var freshnessTitle: String {
+    guard let fetchedAt else { return "Hors ligne" }
+    return RelativeTimeFormatting.short(fetchedAt)
+  }
+
+  private var freshnessLabel: String {
+    if isRefreshing { return "Actualisation en cours" }
+    guard let fetchedAt else { return "État en temps réel indisponible" }
+    return "Mis à jour \(RelativeTimeFormatting.spelled(fetchedAt))"
   }
 }

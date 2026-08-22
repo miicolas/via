@@ -1,21 +1,32 @@
 import SwiftUI
 
-/// The same numbered glass square identifies an exit in the timeline and on
-/// the map. When signage has no number, the departure glyph remains explicit.
+/// The same exit marker in the timeline and on the map. The pictogram carries
+/// the meaning: a filled colour square holding a bare number reads as a line
+/// badge, and an exit is not a line. The signage number rides beside the glyph
+/// when there is one, and the whole thing stays small — an exit is a detail of
+/// the walk, not a step of the journey.
 struct JourneyExitBadge: View {
   let number: Int?
-  var size: CGFloat = 42
+  var height: CGFloat = 24
+
+  private var font: Font {
+    .system(size: height * 0.5, weight: .semibold, design: .rounded)
+  }
 
   var body: some View {
-    GlassSquareBadge(tint: .green, size: size) {
+    HStack(spacing: height * 0.12) {
+      Image(systemName: "figure.walk.departure")
+        .font(font)
+
       if let number {
         Text(number.formatted())
-          .font(.system(size: size * 0.43, weight: .bold, design: .rounded).monospacedDigit())
-      } else {
-        Image(systemName: "figure.walk.departure")
-          .font(.system(size: size * 0.43, weight: .bold))
+          .font(font.monospacedDigit())
       }
     }
+    .foregroundStyle(.primary)
+    .padding(.horizontal, height * 0.28)
+    .frame(height: height)
+    .glassEffect(.regular, in: .capsule)
     .accessibilityHidden(true)
   }
 }
@@ -23,7 +34,9 @@ struct JourneyExitBadge: View {
 #Preview {
   HStack(spacing: 12) {
     JourneyExitBadge(number: 6)
+    JourneyExitBadge(number: 12)
     JourneyExitBadge(number: nil)
+    JourneyExitBadge(number: 3, height: 28)
   }
   .padding()
 }

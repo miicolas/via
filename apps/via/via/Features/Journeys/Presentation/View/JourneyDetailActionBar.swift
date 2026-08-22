@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// The two things a planned journey offers: start it, or be reminded. Starting
+/// it is the screen's `primaryAction`, so it keeps its verb — the one place
+/// Via lets a control carry words. The reminder rides beside it as a round
+/// state glyph, its wording living in the accessibility label.
 struct JourneyDetailActionBar: View {
   let isActivating: Bool
   let isReminderScheduled: Bool
@@ -14,36 +18,52 @@ struct JourneyDetailActionBar: View {
 
       GlassEffectContainer(spacing: 12) {
         HStack(spacing: 12) {
-          GlyphActionButton(
-            systemImage: action.systemImage,
-            isProminent: true,
-            isBusy: isActivating,
-            value: action,
-            action: { onAction(action) }
-          )
+          Button {
+            onAction(action)
+          } label: {
+            Label {
+              Text(action.title)
+                .font(.headline)
+            } icon: {
+              if isActivating {
+                ProgressView()
+                  .controlSize(.small)
+                  .tint(.white)
+              } else {
+                Image(systemName: action.systemImage)
+                  .stateSymbolTransition(value: action)
+              }
+            }
+          }
+          .primaryAction()
           .disabled(isActivating || action == .active)
-          .accessibilityLabel(action.title)
           .accessibilityHint(
             action == .active
               ? "Ce trajet est déjà actif"
               : "Active le guidage étape par étape dans Metyro"
           )
 
-          GlyphActionButton(
-            systemImage: StateSymbol.bell(isOn: isReminderScheduled),
-            isBusy: isUpdatingReminder,
-            value: isReminderScheduled,
-            action: onReminder
-          )
+          Button(action: onReminder) {
+            Label {
+              Text(isReminderScheduled ? "Rappel programmé" : "Me rappeler")
+            } icon: {
+              if isUpdatingReminder {
+                ProgressView()
+                  .controlSize(.small)
+              } else {
+                Image(systemName: StateSymbol.bell(isOn: isReminderScheduled))
+                  .stateSymbolTransition(value: isReminderScheduled)
+              }
+            }
+          }
+          .iconAction()
           .disabled(isUpdatingReminder)
-          .accessibilityLabel(isReminderScheduled ? "Rappel programmé" : "Me rappeler")
           .accessibilityValue(
             isUpdatingReminder ? "Mise à jour" : (isReminderScheduled ? "Activé" : "Désactivé")
           )
           .accessibilityHint("Ouvre le réglage du délai avant le départ")
         }
       }
-      .frame(maxWidth: .infinity)
       .padding(.horizontal, 16)
       .padding(.vertical, 12)
       .background(.bar)

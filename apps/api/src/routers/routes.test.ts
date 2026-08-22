@@ -37,6 +37,7 @@ test('the public route table is stable', async () => {
     'GET /api/search',
     'POST /api/account/delete',
     'POST /api/account/sync',
+    'POST /api/journeys/departure-choices',
     'POST /api/natural-journeys',
     'POST /api/notifications/active-journey',
     'POST /api/notifications/active-journey/unregister',

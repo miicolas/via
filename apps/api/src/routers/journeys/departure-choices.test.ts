@@ -71,6 +71,123 @@ describe('journey departure choices module', () => {
     expect(calls[0]?.originStationId).toBe('station-a');
   });
 
+  test('asks again after the selected departure when the first plan hid the next service', async () => {
+    const calls: string[] = [];
+    const planner: JourneyPlanner = {
+      plan: async (request) => {
+        calls.push(request.requestedAt!);
+        // The planner prunes the later same-line service as dominated until it
+        // is asked from a time the boarded one can no longer answer.
+        const journeys = Date.parse(request.requestedAt!) > Date.parse('2026-08-22T10:00:00Z')
+          ? [next]
+          : [current];
+        return {
+          status: 'ready',
+          source: 'gtfs-theoretical',
+          generatedAt: '2026-08-22T09:59:00Z',
+          journeys,
+        };
+      },
+    };
+    const module = createJourneyDepartureChoicesModule(planner, {
+      now: () => new Date('2026-08-22T09:59:00Z'),
+    });
+
+    const response = await module.resolve(input(), { identity: 'person' });
+
+    expect(calls).toEqual([
+      '2026-08-22T09:55:00.000Z',
+      '2026-08-22T10:01:00.000Z',
+      // The backwards pass, anchored on an arrival a minute before the held one.
+      '2026-08-22T10:29:00.000Z',
+    ]);
+    expect(response.groups[0]).toMatchObject({ availability: 'ready' });
+    expect(response.groups[0]?.choices).toMatchObject([
+      { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
+      { scheduledAt: '2026-08-22T10:05:00Z', isSelected: false },
+    ]);
+  });
+
+  test('offers the service before the held one and lets it be chosen back', async () => {
+    const earlier = journey('earlier', '2026-08-22T09:57:00Z', '2026-08-22T10:27:00Z');
+    const planner: JourneyPlanner = {
+      plan: async (request) => ({
+        status: 'ready',
+        source: 'gtfs-theoretical',
+        generatedAt: '2026-08-22T09:55:00Z',
+        // Only the backwards, arrival-anchored pass sees the earlier service.
+        journeys: request.datetimeRepresents === 'arrival' ? [earlier] : [next],
+      }),
+    };
+    const module = createJourneyDepartureChoicesModule(planner, {
+      now: () => new Date('2026-08-22T09:55:00Z'),
+    });
+
+    const choices = await module.resolve(input(), { identity: 'person' });
+
+    expect(choices.groups[0]?.choices).toMatchObject([
+      { scheduledAt: '2026-08-22T09:57:00Z', isSelected: false },
+      { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
+      { scheduledAt: '2026-08-22T10:05:00Z', isSelected: false },
+    ]);
+
+    const response = await module.resolve(
+      input({ sectionId: 'ride', departureId: choices.groups[0]!.choices[0]!.id }),
+      { identity: 'person' }
+    );
+
+    expect(response.journey.sections[1]?.departureAt).toBe('2026-08-22T09:57:00Z');
+    expect(response.journey.arrivalAt).toBe('2026-08-22T10:27:00Z');
+  });
+
+  test('never offers a service that has already left', async () => {
+    const departed = journey('departed', '2026-08-22T09:57:00Z', '2026-08-22T10:27:00Z');
+    const planner: JourneyPlanner = {
+      plan: async (request) => ({
+        status: 'ready',
+        source: 'gtfs-theoretical',
+        generatedAt: '2026-08-22T09:59:00Z',
+        journeys: request.datetimeRepresents === 'arrival' ? [departed] : [],
+      }),
+    };
+    const module = createJourneyDepartureChoicesModule(planner, {
+      now: () => new Date('2026-08-22T09:59:00Z'),
+    });
+
+    const response = await module.resolve(input(), { identity: 'person' });
+
+    expect(response.groups[0]?.choices).toHaveLength(1);
+    expect(response.groups[0]).toMatchObject({ availability: 'unavailable' });
+  });
+
+  test('keeps the revised selected service when the second pass fails', async () => {
+    const delayed = journey('current-revised', '2026-08-22T10:03:00Z', '2026-08-22T10:33:00Z');
+    delayed.sections = delayed.sections.map((section) => section.type === 'transit'
+      ? { ...section, serviceId: 'service-current' }
+      : section);
+    const planner: JourneyPlanner = {
+      plan: async (request) => {
+        if (Date.parse(request.requestedAt!) > Date.parse('2026-08-22T10:00:00Z')) {
+          throw new Error('provider down');
+        }
+        return {
+          status: 'ready',
+          source: 'idfm-realtime',
+          generatedAt: '2026-08-22T09:59:00Z',
+          journeys: [delayed],
+        };
+      },
+    };
+    const module = createJourneyDepartureChoicesModule(planner, {
+      now: () => new Date('2026-08-22T09:59:00Z'),
+    });
+
+    const response = await module.resolve(input(), { identity: 'person' });
+
+    expect(response.journey.sections[1]?.departureAt).toBe('2026-08-22T10:03:00Z');
+    expect(response.groups[0]).toMatchObject({ availability: 'unavailable' });
+  });
+
   test('keeps the journey unchanged when no matching next service exists', async () => {
     const differentLine = {
       ...next,

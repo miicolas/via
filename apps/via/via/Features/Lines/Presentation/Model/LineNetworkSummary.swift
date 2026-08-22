@@ -35,4 +35,12 @@ struct LineNetworkSummary: Sendable, Equatable {
     default: return "\(normalCount) autres lignes circulent normalement."
     }
   }
+
+  /// What the headline still needs once it sits on a single status line, which
+  /// is the count it does not already carry — and nothing at all when the
+  /// headline is the whole verdict.
+  var trailingDetail: String? {
+    guard affectedCount > 0, normalCount > 0 else { return nil }
+    return normalCount == 1 ? "1 normale" : "\(normalCount) normales"
+  }
 }
