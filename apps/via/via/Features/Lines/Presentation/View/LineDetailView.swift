@@ -4,6 +4,7 @@ struct LineDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var viewModel: LineDetailViewModel
+    @State private var isNotificationAuthorizationRequested = false
     private let route: RouteBadge
     private let accountModel: AccountModel?
 
@@ -59,26 +60,25 @@ struct LineDetailView: View {
             if let accountModel {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        accountModel.toggleNotificationAlert(
+                        // Apple asks for the prompt in context: the moment someone
+                        // follows a line is the moment the permission means something.
+                        let isFollowing = accountModel.toggleNotificationAlert(
                             topicKind: .line,
                             topicID: route.id.rawValue,
                             label: "\(route.mode.displayName) \(route.shortName)"
                         )
+                        if isFollowing { isNotificationAuthorizationRequested = true }
                     } label: {
-                        Image(systemName: accountModel.isFollowingNotification(
+                        Image(systemName: StateSymbol.bell(isOn: accountModel.isFollowingNotification(
                             topicKind: .line,
                             topicID: route.id.rawValue
-                        ) ? "bell.fill" : "bell")
+                        )))
                     }
                     .labelStyle(.iconOnly)
-                    .contentTransition(
-                        reduceMotion
-                            ? .identity
-                            : .symbolEffect(
-                                .replace.magic(fallback: .offUp.byLayer),
-                                options: .nonRepeating
-                            )
-                    )
+                    .stateSymbolTransition(value: accountModel.isFollowingNotification(
+                        topicKind: .line,
+                        topicID: route.id.rawValue
+                    ))
                     .accessibilityLabel("Suivre la ligne")
                     .accessibilityValue(accountModel.isFollowingNotification(
                         topicKind: .line,
@@ -87,6 +87,10 @@ struct LineDetailView: View {
                 }
             }
         }
+        .notificationAuthorization(
+            isRequested: $isNotificationAuthorizationRequested,
+            message: "Autorisez les notifications dans Réglages iOS pour être prévenu des perturbations de cette ligne."
+        )
         .overlay {
             if case .loading(nil) = viewModel.detail {
                 SkeletonGate(isLoading: true) {

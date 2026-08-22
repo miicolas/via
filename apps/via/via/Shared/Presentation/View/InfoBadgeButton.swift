@@ -19,10 +19,6 @@ struct InfoBadgeButton: View {
 
     @State private var isExplaining = false
 
-    private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-    }
-
     var body: some View {
         if isInteractive {
             Button {
@@ -54,13 +50,34 @@ struct InfoBadgeButton: View {
     }
 
     private var badge: some View {
-        Image(systemName: symbol, variableValue: variableValue)
-            .font(.system(size: size * 0.54, weight: .bold))
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(tint, in: shape)
-            .glassEffect(.regular.interactive(), in: shape)
-            .contentShape(shape)
+        GlassSquareBadge(tint: tint, size: size, isInteractive: true) {
+            InfoBadgeSymbol(symbol: symbol, variableValue: variableValue)
+                .font(.system(size: size * 0.54, weight: .bold))
+        }
+    }
+}
+
+/// The symbol as the badges draw it: full strength up to the degree reached, a
+/// visible track underneath for the degree not reached. Without that track a
+/// variable symbol at its lowest value reads as a half-drawn glyph instead of a
+/// gauge with one bar lit.
+struct InfoBadgeSymbol: View {
+    let symbol: String
+    var variableValue: Double?
+
+    var body: some View {
+        if let variableValue {
+            ZStack {
+                Image(systemName: symbol, variableValue: 1)
+                    .foregroundStyle(.white.opacity(0.3))
+
+                Image(systemName: symbol, variableValue: variableValue)
+                    .foregroundStyle(.white)
+            }
+        } else {
+            Image(systemName: symbol)
+                .foregroundStyle(.white)
+        }
     }
 }
 

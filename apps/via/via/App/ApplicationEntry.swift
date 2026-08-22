@@ -27,10 +27,12 @@ struct ApplicationEntry: App {
     @State private var pushNotificationManager: PushNotificationManager
     @State private var journeyNotificationCoordinator: JourneyNotificationCoordinator
     @State private var notificationInboxRemote: any NotificationInboxRemote
+    private let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
 
     init() {
         let pushNotificationManager = PushNotificationManager.shared
         let dependencies = Self.makeDependencies(pushNotificationManager: pushNotificationManager)
+        journeyDepartureChoicesRepository = dependencies.journeyDepartureChoicesRepository
         _networkViewModel = State(
             initialValue: NetworkViewModel(repository: dependencies.networkRepository),
         )
@@ -207,6 +209,7 @@ struct ApplicationEntry: App {
                     profileModel: profileModel,
                     pushNotificationManager: pushNotificationManager,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    journeyDepartureChoicesRepository: journeyDepartureChoicesRepository,
                     onReplayOnboarding: replayOnboarding,
                     notificationInboxRemote: notificationInboxRemote,
                 )
@@ -286,6 +289,7 @@ struct ApplicationEntry: App {
                     base: InMemoryJourneyRepository(result: .mapPreview),
                     account: accountModel,
                 ),
+                journeyDepartureChoicesRepository: InMemoryJourneyDepartureChoicesRepository.unavailable,
                 naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
                 naturalLanguageAvailability: { .available },
                 naturalJourneyMetrics: NoOpNaturalJourneyMetrics(),
@@ -358,6 +362,9 @@ struct ApplicationEntry: App {
             activityManager: JourneyActivityManager(),
             connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
+            journeyDepartureChoicesRepository: LiveJourneyDepartureChoicesRepository(
+                transport: transport
+            ),
             naturalJourneyRepository: naturalJourneyRepository,
             naturalLanguageAvailability: { naturalIntentParser.availability },
             naturalJourneyMetrics: naturalJourneyMetrics,
@@ -393,6 +400,7 @@ struct ApplicationEntry: App {
         let activityManager: any JourneyActivityManaging
         let connectivityMonitor: any ConnectivityMonitoring
         let journeyRepository: any JourneyRepository
+        let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
         let naturalJourneyRepository: any NaturalJourneyRepository
         let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
         let naturalJourneyMetrics: any NaturalJourneyMetricsRecording

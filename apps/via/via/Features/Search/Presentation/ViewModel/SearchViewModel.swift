@@ -502,6 +502,33 @@ final class SearchViewModel {
         selectedDestination.map { JourneyPlaceSelection($0).journeyDestination }
     }
 
+    var journeyPlanningPolicy: JourneyPlanningPolicy {
+        JourneyPlanningPolicy(
+            requiredModes: naturalJourneyCriteria?.requiredModes ?? [],
+            excludedModes: naturalJourneyCriteria?.excludedModes ?? [],
+            preferredModes: naturalJourneyCriteria?.preferredModes ?? [],
+            requiresAccessibleStations: filters.requiresAccessibleStations
+        )
+    }
+
+    /// A departure revision preserves identity, so every search surface can be
+    /// swapped together without dismissing and rebuilding the detail sheet.
+    func replaceJourney(_ journey: Journey) {
+        guard let result = journeyResult,
+              result.journeys.contains(where: { $0.id == journey.id }) else { return }
+        let journeys = result.journeys.map { $0.id == journey.id ? journey : $0 }
+        journeyResult = JourneyResult(
+            status: result.status,
+            source: result.source,
+            generatedAt: .now,
+            journeys: journeys,
+            reason: result.reason
+        )
+        if selectedJourneyID == journey.id {
+            mapPresentation = JourneyMapPresentation(journey: journey)
+        }
+    }
+
     var canResetSearch: Bool {
         step != .destination
             || !query.isEmpty

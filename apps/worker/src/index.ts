@@ -25,15 +25,18 @@ import {
   type LonLat,
   type NetworkMode,
 } from '@via/db/schema';
-import { computeDrawnGeometry } from '@via/db/drawn-geometry';
+import { computeDrawnGeometry, drawnGeometryRouteCondition } from '@via/db/drawn-geometry';
 import { networkRouteCondition } from '@via/db/network-scope';
 import { projectStopsOntoPatterns } from '@via/db/projection';
-import { eq, sql } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import { RedisClient as BunRedisClient } from 'bun';
 
 import { readCsv, readPositionalCsv, type CsvRow } from './csv';
+import { deriveDrawnGeometryByRoute } from './derive-drawn-geometry';
+import { runWithImportLock } from './import-lock';
 import { importLineSchemasFromDatabase } from './line-schema/import-line-schemas';
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
+import { reserveGtfsImportLock } from './postgres-import-lock';
 import { formatCount, formatDuration, logStep, step } from './progress';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
 import { addScheduledTrip } from './schedule/scheduled-trips';
@@ -68,6 +71,8 @@ type SourceStop = {
 
 const INSERT_BATCH = 5_000;
 const PATTERN_INSERT_BATCH = 1_000;
+const IMPORT_TABLE_LOCK_TIMEOUT_MS = 30_000;
+const DRAWN_GEOMETRY_TIMEOUT_MS = 30_000;
 const TRANSIT_NETWORK_VERSION_KEY = 'transit:network:version';
 const GTFS_FEED_HASH_KEY = 'gtfs:feed:sha256';
 
@@ -247,6 +252,9 @@ async function importTransitNetwork(gtfsPath: string) {
   const importedAt = new Date();
   logStep('Opening the network transaction');
   await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT set_config('lock_timeout', ${String(IMPORT_TABLE_LOCK_TIMEOUT_MS)}, true)`
+    );
     logStep('Truncating the tables this importer owns');
     /**
      * Replace exactly what this importer owns. TER, airport rail shuttles and
@@ -405,25 +413,60 @@ async function importTransitNetwork(gtfsPath: string) {
  */
 async function deriveNetworkData() {
   await step('Projecting stops onto patterns', () => db.execute(projectStopsOntoPatterns()));
-  await step('Computing drawn geometry', () => db.execute(computeDrawnGeometry()));
+
+  const routes = await db
+    .selectDistinct({ id: transitRoutes.id })
+    .from(transitRoutes)
+    .innerJoin(transitRoutePatterns, eq(transitRoutePatterns.routeId, transitRoutes.id))
+    .where(drawnGeometryRouteCondition())
+    .orderBy(asc(transitRoutes.id));
+  await step(`Computing drawn geometry for ${routes.length} lines`, () =>
+    deriveDrawnGeometryByRoute(
+      routes.map((route) => route.id),
+      async (routeId, index, total) => {
+        await db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT set_config('statement_timeout', ${String(DRAWN_GEOMETRY_TIMEOUT_MS)}, true)`
+          );
+          await tx.execute(computeDrawnGeometry(routeId));
+        });
+        if ((index + 1) % 10 === 0 || index + 1 === total) {
+          logStep(`Drawn geometry: ${index + 1}/${total} lines done…`);
+        }
+      }
+    )
+  );
 
   logStep('Building line schemas');
   await importLineSchemasFromDatabase();
 }
 
+/** Every table the reload rewrites, in one list both maintenance steps share. */
+const RELOADED_TRANSIT_TABLES = `transit_routes, transit_stops, transit_route_patterns,
+  transit_route_pattern_stops, transit_trips, transit_time_profiles,
+  transit_profile_stops, transit_service_dates, transit_stop_routes,
+  transit_transfers, transit_shapes, transit_line_directions,
+  transit_line_schema_stops`;
+
+/** The only tables the derived steps rewrite once the network is committed. */
+const DERIVED_TRANSIT_TABLES = `transit_route_patterns, transit_route_pattern_stops,
+  transit_line_schema_stops`;
+
 /**
- * Fresh planner statistics right after the reload; with TRUNCATE there are no
- * dead tuples, so this is cheap. VACUUM cannot run inside a transaction, hence
- * the raw client.
+ * TRUNCATE resets every reloaded table to "size unknown", and the derived steps
+ * are the only queries in the import that ask the planner to join and window
+ * over the whole network at once — the shape where a guessed row count is most
+ * expensive to get wrong. So the planner gets told the truth before they run,
+ * not after. ANALYZE without VACUUM is seconds: it only samples.
+ *
+ * Afterwards only the three derived tables have changed, so only they need
+ * re-sampling; re-ANALYZEing `transit_trips` and `transit_profile_stops` would
+ * pay for a fresh sample of millions of rows nothing has touched. The VACUUM
+ * still covers everything — it is what sets the visibility map after the bulk
+ * COPY — and cannot run inside a transaction, hence the raw client.
  */
-async function vacuumAnalyzeTransitTables() {
-  await client.unsafe(`
-    VACUUM ANALYZE transit_routes, transit_stops, transit_route_patterns,
-      transit_route_pattern_stops, transit_trips, transit_time_profiles,
-      transit_profile_stops, transit_service_dates, transit_stop_routes,
-      transit_transfers, transit_shapes, transit_line_directions,
-      transit_line_schema_stops
-  `);
+async function maintainTransitTables(command: 'ANALYZE' | 'VACUUM', tables: string) {
+  await client.unsafe(`${command} ${tables}`);
 }
 
 /** Move API station metadata to a fresh Redis namespace after a successful import. */
@@ -484,9 +527,9 @@ async function refreshWayfindingData() {
   });
 }
 
-try {
-  logStep(`Importing ${gtfsPath}`);
-  const feedHash = await hashGtfsFeed(gtfsPath);
+async function runImport(path: string) {
+  logStep(`Importing ${path}`);
+  const feedHash = await hashGtfsFeed(path);
   const [stored] = await db
     .select()
     .from(importMeta)
@@ -494,9 +537,17 @@ try {
   if (!force && stored?.value === feedHash) {
     console.log('GTFS feed unchanged since the last completed import — nothing to do (--force to reimport).');
   } else {
-    await importTransitNetwork(gtfsPath);
+    await importTransitNetwork(path);
+    await step('Analyzing the transit tables', () =>
+      maintainTransitTables('ANALYZE', RELOADED_TRANSIT_TABLES)
+    );
     await deriveNetworkData();
-    await step('Vacuuming and analyzing the transit tables', vacuumAnalyzeTransitTables);
+    await step('Vacuuming the transit tables', () =>
+      maintainTransitTables('VACUUM', RELOADED_TRANSIT_TABLES)
+    );
+    await step('Analyzing the derived transit tables', () =>
+      maintainTransitTables('ANALYZE', DERIVED_TRANSIT_TABLES)
+    );
     /**
      * Only a fully completed import records its hash: a crash in any phase
      * above leaves the previous value, so the next run redoes everything.
@@ -515,6 +566,11 @@ try {
   // After the network: exits hang off `transit_stops` and boarding positions off
   // `transit_stop_aliases`, both written by the import above.
   await refreshWayfindingData();
+}
+
+try {
+  const importLock = await reserveGtfsImportLock();
+  await runWithImportLock(importLock, () => runImport(gtfsPath));
 } finally {
   await client.end();
 }

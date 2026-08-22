@@ -268,16 +268,7 @@ struct DepartureTimingView: View {
     }
 
     private var statusColor: Color {
-        switch departureTimeColorRole(status: departure.status, source: source) {
-        case .live:
-            .green
-        case .theoretical, .attention:
-            .orange
-        case .critical:
-            .red
-        case .neutral:
-            .secondary
-        }
+        departureTimeColorRole(status: departure.status, source: source).color
     }
 
     private func timeText(_ date: Date) -> String {

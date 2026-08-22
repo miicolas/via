@@ -62,6 +62,16 @@ struct JourneyTimelineNode: Identifiable, Sendable, Hashable {
         Int(max(0, endsAt.timeIntervalSince(startsAt)).rounded())
     }
 
+    /// Zero-length planner scaffolding still belongs to progress projection —
+    /// the cursor walks through it — but it is not something the traveller
+    /// does, so it earns no row and no map stop.
+    var isTravellerInstruction: Bool {
+        switch kind {
+        case .walk, .wait, .transfer: durationSeconds > 0
+        case .origin, .board, .ride, .alight, .destination: true
+        }
+    }
+
     /// Colour of the leg this node belongs to, when it is a ridden one.
     var lineColorHex: String? {
         switch railBelow {

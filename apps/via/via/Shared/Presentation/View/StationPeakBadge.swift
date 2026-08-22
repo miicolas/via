@@ -8,14 +8,22 @@ struct StationPeakBadge: View {
     var size: CGFloat = 22
     var isInteractive: Bool = true
 
-    private var normalizedRatio: Double {
-        min(1, max(0.25, peak.ratio))
+    /// `cellularbars` carries four bars. One is always lit, so a quiet station
+    /// still reads as a gauge rather than an empty square, and the busiest hour
+    /// lights all four — which a raw ratio never does, since it tops out short
+    /// of 1. The bars are quantised to the degree, not to the decimal.
+    private var filledBars: Int {
+        switch peak.level {
+        case .off: 1
+        case .moderate: peak.ratio >= 0.6 ? 3 : 2
+        case .peak: 4
+        }
     }
 
     var body: some View {
         InfoBadgeButton(
             symbol: "cellularbars",
-            variableValue: normalizedRatio,
+            variableValue: Double(filledBars) / 4,
             tint: peak.level.tint,
             size: size,
             isInteractive: isInteractive,
@@ -35,15 +43,15 @@ struct StationPeakBadge: View {
 
     private var message: String {
         let situation: String = if let stationName = peak.stationName, !stationName.isEmpty {
-            "\(stationName) : \(peak.label)."
+            "\(stationName) : \(peak.label)"
         } else {
-            "\(peak.label.prefix(1).uppercased())\(peak.label.dropFirst())."
+            "\(peak.label.prefix(1).uppercased())\(peak.label.dropFirst())"
         }
 
-        return [situation, peak.level.explanation, Self.source].joined(separator: "\n\n")
+        return "\(situation), \(peak.level.explanation).\n\n\(Self.source)"
     }
 
-    private static let source = "Profil habituel reconstitué à partir des validations IDFM (T4 2025) — ce n’est pas une mesure en temps réel."
+    private static let source = "Profil habituel IDFM, pas du temps réel."
 }
 
 extension PeakLevel {
@@ -57,12 +65,9 @@ extension PeakLevel {
 
     var explanation: String {
         switch self {
-        case .off:
-            "Creux de fréquentation : quais dégagés, vous montez sans attendre."
-        case .moderate:
-            "Fréquentation soutenue : rames bien remplies, place assise incertaine."
-        case .peak:
-            "Heure la plus chargée : quais denses, prévoyez de laisser passer une rame."
+        case .off: "quais dégagés"
+        case .moderate: "rames bien remplies"
+        case .peak: "quais denses"
         }
     }
 }

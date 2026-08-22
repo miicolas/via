@@ -44,4 +44,5 @@ export const jobDb = drizzle(jobClient, { schema });
 
 export * from './schema';
 export type { LonLat } from './columns';
+export { timestamptz } from './sql-values';
 export { schema };

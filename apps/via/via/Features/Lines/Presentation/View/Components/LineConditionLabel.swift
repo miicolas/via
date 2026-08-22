@@ -12,9 +12,26 @@ extension LineCondition {
     }
 }
 
+/// The condition as a glyph on its own tinted disc — the network verdict at
+/// the top of the Lines tab, where the wording sits beside the badge rather
+/// than inside it.
+struct LineConditionBadge: View {
+    let condition: LineCondition
+
+    var body: some View {
+        Image(systemName: condition.systemImage)
+            .font(.title2.weight(.semibold))
+            .foregroundStyle(condition.tint)
+            .frame(width: 44, height: 44)
+            .background(condition.tint.opacity(0.12), in: .circle)
+            .accessibilityHidden(true)
+    }
+}
+
 struct LineConditionLabel: View {
     let condition: LineCondition
     var compact: Bool = false
+    var font: Font = .subheadline.weight(.medium)
 
     var body: some View {
         if compact {
@@ -23,7 +40,7 @@ struct LineConditionLabel: View {
                 .accessibilityLabel(condition.title)
         } else {
             Label(condition.title, systemImage: condition.systemImage)
-                .font(.subheadline.weight(.medium))
+                .font(font)
                 .foregroundStyle(condition.tint)
         }
     }

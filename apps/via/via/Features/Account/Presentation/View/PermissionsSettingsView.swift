@@ -1,7 +1,6 @@
 import AVFoundation
 import Contacts
 import SwiftUI
-import UIKit
 
 struct PermissionsSettingsView: View {
     let locationModel: LocationModel
@@ -39,16 +38,28 @@ struct PermissionsSettingsView: View {
 
             if journeyNotificationCoordinator.authorizationStatus == .notDetermined {
                 Section {
-                    Button("Autoriser les notifications", systemImage: "bell.badge") {
-                        Task { await journeyNotificationCoordinator.requestAuthorization() }
+                    NotificationAuthorizationButton {
+                        await journeyNotificationCoordinator.refreshAuthorizationStatus()
                     }
-                    .primaryAction()
+                }
+            } else if !journeyNotificationCoordinator.isAuthorized {
+                // iOS records the first answer and never prompts again, so this
+                // screen has to name the only remaining way back. The control it
+                // points at is already below.
+                Section {
+                    EmptyStateView(.notificationsDenied) {
+                        EmptyStateHint(
+                            Text("Touchez \(Image(systemName: "gearshape")) Ouvrir les réglages iOS ci-dessous pour les réactiver"),
+                            label: "Ouvrir les réglages iOS",
+                            action: { openURL.systemSettings() }
+                        )
+                    }
                 }
             }
 
             Section {
                 Button("Ouvrir les réglages iOS", systemImage: "gearshape") {
-                    openSettings()
+                    openURL.systemSettings()
                 }
             }
         }
@@ -108,10 +119,6 @@ struct PermissionsSettingsView: View {
         }
     }
 
-    private func openSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        openURL(url)
-    }
 }
 
 private enum PermissionStatus {

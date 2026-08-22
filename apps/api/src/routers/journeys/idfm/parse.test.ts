@@ -183,3 +183,56 @@ test('distinguishes tram and Transilien sections from Navitia commercial modes',
     'transilien',
   ]);
 });
+
+test('keeps opaque line, vehicle journey and parent station references', () => {
+  const journeys = parseIdfmJourneys(
+    {
+      journeys: [{
+        departure_date_time: '20260813T200000',
+        arrival_date_time: '20260813T201000',
+        duration: 600,
+        sections: [{
+          id: 'navitia-section',
+          type: 'public_transport',
+          data_freshness: 'realtime',
+          status: 'canceled',
+          duration: 600,
+          departure_date_time: '20260813T200000',
+          arrival_date_time: '20260813T201000',
+          base_departure_date_time: '20260813T195800',
+          base_arrival_date_time: '20260813T200800',
+          from: { name: 'A', coord: { lon: 2.35, lat: 48.85 } },
+          to: { name: 'B', coord: { lon: 2.36, lat: 48.86 } },
+          display_informations: {
+            code: '1',
+            name: 'Métro 1',
+            commercial_mode: 'Metro',
+            uris: { line: 'line:IDFM:C01373' },
+          },
+          links: [{ type: 'vehicle_journey', id: 'vehicle_journey:123' }],
+          stop_date_times: [{
+            stop_point: {
+              id: 'stop-point-a',
+              name: 'A',
+              coord: { lon: 2.35, lat: 48.85 },
+              stop_area: { id: 'IDFM:station-a' },
+            },
+          }],
+        }],
+      }],
+    },
+    input,
+    new Date('2026-08-13T20:00:00+02:00')
+  );
+
+  expect(journeys[0]?.sections[0]).toMatchObject({
+    id: 'navitia-section',
+    serviceId: 'vehicle_journey:123',
+    timingSource: 'realtime',
+    departureStatus: 'cancelled',
+    scheduledDepartureAt: '2026-08-13T17:58:00.000Z',
+    scheduledArrivalAt: '2026-08-13T18:08:00.000Z',
+    route: { id: 'IDFM:C01373' },
+    stops: [{ id: 'stop-point-a', stationId: 'IDFM:station-a' }],
+  });
+});

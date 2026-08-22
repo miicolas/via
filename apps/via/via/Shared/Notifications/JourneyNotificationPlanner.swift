@@ -67,10 +67,44 @@ struct ScheduledJourneyReminder: Codable, Sendable, Hashable, Identifiable {
     let journey: Journey
     let destination: JourneyDestination
     let source: JourneyResult.Source?
+    let planningPolicy: JourneyPlanningPolicy
     let scheduledAt: Date
     let events: [JourneyNotificationEvent]
 
     var id: JourneyID { journey.id }
+
+    init(
+        journey: Journey,
+        destination: JourneyDestination,
+        source: JourneyResult.Source?,
+        planningPolicy: JourneyPlanningPolicy = JourneyPlanningPolicy(),
+        scheduledAt: Date,
+        events: [JourneyNotificationEvent]
+    ) {
+        self.journey = journey
+        self.destination = destination
+        self.source = source
+        self.planningPolicy = planningPolicy
+        self.scheduledAt = scheduledAt
+        self.events = events
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case journey, destination, source, planningPolicy, scheduledAt, events
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        journey = try container.decode(Journey.self, forKey: .journey)
+        destination = try container.decode(JourneyDestination.self, forKey: .destination)
+        source = try container.decodeIfPresent(JourneyResult.Source.self, forKey: .source)
+        planningPolicy = try container.decodeIfPresent(
+            JourneyPlanningPolicy.self,
+            forKey: .planningPolicy
+        ) ?? JourneyPlanningPolicy(requiresAccessibleStations: journey.accessibility != nil)
+        scheduledAt = try container.decode(Date.self, forKey: .scheduledAt)
+        events = try container.decode([JourneyNotificationEvent].self, forKey: .events)
+    }
 }
 
 enum JourneyNotificationPlanner {

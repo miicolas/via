@@ -699,66 +699,6 @@ export type NotificationRouteWindow = {
 };
 
 /**
- * @deprecated Physical compatibility only for API replicas from the ae27
- * rollout. New code never reads or writes these ActivityKit tokens. Migration
- * 0026 purges their contents; drop both tables after the old replicas drain.
- */
-export const notificationLiveActivities = pgTable(
-  'notification_live_activities',
-  {
-    activityId: text('activity_id').primaryKey(),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    installationId: text('installation_id')
-      .notNull()
-      .references(() => notificationDevices.installationId, { onDelete: 'cascade' }),
-    journeyId: text('journey_id').notNull(),
-    activityToken: text('activity_token').notNull(),
-    bundleId: text('bundle_id').notNull(),
-    environment: text('environment', { enum: ['sandbox', 'production'] }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    uniqueIndex('notification_live_activities_token_uidx').on(
-      table.bundleId,
-      table.environment,
-      table.activityToken
-    ),
-    index('notification_live_activities_user_idx').on(table.userId),
-    index('notification_live_activities_journey_idx').on(table.journeyId),
-    index('notification_live_activities_installation_idx').on(table.installationId),
-  ]
-);
-
-/** @deprecated See `notificationLiveActivities`; retained for one rollout window. */
-export const notificationLiveActivityStartTokens = pgTable(
-  'notification_live_activity_start_tokens',
-  {
-    installationId: text('installation_id')
-      .primaryKey()
-      .references(() => notificationDevices.installationId, { onDelete: 'cascade' }),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
-    pushToStartToken: text('push_to_start_token').notNull(),
-    bundleId: text('bundle_id').notNull(),
-    environment: text('environment', { enum: ['sandbox', 'production'] }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    uniqueIndex('notification_live_activity_start_tokens_token_uidx').on(
-      table.bundleId,
-      table.environment,
-      table.pushToStartToken
-    ),
-    index('notification_live_activity_start_tokens_user_idx').on(table.userId),
-  ]
-);
-
-/**
  * The monitor claims one shard at a time, so the column and every reader must
  * agree on the count: a reader using fewer shards never sees the rest.
  */

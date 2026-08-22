@@ -10,6 +10,12 @@ import {
   journeysResponseSchema,
   journeySectionSchema,
   journeyStopSchema,
+  journeyDepartureChoiceGroupSchema,
+  journeyDepartureChoicesInputSchema,
+  journeyDepartureChoicesResponseSchema,
+  journeyDepartureChoiceSchema,
+  journeyDepartureSelectionSchema,
+  journeyPlanningPolicySchema,
 } from './schema';
 
 export type BoardingPosition = z.infer<typeof boardingPositionSchema>;
@@ -21,3 +27,9 @@ export type Journey = z.infer<typeof journeySchema>;
 export type JourneySection = z.infer<typeof journeySectionSchema>;
 export type JourneyStop = z.infer<typeof journeyStopSchema>;
 export type JourneysResponse = z.infer<typeof journeysResponseSchema>;
+export type JourneyPlanningPolicy = z.infer<typeof journeyPlanningPolicySchema>;
+export type JourneyDepartureSelection = z.infer<typeof journeyDepartureSelectionSchema>;
+export type JourneyDepartureChoicesInput = z.infer<typeof journeyDepartureChoicesInputSchema>;
+export type JourneyDepartureChoice = z.infer<typeof journeyDepartureChoiceSchema>;
+export type JourneyDepartureChoiceGroup = z.infer<typeof journeyDepartureChoiceGroupSchema>;
+export type JourneyDepartureChoicesResponse = z.infer<typeof journeyDepartureChoicesResponseSchema>;

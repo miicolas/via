@@ -1,138 +1,60 @@
 import SwiftUI
 
 struct LinesView: View {
-    @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
+  @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
 
-    let viewModel: LinesViewModel
-    let accountModel: AccountModel?
-    @State private var navigationPath = NavigationPath()
+  var viewModel: LinesViewModel
+  var accountModel: AccountModel?
 
-    init(viewModel: LinesViewModel, accountModel: AccountModel? = nil) {
-        self.viewModel = viewModel
-        self.accountModel = accountModel
-    }
+  @State private var navigationPath = NavigationPath()
 
-    var body: some View {
-        @Bindable var viewModel = viewModel
+  init(viewModel: LinesViewModel, accountModel: AccountModel? = nil) {
+    self.viewModel = viewModel
+    self.accountModel = accountModel
+  }
 
-        NavigationStack(path: $navigationPath) {
-            List {
-                if showsUnavailableBanner {
-                    LinesUnavailableBanner()
-                }
+  var body: some View {
+    @Bindable var viewModel = viewModel
 
-                ForEach(viewModel.sections, id: \.mode) { section in
-                    Section(section.mode.displayName) {
-                        ForEach(section.lines) { status in
-                            NavigationLink(value: status) {
-                                LineStatusRow(status: status)
-                            }
-                        }
-                    }
-                }
-
-                if isSearching, !viewModel.extraSearchResults.isEmpty {
-                    Section("Autres lignes") {
-                        ForEach(viewModel.extraSearchResults) { status in
-                            NavigationLink(value: status) {
-                                LineStatusRow(status: status)
-                            }
-                        }
-                    }
-                }
-
-                if !isSearching {
-                    UpcomingClosuresSection(days: viewModel.upcomingByDay)
-                }
-            }
-            .navigationTitle("Lignes")
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .searchable(text: $viewModel.searchText, prompt: "Ligne, mode, bus…")
-            .navigationDestination(for: LineStatus.self) { status in
-                LineDetailView(
-                    viewModel: viewModel.detailViewModel(for: status.route),
-                    route: status.route,
-                    accountModel: accountModel
-                )
-            }
-            .onChange(of: viewModel.requestedRouteID) { _, _ in
-                openRequestedRoute()
-            }
-            .onChange(of: viewModel.board.value) { _, _ in
-                openRequestedRoute()
-            }
-            .overlay {
-                if case .loading(nil) = viewModel.board {
-                    SkeletonGate(isLoading: true) {
-                        SkeletonList(
-                            count: 8,
-                            label: "Chargement des lignes…",
-                            row: .lineStatus
-                        )
-                        .padding(.horizontal, 20)
-                    }
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .background(.background)
-                } else if isSearching, viewModel.sections.isEmpty,
-                          viewModel.extraSearchResults.isEmpty {
-                    EmptyStateView(
-                        .noResults(
-                            query: viewModel.searchText,
-                            message: "Essayez un autre nom de ligne ou de mode.",
-                        ),
-                    ) {
-                        EmptyStateHint(
-                            Text("Modifiez \(Image(systemName: "magnifyingglass.circle.fill")) Recherche ci-dessus pour trouver une ligne"),
-                            label: "Modifiez Recherche ci-dessus pour trouver une ligne",
-                        )
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.background)
-                } else if case .failed(_, nil) = viewModel.board {
-                    EmptyStateView(
-                        .offline(
-                            title: "Lignes indisponibles",
-                            message: "Impossible de charger l’état du réseau. Réessayez.",
-                        ),
-                    ) {
-                        RetryButton { Task { await viewModel.refresh() } }
-                            .primaryAction()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(.background)
-                }
-            }
-            .refreshable { await viewModel.refresh() }
+    NavigationStack(path: $navigationPath) {
+      LinesScreenContent(viewModel: viewModel)
+        .navigationTitle("Lignes")
+        .toolbarTitleDisplayMode(.inlineLarge)
+        .searchable(text: $viewModel.searchText, prompt: "Ligne, mode, bus…")
+        .toolbar {
+          ToolbarItem(placement: .topBarTrailing) {
+            LinesFilterMenu(filter: $viewModel.filter)
+          }
         }
-        .task { await viewModel.runAutomaticRefresh() }
-        .task(id: viewModel.searchText) { await viewModel.search(query: viewModel.searchText) }
-        .task { openRequestedRoute() }
-        .opacity(tabVisibilityProgress)
+        .navigationDestination(for: LineStatus.self) { status in
+          LineDetailView(
+            viewModel: viewModel.detailViewModel(for: status.route),
+            route: status.route,
+            accountModel: accountModel
+          )
+        }
+        .onChange(of: viewModel.requestedRouteID) { _, _ in
+          openRequestedRoute()
+        }
+        .onChange(of: viewModel.board.value) { _, _ in
+          openRequestedRoute()
+        }
     }
-
-    private func openRequestedRoute() {
-        guard let routeID = viewModel.requestedRouteID,
-              let status = (viewModel.board.value?.lines ?? viewModel.remoteMatches)
-                .first(where: { $0.route.id == routeID }) else { return }
-        navigationPath.append(status)
-        viewModel.consumeRequestedRoute()
+    .task { await viewModel.runAutomaticRefresh() }
+    .task(id: viewModel.searchText) {
+      await viewModel.search(query: viewModel.searchText)
     }
+    .task { openRequestedRoute() }
+    .opacity(tabVisibilityProgress)
+    .scrollEdgeEffectStyle(.soft, for: .vertical)
+  }
 
-    private var isSearching: Bool {
-        !viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var showsUnavailableBanner: Bool {
-        if viewModel.board.value?.source == .unavailable { return true }
-        if case .failed(_, .some) = viewModel.board { return true }
-        return false
-    }
-}
-
-#Preview {
-    let repository = PreviewLineStatusRepository()
-
-    LinesView(
-        viewModel: LinesViewModel(repository: repository)
-    )
+  private func openRequestedRoute() {
+    guard let routeID = viewModel.requestedRouteID,
+      let status = (viewModel.board.value?.lines ?? viewModel.remoteMatches)
+        .first(where: { $0.route.id == routeID })
+    else { return }
+    navigationPath.append(status)
+    viewModel.consumeRequestedRoute()
+  }
 }

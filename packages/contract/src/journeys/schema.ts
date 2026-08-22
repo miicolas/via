@@ -7,6 +7,7 @@ import {
   networkModeSchema,
   queryBooleanSchema,
 } from '../shared/schema';
+import { departureItemSchema, departureStatusSchema } from '../departures/schema';
 
 export const journeyModeSchema = networkModeSchema;
 export const journeyDatetimeRepresentsSchema = z.enum(['departure', 'arrival']);
@@ -95,6 +96,8 @@ export const journeySectionTypeSchema = z.enum(['walk', 'wait', 'transfer', 'tra
 
 export const journeyStopSchema = z.object({
   id: z.string(),
+  /** Parent station/stop-area used to anchor a new journey calculation. */
+  stationId: z.string().optional(),
   name: z.string(),
   coordinate: coordinateSchema,
   arrivalAt: z.iso.datetime({ offset: true }).optional(),
@@ -145,17 +148,26 @@ export const journeyExitSchema = z.object({
 });
 
 export const journeySectionSchema = z.object({
+  /** Stable inside one journey revision; older payloads omit it. */
+  id: z.string().optional(),
   type: journeySectionTypeSchema,
   durationSeconds: z.number().int().nonnegative(),
   from: z.object({ name: z.string(), coordinate: coordinateSchema }),
   to: z.object({ name: z.string(), coordinate: coordinateSchema }),
   departureAt: z.iso.datetime({ offset: true }).optional(),
   arrivalAt: z.iso.datetime({ offset: true }).optional(),
+  /** Published timetable, when the realtime estimate differs. */
+  scheduledDepartureAt: z.iso.datetime({ offset: true }).optional(),
+  scheduledArrivalAt: z.iso.datetime({ offset: true }).optional(),
   geometry: z.array(coordinateSchema),
   route: journeyRouteSchema.optional(),
   direction: z.string().optional(),
   platform: z.string().optional(),
   stops: z.array(journeyStopSchema).default([]),
+  /** Opaque trip/vehicle-journey identity. Clients only compare it. */
+  serviceId: z.string().optional(),
+  timingSource: z.enum(['realtime', 'theoretical']).optional(),
+  departureStatus: departureStatusSchema.optional(),
   /** Followed when boarding this section; computed from where it ends. */
   boardingPosition: boardingPositionSchema.optional(),
   /** Only ever on the last transit section — where to leave the network. */
@@ -197,4 +209,58 @@ export const journeysResponseSchema = z.object({
   generatedAt: z.iso.datetime({ offset: true }),
   reason: z.enum(['no-accessible-route', 'accessibility-data-unavailable']).optional(),
   journeys: z.array(journeySchema),
+});
+
+export const journeyPlanningPolicySchema = z.object({
+  requiredModes: z.array(journeyModeSchema).max(3).default([]),
+  excludedModes: z.array(journeyModeSchema).max(3).default([]),
+  preferredModes: z.array(journeyModeSchema).max(3).default([]),
+  requiresAccessibleStations: z.boolean().default(false),
+});
+
+export const journeyDepartureSelectionSchema = z.object({
+  sectionId: z.string().min(1),
+  departureId: z.string().min(1),
+});
+
+export const journeyDepartureChoicesInputSchema = z.object({
+  journey: journeySchema,
+  destination: journeyDestinationSchema,
+  policy: journeyPlanningPolicySchema.default({
+    requiredModes: [],
+    excludedModes: [],
+    preferredModes: [],
+    requiresAccessibleStations: false,
+  }),
+  selection: journeyDepartureSelectionSchema.optional(),
+});
+
+/**
+ * One passage, exactly as the departure board describes it. Extending that
+ * schema rather than restating it is what keeps a field added to the board from
+ * silently missing here.
+ *
+ * `delaySeconds` is dropped because a journey renders the delay from the two
+ * times it already carries, and `fetchedAt` lives on the group — every choice
+ * in a group comes from the same fetch.
+ */
+export const journeyDepartureChoiceSchema = departureItemSchema
+  .omit({ delaySeconds: true })
+  .extend({
+    source: z.enum(['realtime', 'theoretical']).optional(),
+    isSelected: z.boolean(),
+  });
+
+export const journeyDepartureChoiceGroupSchema = z.object({
+  sectionId: z.string(),
+  availability: z.enum(['ready', 'unavailable']),
+  source: z.enum(['realtime', 'theoretical']).optional(),
+  fetchedAt: z.iso.datetime({ offset: true }).optional(),
+  choices: z.array(journeyDepartureChoiceSchema).max(2),
+});
+
+export const journeyDepartureChoicesResponseSchema = z.object({
+  journey: journeySchema,
+  generatedAt: z.iso.datetime({ offset: true }),
+  groups: z.array(journeyDepartureChoiceGroupSchema),
 });

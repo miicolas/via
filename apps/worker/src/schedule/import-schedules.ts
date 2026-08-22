@@ -1,6 +1,7 @@
 import { access } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { Writable } from 'node:stream';
+import { Readable, type Writable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 import type { db } from '@via/db';
 import {
@@ -15,6 +16,7 @@ import {
 import { sql } from 'drizzle-orm';
 
 import type { PositionalCsv } from '../csv';
+import { copyTextRow } from '../copy';
 import { formatCount, logStep } from '../progress';
 import {
   expandServiceDates,
@@ -62,10 +64,8 @@ type ImportSchedulesOptions = {
   ) => Promise<PositionalCsv<Column>>;
 };
 
-// Keep every statement under Postgres' 65k parameter limit while reducing
-// round-trips for the full feed. A trip row has nine parameters, so 7k stays
-// safe; two-parameter rows get more headroom.
-const TRIP_INSERT_BATCH = 7_000;
+// Keep two-parameter statements under Postgres' 65k parameter limit while
+// reducing round-trips for the full feed. Trips use COPY below instead.
 const INSERT_BATCH = 8_000;
 
 /**
@@ -116,41 +116,39 @@ export async function importSchedules({
   );
 
   /**
-   * Built one batch at a time rather than as one array of every trip: the feed
-   * has ~700k of them, and materializing a second full copy of the map next to
-   * the map itself was a needless multi-hundred-megabyte spike right at the
-   * point of the import where memory is already at its worst.
-   *
-   * A trip whose every call was skipped has no profile to reference, so it is
-   * dropped here rather than violating the foreign key.
+   * Stream trips through COPY rather than compiling ~92 giant parameterized
+   * INSERT statements. Besides removing the round-trips, this keeps Postgres
+   * from repeatedly parsing SQL with 63k parameters. A trip whose every call
+   * was skipped has no profile to reference, so it is dropped from the stream.
    */
-  logStep('Inserting trips');
+  logStep('Copying trips');
   let importedTripCount = 0;
-  let tripBatch: (typeof transitTrips.$inferInsert)[] = [];
-  const flushTripBatch = async () => {
-    if (tripBatch.length === 0) return;
-    await tx.insert(transitTrips).values(tripBatch);
-    tripBatch = [];
-  };
-  for (const trip of trips.values()) {
-    const assignment = profiles.assignmentForTrip(trip.numericId);
-    if (!assignment) continue;
-    importedTripCount += 1;
-    tripBatch.push({
-      numericId: trip.numericId,
-      id: trip.id,
-      routeId: trip.routeId,
-      serviceId: trip.serviceId,
-      directionId: trip.directionId,
-      headsign: trip.headsign,
-      shapeId: trip.shapeId,
-      profileKey: assignment.profileKey,
-      startSeconds: assignment.startSeconds,
-    });
-    if (tripBatch.length === TRIP_INSERT_BATCH) await flushTripBatch();
-  }
-  await flushTripBatch();
-  logStep(`Inserted ${formatCount(importedTripCount)} trips; deriving route patterns…`);
+  const tripRows = (async function* () {
+    for (const trip of trips.values()) {
+      const assignment = profiles.assignmentForTrip(trip.numericId);
+      if (!assignment) continue;
+      importedTripCount += 1;
+      yield copyTextRow([
+        trip.numericId,
+        trip.id,
+        trip.routeId,
+        trip.serviceId,
+        trip.directionId,
+        trip.headsign,
+        trip.shapeId,
+        assignment.profileKey,
+        assignment.startSeconds,
+      ]);
+    }
+  })();
+  const tripWriter = await copyClient`
+    COPY transit_trips
+      (numeric_id, id, route_id, service_id, direction_id, headsign, shape_id,
+       profile_key, start_seconds)
+    FROM STDIN WITH (FORMAT text, DELIMITER E'\\t', NULL '\\N')
+  `.writable();
+  await pipeline(Readable.from(tripRows), tripWriter);
+  logStep(`Copied ${formatCount(importedTripCount)} trips; deriving route patterns…`);
 
   /**
    * Derive map calls from each pattern's representative profile in SQL.

@@ -19,6 +19,7 @@ filter:
     - departures.forStation
     - health
     - journeys.plan
+    - journeys.departureChoices
     - lines.detail
     - lines.search
     - lines.statuses

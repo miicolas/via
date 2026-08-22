@@ -151,9 +151,15 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     func activate(
         journey: Journey,
         destination: JourneyDestination,
-        source: JourneyResult.Source?
+        source: JourneyResult.Source?,
+        planningPolicy: JourneyPlanningPolicy = JourneyPlanningPolicy()
     ) async {
-        await begin(journey: journey, destination: destination, source: source)
+        await begin(
+            journey: journey,
+            destination: destination,
+            source: source,
+            planningPolicy: planningPolicy
+        )
     }
 
     /// Starts a journey immediately, after the UI has explained location usage.
@@ -161,10 +167,16 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         journey: Journey,
         destination: JourneyDestination,
         source: JourneyResult.Source?,
+        planningPolicy: JourneyPlanningPolicy = JourneyPlanningPolicy(),
         allowsBackgroundTracking: Bool
     ) async {
         if session?.journey.id != journey.id {
-            await begin(journey: journey, destination: destination, source: source)
+            await begin(
+                journey: journey,
+                destination: destination,
+                source: source,
+                planningPolicy: planningPolicy
+            )
         }
         await startTracking(allowsBackgroundTracking: allowsBackgroundTracking)
     }
@@ -371,6 +383,30 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         arrival = nil
     }
 
+    /// Applies a same-identity schedule revision without restarting guidance.
+    /// Position, tracking, manual progress and the existing Live Activity all
+    /// remain attached to the running session.
+    func applyDepartureRevision(_ journey: Journey) async {
+        guard var current = session, current.journey.id == journey.id else { return }
+        let currentSectionID = current.currentSection?.id
+        current.journey = journey
+        if let currentSectionID,
+           let revisedIndex = journey.sections.firstIndex(where: { $0.id == currentSectionID }) {
+            current.currentSectionIndex = revisedIndex
+        } else {
+            current.currentSectionIndex = ActiveJourneyRules.sectionIndex(in: journey, at: now())
+        }
+        session = current
+        referenceDate = now()
+        alternative = nil
+        recalculationState = .idle
+        await persist()
+        if current.isTrackingStarted {
+            await journeyNotificationManager.registerActiveJourney(journey)
+        }
+        await updateActivity()
+    }
+
     func receive(_ sample: LocationSample, at date: Date? = nil) async {
         guard var session else { return }
         referenceDate = date ?? now()
@@ -408,7 +444,8 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     private func begin(
         journey: Journey,
         destination: JourneyDestination,
-        source: JourneyResult.Source?
+        source: JourneyResult.Source?,
+        planningPolicy: JourneyPlanningPolicy
     ) async {
         let activatedAt = now()
         let previousSession = session
@@ -433,7 +470,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             journey: journey,
             destination: destination,
             source: source,
-            requiresAccessibleStations: journey.accessibility != nil,
+            planningPolicy: planningPolicy,
             currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: activatedAt),
             lastCoordinate: nil,
             horizontalAccuracy: nil,
@@ -555,7 +592,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         request.limit = 4
         request.requestedAt = now()
         request.datetimeRepresents = .departure
-        request.requiresAccessibleStations = session.requiresAccessibleStations
+        request.requiredModes = session.planningPolicy.requiredModes
+        request.excludedModes = session.planningPolicy.excludedModes
+        request.preferredModes = session.planningPolicy.preferredModes
+        request.requiresAccessibleStations = session.planningPolicy.requiresAccessibleStations
 
         do {
             let result = try await journeyRepository.plan(request)
@@ -635,7 +675,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             journey: journey,
             destination: previous.destination,
             source: source,
-            requiresAccessibleStations: previous.requiresAccessibleStations,
+            planningPolicy: previous.planningPolicy,
             currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: acceptedAt),
             lastCoordinate: previous.lastCoordinate,
             horizontalAccuracy: previous.horizontalAccuracy,

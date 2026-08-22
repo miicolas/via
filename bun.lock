@@ -75,6 +75,8 @@
       "version": "1.0.0",
       "dependencies": {
         "@via/contract": "workspace:*",
+        "@via/db": "workspace:*",
+        "drizzle-orm": "^0.45.2",
       },
       "devDependencies": {
         "@types/bun": "^1.3.14",

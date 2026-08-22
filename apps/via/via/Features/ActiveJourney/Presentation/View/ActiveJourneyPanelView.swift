@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ActiveJourneyPanelView: View {
     let model: ActiveJourneyModel
+    let departureChoicesModel: JourneyDepartureChoicesModel
+    let onSelectDeparture: (JourneyDepartureChoice, String) -> Void
+    let onRetryDepartures: () async -> Void
     let onOpenReport: () -> Void
 
     @State private var isStopConfirmationPresented = false
@@ -30,13 +33,25 @@ struct ActiveJourneyPanelView: View {
                         }
 
                         if let journey = model.journey {
+                            // Projected once for the whole rail, not per row.
+                            let progress = model.progress(at: context.date)
+
                             // The whole trip, not just the next step: the
                             // traveller can read ahead without losing the
                             // current one, which the header keeps pinned.
                             JourneyTimelineView(
                                 journey: journey,
-                                mode: model.progress(at: context.date).map { .live($0) } ?? .plan,
-                                expandedSectionIDs: $expandedSectionIDs
+                                mode: progress.map { .live($0) } ?? .plan,
+                                expandedSectionIDs: $expandedSectionIDs,
+                                departureChoices: departureChoicesModel,
+                                revisableSectionIDs: ActiveJourneyRules.revisableSectionIDs(
+                                    in: journey,
+                                    progress: progress,
+                                    isTracking: model.isTracking,
+                                    at: context.date
+                                ),
+                                onSelectDeparture: onSelectDeparture,
+                                onRetryDepartures: { Task { await onRetryDepartures() } }
                             )
                         }
 

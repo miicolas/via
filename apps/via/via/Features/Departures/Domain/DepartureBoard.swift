@@ -1,6 +1,6 @@
 import Foundation
 
-enum DepartureStatus: String, Sendable, Hashable {
+enum DepartureStatus: String, Codable, Sendable, Hashable {
     case onTime = "on_time"
     case delayed
     case early

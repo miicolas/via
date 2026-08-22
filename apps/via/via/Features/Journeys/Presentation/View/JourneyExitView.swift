@@ -5,48 +5,34 @@ struct JourneyExitView: View {
   var isDimmed = false
 
   var body: some View {
-    HStack(spacing: 8) {
-      Image(systemName: "figure.walk.departure")
-        .font(.subheadline.weight(.semibold))
+    HStack(spacing: 10) {
+      JourneyExitBadge(number: exit.number)
 
-      VStack(alignment: .leading, spacing: 1) {
-        Text("Sortie recommandée")
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(.secondary)
-
-        Text(title)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(exit.name)
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.primary)
+
+        if let distance {
+          Text(distance)
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+        }
       }
     }
-    .foregroundStyle(.green)
-    .padding(.horizontal, 10)
-    .padding(.vertical, 8)
-    .background(Color.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
     .opacity(isDimmed ? 0.45 : 1)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityLabel)
   }
 
-  private var title: String {
-    [heading, distance].compactMap(\.self).joined(separator: " · ")
-  }
-
-  private var heading: String {
-    guard let number = exit.number else { return exit.name }
-    return "Sortie \(number) · \(exit.name)"
-  }
-
   private var distance: String? {
-    guard let meters = exit.walkingMeters, meters >= 50 else { return nil }
-    return meters >= 1_000
-      ? "\((Double(meters) / 1_000).formatted(.number.precision(.fractionLength(1)))) km"
-      : "\((meters + 25) / 50 * 50) m"
+    JourneyFormatting.exitDistance(meters: exit.walkingMeters)
   }
 
-  var accessibilityLabel: String {
-    let number = exit.number.map { "Sortie numéro \($0), " } ?? "Sortie "
-    let distance = distance.map { ", à environ \($0) de votre destination" } ?? ""
-    return "Sortie recommandée, \(number)\(exit.name)\(distance)"
+  private var accessibilityLabel: String {
+    JourneyFormatting.exitAccessibilityLabel(
+      name: exit.name,
+      number: exit.number,
+      walkingMeters: exit.walkingMeters
+    )
   }
 }

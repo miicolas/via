@@ -1,13 +1,11 @@
 import SwiftUI
 
 struct JourneyReminderMinutePicker: View {
-  @Binding var selection: JourneyNotificationPreferences.DepartureLeadTime
+  typealias LeadTime = JourneyNotificationPreferences.DepartureLeadTime
+
+  @Binding var selection: LeadTime
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-  private let thumbDiameter: CGFloat = 28
-  private let trackHeight: CGFloat = 6
-  private let tickHeight: CGFloat = 7
 
   var body: some View {
     VStack(spacing: 20) {
@@ -22,7 +20,7 @@ struct JourneyReminderMinutePicker: View {
           .foregroundStyle(.white.opacity(0.82))
       }
 
-      slider
+      minuteScrubber
     }
     .padding(22)
     .foregroundStyle(.white)
@@ -45,100 +43,49 @@ struct JourneyReminderMinutePicker: View {
     }
   }
 
-  private var slider: some View {
+  private var minuteScrubber: some View {
     GeometryReader { geometry in
-      let inset = thumbDiameter / 2
-      let usableWidth = max(1, geometry.size.width - thumbDiameter)
-      let thumbX = inset + progress(for: selection) * usableWidth
+      HStack(spacing: 6) {
+        ForEach(LeadTime.allCases) { leadTime in
+          let isSelected = leadTime == selection
 
-      VStack(spacing: 8) {
-        ZStack(alignment: .leading) {
-          Capsule()
-            .fill(.white.opacity(0.26))
-            .frame(height: trackHeight)
-
-          Capsule()
-            .fill(.white)
-            .frame(width: thumbX, height: trackHeight)
-
-          Circle()
-            .fill(.white)
-            .frame(width: thumbDiameter, height: thumbDiameter)
-            .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
-            .offset(x: thumbX - inset)
+          Text("\(leadTime.rawValue)")
+            .font(.headline.weight(isSelected ? .bold : .medium))
+            .monospacedDigit()
+            .foregroundStyle(isSelected ? Color.accentColor : .white.opacity(0.68))
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background {
+              if isSelected {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                  .fill(.white)
+                  .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
+              }
+            }
         }
-        .frame(height: thumbDiameter)
-
-        ticks(inset: inset, usableWidth: usableWidth)
-
-        labels(inset: inset, usableWidth: usableWidth)
       }
-      .frame(height: geometry.size.height, alignment: .top)
       .contentShape(.rect)
       .gesture(
         DragGesture(minimumDistance: 0)
           .onChanged { value in
-            updateSelection(at: value.location.x, inset: inset, usableWidth: usableWidth)
+            updateSelection(at: value.location.x, width: geometry.size.width)
           }
       )
     }
-    .frame(height: 74)
+    .frame(height: 48)
   }
 
-  private func ticks(inset: CGFloat, usableWidth: CGFloat) -> some View {
-    ZStack(alignment: .leading) {
-      ForEach(JourneyNotificationPreferences.DepartureLeadTime.allCases) { leadTime in
-        let isSelected = leadTime == selection
-
-        Capsule()
-          .fill(.white.opacity(isSelected ? 1 : 0.45))
-          .frame(width: 2, height: tickHeight)
-          .offset(x: inset + progress(for: leadTime) * usableWidth - 1)
-      }
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .frame(height: tickHeight)
-  }
-
-  private func labels(inset: CGFloat, usableWidth: CGFloat) -> some View {
-    ZStack(alignment: .leading) {
-      ForEach(JourneyNotificationPreferences.DepartureLeadTime.allCases) { leadTime in
-        let isSelected = leadTime == selection
-
-        Text("\(leadTime.rawValue)")
-          .font(.caption2.weight(isSelected ? .bold : .medium))
-          .monospacedDigit()
-          .foregroundStyle(.white.opacity(isSelected ? 1 : 0.62))
-          .fixedSize()
-          .frame(width: thumbDiameter)
-          .offset(x: inset + progress(for: leadTime) * usableWidth - thumbDiameter / 2)
-      }
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-  }
-
-  private func progress(
-    for leadTime: JourneyNotificationPreferences.DepartureLeadTime
-  ) -> CGFloat {
-    let minimum = JourneyNotificationPreferences.DepartureLeadTime.fiveMinutes.rawValue
-    let maximum = JourneyNotificationPreferences.DepartureLeadTime.thirtyMinutes.rawValue
-    return CGFloat(leadTime.rawValue - minimum) / CGFloat(maximum - minimum)
-  }
-
-  private func updateSelection(at x: CGFloat, inset: CGFloat, usableWidth: CGFloat) {
-    let position = min(max(x - inset, 0), usableWidth) / usableWidth
-    let minimum = JourneyNotificationPreferences.DepartureLeadTime.fiveMinutes.rawValue
-    let maximum = JourneyNotificationPreferences.DepartureLeadTime.thirtyMinutes.rawValue
-    let rawValue = minimum + Int((position * CGFloat(maximum - minimum) / 5).rounded()) * 5
-
-    if let leadTime = JourneyNotificationPreferences.DepartureLeadTime(rawValue: rawValue),
-       leadTime != selection {
-      selection = leadTime
-    }
+  private func updateSelection(at x: CGFloat, width: CGFloat) {
+    guard width > 0 else { return }
+    let progress = min(max(x / width, 0), 0.999)
+    let options = LeadTime.allCases
+    let index = min(Int(progress * CGFloat(options.count)), options.count - 1)
+    let leadTime = options[index]
+    guard leadTime != selection else { return }
+    selection = leadTime
   }
 
   private func adjustSelection(_ direction: AccessibilityAdjustmentDirection) {
-    let options = JourneyNotificationPreferences.DepartureLeadTime.allCases
+    let options = LeadTime.allCases
     guard let index = options.firstIndex(of: selection) else { return }
 
     switch direction {

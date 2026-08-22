@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import UserNotifications
 
 struct NotificationSettingsView: View {
@@ -9,6 +8,7 @@ struct NotificationSettingsView: View {
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
 
     @Environment(\.openURL) private var openURL
+    @State private var isNotificationAuthorizationRequested = false
 
     init(
         accountModel: AccountModel,
@@ -26,7 +26,11 @@ struct NotificationSettingsView: View {
         List {
             Section {
                 Button {
+                    // Turning the master switch on is a request for notifications;
+                    // iOS still has to be asked, and only the first ask ever prompts.
+                    let willEnable = !accountModel.notificationPreferences.enabled
                     updatePreferences { $0.enabled.toggle() }
+                    if willEnable { isNotificationAuthorizationRequested = true }
                 } label: {
                     HStack(spacing: 12) {
                         SettingsRow(
@@ -53,14 +57,14 @@ struct NotificationSettingsView: View {
                 authorizationRow
 
                 if coordinator.authorizationStatus == .notDetermined {
-                    Button("Autoriser les notifications", systemImage: "bell.badge") {
-                        Task { await coordinator.requestAuthorization() }
+                    NotificationAuthorizationButton {
+                        await coordinator.restore()
+                        await journeyNotificationCoordinator.refreshAuthorizationStatus()
                     }
-                    .primaryAction()
                 } else if !coordinator.isAuthorized {
                     EmptyStateView(.notificationsDenied) {
                         Button("Ouvrir les réglages iOS", systemImage: "gearshape") {
-                            openSystemSettings()
+                            openURL.systemSettings()
                         }
                         .secondaryAction()
                     }
@@ -213,6 +217,10 @@ struct NotificationSettingsView: View {
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.large)
+        .notificationAuthorization(
+            isRequested: $isNotificationAuthorizationRequested,
+            message: "Autorisez les notifications dans Réglages iOS pour recevoir les alertes de Via."
+        )
         .task { await coordinator.restore() }
         .task(id: reconciliationKey) {
             await coordinator.reconcile(
@@ -351,8 +359,4 @@ struct NotificationSettingsView: View {
         return String(format: "%02d:%02d", hour, value)
     }
 
-    private func openSystemSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        openURL(url)
-    }
 }

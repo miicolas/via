@@ -1,6 +1,11 @@
 import { oc } from '@orpc/contract';
 
-import { journeyInputSchema, journeysResponseSchema } from './schema';
+import {
+  journeyDepartureChoicesInputSchema,
+  journeyDepartureChoicesResponseSchema,
+  journeyInputSchema,
+  journeysResponseSchema,
+} from './schema';
 
 export const journeysPlanRelation = oc
   .route({
@@ -14,3 +19,16 @@ export const journeysPlanRelation = oc
   })
   .input(journeyInputSchema)
   .output(journeysResponseSchema);
+
+export const journeyDepartureChoicesRelation = oc
+  .route({
+    method: 'POST',
+    path: '/journeys/departure-choices',
+    summary: 'Actualiser ou choisir un passage dans un trajet',
+    description:
+      'Retourne le passage retenu et le suivant pour chaque tronçon de transport. ' +
+      'Une sélection conserve les étapes en amont et recalcule tout l\'aval.',
+    tags: ['journeys'],
+  })
+  .input(journeyDepartureChoicesInputSchema)
+  .output(journeyDepartureChoicesResponseSchema);

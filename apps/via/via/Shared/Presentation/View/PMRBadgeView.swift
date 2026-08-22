@@ -47,12 +47,9 @@ extension AccessibilityCondition {
 
     var explanation: String {
         switch self {
-        case .autonomous:
-            "Le parcours se fait en fauteuil sans aide : ascenseurs et quais accessibles de bout en bout."
-        case .staffAssistance:
-            "Le parcours est accessible, mais un agent doit vous accompagner sur une partie du trajet."
-        case .reservationRequired:
-            "L’accompagnement existe mais doit être réservé à l’avance auprès du transporteur."
+        case .autonomous: "Praticable en fauteuil sans aide."
+        case .staffAssistance: "Un agent vous accompagne sur une partie du trajet."
+        case .reservationRequired: "Accompagnement à réserver auprès du transporteur."
         }
     }
 }

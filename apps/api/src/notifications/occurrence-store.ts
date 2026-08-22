@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   jobDb,
   notificationOccurrences,
+  timestamptz,
   type NotificationOccurrence,
 } from '@via/db';
 import type { NotificationCategory, NotificationDropReason } from '@via/contract';
@@ -115,7 +116,7 @@ export function createDatabaseNotificationOccurrenceStore(): NotificationOccurre
           SELECT candidate.id
           FROM notification_occurrences AS candidate
           WHERE candidate.state = 'sending'
-            AND candidate.lease_until < ${now}
+            AND candidate.lease_until < ${timestamptz(now)}
           ORDER BY candidate.lease_until, candidate.id
           LIMIT ${limit}
           FOR UPDATE SKIP LOCKED
@@ -144,7 +145,7 @@ export function createDatabaseNotificationOccurrenceStore(): NotificationOccurre
           SELECT candidate.id
           FROM notification_occurrences AS candidate
           WHERE candidate.state IN ('sent', 'dropped')
-            AND candidate.due_at < ${before}
+            AND candidate.due_at < ${timestamptz(before)}
           ORDER BY candidate.due_at, candidate.id
           LIMIT ${limit}
         )

@@ -11,9 +11,8 @@ struct InfoBadgeExplanationView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol, variableValue: variableValue)
+            InfoBadgeSymbol(symbol: symbol, variableValue: variableValue)
                 .font(.headline.weight(.bold))
-                .foregroundStyle(.white)
                 .frame(width: 36, height: 36)
                 .background(tint, in: shape)
                 .glassEffect(.regular, in: shape)
@@ -49,6 +48,6 @@ struct InfoBadgeExplanationView: View {
         variableValue: 0.9,
         tint: .red,
         title: "Affluence habituelle",
-        message: "Châtelet est à son heure la plus chargée. Profil habituel calculé sur les validations IDFM — ce n’est pas une mesure en temps réel."
+        message: "Châtelet : heure la plus chargée, quais denses.\n\nProfil habituel IDFM, pas du temps réel."
     )
 }

@@ -34,12 +34,32 @@ struct JourneyMapStop: Identifiable, Sendable, Hashable {
     let colorHex: String?
 }
 
+/// The recommended piece of station signage, projected separately from the
+/// alighting stop because its coordinate is the actual street-level exit.
+struct JourneyMapExit: Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+    let number: Int?
+    let coordinate: GeoCoordinate
+    let walkingMeters: Int?
+    let sectionIndex: Int
+
+    var accessibilityLabel: String {
+        JourneyFormatting.exitAccessibilityLabel(
+            name: name,
+            number: number,
+            walkingMeters: walkingMeters
+        )
+    }
+}
+
 /// Map-ready projection of a selected journey. The map never needs to learn
 /// how journey sections, fallback geometry, or route colors are encoded.
 struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
     let id: JourneyID
     let segments: [JourneyMapSegment]
     let stops: [JourneyMapStop]
+    let exits: [JourneyMapExit]
 
     init(journey: Journey) {
         id = journey.id
@@ -56,6 +76,18 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
             )
         }
         stops = Self.stops(of: journey)
+        exits = journey.sections.enumerated().compactMap { index, section in
+            section.exit.map { exit in
+                JourneyMapExit(
+                    id: exit.id,
+                    name: exit.name,
+                    number: exit.number,
+                    coordinate: exit.coordinate,
+                    walkingMeters: exit.walkingMeters,
+                    sectionIndex: index
+                )
+            }
+        }
     }
 
     // MARK: - Rendering
@@ -109,7 +141,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
     // MARK: - Framing
 
     var mapRect: MKMapRect? {
-        mapRect(for: segments.flatMap(\.coordinates))
+        mapRect(for: segments.flatMap(\.coordinates) + exits.map(\.coordinate))
     }
 
     func mapRect(for segmentID: String?) -> MKMapRect? {
@@ -117,7 +149,10 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
               let segment = segments.first(where: { $0.id == segmentID }) else {
             return mapRect
         }
-        return mapRect(for: segment.coordinates)
+        let sectionExits = exits
+            .filter { $0.sectionIndex == segment.sectionIndex }
+            .map(\.coordinate)
+        return mapRect(for: segment.coordinates + sectionExits)
     }
 
     /// What is left to travel, so guidance frames the road ahead instead of the
@@ -137,7 +172,10 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                 ).remaining
             } ?? []
 
-        let coordinates = current + ahead
+        let remainingExits = exits
+            .filter { $0.sectionIndex >= progress.sectionIndex }
+            .map(\.coordinate)
+        let coordinates = current + ahead + remainingExits
         return coordinates.count >= 2 ? mapRect(for: coordinates) : mapRect
     }
 
@@ -163,7 +201,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
         return nodes.compactMap { node in
             switch node.kind {
             case .origin(let name):
-                JourneyMapStop(
+                return JourneyMapStop(
                     id: node.id,
                     name: name,
                     coordinate: journey.sections.first?.from.coordinate ?? .init(latitude: 0, longitude: 0),
@@ -172,7 +210,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                     colorHex: nil
                 )
             case .destination(let name):
-                JourneyMapStop(
+                return JourneyMapStop(
                     id: node.id,
                     name: name,
                     coordinate: journey.sections.last?.to.coordinate ?? .init(latitude: 0, longitude: 0),
@@ -181,7 +219,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                     colorHex: nil
                 )
             case .board(let stop, let route, _, _, _):
-                JourneyMapStop(
+                return JourneyMapStop(
                     id: node.id,
                     name: stop.name,
                     coordinate: stop.coordinate,
@@ -189,8 +227,9 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                     sectionIndex: node.sectionIndex,
                     colorHex: route?.colorHex
                 )
-            case .alight(let stop, _):
-                JourneyMapStop(
+            case .alight(let stop, let exit):
+                guard exit == nil else { return nil }
+                return JourneyMapStop(
                     id: node.id,
                     name: stop.name,
                     coordinate: stop.coordinate,
@@ -199,7 +238,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                     colorHex: node.lineColorHex
                 )
             case .walk, .wait, .transfer, .ride:
-                nil
+                return nil
             }
         }
     }

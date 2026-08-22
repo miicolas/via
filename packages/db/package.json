@@ -10,7 +10,8 @@
     "./network-scope": "./src/network-scope.ts",
     "./drawn-geometry": "./src/drawn-geometry.ts",
     "./timetable": "./src/timetable.ts",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./sql-values": "./src/sql-values.ts"
   },
   "types": "./src/index.ts",
   "scripts": {

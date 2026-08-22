@@ -36,6 +36,17 @@ struct JourneyRouteMapContent: MapContent {
             }
             .annotationTitles(.hidden)
         }
+
+        ForEach(presentation.exits) { exit in
+            Annotation(
+                exit.name,
+                coordinate: exit.coordinate.clLocationCoordinate,
+                anchor: .bottom
+            ) {
+                JourneyExitAnnotationView(exit: exit, isDimmed: isTravelled(exit))
+            }
+            .annotationTitles(.hidden)
+        }
     }
 
     /// Only what is behind the traveller fades. Dimming everything but the
@@ -56,5 +67,10 @@ struct JourneyRouteMapContent: MapContent {
     private func isTravelled(_ stop: JourneyMapStop) -> Bool {
         guard let progress else { return false }
         return stop.sectionIndex < progress.sectionIndex
+    }
+
+    private func isTravelled(_ exit: JourneyMapExit) -> Bool {
+        guard let progress else { return false }
+        return exit.sectionIndex < progress.sectionIndex
     }
 }

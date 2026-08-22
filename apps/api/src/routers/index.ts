@@ -9,6 +9,7 @@ import { createIdfmJourneyPlanner } from './journeys/idfm/client';
 import { loadJourneyShapes } from './journeys/idfm/shape-loader';
 import { createJourneysRouter } from './journeys/router';
 import { createJourneyPlanner } from './journeys/service';
+import { createJourneyDepartureChoicesModule } from './journeys/departure-choices';
 import { linesRouter } from './lines/router';
 import { createNaturalJourneysRouter } from './natural-journeys/router';
 import { createOpenAiResponsesTransport } from './natural-journeys/openai-transport';
@@ -66,6 +67,11 @@ const naturalJourneyService = createNaturalJourneyService({
   },
 });
 
+const journeyDepartureChoices = createJourneyDepartureChoicesModule(
+  journeyPlanner,
+  { now: () => new Date() }
+);
+
 /**
  * The implemented contract. `implementer.router` is the assertion that every
  * procedure the contract declares actually exists here — adding a procedure to
@@ -79,7 +85,7 @@ export const apiRouter = implementer.router({
   account: accountRouter,
   departures: departuresRouter,
   health: healthRouter,
-  journeys: createJourneysRouter(journeyPlanner),
+  journeys: createJourneysRouter(journeyPlanner, journeyDepartureChoices),
   naturalJourneys: createNaturalJourneysRouter(naturalJourneyService),
   notifications: notificationsRouter,
   lines: linesRouter,

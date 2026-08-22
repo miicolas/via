@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 import UserNotifications
 
 struct JourneyNotificationsSettingsView: View {
@@ -43,17 +42,15 @@ struct JourneyNotificationsSettingsView: View {
                 .frame(minHeight: 44)
 
                 if coordinator.authorizationStatus == .notDetermined {
-                    Button("Autoriser les notifications", systemImage: "bell.badge") {
-                        Task { await coordinator.requestAuthorization() }
+                    NotificationAuthorizationButton {
+                        await coordinator.requestAuthorization()
                     }
-                    .primaryAction()
                 }
 
                 if coordinator.authorizationStatus == .denied ||
                     (coordinator.lastError != nil && !coordinator.isAuthorized) {
                     Button("Ouvrir les réglages iOS", systemImage: "gearshape") {
-                        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                        openURL(url)
+                        openURL.systemSettings()
                     }
                     .secondaryAction()
                 }
