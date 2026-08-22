@@ -64,11 +64,11 @@ final class NetworkViewModel {
       guard let self else { return }
       await self.loadSnapshot(for: viewport, revision: revision)
     }
+  }
 
-    func retry() {
-      guard let lastViewport else { return }
-      viewportChanged(to: lastViewport, phase: .ended)
-    }
+  func retry() {
+    guard let lastViewport else { return }
+    viewportChanged(to: lastViewport, phase: .ended)
   }
 
   private func loadSnapshot(for viewport: NetworkViewport, revision: Int) async {
