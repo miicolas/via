@@ -17,13 +17,19 @@ struct StationAnnotationView: View {
           .multilineTextAlignment(.center)
 
         if !item.routes.isEmpty {
-          HStack(spacing: 3) {
-            ForEach(visibleRoutes) { route in
-              LineBadgeView(route: route, size: 13, showsLabel: false)
+          HStack(spacing: 5) {
+            ForEach(item.modes, id: \.self) { mode in
+              TransitModeIconView(mode: mode, size: 13)
             }
 
-            if overflowCount > 0 {
-              LineBadgeOverflowView(count: overflowCount, size: 13)
+            HStack(spacing: 3) {
+              ForEach(visibleRoutes) { route in
+                LineBadgeView(route: route, size: 13, showsLabel: false)
+              }
+
+              if overflowCount > 0 {
+                LineBadgeOverflowView(count: overflowCount, size: 13)
+              }
             }
           }
         }
@@ -59,6 +65,8 @@ struct StationAnnotationView: View {
 
   private var accessibilityLabel: String {
     let count = item.routes.count
-    return "\(item.name), \(count) ligne\(count > 1 ? "s" : "")"
+    let modes = item.modes.map(\.displayName).joined(separator: ", ")
+    let lines = "\(count) ligne\(count > 1 ? "s" : "")"
+    return modes.isEmpty ? "\(item.name), \(lines)" : "\(item.name), \(modes), \(lines)"
   }
 }

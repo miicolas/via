@@ -14,7 +14,8 @@ enum JourneyFormatting {
         guard minutes >= 60 else { return "\(minutes) min" }
         let hours = minutes / 60
         let remaining = minutes % 60
-        return remaining == 0 ? "\(hours) h" : "\(hours) h \(remaining)"
+        guard remaining > 0 else { return "\(hours) h" }
+        return String(format: "%d h %02d", hours, remaining)
     }
 
     static func countdown(_ interval: TimeInterval) -> String {

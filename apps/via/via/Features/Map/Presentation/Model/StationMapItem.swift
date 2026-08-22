@@ -21,9 +21,7 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
         self.coordinate = coordinate
         self.routes = routes
         self.accessibility = accessibility
-        self.modes = TransitMode.allCases.filter { mode in
-            routes.contains { $0.mode == mode }
-        }
+        self.modes = routes.modes
     }
 }
 

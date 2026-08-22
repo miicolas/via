@@ -5,6 +5,8 @@ struct JourneyNotificationPreferences: Codable, Sendable, Hashable {
         case fiveMinutes = 5
         case tenMinutes = 10
         case fifteenMinutes = 15
+        case twentyMinutes = 20
+        case twentyFiveMinutes = 25
         case thirtyMinutes = 30
 
         var id: Int { rawValue }

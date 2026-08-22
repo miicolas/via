@@ -141,3 +141,11 @@ extension Error {
         self as? ViaError ?? (self is DecodingError ? .decoding : .transport)
     }
 }
+
+extension Collection<RouteBadge> {
+    /// The modes served, deduplicated and in `TransitMode` presentation order,
+    /// so every screen groups a station's lines the same way.
+    var modes: [TransitMode] {
+        TransitMode.allCases.filter { mode in contains { $0.mode == mode } }
+    }
+}

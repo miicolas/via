@@ -10,11 +10,7 @@ struct StationDetailHeaderView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      AnnotationFlowLayout(spacing: 6, maximumLineWidth: .infinity) {
-        ForEach(routes) { route in
-          LineBadgeView(route: route)
-        }
-      }
+      RouteBadgeModeListView(routes: routes)
 
       HStack(spacing: 8) {
         if let accessibility {
