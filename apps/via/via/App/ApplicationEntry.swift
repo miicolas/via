@@ -177,12 +177,14 @@ struct ApplicationEntry: App {
                 if authSessionViewModel.isSignedIn || isContinuingAsGuest {
                     OnboardingProfileView(
                         model: onboardingProfileModel,
+                        onBack: stepBackFromProfile,
                         onComplete: onboardingModel.completeSetup
                     )
                     .transition(.opacity)
                 } else {
                     OnboardingAccountView(
                         authSessionViewModel: authSessionViewModel,
+                        onBack: stepBackToPresentation,
                         onContinueAsGuest: { isContinuingAsGuest = true }
                     )
                     .transition(.opacity)
@@ -203,9 +205,43 @@ struct ApplicationEntry: App {
                     profileModel: profileModel,
                     pushNotificationManager: pushNotificationManager,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    onReplayOnboarding: replayOnboarding,
                 )
                 .transition(.opacity)
             }
+        }
+    }
+
+    /// The first question hands the traveller back to the screen they came
+    /// from: the account step for a guest, the presentation for someone who
+    /// arrived already signed in — signing out to see a login screen again is
+    /// not what a back tap means. Answers already given are kept either way.
+    private func stepBackFromProfile() {
+        guard !authSessionViewModel.isSignedIn, isContinuingAsGuest else {
+            stepBackToPresentation()
+            return
+        }
+
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+            isContinuingAsGuest = false
+        }
+    }
+
+    private func stepBackToPresentation() {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+            isContinuingAsGuest = false
+            onboardingModel.stepBackToPresentation()
+        }
+    }
+
+    /// Réglages hands the first run back: the carousel, the account step and
+    /// the profile questions replay in order. Nothing stored is thrown away —
+    /// the questions reopen on the answers already given, so leaving halfway
+    /// costs the traveller nothing.
+    private func replayOnboarding() {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+            isContinuingAsGuest = false
+            onboardingModel.reset()
         }
     }
 

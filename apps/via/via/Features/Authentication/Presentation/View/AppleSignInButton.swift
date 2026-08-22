@@ -3,6 +3,10 @@ import SwiftUI
 
 struct AppleSignInButton: View {
     let authSessionViewModel: AuthSessionViewModel
+    /// Apple's own button, in the colour its ground calls for: black on the
+    /// light sheet in Réglages, white on the first run's black stage — where a
+    /// black button would simply disappear.
+    var style: SignInWithAppleButton.Style = .black
 
     @State private var rawNonce: String?
     @State private var authorizerError: String?
@@ -26,7 +30,7 @@ struct AppleSignInButton: View {
                     onRequest: configureAppleRequest,
                     onCompletion: completeAppleRequest
                 )
-                .signInWithAppleButtonStyle(.black)
+                .signInWithAppleButtonStyle(style)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .clipShape(Capsule())

@@ -17,6 +17,7 @@ struct JourneyDetailView: View {
     @State private var isActivating = false
     @State private var isNotificationSettingsPresented = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
@@ -129,10 +130,20 @@ struct JourneyDetailView: View {
                 Button {
                     Task { await toggleReminder() }
                 } label: {
-                    Label(
-                        isReminderScheduled ? "Rappel programmé" : "Me rappeler",
-                        systemImage: isReminderScheduled ? "bell.fill" : "bell"
-                    )
+                    Label {
+                        Text(isReminderScheduled ? "Rappel programmé" : "Me rappeler")
+                    } icon: {
+                        Image(systemName: isReminderScheduled ? "bell.fill" : "bell")
+                            .contentTransition(
+                                reduceMotion
+                                    ? .identity
+                                    : .symbolEffect(
+                                        .replace.magic(fallback: .offUp.byLayer),
+                                        options: .nonRepeating
+                                    )
+                            )
+                            .animation(reduceMotion ? nil : .default, value: isReminderScheduled)
+                    }
                     .font(.headline)
                 }
                 .secondaryAction()

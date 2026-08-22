@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "bun --env-file=../../.env test",
+    "rebuild-line-schemas": "bun --env-file=../../.env src/line-schema/rebuild.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

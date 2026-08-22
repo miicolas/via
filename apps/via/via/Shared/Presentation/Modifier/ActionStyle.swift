@@ -42,20 +42,6 @@ extension View {
         }
     }
 
-    /// A sentence that happens to be tappable — the way an empty state points at
-    /// a control that lives somewhere else on screen. It stays grey body text,
-    /// the target's own symbol set inline in the sentence, because a capsule
-    /// here would compete with the real action below it.
-    func emptyStateHint() -> some View {
-        font(.body)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .buttonStyle(.plain)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-    }
-
     /// The action a state card wants the traveller to take. Full width and
     /// labelled: these screens are dead ends until something is tapped, so the
     /// way out must never be a bare glyph. Only the tint is local — the shape

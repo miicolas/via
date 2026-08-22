@@ -3,6 +3,11 @@ import SwiftUI
 struct StationAnnotationView: View {
     let item: StationMapItem
 
+    /// A station served by a dozen lines would otherwise stack badges into a
+    /// block taller than the label it belongs to: past this count the rest
+    /// collapses into a single `+n`, so every annotation stays one short row.
+    private static let maximumVisibleRoutes = 4
+
     var body: some View {
         VStack(spacing: 2) {
             VStack(alignment: .center, spacing: 4) {
@@ -22,13 +27,13 @@ struct StationAnnotationView: View {
                 }
 
                 if !item.routes.isEmpty {
-                    AnnotationFlowLayout(
-                        spacing: 4,
-                        maximumLineWidth: 200,
-                        alignment: .center
-                    ) {
-                        ForEach(item.routes) { route in
+                    HStack(spacing: 4) {
+                        ForEach(visibleRoutes) { route in
                             LineBadgeView(route: route, size: 14, showsLabel: false)
+                        }
+
+                        if overflowCount > 0 {
+                            LineBadgeOverflowView(count: overflowCount, size: 14)
                         }
                     }
                 }
@@ -44,6 +49,14 @@ struct StationAnnotationView: View {
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Affiche les lignes et les prochains passages")
         .accessibilityAddTraits(.isButton)
+    }
+
+    private var visibleRoutes: [RouteBadge] {
+        Array(item.routes.prefix(Self.maximumVisibleRoutes))
+    }
+
+    private var overflowCount: Int {
+        max(0, item.routes.count - Self.maximumVisibleRoutes)
     }
 
     private var accessibilityLabel: String {

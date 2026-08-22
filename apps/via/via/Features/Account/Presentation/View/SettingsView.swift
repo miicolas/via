@@ -9,8 +9,13 @@ struct SettingsView: View {
     let locationModel: LocationModel
     let pushNotificationManager: PushNotificationManager
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
+    /// Hands the whole first run back to the root: the carousel, the account
+    /// step and the three profile questions replay in order. Owned there
+    /// because that is where the flow is branched.
+    let onReplayOnboarding: @MainActor () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var isConfirmingOnboardingReplay = false
 
     init(
         accountModel: AccountModel,
@@ -20,7 +25,8 @@ struct SettingsView: View {
         profileModel: ProfileModel,
         locationModel: LocationModel,
         pushNotificationManager: PushNotificationManager = .preview,
-        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
+        onReplayOnboarding: @escaping @MainActor () -> Void = {}
     ) {
         self.accountModel = accountModel
         self.favoriteRoutesModel = favoriteRoutesModel
@@ -30,6 +36,7 @@ struct SettingsView: View {
         self.locationModel = locationModel
         self.pushNotificationManager = pushNotificationManager
         self.journeyNotificationCoordinator = journeyNotificationCoordinator
+        self.onReplayOnboarding = onReplayOnboarding
     }
 
     var body: some View {
@@ -141,6 +148,16 @@ struct SettingsView: View {
                 }
 
                 Section("PLUS") {
+                    Button {
+                        isConfirmingOnboardingReplay = true
+                    } label: {
+                        SettingsRow(
+                            title: "Revoir l’introduction",
+                            systemImage: "sparkles.rectangle.stack",
+                            subtitle: "Présentation, compte et questions"
+                        )
+                    }
+
                     NavigationLink {
                         AboutView()
                     } label: {
@@ -153,11 +170,24 @@ struct SettingsView: View {
             }
             .listStyle(.plain)
             .navigationTitle("Réglages")
-            .navigationBarTitleDisplayMode(.large)
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .close) { dismiss() }
                 }
+            }
+            .confirmationDialog(
+                "Revoir l’introduction ?",
+                isPresented: $isConfirmingOnboardingReplay,
+                titleVisibility: .visible
+            ) {
+                Button("Revoir") {
+                    dismiss()
+                    onReplayOnboarding()
+                }
+                Button("Annuler", role: .cancel) {}
+            } message: {
+                Text("Metyro repart du premier écran. Ton compte, tes favoris et tes réponses actuelles sont conservés.")
             }
         }
     }

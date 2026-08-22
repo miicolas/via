@@ -1,14 +1,17 @@
 import SwiftUI
 
-/// One station of the schema: rail halves above and below, the bead, the
-/// name, the interchange glyph and the disruption pictogram.
+/// One station of the plan: rail halves above and below, the bead, the name,
+/// the interchange glyph and the disruption pictogram.
 ///
 /// The rail is drawn the same way as the journey timeline's — a solid core in a
 /// soft halo, at the same widths — so a line read from the Lignes tab and a leg
 /// read from a trip look like the same object.
-struct LineSchemaStopRow: View {
-    let row: LineSchemaLayout.StopRow
+struct LinePlanStopRow: View {
+    let row: LinePlan.StopRow
     let lineColor: Color
+    /// A branch's stations sit one step in from the trunk's, so the fork reads
+    /// as a fork and not as the line carrying on.
+    var isIndented: Bool = false
 
     private let railWidth: CGFloat = 11
     private let haloWidth: CGFloat = 22
@@ -25,7 +28,7 @@ struct LineSchemaStopRow: View {
                 Circle()
                     .strokeBorder(
                         row.condition?.tint ?? lineColor,
-                        lineWidth: row.isSectionEnd || row.condition != nil ? 5 : 4
+                        lineWidth: row.isEnd || row.condition != nil ? 5 : 4
                     )
                     .background(Circle().fill(.background))
                     .frame(width: beadSize, height: beadSize)
@@ -41,30 +44,28 @@ struct LineSchemaStopRow: View {
             .frame(minHeight: 44)
 
             Text(row.stop.name)
-                .font(row.isSectionEnd ? .subheadline.weight(.bold) : .subheadline)
-                .foregroundStyle(row.condition != nil || row.isSectionEnd ? .primary : .secondary)
+                .font(row.isEnd ? .subheadline.weight(.bold) : .subheadline)
+                .foregroundStyle(row.condition != nil || row.isEnd ? .primary : .secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, row.condition == nil ? 0 : 8)
                 .padding(.vertical, row.condition == nil ? 0 : 4)
                 .background(row.condition?.tint.opacity(0.10) ?? .clear)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            if row.stop.isInterchange {
-                Image(systemName: "arrow.triangle.branch")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Correspondances")
-            }
-
-            if let condition = row.condition {
+            // No interchange glyph here on purpose: on a Paris metro line four
+            // stations in five are one, so the mark carried no information and
+            // every row wore it. Correspondances belong to the station screen,
+            // where they are named.
+            if row.isCutEdge, let condition = row.condition {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(condition.tint)
-                    .accessibilityLabel("Station concernée par une perturbation")
+                    .accessibilityLabel("Début ou fin de la perturbation")
             }
 
             Spacer(minLength: 0)
         }
+        .padding(.leading, isIndented ? 18 : 0)
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
@@ -72,9 +73,6 @@ struct LineSchemaStopRow: View {
 
     private var accessibilityLabel: String {
         var labels = [row.stop.name]
-        if row.stop.isInterchange {
-            labels.append("Correspondances")
-        }
         if let condition = row.condition {
             labels.append(condition.title)
         }
@@ -82,7 +80,7 @@ struct LineSchemaStopRow: View {
     }
 
     @ViewBuilder
-    private func rail(_ style: LineSchemaLayout.RailStyle) -> some View {
+    private func rail(_ style: LinePlan.RailStyle) -> some View {
         switch style {
         case .none:
             Color.clear

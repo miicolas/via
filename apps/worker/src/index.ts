@@ -32,7 +32,7 @@ import { eq, sql } from 'drizzle-orm';
 import { RedisClient as BunRedisClient } from 'bun';
 
 import { readCsv, readPositionalCsv, type CsvRow } from './csv';
-import { importLineSchemas } from './line-schema/import-line-schemas';
+import { importLineSchemasFromDatabase } from './line-schema/import-line-schemas';
 import { selectPatterns, type PatternCandidate } from './pattern-selection';
 import { formatCount, formatDuration, logStep, step } from './progress';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
@@ -408,21 +408,7 @@ async function deriveNetworkData() {
   await step('Computing drawn geometry', () => db.execute(computeDrawnGeometry()));
 
   logStep('Building line schemas');
-  const stops = await db
-    .select({
-      numericId: transitStops.numericId,
-      id: transitStops.id,
-      name: transitStops.name,
-    })
-    .from(transitStops);
-  const stopNameById = new Map(stops.map((stop) => [stop.id, stop.name]));
-  await db.transaction(async (tx) => {
-    await importLineSchemas({
-      tx,
-      stopIdByKey: new Map(stops.map((stop) => [stop.numericId, stop.id])),
-      stopNameById: (stopId) => stopNameById.get(stopId) ?? stopId,
-    });
-  });
+  await importLineSchemasFromDatabase();
 }
 
 /**

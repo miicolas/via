@@ -52,8 +52,10 @@ struct SearchResultsSection: View {
 
             case .empty:
                 EmptyStateView(.noResults()) {
-                    Text("Modifiez la recherche ci-dessus.")
-                        .emptyStateHint()
+                    EmptyStateHint(
+                        Text("Modifiez \(Image(systemName: "magnifyingglass.circle.fill")) Recherche ci-dessus pour trouver une station"),
+                        label: "Modifiez Recherche ci-dessus pour trouver une station",
+                    )
                 }
 
             case .failed:

@@ -77,8 +77,12 @@ struct NetworkMapState: Sendable, Equatable {
 }
 
 extension NetworkViewport {
-    private static let fullyVisibleStationSpanMeters = 1_700.0
-    private static let maximumStationSpanMeters = 2_100.0
+    /// Annotations are 200 pt wide and Paris stations sit ~500 m apart, so a
+    /// viewport wider than this packs labels closer than they can be read:
+    /// they stay out until the map is zoomed past it, then fade in over a band
+    /// wide enough that a pinch reads as a fade rather than a pop.
+    private static let fullyVisibleStationSpanMeters = 1_000.0
+    private static let maximumStationSpanMeters = 1_600.0
 
     var showsStations: Bool {
         maximumSpanMeters < Self.maximumStationSpanMeters

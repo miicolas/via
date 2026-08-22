@@ -127,7 +127,7 @@ struct SearchView: View {
     }
 
     private var hasActiveJourneySurface: Bool {
-        activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+        activeJourneyModel.hasSurface
     }
 
     @ToolbarContentBuilder
@@ -153,14 +153,18 @@ struct SearchView: View {
             HStack(spacing: 4) {
                 Text("Depuis ")
                     .foregroundStyle(.secondary)
+                    .fixedSize()
 
                 Text(viewModel.wrappedValue.selectedDeparture.title)
                     .foregroundStyle(.primary)
                     .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.primary)
+                    .fixedSize()
             }
         }
         .accessibilityLabel("Point de départ")

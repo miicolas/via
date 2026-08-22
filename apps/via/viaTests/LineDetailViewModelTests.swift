@@ -21,24 +21,26 @@ final class LineDetailViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func testFirstDirectionIsSelectedByDefaultAndTheChoiceSticks() async {
+    func testThePlanIsDrawnFromTheRichestDirection() async {
         let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
 
-        XCTAssertEqual(viewModel.selectedDirection?.id, "direction-0")
-
-        viewModel.selectedDirectionID = "direction-1"
+        // Direction 1 of the fixture is a stub; the plan takes the complete one.
+        XCTAssertEqual(viewModel.detail.value?.planDirection?.id, "direction-0")
+        XCTAssertEqual(viewModel.strips.filter { $0.role == .trunk }.count, 1)
         XCTAssertEqual(
-            viewModel.selectedDirection?.label,
-            "Saint-Germain-en-Laye / Cergy-le-Haut / Poissy"
+            viewModel.strips.compactMap(\.role.name),
+            [
+                "Saint-Germain-en-Laye",
+                "Cergy-le-Haut",
+                "Poissy",
+                "Marne-la-Vallée – Chessy",
+                "Boissy-St-Léger",
+            ]
         )
-
-        // A stale selection (direction gone after a refresh) falls back.
-        viewModel.selectedDirectionID = "direction-9"
-        XCTAssertEqual(viewModel.selectedDirection?.id, "direction-0")
     }
 
     @MainActor
-    func testLegacyBranchesBackTheSchemaWhileDirectionsAreEmpty() async {
+    func testLegacyBranchesBackThePlanWhileDirectionsAreEmpty() async {
         let legacy = LineDetail(
             route: PreviewLineStatusRepository.metro1,
             branches: [
@@ -60,50 +62,36 @@ final class LineDetailViewModelTests: XCTestCase {
         )
         let viewModel = await makeViewModel(detail: legacy)
 
-        XCTAssertEqual(viewModel.selectedDirection?.id, "branch-p-m1-0")
-        XCTAssertEqual(viewModel.selectedDirection?.label, "Château de Vincennes")
-        XCTAssertEqual(viewModel.schemaRows.map(\.id), ["a", "b"])
+        XCTAssertEqual(viewModel.detail.value?.planDirection?.id, "branch-p-m1-0")
+        XCTAssertEqual(viewModel.strips.flatMap { $0.stops.map(\.stop.id) }, ["a", "b"])
     }
 
     @MainActor
-    func testToggleRunExpandsAndFoldsBack() async {
-        let healthy = LineDetail(
-            route: PreviewLineStatusRepository.metro1,
-            branches: [],
-            directions: [
-                LineDirection(
-                    id: "direction-0",
-                    directionId: 0,
-                    label: "Terminus",
-                    sections: [
-                        LineSchemaSection(
-                            role: .trunk,
-                            label: nil,
-                            origins: ["a"],
-                            termini: ["e"],
-                            stops: ["a", "b", "c", "d", "e"].map {
-                                LineSchemaStop(id: $0, name: $0, isInterchange: false)
-                            }
-                        )
-                    ]
-                )
-            ],
-            source: .live,
-            fetchedAt: nil,
-            disruptions: []
-        )
-        let viewModel = await makeViewModel(detail: healthy)
+    func testTheTrunkIsAlwaysOpenAndABranchTogglesOnTap() async {
+        let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
 
-        let foldedIDs = viewModel.schemaRows.map(\.id)
-        guard let runID = foldedIDs.first(where: { $0.hasPrefix("run-") }) else {
-            return XCTFail("expected a folded run in the healthy schema")
-        }
+        guard let trunk = viewModel.strips.first(where: { $0.role == .trunk }),
+              let healthy = viewModel.strips.first(where: { $0.role.isBranch && $0.condition == nil })
+        else { return XCTFail("expected a trunk and a healthy branch") }
 
-        viewModel.toggleRun(runID)
-        XCTAssertFalse(viewModel.schemaRows.map(\.id).contains(runID))
-        XCTAssertGreaterThan(viewModel.schemaRows.count, foldedIDs.count)
+        XCTAssertTrue(viewModel.isOpen(trunk))
+        XCTAssertFalse(viewModel.isOpen(healthy))
 
-        viewModel.toggleRun(runID)
-        XCTAssertEqual(viewModel.schemaRows.map(\.id), foldedIDs)
+        viewModel.toggle(healthy)
+        XCTAssertTrue(viewModel.isOpen(healthy))
+
+        viewModel.toggle(healthy)
+        XCTAssertFalse(viewModel.isOpen(healthy))
+    }
+
+    @MainActor
+    func testADisruptedBranchOpensByItself() async {
+        let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
+
+        guard let cut = viewModel.strips.first(where: { $0.condition != nil && $0.role.isBranch })
+        else { return XCTFail("the fixture cuts the Marne-la-Vallée branch") }
+
+        XCTAssertEqual(cut.role.name, "Marne-la-Vallée – Chessy")
+        XCTAssertTrue(viewModel.isOpen(cut))
     }
 }

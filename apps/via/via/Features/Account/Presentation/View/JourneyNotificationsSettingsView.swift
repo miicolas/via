@@ -74,7 +74,7 @@ struct JourneyNotificationsSettingsView: View {
             }
         }
         .navigationTitle("Rappels de trajet")
-        .navigationBarTitleDisplayMode(.large)
+        .toolbarTitleDisplayMode(.inlineLarge)
         .task { await coordinator.restore() }
     }
 

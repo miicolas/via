@@ -67,13 +67,20 @@ struct JourneySummaryCard: View {
             if journey.accessibility != nil || journey.peak != nil {
                 HStack(spacing: 8) {
                     if let accessibility = journey.accessibility {
-                        PMRBadgeView(accessibilityLabel: accessibility.label, size: 24)
+                        PMRBadgeView(
+                            condition: accessibility.condition,
+                            label: accessibility.label,
+                            size: 24,
+                            isInteractive: false
+                        )
                     }
 
                     if let peak = journey.peak {
                         StationPeakBadge(
                             peak: peak,
-                            accessibilityLabel: "Affluence en correspondance"
+                            accessibilityLabel: "Affluence en correspondance",
+                            size: 24,
+                            isInteractive: false
                         )
                     }
                 }

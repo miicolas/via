@@ -27,30 +27,27 @@ struct StationDetailView: View {
                                 }
                             }
 
-                            if let accessibility = currentStation.accessibility {
-                                PMRBadgeView(
-                                    accessibilityLabel: "Accessibilité PMR, \(accessibilityVoiceOverValue(accessibility))",
-                                    size: 24,
-                                    tint: accessibilityTint(accessibility.condition)
-                                )
-                            }
+                            HStack(spacing: 8) {
+                                if let accessibility = currentStation.accessibility {
+                                    PMRBadgeView(
+                                        condition: accessibility.condition,
+                                        label: accessibility.label,
+                                        comment: accessibility.comment,
+                                        size: 24
+                                    )
+                                }
 
-                            if let peak = currentStation.peak {
-                                VStack(alignment: .leading, spacing: 5) {
+                                if let peak = currentStation.peak {
                                     StationPeakBadge(
                                         peak: StationPeak(
                                             ratio: peak.ratio,
                                             level: peak.level,
                                             label: peak.label,
                                             stationName: currentStation.name
-                                        )
+                                        ),
+                                        size: 24
                                     )
-
-                                    Text("Profil habituel — IDFM, T4 2025")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
                                 }
-                                .accessibilityElement(children: .combine)
                             }
 
                             if let distanceText = currentStation.distanceText {
@@ -163,21 +160,6 @@ struct StationDetailView: View {
             }
         }
         .detailSheetPresentation(isLargeScreen: isLargeScreen, selection: $detailDetent)
-    }
-
-    private func accessibilityTint(_ condition: StationAccessibility.Condition) -> Color {
-        switch condition {
-        case .autonomous: .green
-        case .staffAssistance: .blue
-        case .reservationRequired: .orange
-        }
-    }
-
-    private func accessibilityVoiceOverValue(_ accessibility: StationAccessibility) -> String {
-        if let comment = accessibility.comment, !comment.isEmpty {
-            return "\(accessibility.label). \(comment)"
-        }
-        return accessibility.label
     }
 }
 

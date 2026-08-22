@@ -7,6 +7,16 @@ import { accounts, db, schema, users } from '@via/db';
 import { env } from '../env';
 import { getAppleClientSecret } from './apple-client-secret';
 
+/**
+ * Non-deliverable stand-in address for an Apple account whose id token no
+ * longer carries an email. Deterministic on the Apple subject so a returning
+ * user maps back to the same `users` row; `.invalid` is reserved by RFC 2606
+ * and can never resolve. Apple subjects are dot-separated hex, but sanitize
+ * anyway so the local part stays a valid address.
+ */
+const appleSubjectEmail = (sub: string) =>
+  `apple-${sub.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}@metyro.invalid`;
+
 export const auth = betterAuth({
   appName: 'Metyro',
   baseURL: env.BETTER_AUTH_URL,
@@ -60,9 +70,9 @@ export const auth = betterAuth({
       mapProfileToUser: async (profile) => {
         if (profile.email && profile.name) return {};
 
-        // Apple can omit both values after the first consent. Better Auth still
-        // requires an email, so reuse only the profile already linked to this
-        // exact Apple subject instead of trusting client-provided fallback data.
+        // Apple only sends name and email on the very first consent. Every later
+        // id token carries just `sub`, so reuse the profile already linked to
+        // that exact subject instead of trusting client-provided fallback data.
         const existing = await db
           .select({ email: users.email, name: users.name })
           .from(accounts)
@@ -71,12 +81,17 @@ export const auth = betterAuth({
           .limit(1);
 
         const user = existing[0];
-        return user
-          ? {
-              email: profile.email || user.email,
-              name: profile.name || user.name,
-            }
-          : {};
+
+        // No linked row means the account was never created here (fresh
+        // database, deleted account) while Apple still considers the app
+        // authorised — it will never resend the email. `users.email` is NOT
+        // NULL, so synthesize a stable placeholder from `sub`; Better Auth
+        // reuses it to relink the same person on the next sign-in, and the
+        // reserved `.invalid` TLD guarantees nothing is ever deliverable.
+        return {
+          email: profile.email || user?.email || appleSubjectEmail(profile.sub),
+          name: profile.name || user?.name || '',
+        };
       },
     }),
   },
