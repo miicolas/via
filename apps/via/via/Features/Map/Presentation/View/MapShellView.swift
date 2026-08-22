@@ -329,6 +329,7 @@ struct MapShellView: View {
                 SearchView(
                     viewModel: searchViewModel,
                     activeJourneyModel: activeJourneyModel,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator,
                     onClose: closeSearch,
                     onInspectJourney: { journey in
                         journeySheetDetent = expandedDetent

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Content of the dedicated search tab. A destination result immediately
 /// becomes a journey request; the map remains visible behind the sheet.
@@ -6,28 +7,33 @@ import SwiftUI
 struct SearchView: View {
     let viewModel: SearchViewModel
     let activeJourneyModel: ActiveJourneyModel
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
     let onClose: () -> Void
     let onInspectJourney: (Journey) -> Void
     let onShowActiveJourney: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
     @Namespace private var inputTransitionNamespace
     @State private var isDeparturePickerPresented = false
     @State private var isNaturalDatePickerPresented = false
     @State private var isNaturalOptionsPresented = false
     @State private var isAccessibilityInfoPresented = false
     @State private var isClearRecentsConfirmationPresented = false
+    @State private var isReminderErrorPresented = false
 
     init(
         viewModel: SearchViewModel,
         activeJourneyModel: ActiveJourneyModel,
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
         onClose: @escaping () -> Void = {},
         onInspectJourney: @escaping (Journey) -> Void = { _ in },
         onShowActiveJourney: @escaping () -> Void = {},
     ) {
         self.viewModel = viewModel
         self.activeJourneyModel = activeJourneyModel
+        self.journeyNotificationCoordinator = journeyNotificationCoordinator
         self.onClose = onClose
         self.onInspectJourney = onInspectJourney
         self.onShowActiveJourney = onShowActiveJourney
@@ -111,6 +117,20 @@ struct SearchView: View {
             Button("Annuler", role: .cancel) {}
         } message: {
             Text("Cette action supprime les destinations enregistrées sur cet appareil.")
+        }
+        .alert("Rappel non modifié", isPresented: $isReminderErrorPresented) {
+            if journeyNotificationCoordinator.authorizationStatus == .denied {
+                Button("Ouvrir les réglages iOS") {
+                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                    openURL(url)
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(
+                journeyNotificationCoordinator.lastError ??
+                    "Votre rappel est mémorisé et sera réessayé plus tard."
+            )
         }
     }
 
@@ -255,16 +275,42 @@ struct SearchView: View {
                     )
                 }
 
-                if let destination = viewModel.wrappedValue.selectedDestination {
+                if viewModel.wrappedValue.selectedDestination != nil {
                     SearchJourneyResultsView(
                         step: viewModel.wrappedValue.step,
                         result: viewModel.wrappedValue.journeyResult,
-                        destinationName: destination.name,
-                        departureTitle: viewModel.wrappedValue.selectedDeparture.title,
                         selectedJourneyID: viewModel.wrappedValue.selectedJourneyID,
+                        scheduledReminderJourneyID: journeyNotificationCoordinator.scheduledJourneyID,
+                        reminderLeadTime: journeyNotificationCoordinator.preferences.departureLeadTime,
+                        isUpdatingReminder: journeyNotificationCoordinator.isUpdatingReminder,
                         onSelectJourney: { journey in
                             viewModel.wrappedValue.selectJourney(journey)
                             onInspectJourney(journey)
+                        },
+                        onScheduleReminder: { journey, leadTime in
+                            guard let destination = viewModel.wrappedValue.journeyDestination else { return }
+                            let source = viewModel.wrappedValue.journeyResult?.source
+                            Task {
+                                if journeyNotificationCoordinator.preferences.departureLeadTime != leadTime {
+                                    await journeyNotificationCoordinator.updateDepartureLeadTime(leadTime)
+                                    guard journeyNotificationCoordinator.preferences.departureLeadTime == leadTime else {
+                                        isReminderErrorPresented = true
+                                        return
+                                    }
+                                }
+                                await journeyNotificationCoordinator.scheduleReminder(
+                                    for: journey,
+                                    destination: destination,
+                                    source: source
+                                )
+                                isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
+                            }
+                        },
+                        onCancelReminder: {
+                            Task {
+                                await journeyNotificationCoordinator.cancelReminder()
+                                isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
+                            }
                         },
                         onRetry: viewModel.wrappedValue.retryJourney,
                         onEdit: viewModel.wrappedValue.editDestination,

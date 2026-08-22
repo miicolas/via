@@ -1,66 +1,64 @@
 import SwiftUI
 
 struct StationAnnotationView: View {
-    let item: StationMapItem
+  let item: StationMapItem
 
-    /// A station served by a dozen lines would otherwise stack badges into a
-    /// block taller than the label it belongs to: past this count the rest
-    /// collapses into a single `+n`, so every annotation stays one short row.
-    private static let maximumVisibleRoutes = 4
+  /// Route detail belongs to the station sheet. The map only keeps enough
+  /// colour to identify the annotation without turning dense areas into cards.
+  private static let maximumVisibleRoutes = 2
 
-    var body: some View {
-        VStack(spacing: 2) {
-            VStack(alignment: .center, spacing: 4) {
-                Text(item.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary.opacity(0.88))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity, alignment: .center)
+  var body: some View {
+    VStack(spacing: 3) {
+      VStack(alignment: .center, spacing: 5) {
+        Text(item.name)
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(.primary)
+          .lineLimit(1)
+          .multilineTextAlignment(.center)
 
-                if !item.modes.isEmpty {
-                    HStack(spacing: 4) {
-                        ForEach(item.modes, id: \.self) { mode in
-                            TransitModeIconView(mode: mode)
-                        }
-                    }
-                }
-
-                if !item.routes.isEmpty {
-                    HStack(spacing: 4) {
-                        ForEach(visibleRoutes) { route in
-                            LineBadgeView(route: route, size: 14, showsLabel: false)
-                        }
-
-                        if overflowCount > 0 {
-                            LineBadgeOverflowView(count: overflowCount, size: 14)
-                        }
-                    }
-                }
+        if !item.routes.isEmpty {
+          HStack(spacing: 3) {
+            ForEach(visibleRoutes) { route in
+              LineBadgeView(route: route, size: 13, showsLabel: false)
             }
-            .frame(width: 200, alignment: .center)
 
-            Circle()
-                .fill(.primary.opacity(0.55))
-                .frame(width: 3, height: 3)
+            if overflowCount > 0 {
+              LineBadgeOverflowView(count: overflowCount, size: 13)
+            }
+          }
         }
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint("Affiche les lignes et les prochains passages")
-        .accessibilityAddTraits(.isButton)
-    }
+      }
+      .padding(.horizontal, 8)
+      .padding(.vertical, 6)
+      .frame(maxWidth: 140)
+      .background(.regularMaterial, in: .rect(cornerRadius: 10))
+      .overlay {
+        RoundedRectangle(cornerRadius: 10)
+          .stroke(.primary.opacity(0.08), lineWidth: 0.5)
+      }
 
-    private var visibleRoutes: [RouteBadge] {
-        Array(item.routes.prefix(Self.maximumVisibleRoutes))
+      Circle()
+        .fill(.tint)
+        .frame(width: 6, height: 6)
+        .shadow(color: .black.opacity(0.15), radius: 1, y: 1)
     }
+    .fixedSize(horizontal: true, vertical: true)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(accessibilityLabel)
+    .accessibilityHint("Affiche les lignes et les prochains passages")
+    .accessibilityAddTraits(.isButton)
+  }
 
-    private var overflowCount: Int {
-        max(0, item.routes.count - Self.maximumVisibleRoutes)
-    }
+  private var visibleRoutes: [RouteBadge] {
+    Array(item.routes.prefix(Self.maximumVisibleRoutes))
+  }
 
-    private var accessibilityLabel: String {
-        let count = item.routes.count
-        return "\(item.name), \(count) ligne\(count > 1 ? "s" : "")"
-    }
+  private var overflowCount: Int {
+    max(0, item.routes.count - Self.maximumVisibleRoutes)
+  }
+
+  private var accessibilityLabel: String {
+    let count = item.routes.count
+    return "\(item.name), \(count) ligne\(count > 1 ? "s" : "")"
+  }
 }
