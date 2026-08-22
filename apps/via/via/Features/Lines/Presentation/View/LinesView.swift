@@ -4,11 +4,18 @@ struct LinesView: View {
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
 
     let viewModel: LinesViewModel
+    let accountModel: AccountModel?
+    @State private var navigationPath = NavigationPath()
+
+    init(viewModel: LinesViewModel, accountModel: AccountModel? = nil) {
+        self.viewModel = viewModel
+        self.accountModel = accountModel
+    }
 
     var body: some View {
         @Bindable var viewModel = viewModel
 
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             List {
                 if showsUnavailableBanner {
                     LinesUnavailableBanner()
@@ -44,8 +51,15 @@ struct LinesView: View {
             .navigationDestination(for: LineStatus.self) { status in
                 LineDetailView(
                     viewModel: viewModel.detailViewModel(for: status.route),
-                    route: status.route
+                    route: status.route,
+                    accountModel: accountModel
                 )
+            }
+            .onChange(of: viewModel.requestedRouteID) { _, _ in
+                openRequestedRoute()
+            }
+            .onChange(of: viewModel.board.value) { _, _ in
+                openRequestedRoute()
             }
             .overlay {
                 if case .loading(nil) = viewModel.board {
@@ -92,7 +106,16 @@ struct LinesView: View {
         }
         .task { await viewModel.runAutomaticRefresh() }
         .task(id: viewModel.searchText) { await viewModel.search(query: viewModel.searchText) }
+        .task { openRequestedRoute() }
         .opacity(tabVisibilityProgress)
+    }
+
+    private func openRequestedRoute() {
+        guard let routeID = viewModel.requestedRouteID,
+              let status = (viewModel.board.value?.lines ?? viewModel.remoteMatches)
+                .first(where: { $0.route.id == routeID }) else { return }
+        navigationPath.append(status)
+        viewModel.consumeRequestedRoute()
     }
 
     private var isSearching: Bool {

@@ -10,6 +10,11 @@ import {
   liveActivityPushToStartRegistrationSchema,
   liveActivityRegistrationSchema,
   liveActivityUnregistrationSchema,
+  notificationInboxQuerySchema,
+  notificationInboxPageSchema,
+  notificationMarkReadInputSchema,
+  notificationSnoozeInputSchema,
+  notificationMuteInputSchema,
 } from './schema';
 
 export const notificationsRegisterActiveJourneyRelation = oc
@@ -87,4 +92,48 @@ export const notificationsRegisterPushToStartRelation = oc
     tags: ['notifications'],
   })
   .input(liveActivityPushToStartRegistrationSchema)
+  .output(notificationRegistrationResponseSchema);
+
+export const notificationsInboxRelation = oc
+  .route({
+    method: 'GET',
+    path: '/notifications/inbox',
+    summary: 'Lire le centre de notifications',
+    description: 'Renvoie une page de notifications persistées et le compteur non lu.',
+    tags: ['notifications'],
+  })
+  .input(notificationInboxQuerySchema)
+  .output(notificationInboxPageSchema);
+
+export const notificationsMarkInboxReadRelation = oc
+  .route({
+    method: 'POST',
+    path: '/notifications/inbox/read',
+    summary: 'Marquer les notifications comme lues',
+    description: 'Marque comme lues les notifications antérieures à une date donnée.',
+    tags: ['notifications'],
+  })
+  .input(notificationMarkReadInputSchema)
+  .output(notificationRemovalResponseSchema);
+
+export const notificationsSnoozeRelation = oc
+  .route({
+    method: 'POST',
+    path: '/notifications/snooze',
+    summary: 'Reporter une notification',
+    description: 'Reporte une occurrence locale ou serveur jusqu’à la date fournie.',
+    tags: ['notifications'],
+  })
+  .input(notificationSnoozeInputSchema)
+  .output(notificationRegistrationResponseSchema);
+
+export const notificationsMuteRelation = oc
+  .route({
+    method: 'POST',
+    path: '/notifications/mute',
+    summary: 'Mettre une notification en sourdine',
+    description: 'Désactive une catégorie ou un sujet depuis une notification.',
+    tags: ['notifications'],
+  })
+  .input(notificationMuteInputSchema)
   .output(notificationRegistrationResponseSchema);

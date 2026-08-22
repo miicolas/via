@@ -2,6 +2,11 @@ import { importPKCS8, SignJWT } from "jose";
 
 import type { APNsEnvironment } from "@via/contract";
 
+import {
+  deviceNotificationPayload as buildDeviceNotificationPayload,
+  type DeviceNotification,
+} from "./payload";
+
 export type APNsPriority = 5 | 10;
 
 export type APNsPayload = Record<string, unknown>;
@@ -229,34 +234,10 @@ export function createAPNsProvider(
   };
 }
 
-export interface DeviceNotification {
-  title: string;
-  body: string;
-  subtitle?: string;
-  sound?: string;
-  badge?: number;
-  collapseId?: string;
-  expirationAt?: Date;
-  data?: Record<string, unknown>;
-}
-
 export function deviceNotificationPayload(
   notification: DeviceNotification,
 ): APNsPayload {
-  const alert = {
-    title: notification.title,
-    body: notification.body,
-    ...(notification.subtitle ? { subtitle: notification.subtitle } : {}),
-  };
-
-  return {
-    aps: {
-      alert,
-      sound: notification.sound ?? "default",
-      ...(notification.badge === undefined
-        ? {}
-        : { badge: notification.badge }),
-    },
-    ...(notification.data ?? {}),
-  };
+  return buildDeviceNotificationPayload(notification);
 }
+
+export type { DeviceNotification } from "./payload";

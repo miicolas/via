@@ -75,6 +75,34 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /notifications/active-journey/unregister`.
     /// - Remark: Generated from `#/paths//notifications/active-journey/unregister/post(notifications.unregisterActiveJourney)`.
     func notifications_period_unregisterActiveJourney(_ input: Operations.notifications_period_unregisterActiveJourney.Input) async throws -> Operations.notifications_period_unregisterActiveJourney.Output
+    /// Lire le centre de notifications
+    ///
+    /// Renvoie une page de notifications persistées et le compteur non lu.
+    ///
+    /// - Remark: HTTP `GET /notifications/inbox`.
+    /// - Remark: Generated from `#/paths//notifications/inbox/get(notifications.inbox)`.
+    func notifications_period_inbox(_ input: Operations.notifications_period_inbox.Input) async throws -> Operations.notifications_period_inbox.Output
+    /// Marquer les notifications comme lues
+    ///
+    /// Marque comme lues les notifications antérieures à une date donnée.
+    ///
+    /// - Remark: HTTP `POST /notifications/inbox/read`.
+    /// - Remark: Generated from `#/paths//notifications/inbox/read/post(notifications.markInboxRead)`.
+    func notifications_period_markInboxRead(_ input: Operations.notifications_period_markInboxRead.Input) async throws -> Operations.notifications_period_markInboxRead.Output
+    /// Reporter une notification
+    ///
+    /// Reporte une occurrence locale ou serveur jusqu’à la date fournie.
+    ///
+    /// - Remark: HTTP `POST /notifications/snooze`.
+    /// - Remark: Generated from `#/paths//notifications/snooze/post(notifications.snooze)`.
+    func notifications_period_snooze(_ input: Operations.notifications_period_snooze.Input) async throws -> Operations.notifications_period_snooze.Output
+    /// Mettre une notification en sourdine
+    ///
+    /// Désactive une catégorie ou un sujet depuis une notification.
+    ///
+    /// - Remark: HTTP `POST /notifications/mute`.
+    /// - Remark: Generated from `#/paths//notifications/mute/post(notifications.mute)`.
+    func notifications_period_mute(_ input: Operations.notifications_period_mute.Input) async throws -> Operations.notifications_period_mute.Output
     /// État des lignes ferrées
     ///
     /// Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.
@@ -246,6 +274,66 @@ extension APIProtocol {
         body: Operations.notifications_period_unregisterActiveJourney.Input.Body
     ) async throws -> Operations.notifications_period_unregisterActiveJourney.Output {
         try await notifications_period_unregisterActiveJourney(Operations.notifications_period_unregisterActiveJourney.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Lire le centre de notifications
+    ///
+    /// Renvoie une page de notifications persistées et le compteur non lu.
+    ///
+    /// - Remark: HTTP `GET /notifications/inbox`.
+    /// - Remark: Generated from `#/paths//notifications/inbox/get(notifications.inbox)`.
+    internal func notifications_period_inbox(
+        query: Operations.notifications_period_inbox.Input.Query = .init(),
+        headers: Operations.notifications_period_inbox.Input.Headers = .init()
+    ) async throws -> Operations.notifications_period_inbox.Output {
+        try await notifications_period_inbox(Operations.notifications_period_inbox.Input(
+            query: query,
+            headers: headers
+        ))
+    }
+    /// Marquer les notifications comme lues
+    ///
+    /// Marque comme lues les notifications antérieures à une date donnée.
+    ///
+    /// - Remark: HTTP `POST /notifications/inbox/read`.
+    /// - Remark: Generated from `#/paths//notifications/inbox/read/post(notifications.markInboxRead)`.
+    internal func notifications_period_markInboxRead(
+        headers: Operations.notifications_period_markInboxRead.Input.Headers = .init(),
+        body: Operations.notifications_period_markInboxRead.Input.Body
+    ) async throws -> Operations.notifications_period_markInboxRead.Output {
+        try await notifications_period_markInboxRead(Operations.notifications_period_markInboxRead.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Reporter une notification
+    ///
+    /// Reporte une occurrence locale ou serveur jusqu’à la date fournie.
+    ///
+    /// - Remark: HTTP `POST /notifications/snooze`.
+    /// - Remark: Generated from `#/paths//notifications/snooze/post(notifications.snooze)`.
+    internal func notifications_period_snooze(
+        headers: Operations.notifications_period_snooze.Input.Headers = .init(),
+        body: Operations.notifications_period_snooze.Input.Body
+    ) async throws -> Operations.notifications_period_snooze.Output {
+        try await notifications_period_snooze(Operations.notifications_period_snooze.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Mettre une notification en sourdine
+    ///
+    /// Désactive une catégorie ou un sujet depuis une notification.
+    ///
+    /// - Remark: HTTP `POST /notifications/mute`.
+    /// - Remark: Generated from `#/paths//notifications/mute/post(notifications.mute)`.
+    internal func notifications_period_mute(
+        headers: Operations.notifications_period_mute.Input.Headers = .init(),
+        body: Operations.notifications_period_mute.Input.Body
+    ) async throws -> Operations.notifications_period_mute.Output {
+        try await notifications_period_mute(Operations.notifications_period_mute.Input(
             headers: headers,
             body: body
         ))
@@ -571,6 +659,11 @@ internal enum Operations {
                             case preferences_period_set = "preferences.set"
                             case place_period_upsert = "place.upsert"
                             case place_period_remove = "place.remove"
+                            case notifications_period_preferences_period_set = "notifications.preferences.set"
+                            case notifications_period_schedule_period_upsert = "notifications.schedule.upsert"
+                            case notifications_period_schedule_period_remove = "notifications.schedule.remove"
+                            case notifications_period_alert_period_upsert = "notifications.alert.upsert"
+                            case notifications_period_alert_period_remove = "notifications.alert.remove"
                         }
                         /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/kind`.
                         internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.kindPayload
@@ -870,6 +963,480 @@ internal enum Operations {
                         internal var place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload?
                         /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/placeId`.
                         internal var placeId: Swift.String?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences`.
+                        internal struct notificationPreferencesPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/enabled`.
+                            internal var enabled: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/timeZone`.
+                            internal var timeZone: OpenAPIRuntime.OpenAPIValueContainer?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/quietHoursStartMinute`.
+                            internal var quietHoursStartMinute: Swift.Int?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/quietHoursEndMinute`.
+                            internal var quietHoursEndMinute: Swift.Int?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/mutedOnWeekends`.
+                            internal var mutedOnWeekends: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/mutedOnHolidays`.
+                            internal var mutedOnHolidays: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/minimumSeverity`.
+                            internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case attention = "attention"
+                                case disrupted = "disrupted"
+                                case suspended = "suspended"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/minimumSeverity`.
+                            internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.minimumSeverityPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/dailyCap`.
+                            internal var dailyCap: Swift.Int?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload`.
+                            internal struct categoriesPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/category`.
+                                internal enum categoryPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case journey = "journey"
+                                    case commute = "commute"
+                                    case line = "line"
+                                    case station = "station"
+                                    case digest = "digest"
+                                    case recommendation = "recommendation"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/category`.
+                                internal var category: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload.categoryPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/enabled`.
+                                internal var enabled: Swift.Bool
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/minimumSeverity`.
+                                internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case attention = "attention"
+                                    case disrupted = "disrupted"
+                                    case suspended = "suspended"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/minimumSeverity`.
+                                internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload.minimumSeverityPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/dailyCap`.
+                                internal var dailyCap: Swift.Int?
+                                /// Creates a new `categoriesPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - category:
+                                ///   - enabled:
+                                ///   - minimumSeverity:
+                                ///   - dailyCap:
+                                internal init(
+                                    category: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload.categoryPayload,
+                                    enabled: Swift.Bool,
+                                    minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload.minimumSeverityPayload,
+                                    dailyCap: Swift.Int? = nil
+                                ) {
+                                    self.category = category
+                                    self.enabled = enabled
+                                    self.minimumSeverity = minimumSeverity
+                                    self.dailyCap = dailyCap
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case category
+                                    case enabled
+                                    case minimumSeverity
+                                    case dailyCap
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categories`.
+                            internal typealias categoriesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categories`.
+                            internal var categories: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `notificationPreferencesPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - enabled:
+                            ///   - timeZone:
+                            ///   - quietHoursStartMinute:
+                            ///   - quietHoursEndMinute:
+                            ///   - mutedOnWeekends:
+                            ///   - mutedOnHolidays:
+                            ///   - minimumSeverity:
+                            ///   - dailyCap:
+                            ///   - categories:
+                            ///   - updatedAt:
+                            internal init(
+                                enabled: Swift.Bool,
+                                timeZone: OpenAPIRuntime.OpenAPIValueContainer? = nil,
+                                quietHoursStartMinute: Swift.Int? = nil,
+                                quietHoursEndMinute: Swift.Int? = nil,
+                                mutedOnWeekends: Swift.Bool,
+                                mutedOnHolidays: Swift.Bool,
+                                minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.minimumSeverityPayload,
+                                dailyCap: Swift.Int? = nil,
+                                categories: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayload,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.enabled = enabled
+                                self.timeZone = timeZone
+                                self.quietHoursStartMinute = quietHoursStartMinute
+                                self.quietHoursEndMinute = quietHoursEndMinute
+                                self.mutedOnWeekends = mutedOnWeekends
+                                self.mutedOnHolidays = mutedOnHolidays
+                                self.minimumSeverity = minimumSeverity
+                                self.dailyCap = dailyCap
+                                self.categories = categories
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case enabled
+                                case timeZone
+                                case quietHoursStartMinute
+                                case quietHoursEndMinute
+                                case mutedOnWeekends
+                                case mutedOnHolidays
+                                case minimumSeverity
+                                case dailyCap
+                                case categories
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences`.
+                        internal var notificationPreferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule`.
+                        internal struct schedulePayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case commute = "commute"
+                                case digest = "digest"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/kind`.
+                            internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.kindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/revision`.
+                            internal var revision: Swift.Int
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin`.
+                            internal struct originPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case station = "station"
+                                    case address = "address"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/kind`.
+                                internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.originPayload.kindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/context`.
+                                internal var context: Swift.String?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `originPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - kind:
+                                ///   - name:
+                                ///   - context:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    id: Swift.String,
+                                    kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.originPayload.kindPayload,
+                                    name: Swift.String,
+                                    context: Swift.String? = nil,
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.id = id
+                                    self.kind = kind
+                                    self.name = name
+                                    self.context = context
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case kind
+                                    case name
+                                    case context
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin`.
+                            internal var origin: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.originPayload?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination`.
+                            internal struct destinationPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case station = "station"
+                                    case address = "address"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/kind`.
+                                internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.destinationPayload.kindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/context`.
+                                internal var context: Swift.String?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `destinationPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - kind:
+                                ///   - name:
+                                ///   - context:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    id: Swift.String,
+                                    kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.destinationPayload.kindPayload,
+                                    name: Swift.String,
+                                    context: Swift.String? = nil,
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.id = id
+                                    self.kind = kind
+                                    self.name = name
+                                    self.context = context
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case kind
+                                    case name
+                                    case context
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination`.
+                            internal var destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.destinationPayload?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/routeIds`.
+                            internal var routeIds: [Swift.String]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/daysOfWeek`.
+                            internal var daysOfWeek: [Swift.Int]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/departureMinute`.
+                            internal var departureMinute: Swift.Int
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/leadMinutes`.
+                            internal var leadMinutes: Swift.Int
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/skipHolidays`.
+                            internal var skipHolidays: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/enabled`.
+                            internal var enabled: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/pausedUntil`.
+                            internal var pausedUntil: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/timeZone`.
+                            internal var timeZone: OpenAPIRuntime.OpenAPIValueContainer?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/deletedAt`.
+                            internal var deletedAt: Foundation.Date?
+                            /// Creates a new `schedulePayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - kind:
+                            ///   - label:
+                            ///   - revision:
+                            ///   - origin:
+                            ///   - destination:
+                            ///   - routeIds:
+                            ///   - daysOfWeek:
+                            ///   - departureMinute:
+                            ///   - leadMinutes:
+                            ///   - skipHolidays:
+                            ///   - enabled:
+                            ///   - pausedUntil:
+                            ///   - timeZone:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            ///   - deletedAt:
+                            internal init(
+                                id: Swift.String,
+                                kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.kindPayload,
+                                label: Swift.String,
+                                revision: Swift.Int,
+                                origin: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.originPayload? = nil,
+                                destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.destinationPayload? = nil,
+                                routeIds: [Swift.String],
+                                daysOfWeek: [Swift.Int],
+                                departureMinute: Swift.Int,
+                                leadMinutes: Swift.Int,
+                                skipHolidays: Swift.Bool,
+                                enabled: Swift.Bool,
+                                pausedUntil: Foundation.Date? = nil,
+                                timeZone: OpenAPIRuntime.OpenAPIValueContainer? = nil,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date,
+                                deletedAt: Foundation.Date? = nil
+                            ) {
+                                self.id = id
+                                self.kind = kind
+                                self.label = label
+                                self.revision = revision
+                                self.origin = origin
+                                self.destination = destination
+                                self.routeIds = routeIds
+                                self.daysOfWeek = daysOfWeek
+                                self.departureMinute = departureMinute
+                                self.leadMinutes = leadMinutes
+                                self.skipHolidays = skipHolidays
+                                self.enabled = enabled
+                                self.pausedUntil = pausedUntil
+                                self.timeZone = timeZone
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                                self.deletedAt = deletedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case kind
+                                case label
+                                case revision
+                                case origin
+                                case destination
+                                case routeIds
+                                case daysOfWeek
+                                case departureMinute
+                                case leadMinutes
+                                case skipHolidays
+                                case enabled
+                                case pausedUntil
+                                case timeZone
+                                case savedAt
+                                case updatedAt
+                                case deletedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule`.
+                        internal var schedule: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/scheduleId`.
+                        internal var scheduleId: Swift.String?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription`.
+                        internal struct alertSubscriptionPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/topicKind`.
+                            internal enum topicKindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case line = "line"
+                                case station = "station"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/topicKind`.
+                            internal var topicKind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.topicKindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/topicId`.
+                            internal var topicId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/daysOfWeek`.
+                            internal var daysOfWeek: [Swift.Int]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windowsPayload`.
+                            internal struct windowsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windowsPayload/startMinute`.
+                                internal var startMinute: Swift.Int
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windowsPayload/endMinute`.
+                                internal var endMinute: Swift.Int
+                                /// Creates a new `windowsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - startMinute:
+                                ///   - endMinute:
+                                internal init(
+                                    startMinute: Swift.Int,
+                                    endMinute: Swift.Int
+                                ) {
+                                    self.startMinute = startMinute
+                                    self.endMinute = endMinute
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case startMinute
+                                    case endMinute
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windows`.
+                            internal typealias windowsPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.windowsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windows`.
+                            internal var windows: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.windowsPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/minimumSeverity`.
+                            internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case attention = "attention"
+                                case disrupted = "disrupted"
+                                case suspended = "suspended"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/minimumSeverity`.
+                            internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.minimumSeverityPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/enabled`.
+                            internal var enabled: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/deletedAt`.
+                            internal var deletedAt: Foundation.Date?
+                            /// Creates a new `alertSubscriptionPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - topicKind:
+                            ///   - topicId:
+                            ///   - label:
+                            ///   - daysOfWeek:
+                            ///   - windows:
+                            ///   - minimumSeverity:
+                            ///   - enabled:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            ///   - deletedAt:
+                            internal init(
+                                id: Swift.String,
+                                topicKind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.topicKindPayload,
+                                topicId: Swift.String,
+                                label: Swift.String,
+                                daysOfWeek: [Swift.Int],
+                                windows: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.windowsPayload,
+                                minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.minimumSeverityPayload,
+                                enabled: Swift.Bool,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date,
+                                deletedAt: Foundation.Date? = nil
+                            ) {
+                                self.id = id
+                                self.topicKind = topicKind
+                                self.topicId = topicId
+                                self.label = label
+                                self.daysOfWeek = daysOfWeek
+                                self.windows = windows
+                                self.minimumSeverity = minimumSeverity
+                                self.enabled = enabled
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                                self.deletedAt = deletedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case topicKind
+                                case topicId
+                                case label
+                                case daysOfWeek
+                                case windows
+                                case minimumSeverity
+                                case enabled
+                                case savedAt
+                                case updatedAt
+                                case deletedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription`.
+                        internal var alertSubscription: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscriptionId`.
+                        internal var alertSubscriptionId: Swift.String?
                         /// Creates a new `operationsPayloadPayload`.
                         ///
                         /// - Parameters:
@@ -883,6 +1450,11 @@ internal enum Operations {
                         ///   - preferences:
                         ///   - place:
                         ///   - placeId:
+                        ///   - notificationPreferences:
+                        ///   - schedule:
+                        ///   - scheduleId:
+                        ///   - alertSubscription:
+                        ///   - alertSubscriptionId:
                         internal init(
                             operationId: Swift.String,
                             kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.kindPayload,
@@ -893,7 +1465,12 @@ internal enum Operations {
                             recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload? = nil,
                             preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload? = nil,
                             place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload? = nil,
-                            placeId: Swift.String? = nil
+                            placeId: Swift.String? = nil,
+                            notificationPreferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload? = nil,
+                            schedule: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload? = nil,
+                            scheduleId: Swift.String? = nil,
+                            alertSubscription: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload? = nil,
+                            alertSubscriptionId: Swift.String? = nil
                         ) {
                             self.operationId = operationId
                             self.kind = kind
@@ -905,6 +1482,11 @@ internal enum Operations {
                             self.preferences = preferences
                             self.place = place
                             self.placeId = placeId
+                            self.notificationPreferences = notificationPreferences
+                            self.schedule = schedule
+                            self.scheduleId = scheduleId
+                            self.alertSubscription = alertSubscription
+                            self.alertSubscriptionId = alertSubscriptionId
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case operationId
@@ -917,6 +1499,11 @@ internal enum Operations {
                             case preferences
                             case place
                             case placeId
+                            case notificationPreferences
+                            case schedule
+                            case scheduleId
+                            case alertSubscription
+                            case alertSubscriptionId
                         }
                     }
                     /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operations`.
@@ -1253,6 +1840,480 @@ internal enum Operations {
                         }
                         /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences`.
                         internal var preferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences`.
+                        internal struct notificationPreferencesPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/enabled`.
+                            internal var enabled: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/timeZone`.
+                            internal var timeZone: OpenAPIRuntime.OpenAPIValueContainer?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/quietHoursStartMinute`.
+                            internal var quietHoursStartMinute: Swift.Int?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/quietHoursEndMinute`.
+                            internal var quietHoursEndMinute: Swift.Int?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/mutedOnWeekends`.
+                            internal var mutedOnWeekends: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/mutedOnHolidays`.
+                            internal var mutedOnHolidays: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/minimumSeverity`.
+                            internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case attention = "attention"
+                                case disrupted = "disrupted"
+                                case suspended = "suspended"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/minimumSeverity`.
+                            internal var minimumSeverity: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.minimumSeverityPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/dailyCap`.
+                            internal var dailyCap: Swift.Int?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categoriesPayload`.
+                            internal struct categoriesPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categoriesPayload/category`.
+                                internal enum categoryPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case journey = "journey"
+                                    case commute = "commute"
+                                    case line = "line"
+                                    case station = "station"
+                                    case digest = "digest"
+                                    case recommendation = "recommendation"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categoriesPayload/category`.
+                                internal var category: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.categoriesPayloadPayload.categoryPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categoriesPayload/enabled`.
+                                internal var enabled: Swift.Bool
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categoriesPayload/minimumSeverity`.
+                                internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case attention = "attention"
+                                    case disrupted = "disrupted"
+                                    case suspended = "suspended"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categoriesPayload/minimumSeverity`.
+                                internal var minimumSeverity: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.categoriesPayloadPayload.minimumSeverityPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categoriesPayload/dailyCap`.
+                                internal var dailyCap: Swift.Int?
+                                /// Creates a new `categoriesPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - category:
+                                ///   - enabled:
+                                ///   - minimumSeverity:
+                                ///   - dailyCap:
+                                internal init(
+                                    category: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.categoriesPayloadPayload.categoryPayload,
+                                    enabled: Swift.Bool,
+                                    minimumSeverity: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.categoriesPayloadPayload.minimumSeverityPayload,
+                                    dailyCap: Swift.Int? = nil
+                                ) {
+                                    self.category = category
+                                    self.enabled = enabled
+                                    self.minimumSeverity = minimumSeverity
+                                    self.dailyCap = dailyCap
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case category
+                                    case enabled
+                                    case minimumSeverity
+                                    case dailyCap
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categories`.
+                            internal typealias categoriesPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.categoriesPayloadPayload]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/categories`.
+                            internal var categories: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.categoriesPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `notificationPreferencesPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - enabled:
+                            ///   - timeZone:
+                            ///   - quietHoursStartMinute:
+                            ///   - quietHoursEndMinute:
+                            ///   - mutedOnWeekends:
+                            ///   - mutedOnHolidays:
+                            ///   - minimumSeverity:
+                            ///   - dailyCap:
+                            ///   - categories:
+                            ///   - updatedAt:
+                            internal init(
+                                enabled: Swift.Bool,
+                                timeZone: OpenAPIRuntime.OpenAPIValueContainer? = nil,
+                                quietHoursStartMinute: Swift.Int? = nil,
+                                quietHoursEndMinute: Swift.Int? = nil,
+                                mutedOnWeekends: Swift.Bool,
+                                mutedOnHolidays: Swift.Bool,
+                                minimumSeverity: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.minimumSeverityPayload,
+                                dailyCap: Swift.Int? = nil,
+                                categories: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload.categoriesPayload,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.enabled = enabled
+                                self.timeZone = timeZone
+                                self.quietHoursStartMinute = quietHoursStartMinute
+                                self.quietHoursEndMinute = quietHoursEndMinute
+                                self.mutedOnWeekends = mutedOnWeekends
+                                self.mutedOnHolidays = mutedOnHolidays
+                                self.minimumSeverity = minimumSeverity
+                                self.dailyCap = dailyCap
+                                self.categories = categories
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case enabled
+                                case timeZone
+                                case quietHoursStartMinute
+                                case quietHoursEndMinute
+                                case mutedOnWeekends
+                                case mutedOnHolidays
+                                case minimumSeverity
+                                case dailyCap
+                                case categories
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationPreferences`.
+                        internal var notificationPreferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload`.
+                        internal struct notificationSchedulesPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case commute = "commute"
+                                case digest = "digest"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/kind`.
+                            internal var kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.kindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/revision`.
+                            internal var revision: Swift.Int
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin`.
+                            internal struct originPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case station = "station"
+                                    case address = "address"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin/kind`.
+                                internal var kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.originPayload.kindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin/context`.
+                                internal var context: Swift.String?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `originPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - kind:
+                                ///   - name:
+                                ///   - context:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    id: Swift.String,
+                                    kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.originPayload.kindPayload,
+                                    name: Swift.String,
+                                    context: Swift.String? = nil,
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.id = id
+                                    self.kind = kind
+                                    self.name = name
+                                    self.context = context
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case kind
+                                    case name
+                                    case context
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/origin`.
+                            internal var origin: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.originPayload?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination`.
+                            internal struct destinationPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case station = "station"
+                                    case address = "address"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination/kind`.
+                                internal var kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.destinationPayload.kindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination/context`.
+                                internal var context: Swift.String?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `destinationPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - kind:
+                                ///   - name:
+                                ///   - context:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    id: Swift.String,
+                                    kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.destinationPayload.kindPayload,
+                                    name: Swift.String,
+                                    context: Swift.String? = nil,
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.id = id
+                                    self.kind = kind
+                                    self.name = name
+                                    self.context = context
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case kind
+                                    case name
+                                    case context
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/destination`.
+                            internal var destination: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.destinationPayload?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/routeIds`.
+                            internal var routeIds: [Swift.String]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/daysOfWeek`.
+                            internal var daysOfWeek: [Swift.Int]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/departureMinute`.
+                            internal var departureMinute: Swift.Int
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/leadMinutes`.
+                            internal var leadMinutes: Swift.Int
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/skipHolidays`.
+                            internal var skipHolidays: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/enabled`.
+                            internal var enabled: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/pausedUntil`.
+                            internal var pausedUntil: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/timeZone`.
+                            internal var timeZone: OpenAPIRuntime.OpenAPIValueContainer?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedulesPayload/deletedAt`.
+                            internal var deletedAt: Foundation.Date?
+                            /// Creates a new `notificationSchedulesPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - kind:
+                            ///   - label:
+                            ///   - revision:
+                            ///   - origin:
+                            ///   - destination:
+                            ///   - routeIds:
+                            ///   - daysOfWeek:
+                            ///   - departureMinute:
+                            ///   - leadMinutes:
+                            ///   - skipHolidays:
+                            ///   - enabled:
+                            ///   - pausedUntil:
+                            ///   - timeZone:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            ///   - deletedAt:
+                            internal init(
+                                id: Swift.String,
+                                kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.kindPayload,
+                                label: Swift.String,
+                                revision: Swift.Int,
+                                origin: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.originPayload? = nil,
+                                destination: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload.destinationPayload? = nil,
+                                routeIds: [Swift.String],
+                                daysOfWeek: [Swift.Int],
+                                departureMinute: Swift.Int,
+                                leadMinutes: Swift.Int,
+                                skipHolidays: Swift.Bool,
+                                enabled: Swift.Bool,
+                                pausedUntil: Foundation.Date? = nil,
+                                timeZone: OpenAPIRuntime.OpenAPIValueContainer? = nil,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date,
+                                deletedAt: Foundation.Date? = nil
+                            ) {
+                                self.id = id
+                                self.kind = kind
+                                self.label = label
+                                self.revision = revision
+                                self.origin = origin
+                                self.destination = destination
+                                self.routeIds = routeIds
+                                self.daysOfWeek = daysOfWeek
+                                self.departureMinute = departureMinute
+                                self.leadMinutes = leadMinutes
+                                self.skipHolidays = skipHolidays
+                                self.enabled = enabled
+                                self.pausedUntil = pausedUntil
+                                self.timeZone = timeZone
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                                self.deletedAt = deletedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case kind
+                                case label
+                                case revision
+                                case origin
+                                case destination
+                                case routeIds
+                                case daysOfWeek
+                                case departureMinute
+                                case leadMinutes
+                                case skipHolidays
+                                case enabled
+                                case pausedUntil
+                                case timeZone
+                                case savedAt
+                                case updatedAt
+                                case deletedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedules`.
+                        internal typealias notificationSchedulesPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationSchedules`.
+                        internal var notificationSchedules: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload`.
+                        internal struct notificationAlertsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/topicKind`.
+                            internal enum topicKindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case line = "line"
+                                case station = "station"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/topicKind`.
+                            internal var topicKind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayloadPayload.topicKindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/topicId`.
+                            internal var topicId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/daysOfWeek`.
+                            internal var daysOfWeek: [Swift.Int]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/windowsPayload`.
+                            internal struct windowsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/windowsPayload/startMinute`.
+                                internal var startMinute: Swift.Int
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/windowsPayload/endMinute`.
+                                internal var endMinute: Swift.Int
+                                /// Creates a new `windowsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - startMinute:
+                                ///   - endMinute:
+                                internal init(
+                                    startMinute: Swift.Int,
+                                    endMinute: Swift.Int
+                                ) {
+                                    self.startMinute = startMinute
+                                    self.endMinute = endMinute
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case startMinute
+                                    case endMinute
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/windows`.
+                            internal typealias windowsPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayloadPayload.windowsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/windows`.
+                            internal var windows: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayloadPayload.windowsPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/minimumSeverity`.
+                            internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case attention = "attention"
+                                case disrupted = "disrupted"
+                                case suspended = "suspended"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/minimumSeverity`.
+                            internal var minimumSeverity: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayloadPayload.minimumSeverityPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/enabled`.
+                            internal var enabled: Swift.Bool
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlertsPayload/deletedAt`.
+                            internal var deletedAt: Foundation.Date?
+                            /// Creates a new `notificationAlertsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - topicKind:
+                            ///   - topicId:
+                            ///   - label:
+                            ///   - daysOfWeek:
+                            ///   - windows:
+                            ///   - minimumSeverity:
+                            ///   - enabled:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            ///   - deletedAt:
+                            internal init(
+                                id: Swift.String,
+                                topicKind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayloadPayload.topicKindPayload,
+                                topicId: Swift.String,
+                                label: Swift.String,
+                                daysOfWeek: [Swift.Int],
+                                windows: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayloadPayload.windowsPayload,
+                                minimumSeverity: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayloadPayload.minimumSeverityPayload,
+                                enabled: Swift.Bool,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date,
+                                deletedAt: Foundation.Date? = nil
+                            ) {
+                                self.id = id
+                                self.topicKind = topicKind
+                                self.topicId = topicId
+                                self.label = label
+                                self.daysOfWeek = daysOfWeek
+                                self.windows = windows
+                                self.minimumSeverity = minimumSeverity
+                                self.enabled = enabled
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                                self.deletedAt = deletedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case topicKind
+                                case topicId
+                                case label
+                                case daysOfWeek
+                                case windows
+                                case minimumSeverity
+                                case enabled
+                                case savedAt
+                                case updatedAt
+                                case deletedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlerts`.
+                        internal typealias notificationAlertsPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/notificationAlerts`.
+                        internal var notificationAlerts: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayload
                         /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/syncedAt`.
                         internal var syncedAt: Foundation.Date
                         /// Creates a new `jsonPayload`.
@@ -1263,6 +2324,9 @@ internal enum Operations {
                         ///   - recents:
                         ///   - places:
                         ///   - preferences:
+                        ///   - notificationPreferences:
+                        ///   - notificationSchedules:
+                        ///   - notificationAlerts:
                         ///   - syncedAt:
                         internal init(
                             appliedOperationIds: [Swift.String],
@@ -1270,6 +2334,9 @@ internal enum Operations {
                             recents: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayload,
                             places: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayload,
                             preferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload,
+                            notificationPreferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload,
+                            notificationSchedules: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayload,
+                            notificationAlerts: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationAlertsPayload,
                             syncedAt: Foundation.Date
                         ) {
                             self.appliedOperationIds = appliedOperationIds
@@ -1277,6 +2344,9 @@ internal enum Operations {
                             self.recents = recents
                             self.places = places
                             self.preferences = preferences
+                            self.notificationPreferences = notificationPreferences
+                            self.notificationSchedules = notificationSchedules
+                            self.notificationAlerts = notificationAlerts
                             self.syncedAt = syncedAt
                         }
                         internal enum CodingKeys: String, CodingKey {
@@ -1285,6 +2355,9 @@ internal enum Operations {
                             case recents
                             case places
                             case preferences
+                            case notificationPreferences
+                            case notificationSchedules
+                            case notificationAlerts
                             case syncedAt
                         }
                     }
@@ -3559,6 +4632,775 @@ internal enum Operations {
             /// - Throws: An error if `self` is not `.ok`.
             /// - SeeAlso: `.ok`.
             internal var ok: Operations.notifications_period_unregisterActiveJourney.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Lire le centre de notifications
+    ///
+    /// Renvoie une page de notifications persistées et le compteur non lu.
+    ///
+    /// - Remark: HTTP `GET /notifications/inbox`.
+    /// - Remark: Generated from `#/paths//notifications/inbox/get(notifications.inbox)`.
+    internal enum notifications_period_inbox {
+        internal static let id: Swift.String = "notifications.inbox"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/inbox/GET/query`.
+            internal struct Query: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/inbox/GET/query/cursor`.
+                internal var cursor: Swift.String?
+                /// - Remark: Generated from `#/paths/notifications/inbox/GET/query/limit`.
+                internal var limit: Swift.Int?
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - cursor:
+                ///   - limit:
+                internal init(
+                    cursor: Swift.String? = nil,
+                    limit: Swift.Int? = nil
+                ) {
+                    self.cursor = cursor
+                    self.limit = limit
+                }
+            }
+            internal var query: Operations.notifications_period_inbox.Input.Query
+            /// - Remark: Generated from `#/paths/notifications/inbox/GET/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_inbox.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_inbox.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_inbox.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            internal init(
+                query: Operations.notifications_period_inbox.Input.Query = .init(),
+                headers: Operations.notifications_period_inbox.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload`.
+                        internal struct itemsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/occurrenceId`.
+                            internal var occurrenceId: Swift.String?
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/category`.
+                            internal enum categoryPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case journey = "journey"
+                                case commute = "commute"
+                                case line = "line"
+                                case station = "station"
+                                case digest = "digest"
+                                case recommendation = "recommendation"
+                            }
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/category`.
+                            internal var category: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload.categoryPayload
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/title`.
+                            internal var title: Swift.String
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/body`.
+                            internal var body: Swift.String
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/deepLink`.
+                            internal var deepLink: Swift.String?
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/topicKind`.
+                            internal enum topicKindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case line = "line"
+                                case station = "station"
+                            }
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/topicKind`.
+                            internal var topicKind: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload.topicKindPayload?
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/topicId`.
+                            internal var topicId: Swift.String?
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/severity`.
+                            internal enum severityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case attention = "attention"
+                                case disrupted = "disrupted"
+                                case suspended = "suspended"
+                            }
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/severity`.
+                            internal var severity: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload.severityPayload?
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/dropReason`.
+                            internal enum dropReasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case disabled = "disabled"
+                                case quiet_hyphen_hours = "quiet-hours"
+                                case cap = "cap"
+                                case category_hyphen_off = "category-off"
+                                case severity = "severity"
+                                case stale = "stale"
+                                case no_hyphen_signal = "no-signal"
+                                case empty = "empty"
+                                case muted = "muted"
+                            }
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/dropReason`.
+                            internal var dropReason: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload.dropReasonPayload?
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/createdAt`.
+                            internal var createdAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/itemsPayload/readAt`.
+                            internal var readAt: Foundation.Date?
+                            /// Creates a new `itemsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - occurrenceId:
+                            ///   - category:
+                            ///   - title:
+                            ///   - body:
+                            ///   - deepLink:
+                            ///   - topicKind:
+                            ///   - topicId:
+                            ///   - severity:
+                            ///   - dropReason:
+                            ///   - createdAt:
+                            ///   - readAt:
+                            internal init(
+                                id: Swift.String,
+                                occurrenceId: Swift.String? = nil,
+                                category: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload.categoryPayload,
+                                title: Swift.String,
+                                body: Swift.String,
+                                deepLink: Swift.String? = nil,
+                                topicKind: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload.topicKindPayload? = nil,
+                                topicId: Swift.String? = nil,
+                                severity: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload.severityPayload? = nil,
+                                dropReason: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload.dropReasonPayload? = nil,
+                                createdAt: Foundation.Date,
+                                readAt: Foundation.Date? = nil
+                            ) {
+                                self.id = id
+                                self.occurrenceId = occurrenceId
+                                self.category = category
+                                self.title = title
+                                self.body = body
+                                self.deepLink = deepLink
+                                self.topicKind = topicKind
+                                self.topicId = topicId
+                                self.severity = severity
+                                self.dropReason = dropReason
+                                self.createdAt = createdAt
+                                self.readAt = readAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case occurrenceId
+                                case category
+                                case title
+                                case body
+                                case deepLink
+                                case topicKind
+                                case topicId
+                                case severity
+                                case dropReason
+                                case createdAt
+                                case readAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/items`.
+                        internal typealias itemsPayload = [Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/items`.
+                        internal var items: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayload
+                        /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/nextCursor`.
+                        internal var nextCursor: Swift.String?
+                        /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/json/unreadCount`.
+                        internal var unreadCount: Swift.Int
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - items:
+                        ///   - nextCursor:
+                        ///   - unreadCount:
+                        internal init(
+                            items: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.itemsPayload,
+                            nextCursor: Swift.String? = nil,
+                            unreadCount: Swift.Int
+                        ) {
+                            self.items = items
+                            self.nextCursor = nextCursor
+                            self.unreadCount = unreadCount
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case items
+                            case nextCursor
+                            case unreadCount
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/inbox/GET/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_inbox.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_inbox.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/inbox/get(notifications.inbox)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_inbox.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_inbox.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Marquer les notifications comme lues
+    ///
+    /// Marque comme lues les notifications antérieures à une date donnée.
+    ///
+    /// - Remark: HTTP `POST /notifications/inbox/read`.
+    /// - Remark: Generated from `#/paths//notifications/inbox/read/post(notifications.markInboxRead)`.
+    internal enum notifications_period_markInboxRead {
+        internal static let id: Swift.String = "notifications.markInboxRead"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_markInboxRead.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_markInboxRead.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_markInboxRead.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/requestBody/json/readBefore`.
+                    internal var readBefore: Foundation.Date
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - readBefore:
+                    internal init(readBefore: Foundation.Date) {
+                        self.readBefore = readBefore
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case readBefore
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_markInboxRead.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_markInboxRead.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_markInboxRead.Input.Headers = .init(),
+                body: Operations.notifications_period_markInboxRead.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/responses/200/content/json/removed`.
+                        internal var removed: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - removed:
+                        internal init(removed: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.removed = removed
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case removed
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/inbox/read/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_markInboxRead.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_markInboxRead.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_markInboxRead.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_markInboxRead.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/inbox/read/post(notifications.markInboxRead)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_markInboxRead.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_markInboxRead.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Reporter une notification
+    ///
+    /// Reporte une occurrence locale ou serveur jusqu’à la date fournie.
+    ///
+    /// - Remark: HTTP `POST /notifications/snooze`.
+    /// - Remark: Generated from `#/paths//notifications/snooze/post(notifications.snooze)`.
+    internal enum notifications_period_snooze {
+        internal static let id: Swift.String = "notifications.snooze"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/snooze/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_snooze.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_snooze.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_snooze.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/snooze/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/snooze/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/snooze/POST/requestBody/json/occurrenceId`.
+                    internal var occurrenceId: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/snooze/POST/requestBody/json/until`.
+                    internal var until: Foundation.Date
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - occurrenceId:
+                    ///   - until:
+                    internal init(
+                        occurrenceId: Swift.String,
+                        until: Foundation.Date
+                    ) {
+                        self.occurrenceId = occurrenceId
+                        self.until = until
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case occurrenceId
+                        case until
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/snooze/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_snooze.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_snooze.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_snooze.Input.Headers = .init(),
+                body: Operations.notifications_period_snooze.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/snooze/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/snooze/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/snooze/POST/responses/200/content/json/registered`.
+                        internal var registered: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - registered:
+                        internal init(registered: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.registered = registered
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case registered
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/snooze/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_snooze.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_snooze.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_snooze.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_snooze.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/snooze/post(notifications.snooze)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_snooze.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_snooze.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Mettre une notification en sourdine
+    ///
+    /// Désactive une catégorie ou un sujet depuis une notification.
+    ///
+    /// - Remark: HTTP `POST /notifications/mute`.
+    /// - Remark: Generated from `#/paths//notifications/mute/post(notifications.mute)`.
+    internal enum notifications_period_mute {
+        internal static let id: Swift.String = "notifications.mute"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/notifications/mute/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_mute.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.notifications_period_mute.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.notifications_period_mute.Input.Headers
+            /// - Remark: Generated from `#/paths/notifications/mute/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/mute/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/notifications/mute/POST/requestBody/json/scope`.
+                    internal enum scopePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case category = "category"
+                        case topic = "topic"
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/mute/POST/requestBody/json/scope`.
+                    internal var scope: Operations.notifications_period_mute.Input.Body.jsonPayload.scopePayload
+                    /// - Remark: Generated from `#/paths/notifications/mute/POST/requestBody/json/key`.
+                    internal var key: Swift.String
+                    /// - Remark: Generated from `#/paths/notifications/mute/POST/requestBody/json/mutedUntil`.
+                    internal var mutedUntil: Foundation.Date?
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - scope:
+                    ///   - key:
+                    ///   - mutedUntil:
+                    internal init(
+                        scope: Operations.notifications_period_mute.Input.Body.jsonPayload.scopePayload,
+                        key: Swift.String,
+                        mutedUntil: Foundation.Date? = nil
+                    ) {
+                        self.scope = scope
+                        self.key = key
+                        self.mutedUntil = mutedUntil
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case scope
+                        case key
+                        case mutedUntil
+                    }
+                }
+                /// - Remark: Generated from `#/paths/notifications/mute/POST/requestBody/content/application\/json`.
+                case json(Operations.notifications_period_mute.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.notifications_period_mute.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.notifications_period_mute.Input.Headers = .init(),
+                body: Operations.notifications_period_mute.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/notifications/mute/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/notifications/mute/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/notifications/mute/POST/responses/200/content/json/registered`.
+                        internal var registered: OpenAPIRuntime.OpenAPIValueContainer
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - registered:
+                        internal init(registered: OpenAPIRuntime.OpenAPIValueContainer) {
+                            self.registered = registered
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case registered
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/notifications/mute/POST/responses/200/content/application\/json`.
+                    case json(Operations.notifications_period_mute.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.notifications_period_mute.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.notifications_period_mute.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.notifications_period_mute.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//notifications/mute/post(notifications.mute)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.notifications_period_mute.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.notifications_period_mute.Output.Ok {
                 get throws {
                     switch self {
                     case let .ok(response):

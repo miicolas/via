@@ -7,15 +7,28 @@ import {
   accountSyncOperations,
   db,
   NETWORK_MODES,
+  notificationAlertSubscriptions,
+  notificationPreferences,
+  notificationSchedules,
   users,
   type NetworkMode,
 } from '@via/db';
 import {
   ACCOUNT_FAVORITE_LIMIT,
+  NOTIFICATION_ALERT_LIMIT,
+  NOTIFICATION_SCHEDULE_LIMIT,
   ACCOUNT_RECENT_LIMIT,
   type AccountSyncInput,
   type AccountSyncResponse,
 } from '@via/contract';
+import {
+  defaultNotificationPreferences,
+  mergeNotificationPreferences,
+} from '../../notifications/preferences';
+
+const ACCOUNT_SYNC_OPERATION_LIMIT = 10_000;
+const ACCOUNT_SYNC_OPERATION_RETENTION_DAYS = 90;
+const ACCOUNT_SYNC_OPERATION_PURGE_BATCH = 1_000;
 
 export async function synchronizeAccount(
   userId: string,
@@ -211,6 +224,176 @@ export async function synchronizeAccount(
             );
           break;
         }
+
+        case 'notifications.preferences.set': {
+          if (!operation.notificationPreferences) break;
+          const preferences = operation.notificationPreferences;
+          await transaction
+            .insert(notificationPreferences)
+            .values({
+              userId,
+              enabled: preferences.enabled,
+              timeZone: 'Europe/Paris',
+              quietHoursStartMinute: preferences.quietHoursStartMinute ?? null,
+              quietHoursEndMinute: preferences.quietHoursEndMinute ?? null,
+              mutedOnWeekends: preferences.mutedOnWeekends,
+              mutedOnHolidays: preferences.mutedOnHolidays,
+              minimumSeverity: preferences.minimumSeverity,
+              dailyCap: preferences.dailyCap ?? 20,
+              categories: preferences.categories,
+              updatedAt: new Date(preferences.updatedAt),
+            })
+            .onConflictDoUpdate({
+              target: notificationPreferences.userId,
+              set: {
+                enabled: preferences.enabled,
+                timeZone: 'Europe/Paris',
+                quietHoursStartMinute: preferences.quietHoursStartMinute ?? null,
+                quietHoursEndMinute: preferences.quietHoursEndMinute ?? null,
+                mutedOnWeekends: preferences.mutedOnWeekends,
+                mutedOnHolidays: preferences.mutedOnHolidays,
+                minimumSeverity: preferences.minimumSeverity,
+                dailyCap: preferences.dailyCap ?? 20,
+                categories: preferences.categories,
+                updatedAt: new Date(preferences.updatedAt),
+              },
+              setWhere: lte(notificationPreferences.updatedAt, new Date(preferences.updatedAt)),
+            });
+          break;
+        }
+
+        case 'notifications.schedule.upsert': {
+          if (!operation.schedule) break;
+          const schedule = operation.schedule;
+          await transaction
+            .insert(notificationSchedules)
+            .values({
+              id: schedule.id,
+              userId,
+              kind: schedule.kind,
+              label: schedule.label,
+              revision: schedule.revision,
+              origin: schedule.origin ?? null,
+              destination: schedule.destination ?? null,
+              routeIds: schedule.routeIds,
+              daysOfWeek: schedule.daysOfWeek,
+              departureMinute: schedule.departureMinute,
+              leadMinutes: schedule.leadMinutes,
+              skipHolidays: schedule.skipHolidays,
+              enabled: schedule.enabled,
+              pausedUntil: schedule.pausedUntil ? new Date(schedule.pausedUntil) : null,
+              timeZone: 'Europe/Paris',
+              savedAt: new Date(schedule.savedAt),
+              updatedAt: new Date(schedule.updatedAt),
+              deletedAt: schedule.deletedAt ? new Date(schedule.deletedAt) : null,
+            })
+            .onConflictDoUpdate({
+              target: notificationSchedules.id,
+              set: {
+                kind: schedule.kind,
+                label: schedule.label,
+                revision: sql`${notificationSchedules.revision} + 1`,
+                origin: schedule.origin ?? null,
+                destination: schedule.destination ?? null,
+                routeIds: schedule.routeIds,
+                daysOfWeek: schedule.daysOfWeek,
+                departureMinute: schedule.departureMinute,
+                leadMinutes: schedule.leadMinutes,
+                skipHolidays: schedule.skipHolidays,
+                enabled: schedule.enabled,
+                pausedUntil: schedule.pausedUntil ? new Date(schedule.pausedUntil) : null,
+                timeZone: 'Europe/Paris',
+                savedAt: new Date(schedule.savedAt),
+                updatedAt: new Date(schedule.updatedAt),
+                deletedAt: schedule.deletedAt ? new Date(schedule.deletedAt) : null,
+              },
+              setWhere: and(
+                eq(notificationSchedules.userId, userId),
+                lte(notificationSchedules.updatedAt, new Date(schedule.updatedAt)),
+              ),
+            });
+          break;
+        }
+
+        case 'notifications.schedule.remove':
+          if (operation.scheduleId) {
+            await transaction
+              .update(notificationSchedules)
+              .set({
+                enabled: false,
+                deletedAt: new Date(operation.occurredAt),
+                updatedAt: new Date(operation.occurredAt),
+                revision: sql`${notificationSchedules.revision} + 1`,
+              })
+              .where(
+                and(
+                  eq(notificationSchedules.userId, userId),
+                  eq(notificationSchedules.id, operation.scheduleId),
+                  lte(notificationSchedules.updatedAt, new Date(operation.occurredAt)),
+                ),
+              );
+          }
+          break;
+
+        case 'notifications.alert.upsert': {
+          if (!operation.alertSubscription) break;
+          const alert = operation.alertSubscription;
+          await transaction
+            .insert(notificationAlertSubscriptions)
+            .values({
+              id: alert.id,
+              userId,
+              topicKind: alert.topicKind,
+              topicId: alert.topicId,
+              label: alert.label,
+              daysOfWeek: alert.daysOfWeek,
+              windows: alert.windows,
+              minimumSeverity: alert.minimumSeverity,
+              enabled: alert.enabled,
+              savedAt: new Date(alert.savedAt),
+              updatedAt: new Date(alert.updatedAt),
+              deletedAt: alert.deletedAt ? new Date(alert.deletedAt) : null,
+            })
+            .onConflictDoUpdate({
+              target: notificationAlertSubscriptions.id,
+              set: {
+                topicKind: alert.topicKind,
+                topicId: alert.topicId,
+                label: alert.label,
+                daysOfWeek: alert.daysOfWeek,
+                windows: alert.windows,
+                minimumSeverity: alert.minimumSeverity,
+                enabled: alert.enabled,
+                savedAt: new Date(alert.savedAt),
+                updatedAt: new Date(alert.updatedAt),
+                deletedAt: alert.deletedAt ? new Date(alert.deletedAt) : null,
+              },
+              setWhere: and(
+                eq(notificationAlertSubscriptions.userId, userId),
+                lte(notificationAlertSubscriptions.updatedAt, new Date(alert.updatedAt)),
+              ),
+            });
+          break;
+        }
+
+        case 'notifications.alert.remove':
+          if (operation.alertSubscriptionId) {
+            await transaction
+              .update(notificationAlertSubscriptions)
+              .set({
+                enabled: false,
+                deletedAt: new Date(operation.occurredAt),
+                updatedAt: new Date(operation.occurredAt),
+              })
+              .where(
+                and(
+                  eq(notificationAlertSubscriptions.userId, userId),
+                  eq(notificationAlertSubscriptions.id, operation.alertSubscriptionId),
+                  lte(notificationAlertSubscriptions.updatedAt, new Date(operation.occurredAt)),
+                ),
+              );
+          }
+          break;
       }
     }
 
@@ -228,9 +411,43 @@ export async function synchronizeAccount(
       userIdColumn: accountRecentSearches.userId,
       limit: ACCOUNT_RECENT_LIMIT,
     });
+    await trimOldest(transaction, userId, {
+      table: notificationSchedules,
+      idColumn: notificationSchedules.id,
+      savedAtColumn: notificationSchedules.savedAt,
+      userIdColumn: notificationSchedules.userId,
+      limit: NOTIFICATION_SCHEDULE_LIMIT,
+      condition: sql`${notificationSchedules.deletedAt} IS NULL`,
+    });
+    await trimOldest(transaction, userId, {
+      table: notificationAlertSubscriptions,
+      idColumn: notificationAlertSubscriptions.id,
+      savedAtColumn: notificationAlertSubscriptions.savedAt,
+      userIdColumn: notificationAlertSubscriptions.userId,
+      limit: NOTIFICATION_ALERT_LIMIT,
+      condition: sql`${notificationAlertSubscriptions.deletedAt} IS NULL`,
+    });
+    await trimOldest(transaction, userId, {
+      table: accountSyncOperations,
+      idColumn: accountSyncOperations.operationId,
+      savedAtColumn: accountSyncOperations.appliedAt,
+      userIdColumn: accountSyncOperations.userId,
+      limit: ACCOUNT_SYNC_OPERATION_LIMIT,
+    });
+    await transaction.execute(sql`
+      DELETE FROM account_sync_operations AS operation
+      WHERE operation.operation_id IN (
+        SELECT candidate.operation_id
+        FROM account_sync_operations AS candidate
+        WHERE candidate.user_id = ${userId}
+          AND candidate.applied_at < now() - (${ACCOUNT_SYNC_OPERATION_RETENTION_DAYS} * interval '1 day')
+        ORDER BY candidate.applied_at, candidate.operation_id
+        LIMIT ${ACCOUNT_SYNC_OPERATION_PURGE_BATCH}
+      )
+    `);
   });
 
-  const [favorites, recents, places, preferences] = await Promise.all([
+  const [favorites, recents, places, preferences, storedNotificationPreferences, schedules, alerts] = await Promise.all([
     db
       .select()
       .from(accountFavoriteStations)
@@ -255,10 +472,53 @@ export async function synchronizeAccount(
       .from(users)
       .where(eq(users.id, userId))
       .limit(1),
+    db
+      .select()
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId))
+      .limit(1),
+    db
+      .select()
+      .from(notificationSchedules)
+      .where(
+        and(
+          eq(notificationSchedules.userId, userId),
+          isNull(notificationSchedules.deletedAt),
+        ),
+      )
+      .orderBy(desc(notificationSchedules.savedAt)),
+    db
+      .select()
+      .from(notificationAlertSubscriptions)
+      .where(
+        and(
+          eq(notificationAlertSubscriptions.userId, userId),
+          isNull(notificationAlertSubscriptions.deletedAt),
+        ),
+      )
+      .orderBy(desc(notificationAlertSubscriptions.savedAt)),
   ]);
 
   const syncedAt = new Date();
   const storedPreferences = preferences[0];
+  const notificationPreference = mergeNotificationPreferences(
+    storedNotificationPreferences[0]
+      ? {
+          enabled: storedNotificationPreferences[0].enabled,
+          timeZone: 'Europe/Paris',
+          quietHoursStartMinute: storedNotificationPreferences[0].quietHoursStartMinute ?? undefined,
+          quietHoursEndMinute: storedNotificationPreferences[0].quietHoursEndMinute ?? undefined,
+          mutedOnWeekends: storedNotificationPreferences[0].mutedOnWeekends,
+          mutedOnHolidays: storedNotificationPreferences[0].mutedOnHolidays,
+          minimumSeverity: storedNotificationPreferences[0].minimumSeverity,
+          dailyCap: storedNotificationPreferences[0].dailyCap,
+          categories: storedNotificationPreferences[0].categories,
+          updatedAt: storedNotificationPreferences[0].updatedAt.toISOString(),
+        }
+      : defaultNotificationPreferences(syncedAt),
+    syncedAt,
+  );
+
   return {
     appliedOperationIds: input.operations.map((operation) => operation.operationId),
     favorites: favorites.map((favorite) => ({
@@ -294,7 +554,48 @@ export async function synchronizeAccount(
       excludedModes: parseModes(storedPreferences?.excludedModes),
       updatedAt: (storedPreferences?.updatedAt ?? syncedAt).toISOString(),
     },
+    notificationPreferences: notificationPreference,
+    notificationSchedules: schedules.map(toNotificationSchedule),
+    notificationAlerts: alerts.map(toNotificationAlert),
     syncedAt: syncedAt.toISOString(),
+  };
+}
+
+function toNotificationSchedule(schedule: typeof notificationSchedules.$inferSelect) {
+  return {
+    id: schedule.id,
+    kind: schedule.kind,
+    label: schedule.label,
+    revision: schedule.revision,
+    origin: schedule.origin ?? undefined,
+    destination: schedule.destination ?? undefined,
+    routeIds: schedule.routeIds,
+    daysOfWeek: schedule.daysOfWeek,
+    departureMinute: schedule.departureMinute,
+    leadMinutes: schedule.leadMinutes,
+    skipHolidays: schedule.skipHolidays,
+    enabled: schedule.enabled,
+    pausedUntil: schedule.pausedUntil?.toISOString(),
+    timeZone: 'Europe/Paris' as const,
+    savedAt: schedule.savedAt.toISOString(),
+    updatedAt: schedule.updatedAt.toISOString(),
+    deletedAt: schedule.deletedAt?.toISOString(),
+  };
+}
+
+function toNotificationAlert(alert: typeof notificationAlertSubscriptions.$inferSelect) {
+  return {
+    id: alert.id,
+    topicKind: alert.topicKind,
+    topicId: alert.topicId,
+    label: alert.label,
+    daysOfWeek: alert.daysOfWeek,
+    windows: alert.windows,
+    minimumSeverity: alert.minimumSeverity,
+    enabled: alert.enabled,
+    savedAt: alert.savedAt.toISOString(),
+    updatedAt: alert.updatedAt.toISOString(),
+    deletedAt: alert.deletedAt?.toISOString(),
   };
 }
 

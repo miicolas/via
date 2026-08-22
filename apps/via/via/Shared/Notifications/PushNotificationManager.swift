@@ -147,6 +147,35 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
         pendingRoute = components.url
     }
 
+    func muteNotification(from response: UNNotificationResponse) {
+        let userInfo = response.notification.request.content.userInfo
+        let category = (userInfo["category"] as? String)
+            ?? response.notification.request.content.categoryIdentifier
+                .split(separator: ".").last.map(String.init)
+        let topicID = userInfo["topicId"] as? String
+
+        let scope: NotificationMuteScope
+        let key: String
+        if let topicID, !topicID.isEmpty {
+            scope = .topic
+            key = topicID
+        } else if let category, !category.isEmpty {
+            scope = .category
+            key = category
+        } else {
+            return
+        }
+
+        Task { [weak self] in
+            guard let self, isAuthenticated else { return }
+            do {
+                try await remote.mute(scope: scope, key: key, until: nil)
+            } catch {
+                lastError = "La désactivation de cette alerte sera réessayée plus tard."
+            }
+        }
+    }
+
     func consumePendingRoute() -> URL? {
         defer { pendingRoute = nil }
         return pendingRoute

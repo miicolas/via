@@ -67,6 +67,9 @@ final class AccountLocalStore: @unchecked Sendable {
             user.favorites = merged.favorites
             user.places = merged.places
             user.preferences = merged.preferences
+            user.notificationPreferences = merged.notificationPreferences
+            user.notificationSchedules = merged.notificationSchedules
+            user.notificationAlerts = merged.notificationAlerts
 
             let carriedOperations = anonymous.pendingOperations.isEmpty
                 ? syntheticOperations(for: anonymous)
@@ -86,7 +89,10 @@ final class AccountLocalStore: @unchecked Sendable {
             return AccountSnapshot(
                 favorites: snapshot.favorites.sorted { $0.savedAt > $1.savedAt },
                 places: snapshot.places.sorted { $0.savedAt > $1.savedAt },
-                transportPreferences: snapshot.preferences
+                transportPreferences: snapshot.preferences,
+                notificationPreferences: snapshot.notificationPreferences,
+                notificationSchedules: snapshot.notificationSchedules,
+                notificationAlerts: snapshot.notificationAlerts
             )
         }
     }
@@ -132,6 +138,36 @@ final class AccountLocalStore: @unchecked Sendable {
         }
     }
 
+    func setNotificationPreferences(_ preferences: NotificationPreferences) {
+        locked {
+            _ = mutate(.setNotificationPreferences(preferences))
+        }
+    }
+
+    func saveNotificationSchedule(_ schedule: NotificationSchedule) {
+        locked {
+            _ = mutate(.saveNotificationSchedule(schedule))
+        }
+    }
+
+    func removeNotificationSchedule(id: String, now: Date = .now) {
+        locked {
+            _ = mutate(.removeNotificationSchedule(id: id, at: now))
+        }
+    }
+
+    func saveNotificationAlert(_ alert: NotificationAlertSubscription) {
+        locked {
+            _ = mutate(.saveNotificationAlert(alert))
+        }
+    }
+
+    func removeNotificationAlert(id: String, now: Date = .now) {
+        locked {
+            _ = mutate(.removeNotificationAlert(id: id, at: now))
+        }
+    }
+
     func pendingSync() -> (userID: String, operations: [AccountSyncOperation])? {
         locked {
             guard case .user(let userID) = activeScope else { return nil }
@@ -150,6 +186,9 @@ final class AccountLocalStore: @unchecked Sendable {
                 favorites: result.favorites,
                 places: result.places,
                 preferences: result.preferences,
+                notificationPreferences: result.notificationPreferences,
+                notificationSchedules: result.notificationSchedules,
+                notificationAlerts: result.notificationAlerts,
                 pendingOperations: remaining
             )
             for operation in remaining {
@@ -255,6 +294,11 @@ final class AccountLocalStore: @unchecked Sendable {
             preferences: anonymous.preferences.updatedAt >= user.preferences.updatedAt
                 ? anonymous.preferences
                 : user.preferences,
+            notificationPreferences: anonymous.notificationPreferences.updatedAt >= user.notificationPreferences.updatedAt
+                ? anonymous.notificationPreferences
+                : user.notificationPreferences,
+            notificationSchedules: mergeSchedules(user: user.notificationSchedules, anonymous: anonymous.notificationSchedules),
+            notificationAlerts: mergeAlerts(user: user.notificationAlerts, anonymous: anonymous.notificationAlerts),
             pendingOperations: []
         )
 
@@ -270,6 +314,14 @@ final class AccountLocalStore: @unchecked Sendable {
             case .placeRemove:
                 merged.places.removeAll {
                     $0.id == operation.placeID && $0.updatedAt <= operation.occurredAt
+                }
+            case .notificationScheduleRemove:
+                merged.notificationSchedules.removeAll {
+                    $0.id == operation.scheduleID && $0.updatedAt <= operation.occurredAt
+                }
+            case .notificationAlertRemove:
+                merged.notificationAlerts.removeAll {
+                    $0.id == operation.alertSubscriptionID && $0.updatedAt <= operation.occurredAt
                 }
             default:
                 break
@@ -293,6 +345,19 @@ final class AccountLocalStore: @unchecked Sendable {
                 preferences: snapshot.preferences
             ))
         }
+        if snapshot.notificationPreferences.updatedAt > .distantPast {
+            operations.append(AccountSyncOperation(
+                kind: .notificationPreferencesSet,
+                occurredAt: snapshot.notificationPreferences.updatedAt,
+                notificationPreferences: snapshot.notificationPreferences
+            ))
+        }
+        operations.append(contentsOf: snapshot.notificationSchedules.map {
+            AccountSyncOperation(kind: .notificationScheduleUpsert, occurredAt: $0.updatedAt, schedule: $0)
+        })
+        operations.append(contentsOf: snapshot.notificationAlerts.map {
+            AccountSyncOperation(kind: .notificationAlertUpsert, occurredAt: $0.updatedAt, alertSubscription: $0)
+        })
         return operations
     }
 
@@ -312,8 +377,33 @@ private extension AccountLocalSnapshot {
         favorites.isEmpty
             && places.isEmpty
             && preferences == .empty
+            && notificationPreferences == .default
+            && notificationSchedules.isEmpty
+            && notificationAlerts.isEmpty
             && pendingOperations.isEmpty
     }
+}
+
+private func mergeSchedules(
+    user: [NotificationSchedule],
+    anonymous: [NotificationSchedule]
+) -> [NotificationSchedule] {
+    var byID = Dictionary(uniqueKeysWithValues: user.map { ($0.id, $0) })
+    for value in anonymous where value.updatedAt >= (byID[value.id]?.updatedAt ?? .distantPast) {
+        byID[value.id] = value
+    }
+    return Array(byID.values.filter { $0.deletedAt == nil }.sorted { $0.savedAt > $1.savedAt }.prefix(20))
+}
+
+private func mergeAlerts(
+    user: [NotificationAlertSubscription],
+    anonymous: [NotificationAlertSubscription]
+) -> [NotificationAlertSubscription] {
+    var byID = Dictionary(uniqueKeysWithValues: user.map { ($0.id, $0) })
+    for value in anonymous where value.updatedAt >= (byID[value.id]?.updatedAt ?? .distantPast) {
+        byID[value.id] = value
+    }
+    return Array(byID.values.filter { $0.deletedAt == nil }.sorted { $0.savedAt > $1.savedAt }.prefix(40))
 }
 
 private extension AccountSyncOperation.Kind {

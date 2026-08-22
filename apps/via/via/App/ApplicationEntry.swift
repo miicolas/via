@@ -26,6 +26,7 @@ struct ApplicationEntry: App {
     @State private var profileModel: ProfileModel
     @State private var pushNotificationManager: PushNotificationManager
     @State private var journeyNotificationCoordinator: JourneyNotificationCoordinator
+    @State private var notificationInboxRemote: any NotificationInboxRemote
 
     init() {
         let pushNotificationManager = PushNotificationManager.shared
@@ -100,6 +101,7 @@ struct ApplicationEntry: App {
         _profileModel = State(initialValue: ProfileModel())
         _pushNotificationManager = State(initialValue: dependencies.pushNotificationManager)
         _journeyNotificationCoordinator = State(initialValue: dependencies.journeyNotificationCoordinator)
+        _notificationInboxRemote = State(initialValue: dependencies.notificationInboxRemote)
     }
 
     var body: some Scene {
@@ -206,6 +208,7 @@ struct ApplicationEntry: App {
                     pushNotificationManager: pushNotificationManager,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
                     onReplayOnboarding: replayOnboarding,
+                    notificationInboxRemote: notificationInboxRemote,
                 )
                 .transition(.opacity)
             }
@@ -303,6 +306,7 @@ struct ApplicationEntry: App {
                 journeyNotificationCoordinator: JourneyNotificationCoordinator(
                     activeJourneyManager: pushNotificationManager
                 ),
+                notificationInboxRemote: NoOpNotificationInboxRemote(),
             )
         }
 
@@ -375,6 +379,7 @@ struct ApplicationEntry: App {
             journeyNotificationCoordinator: JourneyNotificationCoordinator(
                 activeJourneyManager: pushNotificationManager
             ),
+            notificationInboxRemote: LiveNotificationInboxRemote(transport: transport),
         )
     }
 
@@ -398,5 +403,6 @@ struct ApplicationEntry: App {
         let onboardingProfileModel: OnboardingProfileModel
         let pushNotificationManager: PushNotificationManager
         let journeyNotificationCoordinator: JourneyNotificationCoordinator
+        let notificationInboxRemote: any NotificationInboxRemote
     }
 }

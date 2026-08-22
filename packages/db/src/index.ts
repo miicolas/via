@@ -28,6 +28,20 @@ export const client = postgres(url, {
 
 export const db = drizzle(client, { schema });
 
+/**
+ * Scheduler and delivery jobs have their own small pool. Their claim queries
+ * are deliberately isolated from the HTTP pool: a slow APNs cycle must never
+ * consume the connections needed to answer a user request or healthcheck.
+ */
+export const jobClient = postgres(url, {
+  max: 2,
+  idle_timeout: 30,
+  max_lifetime: 60 * 30,
+  prepare: false,
+});
+
+export const jobDb = drizzle(jobClient, { schema });
+
 export * from './schema';
 export type { LonLat } from './columns';
 export { schema };

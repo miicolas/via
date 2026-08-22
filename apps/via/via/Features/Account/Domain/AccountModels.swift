@@ -105,6 +105,147 @@ struct TransportPreferences: Codable, Sendable, Hashable {
     )
 }
 
+enum NotificationCategory: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {
+    case journey, commute, line, station, digest, recommendation
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .journey: "Trajets actifs"
+        case .commute: "Rappels récurrents"
+        case .line: "Lignes suivies"
+        case .station: "Stations suivies"
+        case .digest: "Résumé quotidien"
+        case .recommendation: "Suggestions"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .journey: "figure.walk"
+        case .commute: "calendar.badge.clock"
+        case .line: "tram.fill"
+        case .station: "mappin.and.ellipse"
+        case .digest: "text.badge.checkmark"
+        case .recommendation: "sparkles"
+        }
+    }
+}
+
+enum NotificationSeverity: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {
+    case attention, disrupted, suspended
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .attention: "Attention"
+        case .disrupted: "Perturbée"
+        case .suspended: "Suspendue"
+        }
+    }
+}
+
+struct NotificationCategoryPreference: Codable, Sendable, Hashable, Identifiable {
+    var category: NotificationCategory
+    var enabled: Bool
+    var minimumSeverity: NotificationSeverity
+    var dailyCap: Int?
+
+    var id: NotificationCategory { category }
+}
+
+struct NotificationPreferences: Codable, Sendable, Hashable {
+    var enabled: Bool = true
+    var timeZone: String = "Europe/Paris"
+    var quietHoursStartMinute: Int?
+    var quietHoursEndMinute: Int?
+    var mutedOnWeekends: Bool = false
+    var mutedOnHolidays: Bool = false
+    var minimumSeverity: NotificationSeverity = .attention
+    var dailyCap: Int?
+    var categories: [NotificationCategoryPreference] = NotificationCategory.allCases.map {
+        NotificationCategoryPreference(category: $0, enabled: true, minimumSeverity: .attention, dailyCap: nil)
+    }
+    var updatedAt: Date = .distantPast
+
+    static let `default` = NotificationPreferences()
+}
+
+struct NotificationLocation: Codable, Sendable, Hashable {
+    var id: String
+    var kind: RecentSearch.Kind
+    var name: String
+    var context: String?
+    var latitude: Double
+    var longitude: Double
+}
+
+struct NotificationTimeWindow: Codable, Sendable, Hashable, Identifiable {
+    var startMinute: Int
+    var endMinute: Int
+
+    var id: String { "\(startMinute)-\(endMinute)" }
+}
+
+struct NotificationSchedule: Codable, Sendable, Hashable, Identifiable {
+    enum Kind: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {
+        case commute, digest
+        var id: String { rawValue }
+    }
+
+    var id: String
+    var kind: Kind
+    var label: String
+    var revision: Int
+    var origin: NotificationLocation?
+    var destination: NotificationLocation?
+    var routeIDs: [String]
+    var daysOfWeek: [Int]
+    var departureMinute: Int
+    var leadMinutes: Int
+    var skipHolidays: Bool
+    var enabled: Bool
+    var pausedUntil: Date?
+    var timeZone: String
+    var savedAt: Date
+    var updatedAt: Date
+    var deletedAt: Date?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, label, revision, origin, destination
+        case routeIDs = "routeIds"
+        case daysOfWeek, departureMinute, leadMinutes, skipHolidays, enabled
+        case pausedUntil, timeZone, savedAt, updatedAt, deletedAt
+    }
+}
+
+struct NotificationAlertSubscription: Codable, Sendable, Hashable, Identifiable {
+    enum TopicKind: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {
+        case line, station
+        var id: String { rawValue }
+    }
+
+    var id: String
+    var topicKind: TopicKind
+    var topicID: String
+    var label: String
+    var daysOfWeek: [Int]
+    var windows: [NotificationTimeWindow]
+    var minimumSeverity: NotificationSeverity
+    var enabled: Bool
+    var savedAt: Date
+    var updatedAt: Date
+    var deletedAt: Date?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, topicKind
+        case topicID = "topicId"
+        case label, daysOfWeek, windows, minimumSeverity, enabled, savedAt, updatedAt, deletedAt
+    }
+}
+
 enum AccountScope: Codable, Sendable, Hashable, Equatable {
     case anonymous
     case user(String)
@@ -125,6 +266,11 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         case preferencesSet = "preferences.set"
         case placeUpsert = "place.upsert"
         case placeRemove = "place.remove"
+        case notificationPreferencesSet = "notifications.preferences.set"
+        case notificationScheduleUpsert = "notifications.schedule.upsert"
+        case notificationScheduleRemove = "notifications.schedule.remove"
+        case notificationAlertUpsert = "notifications.alert.upsert"
+        case notificationAlertRemove = "notifications.alert.remove"
     }
 
     let operationID: UUID
@@ -137,6 +283,11 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
     let preferences: TransportPreferences?
     let place: SavedPlace?
     let placeID: String?
+    let notificationPreferences: NotificationPreferences?
+    let schedule: NotificationSchedule?
+    let scheduleID: String?
+    let alertSubscription: NotificationAlertSubscription?
+    let alertSubscriptionID: String?
 
     init(
         operationID: UUID = UUID(),
@@ -148,7 +299,12 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         recent: RecentSearch? = nil,
         preferences: TransportPreferences? = nil,
         place: SavedPlace? = nil,
-        placeID: String? = nil
+        placeID: String? = nil,
+        notificationPreferences: NotificationPreferences? = nil,
+        schedule: NotificationSchedule? = nil,
+        scheduleID: String? = nil,
+        alertSubscription: NotificationAlertSubscription? = nil,
+        alertSubscriptionID: String? = nil
     ) {
         self.operationID = operationID
         self.kind = kind
@@ -160,6 +316,11 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         self.preferences = preferences
         self.place = place
         self.placeID = placeID
+        self.notificationPreferences = notificationPreferences
+        self.schedule = schedule
+        self.scheduleID = scheduleID
+        self.alertSubscription = alertSubscription
+        self.alertSubscriptionID = alertSubscriptionID
     }
 
     var id: UUID { operationID }
@@ -175,6 +336,11 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         case preferences
         case place
         case placeID = "placeId"
+        case notificationPreferences
+        case schedule
+        case scheduleID = "scheduleId"
+        case alertSubscription
+        case alertSubscriptionID = "alertSubscriptionId"
     }
 }
 
@@ -184,6 +350,9 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
     let recents: [RecentSearch]
     let places: [SavedPlace]
     let preferences: TransportPreferences
+    let notificationPreferences: NotificationPreferences
+    let notificationSchedules: [NotificationSchedule]
+    let notificationAlerts: [NotificationAlertSubscription]
     let syncedAt: Date
 
     init(
@@ -192,6 +361,9 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
         recents: [RecentSearch],
         places: [SavedPlace] = [],
         preferences: TransportPreferences,
+        notificationPreferences: NotificationPreferences = .default,
+        notificationSchedules: [NotificationSchedule] = [],
+        notificationAlerts: [NotificationAlertSubscription] = [],
         syncedAt: Date
     ) {
         self.appliedOperationIDs = appliedOperationIDs
@@ -199,6 +371,9 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
         self.recents = recents
         self.places = places
         self.preferences = preferences
+        self.notificationPreferences = notificationPreferences
+        self.notificationSchedules = notificationSchedules
+        self.notificationAlerts = notificationAlerts
         self.syncedAt = syncedAt
     }
 
@@ -210,6 +385,9 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
         // Tolerates a server that predates saved places.
         places = try container.decodeIfPresent([SavedPlace].self, forKey: .places) ?? []
         preferences = try container.decode(TransportPreferences.self, forKey: .preferences)
+        notificationPreferences = try container.decodeIfPresent(NotificationPreferences.self, forKey: .notificationPreferences) ?? .default
+        notificationSchedules = try container.decodeIfPresent([NotificationSchedule].self, forKey: .notificationSchedules) ?? []
+        notificationAlerts = try container.decodeIfPresent([NotificationAlertSubscription].self, forKey: .notificationAlerts) ?? []
         syncedAt = try container.decode(Date.self, forKey: .syncedAt)
     }
 
@@ -219,6 +397,9 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
         case recents
         case places
         case preferences
+        case notificationPreferences
+        case notificationSchedules
+        case notificationAlerts
         case syncedAt
     }
 }
@@ -233,11 +414,17 @@ struct AccountSnapshot: Sendable, Equatable {
     var favorites: [FavoriteStation]
     var places: [SavedPlace]
     var transportPreferences: TransportPreferences
+    var notificationPreferences: NotificationPreferences
+    var notificationSchedules: [NotificationSchedule]
+    var notificationAlerts: [NotificationAlertSubscription]
 
     static let empty = AccountSnapshot(
         favorites: [],
         places: [],
-        transportPreferences: .empty
+        transportPreferences: .empty,
+        notificationPreferences: .default,
+        notificationSchedules: [],
+        notificationAlerts: []
     )
 }
 
@@ -261,5 +448,8 @@ struct AccountLocalSnapshot: Codable, Sendable, Hashable {
     var favorites: [FavoriteStation] = []
     var places: [SavedPlace] = []
     var preferences: TransportPreferences = .empty
+    var notificationPreferences: NotificationPreferences = .default
+    var notificationSchedules: [NotificationSchedule] = []
+    var notificationAlerts: [NotificationAlertSubscription] = []
     var pendingOperations: [AccountSyncOperation] = []
 }

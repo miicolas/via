@@ -16,6 +16,9 @@ const POST_PROCEDURES = new Set([
   'notifications.registerPushToStart',
   'notifications.registerActiveJourney',
   'notifications.unregisterActiveJourney',
+  'notifications.markInboxRead',
+  'notifications.snooze',
+  'notifications.mute',
 ]);
 
 export function rpcMethod(path: readonly string[]): 'GET' | 'POST' {

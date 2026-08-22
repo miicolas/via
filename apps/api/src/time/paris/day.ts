@@ -26,6 +26,11 @@ export function previousDate(date: string): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 }
 
+/** The following Gregorian civil date, independent of the host timezone. */
+export function nextDate(date: string): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+}
+
 /**
  * Service-day seconds back to a real instant, DST included: build the naive
  * local time, then ask what UTC offset Paris had at that moment. Seconds past

@@ -47,6 +47,9 @@ final class AccountModel {
     var favorites: [FavoriteStation] { snapshot.favorites }
     var places: [SavedPlace] { snapshot.places }
     var transportPreferences: TransportPreferences { snapshot.transportPreferences }
+    var notificationPreferences: NotificationPreferences { snapshot.notificationPreferences }
+    var notificationSchedules: [NotificationSchedule] { snapshot.notificationSchedules }
+    var notificationAlerts: [NotificationAlertSubscription] { snapshot.notificationAlerts }
 
     func activateAnonymous() {
         synchronizationTask?.cancel()
@@ -173,6 +176,88 @@ final class AccountModel {
         store.setPreferences(preferences)
         refresh(syncState: syncState)
         scheduleSynchronization()
+    }
+
+    func setNotificationPreferences(_ preferences: NotificationPreferences) {
+        store.setNotificationPreferences(preferences)
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func saveNotificationSchedule(_ schedule: NotificationSchedule) {
+        store.saveNotificationSchedule(schedule)
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func removeNotificationSchedule(id: String) {
+        store.removeNotificationSchedule(id: id, now: now())
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func saveNotificationAlert(_ alert: NotificationAlertSubscription) {
+        store.saveNotificationAlert(alert)
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func removeNotificationAlert(id: String) {
+        store.removeNotificationAlert(id: id, now: now())
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func isFollowingNotification(
+        topicKind: NotificationAlertSubscription.TopicKind,
+        topicID: String
+    ) -> Bool {
+        notificationAlerts.contains {
+            $0.deletedAt == nil &&
+                $0.enabled &&
+                $0.topicKind == topicKind &&
+                $0.topicID == topicID
+        }
+    }
+
+    @discardableResult
+    func toggleNotificationAlert(
+        topicKind: NotificationAlertSubscription.TopicKind,
+        topicID: String,
+        label: String
+    ) -> Bool {
+        if let existing = notificationAlerts.first(where: {
+            $0.deletedAt == nil &&
+                $0.topicKind == topicKind &&
+                $0.topicID == topicID
+        }) {
+            if existing.enabled {
+                removeNotificationAlert(id: existing.id)
+                return false
+            }
+
+            var resumed = existing
+            resumed.enabled = true
+            resumed.updatedAt = now()
+            saveNotificationAlert(resumed)
+            return true
+        }
+
+        let timestamp = now()
+        saveNotificationAlert(NotificationAlertSubscription(
+            id: UUID().uuidString.lowercased(),
+            topicKind: topicKind,
+            topicID: topicID,
+            label: label,
+            daysOfWeek: [],
+            windows: [],
+            minimumSeverity: .attention,
+            enabled: true,
+            savedAt: timestamp,
+            updatedAt: timestamp,
+            deletedAt: nil
+        ))
+        return true
     }
 
     func makeExport(exportedAt: Date? = nil) -> AccountExport {

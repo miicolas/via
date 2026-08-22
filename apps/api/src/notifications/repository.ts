@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, lte, ne, or, sql } from "drizzle-orm";
-import { db, notificationDevices } from "@via/db";
+import { db, jobDb, notificationDevices } from "@via/db";
 import type {
   APNsEnvironment,
   NotificationDeviceRegistration,
@@ -12,6 +12,7 @@ import {
 
 export type NotificationDevice = typeof notificationDevices.$inferSelect;
 
+type NotificationDatabase = typeof db | typeof jobDb;
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const MAXIMUM_DEVICES_PER_USER = 8;
@@ -60,6 +61,7 @@ export interface NotificationTokenStore {
     environment: APNsEnvironment,
     invalidatedAt?: Date,
   ): Promise<void>;
+  listDevices?(userId: string): Promise<NotificationDevice[]>;
 }
 
 /**
@@ -69,6 +71,7 @@ export interface NotificationTokenStore {
  */
 export function createDatabaseNotificationTokenStore(
   redis: RedisClient,
+  database: NotificationDatabase = db,
 ): NotificationTokenStore {
   async function tombstoneInstallations(installationIds: readonly string[]) {
     await tombstoneNotificationInstallations(redis, installationIds).catch(
@@ -79,8 +82,16 @@ export function createDatabaseNotificationTokenStore(
   }
 
   return {
+    async listDevices(userId) {
+      return database
+        .select()
+        .from(notificationDevices)
+        .where(eq(notificationDevices.userId, userId))
+        .orderBy(desc(notificationDevices.lastSeenAt))
+        .limit(MAXIMUM_DEVICES_PER_USER);
+    },
     async registerDevice(userId, input) {
-      const invalidated = await db.transaction(async (transaction) => {
+      const invalidated = await database.transaction(async (transaction) => {
         await transaction.execute(
           sql`select pg_advisory_xact_lock(hashtext(${userId}))`,
         );
@@ -199,7 +210,7 @@ export function createDatabaseNotificationTokenStore(
     },
 
     async unregisterDevice(userId, installationId) {
-      const removed = await db.transaction(async (transaction) => {
+      const removed = await database.transaction(async (transaction) => {
         await transaction.execute(
           sql`select pg_advisory_xact_lock(hashtext(${installationId}))`,
         );
@@ -218,7 +229,7 @@ export function createDatabaseNotificationTokenStore(
     },
 
     async removeDeviceToken(token, bundleId, environment, invalidatedAt) {
-      const removedInstallationIds = await db.transaction(
+      const removedInstallationIds = await database.transaction(
         async (transaction) => {
           const condition = and(
             eq(notificationDevices.deviceToken, token),
