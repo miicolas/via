@@ -1,0 +1,40 @@
+---
+name: apple-hig-wallet
+description: "Apply Apple's Human Interface Guidelines for Wallet when designing, implementing, or reviewing that topic and its platform-specific guidance."
+metadata:
+  generated-by: apple-hig-skill-generator
+  source-url: https://developer.apple.com/design/human-interface-guidelines/wallet
+---
+
+# Apple HIG: Wallet
+
+Use this page skill when the task touches **Wallet**. It stores navigation context and routing metadata; it does not copy Apple's article text.
+
+Read the shared [page workflow](../apple-hig/references/page-workflow.md), then open the official [Wallet page](https://developer.apple.com/design/human-interface-guidelines/wallet) before relying on detailed rules, platform availability, measurements, examples, or change-log entries.
+
+## Navigation context
+
+- Human Interface Guidelines → Technologies
+- Official source: [https://developer.apple.com/design/human-interface-guidelines/wallet](https://developer.apple.com/design/human-interface-guidelines/wallet)
+- Page role: article
+- Local page skill: `apple-hig-wallet`
+
+## Focus areas
+
+- Passes
+- Pass anatomy
+- Pass field types
+- Designing passes
+- Pass styles
+- Boarding passes
+- Coupons
+- Event tickets
+- Store cards
+- Poster generic passes
+- Generic passes
+- Pass images
+- Logo
+- Primary logo
+- Secondary logo
+- Icon
+

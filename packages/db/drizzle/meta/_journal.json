@@ -211,6 +211,13 @@
       "when": 1787421495796,
       "tag": "0029_supreme_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1787437800873,
+      "tag": "0030_curious_nemesis",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+CREATE INDEX "transit_stops_location_geography_idx" ON "transit_stops" USING gist ((("location")::geography));

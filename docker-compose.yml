@@ -6,10 +6,25 @@ services:
     image: imresamu/postgis:18-3.6-alpine
     container_name: via-postgres
     restart: unless-stopped
+    shm_size: 1gb
     environment:
       POSTGRES_USER: via
       POSTGRES_PASSWORD: via
       POSTGRES_DB: via
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
     ports:
       # Override POSTGRES_PORT in .env if 5432 is already taken on your machine.
       - "${POSTGRES_PORT:-5432}:5432"
