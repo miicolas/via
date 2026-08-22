@@ -7,8 +7,6 @@ struct LineDetailView: View {
     private let route: RouteBadge
     private let accountModel: AccountModel?
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     init(
         viewModel: LineDetailViewModel,
         route: RouteBadge,

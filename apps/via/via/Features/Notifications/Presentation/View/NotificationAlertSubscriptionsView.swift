@@ -8,8 +8,10 @@ struct NotificationAlertSubscriptionsView: View {
             let alerts = accountModel.notificationAlerts.filter { $0.deletedAt == nil }
             if alerts.isEmpty {
                 EmptyStateView(.noFollowedLines) {
-                    Text("Ouvrez une fiche de ligne ou de station pour commencer un suivi.")
-                        .emptyStateHint()
+                    EmptyStateHint(
+                        Text("Ouvrez une fiche de ligne ou de station pour commencer un suivi."),
+                        label: "Ouvrez une fiche de ligne ou de station pour commencer un suivi."
+                    )
                 }
                 .listRowSeparator(.hidden)
             } else {
