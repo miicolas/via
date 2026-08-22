@@ -592,6 +592,47 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(model.loadState, .idle)
     }
 
+    func testDepartureSearchDebouncesAndLoadsResults() async {
+        let model = makeModel(repository: InMemorySearchRepository.preview)
+
+        model.updateDepartureQuery("cha")
+
+        XCTAssertEqual(model.departureLoadState, .idle)
+        await waitForDepartureLoadState(model, .loaded)
+
+        XCTAssertEqual(model.departureResults, SearchResponse.preview.results)
+    }
+
+    func testDepartureSearchCanBeEmpty() async {
+        let repository = InMemorySearchRepository(
+            response: SearchResponse(results: [], addressSource: .ok),
+        )
+        let model = makeModel(repository: repository)
+
+        model.updateDepartureQuery("unknown")
+        await waitForDepartureLoadState(model, .empty)
+
+        XCTAssertTrue(model.departureResults.isEmpty)
+    }
+
+    func testFailedDepartureSearchCanRetry() async {
+        let repository = QueuedSearchRepository(responses: [
+            .failure(.transport),
+            .success(.preview),
+        ])
+        let model = makeModel(repository: repository)
+
+        model.updateDepartureQuery("cha")
+        await waitForDepartureLoadState(model, .failed(.transport))
+
+        model.retryDepartureSearch()
+        await waitForDepartureLoadState(model, .loaded)
+
+        XCTAssertEqual(model.departureResults, SearchResponse.preview.results)
+        let queries = await repository.queries()
+        XCTAssertEqual(queries, ["cha", "cha"])
+    }
+
     func testObsoleteSearchRequestCannotOverwriteNewerResults() async {
         let search = DelayedSearchRepository()
         let model = makeModel(repository: search)
@@ -626,6 +667,74 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertNil(request.datetimeRepresents)
         XCTAssertEqual(model.selectedJourneyID, JourneyResult.mapPreview.journeys.first?.id)
         XCTAssertFalse(model.mapPresentation?.segments.isEmpty ?? true)
+    }
+
+    func testExplicitTimeIsForwardedToJourneyRequestAndReset() async {
+        let journeys = JourneyRepositoryRecorder(result: .mapPreview)
+        let model = makeModel(journeyRepository: journeys)
+        let requestedAt = ISO8601.parse("2026-08-22T08:30:00+02:00")!
+
+        XCTAssertNil(model.requestedAt)
+        model.updateTime(requestedAt, represents: .arrival)
+        XCTAssertEqual(model.requestedAt, requestedAt)
+        XCTAssertEqual(model.datetimeRepresents, .arrival)
+
+        model.selectDestination(.previewStation)
+        await waitForStep(model, .results)
+
+        let request = await journeys.requests().first
+        XCTAssertEqual(request?.requestedAt, requestedAt)
+        XCTAssertEqual(request?.datetimeRepresents, .arrival)
+
+        let updatedAt = ISO8601.parse("2026-08-22T10:15:00+02:00")!
+        model.updateTime(updatedAt, represents: .departure)
+        await waitUntil { await journeys.requests().count == 2 }
+
+        let updatedRequest = await journeys.requests().last
+        XCTAssertEqual(updatedRequest?.requestedAt, updatedAt)
+        XCTAssertEqual(updatedRequest?.datetimeRepresents, .departure)
+
+        model.resetSearch()
+
+        XCTAssertNil(model.requestedAt)
+        XCTAssertEqual(model.datetimeRepresents, .departure)
+    }
+
+    func testClassicTimeDoesNotOverrideNaturalJourneyCriteria() async {
+        let naturalTime = ISO8601.parse("2026-08-22T09:00:00+02:00")!
+        let classicTime = ISO8601.parse("2026-08-22T18:00:00+02:00")!
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: "Ma position",
+            destination: JourneyPlaceSelection(.previewStation).journeyDestination,
+            destinationResult: .previewStation,
+            requestedAt: naturalTime,
+            datetimeRepresents: .arrival,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+        )
+        let journeys = JourneyRepositoryRecorder(result: .mapPreview)
+        let model = makeModel(
+            journeyRepository: journeys,
+            naturalJourneyRepository: NaturalJourneyRepositoryRecorder(
+                result: .ready(interpretation: interpretation, journeys: .mapPreview),
+            ),
+            naturalLanguageAvailability: .available,
+            naturalJourneyOnboardingStore: InMemoryNaturalJourneyOnboardingStore(
+                hasSeenOnboarding: true,
+            ),
+        )
+        model.updateTime(classicTime, represents: .departure)
+        model.naturalQuery = "Nation demain avant 9 h"
+
+        model.submitNaturalSearch()
+        await waitForStep(model, .results)
+        model.updateNaturalTime(naturalTime, represents: .arrival)
+        await waitUntil { await journeys.requests().count == 1 }
+
+        let request = await journeys.requests().first
+        XCTAssertEqual(request?.requestedAt, naturalTime)
+        XCTAssertEqual(request?.datetimeRepresents, .arrival)
     }
 
     func testSelectingAnotherJourneyReplacesMapPresentation() async {
@@ -911,6 +1020,24 @@ final class SearchViewModelTests: XCTestCase {
         XCTFail("Expected load state \(expected), got \(model.loadState)", file: file, line: line)
     }
 
+    private func waitForDepartureLoadState(
+        _ model: SearchViewModel,
+        _ expected: SearchLoadState,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+    ) async {
+        for _ in 0 ..< 160 {
+            if model.departureLoadState == expected { return }
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        XCTFail(
+            "Expected departure load state \(expected), got \(model.departureLoadState)",
+            file: file,
+            line: line,
+        )
+    }
+
     private func waitForStep(
         _ model: SearchViewModel,
         _ expected: SearchViewStep,
@@ -1060,6 +1187,23 @@ private actor DelayedSearchRepository: SearchRepository {
             return .preview
         }
         return SearchResponse(results: [.previewAddress], addressSource: .ok)
+    }
+
+    func queries() -> [String] { recordedQueries }
+}
+
+private actor QueuedSearchRepository: SearchRepository {
+    private var responses: [Result<SearchResponse, ViaError>]
+    private var recordedQueries: [String] = []
+
+    init(responses: [Result<SearchResponse, ViaError>]) {
+        self.responses = responses
+    }
+
+    func search(query: String, near _: GeoCoordinate?) async throws -> SearchResponse {
+        recordedQueries.append(query)
+        let response = responses.count > 1 ? responses.removeFirst() : responses[0]
+        return try response.get()
     }
 
     func queries() -> [String] { recordedQueries }

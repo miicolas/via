@@ -155,17 +155,17 @@ struct SkeletonList: View {
 /// drifts from the content that replaces it. The numbers are the ones the
 /// production views declare — change them together.
 extension SkeletonList.Row {
-    /// `SearchResultRow`: 46pt circle, title3 name, a strip of 20pt line badges,
-    /// trailing chevron, 12pt vertical padding.
+    /// `SearchResultRow`: 32pt leading glyph, body-semibold name, a strip of
+    /// 20pt line badges, no trailing accessory, 10pt vertical padding.
     static let searchResult = Self(
-        leading: .circle(46),
+        leading: .circle(20),
         lines: [
-            SkeletonList.Line(width: .fill, height: 16),
+            SkeletonList.Line(width: .fill, height: 15),
             SkeletonList.Line(width: .fixed(76), height: 20),
         ],
-        trailing: .capsule(width: 8, height: 14),
+        trailing: .none,
         spacing: 6,
-        verticalPadding: 12
+        verticalPadding: 10
     )
 
     /// `JourneySummaryCard`: qualifier caption, title2 departure→arrival times,
@@ -217,7 +217,7 @@ extension SkeletonList.Row {
         count: 4,
         label: "Recherche…",
         row: .searchResult,
-        separator: .divider(leadingInset: 60)
+        separator: .divider(leadingInset: 46)
     )
     .padding(.horizontal)
 }

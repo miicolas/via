@@ -5,50 +5,43 @@ struct SearchResultsSection: View {
     let results: [SearchResult]
     let onRetry: () -> Void
     let onSelect: (SearchResult) -> Void
+    let accessibilityHint: String
 
     init(
         state: SearchLoadState,
         results: [SearchResult],
         onRetry: @escaping () -> Void,
-        onSelect: @escaping (SearchResult) -> Void
+        onSelect: @escaping (SearchResult) -> Void,
+        accessibilityHint: String = "Sélectionne cette destination",
     ) {
         self.state = state
         self.results = results
         self.onRetry = onRetry
         self.onSelect = onSelect
+        self.accessibilityHint = accessibilityHint
     }
 
     var body: some View {
-        SkeletonGate(isLoading: state == .loading) {
-            SkeletonList(
-                count: 4,
-                label: "Recherche…",
-                row: .searchResult,
-                separator: .divider(leadingInset: 60)
-            )
-        } content: {
-            loadedContent
-        }
-    }
+        switch state {
+        case .idle:
+            EmptyView()
 
-    @ViewBuilder
-    private var loadedContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            switch state {
-            case .idle, .loading:
-                EmptyView()
+        case .loading:
+            SkeletonGate(isLoading: true) {
+                SkeletonList(
+                    count: 4,
+                    label: "Recherche…",
+                    row: .searchResult,
+                    separator: .divider(leadingInset: 46)
+                )
+            }
 
-            case .loaded:
-                ForEach(results) { result in
-                    SearchResultRow(result: result) {
-                        onSelect(result)
-                    }
-
-                    if result.id != results.last?.id {
-                        Divider()
-                            .padding(.leading, 60)
-                    }
+        case .loaded:
+            ForEach(results) { result in
+                SearchResultRow(result: result, accessibilityHint: accessibilityHint) {
+                    onSelect(result)
                 }
+            }
 
             case .empty:
                 EmptyStateView(.noResults()) {
@@ -58,14 +51,12 @@ struct SearchResultsSection: View {
                     )
                 }
 
-            case .failed:
-                EmptyStateView(.offline(title: "Recherche indisponible")) {
-                    RetryButton(action: onRetry)
-                        .primaryAction()
-                }
+        case .failed:
+            EmptyStateView(.offline(title: "Recherche indisponible")) {
+                RetryButton(action: onRetry)
+                    .primaryAction()
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

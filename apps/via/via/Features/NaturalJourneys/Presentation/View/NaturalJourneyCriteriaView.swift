@@ -15,22 +15,25 @@ struct NaturalJourneyCriteriaView: View {
 
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
-                    NaturalJourneyCriteriaChip(
+                    OptionChip(
                         title: criteria.originLabel,
                         systemImage: "location.fill",
+                        isActive: true,
                         action: onEditOrigin,
                     )
-                    NaturalJourneyCriteriaChip(
+                    OptionChip(
                         title: criteria.destinationResult.name,
                         systemImage: "mappin.and.ellipse",
+                        isActive: true,
                         action: onEditDestination,
                     )
-                    NaturalJourneyCriteriaChip(
+                    OptionChip(
                         title: NaturalJourneyCriteria.timeLabel(
                             criteria.requestedAt,
                             represents: criteria.datetimeRepresents,
                         ),
                         systemImage: "calendar.badge.clock",
+                        isActive: true,
                         action: onEditTime,
                     )
 
@@ -59,9 +62,10 @@ struct NaturalJourneyCriteriaView: View {
     }
 
     private func modeChip(_ title: String, systemImage: String) -> some View {
-        NaturalJourneyCriteriaChip(
+        OptionChip(
             title: title,
             systemImage: systemImage,
+            isActive: true,
             action: onEditOptions,
         )
     }
