@@ -46,24 +46,32 @@ extension DepartureStatus {
 }
 
 extension JourneyTimingSource {
-    /// How a journey names its timing feed. Kept identical to the station
-    /// board's wording and glyph — one feed, one name, wherever it surfaces.
-    var title: String {
+    /// How a journey names its timing feed — and only the live one has a name.
+    ///
+    /// A schedule is the ordinary case: badging it says nothing the times do
+    /// not already say, and every badge spent on the ordinary case is a badge
+    /// the live one no longer stands out from. `nil` means "show nothing",
+    /// never "show a placeholder".
+    var title: String? {
         switch self {
         case .realtime: "Temps réel"
-        case .theoretical: "Théorique"
+        case .theoretical: nil
         }
     }
 
-    var systemImage: String {
+    var systemImage: String? {
         switch self {
         case .realtime: "dot.radiowaves.up.forward"
-        case .theoretical: "clock"
+        case .theoretical: nil
         }
     }
+
+    var isLive: Bool { self == .realtime }
 }
 
 extension Optional where Wrapped == JourneyTimingSource {
-    var title: String { self?.title ?? "Indisponible" }
-    var systemImage: String { self?.systemImage ?? "wifi.slash" }
+    /// An unknown feed is not a live one, so it is just as silent.
+    var title: String? { flatMap(\.title) }
+    var systemImage: String? { flatMap(\.systemImage) }
+    var isLive: Bool { self?.isLive == true }
 }

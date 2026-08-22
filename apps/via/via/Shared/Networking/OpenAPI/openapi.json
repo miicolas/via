@@ -3382,7 +3382,7 @@
                           },
                           "choices": {
                             "type": "array",
-                            "maxItems": 3,
+                            "maxItems": 9,
                             "items": {
                               "type": "object",
                               "properties": {

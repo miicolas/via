@@ -7,6 +7,7 @@ struct StationDetailHeaderView: View {
   var peak: StationPeak?
   var distanceText: String?
   var sourceText: String?
+  var sourceSystemImage: String = "dot.radiowaves.up.forward"
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -56,7 +57,7 @@ struct StationDetailHeaderView: View {
     }
 
     if let sourceText {
-      Label(sourceText, systemImage: "clock")
+      Label(sourceText, systemImage: sourceSystemImage)
     }
   }
 }

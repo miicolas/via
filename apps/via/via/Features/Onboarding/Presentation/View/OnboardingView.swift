@@ -8,7 +8,6 @@ struct OnboardingView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var currentIndex = 0
-    @State private var screenshotSize: CGSize = .zero
     @State private var deviceCornerRadius: CGFloat = 0
 
     private let pages = OnboardingPage.allCases
@@ -36,14 +35,18 @@ struct OnboardingView: View {
         }
     }
 
+    /// The box takes the capture's ratio rather than measuring the capture:
+    /// the panel below is measured too, so a plateau that sized itself from
+    /// its own first layout pass would keep the taller, panel-less width and
+    /// draw its device edge well wide of the screenshot inside it.
     private var screenshotCarousel: some View {
         let shape = ConcentricRectangle(corners: .concentric, isUniform: true)
 
         return GeometryReader { proxy in
             ScrollView(.horizontal) {
                 LazyHStack(spacing: 12) {
-                    ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
-                        screenshot(for: page, at: index, shape: shape)
+                    ForEach(Array(pages.enumerated()), id: \.offset) { _, page in
+                        screenshot(for: page, shape: shape)
                             .frame(width: proxy.size.width, height: proxy.size.height)
                     }
                 }
@@ -54,30 +57,29 @@ struct OnboardingView: View {
             .scrollIndicators(.hidden)
             .scrollPosition(id: pagePosition)
         }
+        .aspectRatio(OnboardingPage.screenshotAspectRatio, contentMode: .fit)
         .clipShape(shape)
         .overlay {
-            if screenshotSize != .zero {
-                ZStack {
-                    shape.stroke(.white, lineWidth: 6)
-                    shape.stroke(.black, lineWidth: 4)
-                    shape
-                        .stroke(.black, lineWidth: 6)
-                        .padding(4)
-                }
-                .padding(-7)
+            ZStack {
+                shape.stroke(.white, lineWidth: 6)
+                shape.stroke(.black, lineWidth: 4)
+                shape
+                    .stroke(.black, lineWidth: 6)
+                    .padding(4)
             }
+            .padding(-7)
         }
-        .frame(
-            maxWidth: screenshotSize.width == 0 ? nil : screenshotSize.width,
-            maxHeight: screenshotSize.height == 0 ? nil : screenshotSize.height
-        )
+        .onGeometryChange(for: CGFloat.self) {
+            $0.size.height
+        } action: { newValue in
+            deviceCornerRadius = newValue * OnboardingPage.screenshotCornerRatio
+        }
         .containerShape(RoundedRectangle(cornerRadius: deviceCornerRadius))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func screenshot(
         for page: OnboardingPage,
-        at index: Int,
         shape: ConcentricRectangle
     ) -> some View {
         Group {
@@ -85,16 +87,6 @@ struct OnboardingView: View {
                 Image(uiImage: screenshot)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .onGeometryChange(for: CGSize.self) {
-                        $0.size
-                    } action: { newValue in
-                        guard index == 0, screenshotSize == .zero else { return }
-                        screenshotSize = newValue
-                        // 180 pt of device corner in the screenshot's own
-                        // pixel space, scaled to how it is actually drawn.
-                        let height = screenshot.size.height
-                        deviceCornerRadius = height == 0 ? 0 : 180 * (newValue.height / height)
-                    }
                     .clipShape(shape)
             } else {
                 Rectangle()

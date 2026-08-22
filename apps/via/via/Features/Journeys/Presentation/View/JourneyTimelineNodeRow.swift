@@ -13,6 +13,7 @@ struct JourneyTimelineNodeRow: View {
     @Binding var isExpanded: Bool
     var departureChoicesGroup: JourneyDepartureChoiceGroup?
     var isDepartureChoicesLoading = false
+    var isSelectingDeparture = false
     var departureChoicesError: String?
     var canSelectDepartures = false
     var onSelectDeparture: ((JourneyDepartureChoice) -> Void)?
@@ -39,13 +40,14 @@ struct JourneyTimelineNodeRow: View {
                     route: route,
                     group: departureChoicesGroup,
                     isLoading: isDepartureChoicesLoading,
+                    isSelecting: isSelectingDeparture,
                     errorMessage: departureChoicesError,
                     canSelect: canSelectDepartures,
                     onSelect: { onSelectDeparture?($0) },
                     onRetry: { onRetryDepartures?() }
                 )
                 .padding(.leading, JourneyTimelineRail.width + 8)
-                .padding(.trailing, Self.timeColumnWidth + 8)
+                .padding(.trailing, 8)
                 .padding(.bottom, 8)
             }
         } else {

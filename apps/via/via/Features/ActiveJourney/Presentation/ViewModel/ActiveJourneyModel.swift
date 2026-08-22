@@ -104,9 +104,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
     var destinationName: String { session?.destination.name ?? "Destination" }
     var phase: ActiveJourneyPhase { phase(at: referenceDate) }
-    var usesTheoreticalTimes: Bool {
-        session?.source == .theoretical || journey?.status == .theoretical
-    }
 
     /// The current step is now described by `guidanceHeadline`; only the
     /// look-ahead survives, for the Live Activity's "Ensuite" line.

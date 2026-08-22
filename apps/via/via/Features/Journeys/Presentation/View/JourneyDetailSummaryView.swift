@@ -64,11 +64,6 @@ struct JourneyDetailSummaryView: View {
           .foregroundStyle(.red)
       }
 
-      if source == .theoretical || journey.status == .theoretical {
-        Label("Théorique", systemImage: "clock.badge.questionmark")
-          .font(.caption.weight(.semibold))
-          .foregroundStyle(.secondary)
-      }
     }
   }
 
@@ -114,9 +109,6 @@ struct JourneyDetailSummaryView: View {
       parts.append("\(JourneyFormatting.duration(journey.walkingDurationSeconds)) de marche")
     }
     if journey.status == .disrupted { parts.append("perturbé") }
-    if source == .theoretical || journey.status == .theoretical {
-      parts.append("horaires théoriques")
-    }
     return parts.joined(separator: ", ")
   }
 }

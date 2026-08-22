@@ -68,12 +68,14 @@ struct JourneyTimelineView: View {
                             isExpanded: binding(for: node.sectionID),
                             departureChoicesGroup: departureChoices?
                                 .groupsBySectionID[node.sectionID],
-                            isDepartureChoicesLoading: departureChoices?.isRefreshing == true
-                                || departureChoices?.selectingSectionID == node.sectionID,
+                            isDepartureChoicesLoading: departureChoices?.isRefreshing == true,
+                            isSelectingDeparture: departureChoices?
+                                .selectingSectionID == node.sectionID,
                             departureChoicesError: departureChoices?
                                 .errorMessage(for: node.sectionID),
-                            canSelectDepartures: revisableSectionIDs.contains(node.sectionID)
-                                && departureChoices?.selectingSectionID == nil,
+                            // The rail stays live while a revision flies: a
+                            // traveller mid-swipe must not hit a dead control.
+                            canSelectDepartures: revisableSectionIDs.contains(node.sectionID),
                             onSelectDeparture: onSelectDeparture.map { select in
                                 { choice in select(choice, node.sectionID) }
                             },
