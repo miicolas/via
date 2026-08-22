@@ -1,0 +1,4 @@
+interface:
+  display_name: "Apple HIG"
+  short_description: "Route Apple Human Interface Guidelines page skills"
+  default_prompt: "Use $apple-hig to route this Apple-platform design task to the matching Human Interface Guidelines page skill."

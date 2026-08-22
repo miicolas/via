@@ -1,6 +1,7 @@
 import { type Context, Hono, type Next } from 'hono';
 import { cors } from 'hono/cors';
 import { compress } from 'hono/compress';
+import { etag } from 'hono/etag';
 import { logger } from 'hono/logger';
 import { requestId } from 'hono/request-id';
 
@@ -28,6 +29,8 @@ app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
 
 app.use('/api/*', requireAuth);
 app.use('/rpc/*', requireAuth);
+app.use('/api/*', etag());
+app.use('/rpc/*', etag());
 
 /** The contract, as a document. Handy for clients that are not this repo's app. */
 app.get('/api/openapi.json', async (c) => c.json(await getOpenApiDocument()));

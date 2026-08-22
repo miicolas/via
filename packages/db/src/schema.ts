@@ -106,7 +106,13 @@ export const transitStops = pgTable(
     name: text('name').notNull(),
     location: pointWgs84('location').notNull(),
   },
-  (table) => [index('transit_stops_location_idx').using('gist', table.location)]
+  (table) => [
+    index('transit_stops_location_idx').using('gist', table.location),
+    index('transit_stops_location_geography_idx').using(
+      'gist',
+      sql`((${table.location})::geography)`
+    ),
+  ]
 );
 
 /** Raw GTFS/IDFM stop identifiers folded into Via's canonical stop-area id. */

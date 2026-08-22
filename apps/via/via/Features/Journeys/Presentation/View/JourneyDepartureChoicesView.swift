@@ -1,11 +1,10 @@
 import SwiftUI
 
-/// The passages of this leg, as one rail the traveller slides along.
+/// The passages of this leg, as one value the traveller scrubs through.
 ///
-/// A row of buttons made stepping to another train a target to aim at; here the
-/// gesture *is* the choice — drag left for the service after, right for the one
-/// before, and whatever the rail settles on becomes the journey. The chevrons
-/// exist for the same move without the gesture, and for VoiceOver.
+/// The gesture follows the reminder picker: the current passage stays legible
+/// above a small, discrete track and dragging across it moves one passage at a
+/// time. VoiceOver exposes the same control as an adjustable element.
 ///
 /// Shared by planning and live guidance; it never owns network work, it only
 /// reports intent upward.
@@ -22,8 +21,8 @@ struct JourneyDepartureChoicesView: View {
     let onRetry: () -> Void
 
     @State private var focusedID: String?
-    /// The last choice handed upward, so settling twice on the same card — a
-    /// programmatic scroll then its idle phase — asks for it once.
+    /// The last choice handed upward, so the end of a drag cannot submit it
+    /// twice after the value has already been sent to the model.
     @State private var committedID: String?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -41,7 +40,7 @@ struct JourneyDepartureChoicesView: View {
             } content: {
                 if let group, !group.choices.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        rail
+                        selector
                         context(for: group)
                     }
                 }
@@ -55,53 +54,101 @@ struct JourneyDepartureChoicesView: View {
         .onChange(of: group) { _, _ in resynchronise() }
     }
 
-    // MARK: - Rail
+    // MARK: - Scrubber
 
-    private var rail: some View {
-        HStack(spacing: 4) {
-            stepper(-1, systemImage: "chevron.left", label: "Passage précédent")
-            pager
-            stepper(1, systemImage: "chevron.right", label: "Passage suivant")
+    private var selector: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let choice = focusedChoice {
+                card(choice)
+            }
+
+            scrubber
         }
-        .accessibilityElement(children: .contain)
     }
 
-    private var pager: some View {
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 8) {
-                ForEach(choices) { choice in
-                    card(choice)
-                        // Just short of the full width, so the next service
-                        // always shows an edge: the sliver is what tells the
-                        // traveller the rail slides at all.
-                        .containerRelativeFrame(.horizontal, count: 8, span: 7, spacing: 8)
-                        .scrollTransition(
-                            reduceMotion ? .identity : .interactive,
-                            axis: .horizontal
-                        ) { content, phase in
-                            content
-                                .opacity(phase.isIdentity ? 1 : 0.45)
-                                .scaleEffect(phase.isIdentity ? 1 : 0.92)
-                        }
-                        .id(choice.id)
+    private var scrubber: some View {
+        GeometryReader { geometry in
+            let inset: CGFloat = 12
+            let usableWidth = max(1, geometry.size.width - inset * 2)
+            let selectedIndex = focusedIndex ?? 0
+            let progress = choices.count > 1
+                ? CGFloat(selectedIndex) / CGFloat(choices.count - 1)
+                : 0
+            let thumbX = choices.count > 1
+                ? inset + progress * usableWidth
+                : geometry.size.width / 2
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.secondary.opacity(0.16))
+                    .frame(height: 5)
+
+                Capsule()
+                    .fill(Color.accentColor.opacity(0.72))
+                    .frame(width: thumbX, height: 5)
+
+                ForEach(Array(choices.enumerated()), id: \.element.id) { index, _ in
+                    Circle()
+                        .fill(
+                            index == selectedIndex
+                                ? Color.accentColor
+                                : Color.secondary.opacity(0.42)
+                        )
+                        .frame(
+                            width: index == selectedIndex ? 8 : 6,
+                            height: index == selectedIndex ? 8 : 6
+                        )
+                        .offset(
+                            x: trackX(
+                                index: index,
+                                count: choices.count,
+                                inset: inset,
+                                width: usableWidth
+                            ) - (index == selectedIndex ? 4 : 3)
+                        )
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
                 }
+
+                Circle()
+                    .fill(Color.accentColor)
+                    .frame(width: 24, height: 24)
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.background, lineWidth: 3)
+                    }
+                    .shadow(color: .black.opacity(0.14), radius: 4, y: 2)
+                    .offset(x: thumbX - 12)
+                    .allowsHitTesting(false)
             }
-            .scrollTargetLayout()
+            .frame(height: 28)
+            .frame(maxHeight: .infinity, alignment: .center)
+            .contentShape(.rect)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        updateFocus(at: value.location.x, width: geometry.size.width, inset: inset)
+                    }
+                    .onEnded { _ in
+                        commitFocused()
+                    }
+            )
         }
-        .scrollIndicators(.hidden)
-        .scrollTargetBehavior(.viewAligned)
-        .scrollPosition(id: $focusedID)
-        .scrollDisabled(choices.count <= 1)
-        .onScrollPhaseChange { _, phase in
-            guard phase == .idle else { return }
-            commitFocused()
-        }
+        .frame(height: 44)
         .sensoryFeedback(.selection, trigger: focusedID)
-        .accessibilityHint(choices.count > 1 ? "Glissez pour changer de passage" : "")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Passages disponibles")
+        .accessibilityValue(position)
+        .accessibilityHint(choices.count > 1 ? "Balayez vers la gauche ou la droite pour changer de passage" : "")
+        .accessibilityAdjustableAction { direction in
+            adjustSelection(direction)
+        }
     }
 
     private func card(_ choice: JourneyDepartureChoice) -> some View {
-        Button {
+        let isFocused = choice.id == activeID
+
+        return Button {
             focus(choice.id)
         } label: {
             HStack(spacing: 8) {
@@ -117,14 +164,14 @@ struct JourneyDepartureChoicesView: View {
             .padding(.vertical, 6)
             .frame(minHeight: 52)
             .background(
-                choice.isSelected ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.07),
+                isFocused ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.07),
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(
-                        choice.isSelected ? Color.accentColor : Color.secondary.opacity(0.16),
-                        lineWidth: choice.isSelected ? 1.5 : 1
+                        isFocused ? Color.accentColor : Color.secondary.opacity(0.16),
+                        lineWidth: isFocused ? 1.5 : 1
                     )
             }
         }
@@ -132,7 +179,7 @@ struct JourneyDepartureChoicesView: View {
         .disabled(choice.status == .cancelled)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel(choice))
-        .accessibilityAddTraits(choice.isSelected ? [.isSelected] : [])
+        .accessibilityAddTraits(isFocused ? [.isSelected] : [])
         .accessibilityHint(hint(for: choice))
     }
 
@@ -179,13 +226,15 @@ struct JourneyDepartureChoicesView: View {
 
     @ViewBuilder
     private func indicator(for choice: JourneyDepartureChoice) -> some View {
-        if isSelecting, choice.id == focusedID, !choice.isSelected {
+        let isFocused = choice.id == activeID
+
+        if isSelecting, isFocused, !choice.isSelected, choice.status != .cancelled {
             ProgressView()
                 .controlSize(.small)
         } else {
-            Image(systemName: choice.isSelected ? "checkmark.circle.fill" : "circle")
+            Image(systemName: isFocused ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(
-                    choice.isSelected ? Color.accentColor : Color.secondary.opacity(0.55)
+                    isFocused ? Color.accentColor : Color.secondary.opacity(0.55)
                 )
                 .contentTransition(
                     reduceMotion
@@ -195,37 +244,16 @@ struct JourneyDepartureChoicesView: View {
                             options: .nonRepeating
                         )
                 )
-                .animation(reduceMotion ? nil : .default, value: choice.isSelected)
+                .animation(reduceMotion ? nil : .default, value: isFocused)
         }
     }
 
-    private func stepper(_ offset: Int, systemImage: String, label: String) -> some View {
-        Button(label, systemImage: systemImage) {
-            step(offset)
-        }
-        .iconAction(size: .small)
-        .disabled(neighbour(offset) == nil)
-        .accessibilityLabel(label)
-    }
+    // MARK: - Selection
 
-    // MARK: - Stepping
-
-    /// Where the rail sits right now, whatever the traveller last dragged past.
+    /// Where the selector sits right now, whatever the traveller last dragged past.
     private var focusedIndex: Int? {
-        guard let id = focusedID ?? selectedID else { return nil }
+        guard let id = activeID else { return nil }
         return choices.firstIndex { $0.id == id }
-    }
-
-    private func neighbour(_ offset: Int) -> JourneyDepartureChoice? {
-        guard let focusedIndex else { return nil }
-        let target = focusedIndex + offset
-        guard choices.indices.contains(target) else { return nil }
-        return choices[target]
-    }
-
-    private func step(_ offset: Int) {
-        guard let choice = neighbour(offset) else { return }
-        focus(choice.id)
     }
 
     private func focus(_ id: String) {
@@ -235,14 +263,51 @@ struct JourneyDepartureChoicesView: View {
         commit(id)
     }
 
+    private func updateFocus(at x: CGFloat, width: CGFloat, inset: CGFloat) {
+        guard choices.count > 1, width > inset * 2 else { return }
+
+        let progress = min(max((x - inset) / (width - inset * 2), 0), 1)
+        let index = min(
+            Int((progress * CGFloat(choices.count - 1)).rounded()),
+            choices.count - 1
+        )
+        let id = choices[index].id
+        guard id != focusedID else { return }
+
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
+            focusedID = id
+        }
+    }
+
+    private func trackX(index: Int, count: Int, inset: CGFloat, width: CGFloat) -> CGFloat {
+        guard count > 1 else { return inset + width / 2 }
+        return inset + CGFloat(index) / CGFloat(count - 1) * width
+    }
+
     private func commitFocused() {
         guard let focusedID else { return }
         commit(focusedID)
     }
 
-    /// Hands the settled card upward, once — a programmatic scroll and the idle
-    /// phase that follows it are one gesture, not two. A cancelled service is
-    /// shown but never chosen, and the held one needs no revision.
+    private func adjustSelection(_ direction: AccessibilityAdjustmentDirection) {
+        guard let focusedIndex else { return }
+
+        let targetIndex: Int
+        switch direction {
+        case .increment:
+            targetIndex = min(focusedIndex + 1, choices.index(before: choices.endIndex))
+        case .decrement:
+            targetIndex = max(focusedIndex - 1, choices.startIndex)
+        @unknown default:
+            return
+        }
+
+        guard targetIndex != focusedIndex else { return }
+        focus(choices[targetIndex].id)
+    }
+
+    /// Hands the settled card upward once. A cancelled service is shown but
+    /// never chosen, and the held one needs no revision.
     private func commit(_ id: String) {
         guard canSelect, id != committedID else { return }
         guard let choice = choices.first(where: { $0.id == id }) else { return }
@@ -255,6 +320,10 @@ struct JourneyDepartureChoicesView: View {
     /// dragged somewhere else the answer still knows about.
     private func resynchronise() {
         committedID = nil
+        guard !choices.isEmpty else {
+            focusedID = nil
+            return
+        }
         guard let selectedID else { return }
         if focusedID == nil || !choices.contains(where: { $0.id == focusedID }) {
             focusedID = selectedID
@@ -284,6 +353,19 @@ struct JourneyDepartureChoicesView: View {
         return "\(focusedIndex + 1) sur \(choices.count)"
     }
 
+    private var activeID: String? {
+        focusedID ?? selectedID
+    }
+
+    private var focusedChoice: JourneyDepartureChoice? {
+        guard let focusedID else {
+            return choices.first(where: \.isSelected) ?? choices.first
+        }
+        return choices.first(where: { $0.id == focusedID })
+            ?? choices.first(where: \.isSelected)
+            ?? choices.first
+    }
+
     private var skeleton: some View {
         HStack(spacing: 8) {
             Skeleton(.roundedRectangle(cornerRadius: 12))
@@ -311,7 +393,7 @@ struct JourneyDepartureChoicesView: View {
     /// rather than the clock: a delayed later service can still print an earlier
     /// time than the one held.
     private func hint(for choice: JourneyDepartureChoice) -> String {
-        guard !choice.isSelected else { return "Passage retenu" }
+        guard choice.id != activeID else { return "Passage retenu" }
         guard
             let index = choices.firstIndex(of: choice),
             let selected = choices.firstIndex(where: \.isSelected)

@@ -50,15 +50,36 @@ struct JourneySummaryCard: View {
       Spacer(minLength: 8)
 
       if let serviceStatus {
-        Label(serviceStatus.title, systemImage: serviceStatus.systemImage)
-          .font(.caption.weight(.semibold))
-          .foregroundStyle(serviceStatus.color)
+        serviceStatusView(serviceStatus)
       }
 
       Image(systemName: isSelected ? "checkmark.circle.fill" : "chevron.right")
         .font(isSelected ? .body.weight(.semibold) : .caption.weight(.bold))
         .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
         .stateSymbolTransition(value: isSelected)
+        .accessibilityHidden(true)
+    }
+  }
+
+  /// The live feed says so with the glyph the station board uses, and nothing
+  /// more: a card already crowded with a qualifier, a state and a chevron does
+  /// not need the words "temps réel" too, and the word is never lost — the
+  /// card's own accessibility label still speaks it.
+  ///
+  /// A disruption keeps its word. It is the exception the traveller has to
+  /// read, and a lone triangle beside a lone antenna would be two glyphs the
+  /// eye has to tell apart at a glance.
+  @ViewBuilder
+  private func serviceStatusView(_ status: JourneyServiceStatus) -> some View {
+    if status.showsTitle {
+      Label(status.title, systemImage: status.systemImage)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(status.color)
+        .accessibilityHidden(true)
+    } else {
+      Image(systemName: status.systemImage)
+        .font(.footnote.weight(.semibold))
+        .foregroundStyle(status.color)
         .accessibilityHidden(true)
     }
   }
@@ -73,9 +94,8 @@ struct JourneySummaryCard: View {
     } else {
       HStack(alignment: .firstTextBaseline, spacing: 14) {
         scheduleTimes
-        Spacer(minLength: 0)
+        Spacer(minLength: 8)
         durationGuide
-          .frame(maxWidth: 116)
       }
     }
   }
@@ -94,23 +114,14 @@ struct JourneySummaryCard: View {
     .monospacedDigit()
   }
 
+  /// The trip length, said once. The rule that used to run under it drew a
+  /// second, emptier arrow beside the one already between the two times — a
+  /// line the eye reads as a progress bar that never moves.
   private var durationGuide: some View {
-    VStack(alignment: .trailing, spacing: 5) {
-      Text(JourneyFormatting.duration(journey.durationSeconds))
-        .font(.subheadline.weight(.semibold))
-        .monospacedDigit()
-
-      HStack(spacing: 0) {
-        Circle()
-          .frame(width: 5, height: 5)
-        Rectangle()
-          .frame(height: 1.5)
-        Image(systemName: "arrowtriangle.right.fill")
-          .font(.system(size: 7, weight: .bold))
-      }
-      .foregroundStyle(.tertiary)
-      .accessibilityHidden(true)
-    }
+    Text(JourneyFormatting.duration(journey.durationSeconds))
+      .font(.subheadline.weight(.semibold))
+      .monospacedDigit()
+      .foregroundStyle(.secondary)
   }
 
   private var route: some View {
@@ -248,7 +259,8 @@ struct JourneySummaryCard: View {
       return JourneyServiceStatus(
         title: "Perturbé",
         systemImage: "exclamationmark.triangle.fill",
-        color: .red
+        color: .red,
+        showsTitle: true
       )
     }
     // A scheduled journey wears no badge: the badge exists to mark live data,
@@ -258,8 +270,9 @@ struct JourneySummaryCard: View {
     }
     return JourneyServiceStatus(
       title: "Temps réel",
-      systemImage: "dot.radiowaves.left.and.right",
-      color: .green
+      systemImage: "dot.radiowaves.up.forward",
+      color: .green,
+      showsTitle: false
     )
   }
 
@@ -297,4 +310,6 @@ private struct JourneyServiceStatus {
   var title: LocalizedStringResource
   var systemImage: String
   var color: Color
+  /// Whether the word is drawn as well as spoken.
+  var showsTitle: Bool
 }
