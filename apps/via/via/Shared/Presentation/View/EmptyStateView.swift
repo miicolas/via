@@ -99,10 +99,11 @@ extension EmptyStateView where Actions == EmptyView {
 
 #Preview("Sans glyphe") {
     EmptyStateView(EmptyState(title: "Trouvez une station")) {
-        Button {} label: {
-            Text("Touchez \(Image(systemName: "magnifyingglass.circle.fill")) Recherche pour trouver une station près de vous")
-        }
-        .emptyStateHint()
+        EmptyStateHint(
+            Text("Touchez \(Image(systemName: "magnifyingglass.circle.fill")) Recherche pour trouver une station près de vous"),
+            label: "Ouvrir Recherche pour trouver une station",
+            action: {},
+        )
     }
     .padding()
 }
@@ -116,8 +117,13 @@ extension EmptyStateView where Actions == EmptyView {
 }
 
 #Preview("Aucun favori") {
-    EmptyStateView(.noFavorites)
-        .padding()
+    EmptyStateView(.noFavorites) {
+        EmptyStateHint(
+            Text("Touchez \(Image(systemName: "star")) sur la fiche d’une station pour la retrouver ici"),
+            label: "Touchez l’étoile sur la fiche d’une station pour la retrouver ici",
+        )
+    }
+    .padding()
 }
 
 #Preview("Recherche en cours") {

@@ -5,7 +5,13 @@ struct JourneySummaryCard: View {
     let source: JourneyResult.Source?
     var isSelected = false
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
+        let displayedRouteBadges = routeBadges
+        let visibleRouteBadgeCount = maximumVisibleRouteBadges
+        let hiddenRouteBadgeCount = max(0, displayedRouteBadges.count - visibleRouteBadgeCount)
+
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(journey.qualifier.displayName)
@@ -40,20 +46,18 @@ struct JourneySummaryCard: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if routeBadges.isEmpty {
+            if displayedRouteBadges.isEmpty {
                 Label("À pied", systemImage: "figure.walk")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
             } else {
                 HStack(spacing: 7) {
-                    ForEach(routeBadges) { badge in
-                        LineBadgeView(route: badge, size: 24)
+                    ForEach(displayedRouteBadges.prefix(visibleRouteBadgeCount)) { badge in
+                        LineBadgeView(route: badge.route, size: 24)
                     }
 
-                    if journey.transferCount > 0 {
-                        Text(journey.transferCount == 1 ? "1 correspondance" : "\(journey.transferCount) correspondances")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                    if hiddenRouteBadgeCount > 0 {
+                        LineBadgeOverflowView(count: hiddenRouteBadgeCount, size: 24)
                     }
                 }
             }
@@ -67,13 +71,20 @@ struct JourneySummaryCard: View {
             if journey.accessibility != nil || journey.peak != nil {
                 HStack(spacing: 8) {
                     if let accessibility = journey.accessibility {
-                        PMRBadgeView(accessibilityLabel: accessibility.label, size: 24)
+                        PMRBadgeView(
+                            condition: accessibility.condition,
+                            label: accessibility.label,
+                            size: 24,
+                            isInteractive: false
+                        )
                     }
 
                     if let peak = journey.peak {
                         StationPeakBadge(
                             peak: peak,
-                            accessibilityLabel: "Affluence en correspondance"
+                            accessibilityLabel: "Affluence en correspondance",
+                            size: 24,
+                            isInteractive: false
                         )
                     }
                 }
@@ -93,11 +104,11 @@ struct JourneySummaryCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.secondary.opacity(0.085), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
-            if isSelected || journey.qualifier == .recommended {
+            if isSelected {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .stroke(
-                        Color.accentColor.opacity(isSelected ? 0.8 : 0.35),
-                        lineWidth: isSelected ? 2.5 : 1.5
+                        Color.accentColor.opacity(0.8),
+                        lineWidth: 2.5
                     )
             }
         }
@@ -106,18 +117,24 @@ struct JourneySummaryCard: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private var routeBadges: [RouteBadge] {
-        var seen = Set<RouteID>()
-        return journey.sections.compactMap(\.route).compactMap { route in
-            guard seen.insert(route.id).inserted else { return nil }
-            return RouteBadge(
-                id: route.id,
-                shortName: route.shortName,
-                mode: route.mode,
-                colorHex: route.colorHex,
-                textColorHex: route.textColorHex
+    private var routeBadges: [JourneyRouteBadge] {
+        journey.sections.compactMap { section in
+            guard let route = section.route else { return nil }
+            return JourneyRouteBadge(
+                id: section.id,
+                route: RouteBadge(
+                    id: route.id,
+                    shortName: route.shortName,
+                    mode: route.mode,
+                    colorHex: route.colorHex,
+                    textColorHex: route.textColorHex
+                )
             )
         }
+    }
+
+    private var maximumVisibleRouteBadges: Int {
+        dynamicTypeSize.isAccessibilitySize ? 2 : 4
     }
 
     private var summaryText: String {
@@ -165,6 +182,11 @@ struct JourneySummaryCard: View {
         return value
     }
 
+}
+
+private struct JourneyRouteBadge: Identifiable {
+    let id: String
+    let route: RouteBadge
 }
 
 private struct JourneyStatus {

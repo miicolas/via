@@ -67,8 +67,10 @@ struct LinesView: View {
                             message: "Essayez un autre nom de ligne ou de mode.",
                         ),
                     ) {
-                        Text("Modifiez la recherche ci-dessus.")
-                            .emptyStateHint()
+                        EmptyStateHint(
+                            Text("Modifiez \(Image(systemName: "magnifyingglass.circle.fill")) Recherche ci-dessus pour trouver une ligne"),
+                            label: "Modifiez Recherche ci-dessus pour trouver une ligne",
+                        )
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(.background)

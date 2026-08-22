@@ -21,10 +21,7 @@ struct LineDetailHeaderView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.04), radius: 12, y: 4)
+        .detailCard()
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }

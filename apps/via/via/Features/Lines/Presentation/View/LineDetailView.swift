@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct LineDetailView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var viewModel: LineDetailViewModel
     private let route: RouteBadge
 
@@ -11,34 +13,32 @@ struct LineDetailView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 28) {
-                headerSection
+            LazyVStack(alignment: .leading, spacing: 20) {
+                LineDetailHeaderView(
+                    route: route,
+                    condition: viewModel.detail.value?.condition ?? .normal,
+                    source: viewModel.detail.value?.source ?? .unavailable,
+                    fetchedAt: viewModel.detail.value?.fetchedAt
+                )
 
                 if let detail = viewModel.detail.value {
-                    if viewModel.selectedDirection != nil {
-                        LineServiceMapCard(
-                            directions: detail.schemaDirections,
-                            selectedDirectionID: directionSelection,
-                            rows: viewModel.schemaRows,
-                            lineColor: Color(transitHex: route.colorHex, fallback: .secondary),
-                            activeDisruptions: detail.activeDisruptions,
-                            onToggleRun: { viewModel.toggleRun($0) }
+                    if !detail.disruptions.isEmpty {
+                        LineDisruptionsSection(
+                            active: detail.activeDisruptions,
+                            upcoming: detail.upcomingDisruptions
                         )
                     }
 
-                    if !detail.activeDisruptions.isEmpty {
-                        LineDisruptionsSection(
-                            title: "Travaux en cours",
-                            disruptions: detail.activeDisruptions
-                        )
-                    }
-
-                    if !detail.upcomingDisruptions.isEmpty {
-                        LineDisruptionsSection(
-                            title: "Travaux à venir",
-                            disruptions: detail.upcomingDisruptions
-                        )
-                    }
+                    LinePlanView(
+                        strips: viewModel.strips,
+                        lineColor: Color(transitHex: route.colorHex, fallback: .secondary),
+                        isOpen: { viewModel.isOpen($0) },
+                        onToggle: { strip in
+                            withAnimation(reduceMotion ? nil : .snappy) {
+                                viewModel.toggle(strip)
+                            }
+                        }
+                    )
                 }
             }
             .padding(.horizontal, 16)
@@ -76,25 +76,9 @@ struct LineDetailView: View {
             }
         }
     }
-
-    private var headerSection: some View {
-        LineDetailHeaderView(
-            route: route,
-            condition: viewModel.detail.value?.condition ?? .normal,
-            source: viewModel.detail.value?.source ?? .unavailable,
-            fetchedAt: viewModel.detail.value?.fetchedAt
-        )
-    }
-
-    private var directionSelection: Binding<String> {
-        Binding(
-            get: { viewModel.selectedDirection?.id ?? "" },
-            set: { viewModel.selectedDirectionID = $0 }
-        )
-    }
 }
 
-#Preview("Métro 1 — travaux actifs") {
+#Preview("Métro 1 — trafic interrompu") {
     NavigationStack {
         LineDetailView(
             viewModel: LineDetailViewModel(
@@ -106,7 +90,7 @@ struct LineDetailView: View {
     }
 }
 
-#Preview("RER A — branches et tronçons") {
+#Preview("RER A — tronc commun et branches") {
     NavigationStack {
         LineDetailView(
             viewModel: LineDetailViewModel(
@@ -123,9 +107,9 @@ struct LineDetailView: View {
         LineDetailView(
             viewModel: LineDetailViewModel(
                 repository: PreviewLineStatusRepository(),
-                lineID: PreviewLineStatusRepository.metro1.id
+                lineID: PreviewLineStatusRepository.rerA.id
             ),
-            route: PreviewLineStatusRepository.metro1
+            route: PreviewLineStatusRepository.rerA
         )
     }
     .preferredColorScheme(.dark)
@@ -156,31 +140,6 @@ struct LineDetailView: View {
     )
     let repository = PreviewLineStatusRepository(
         details: [detail.route.id: normalDetail]
-    )
-
-    NavigationStack {
-        LineDetailView(
-            viewModel: LineDetailViewModel(
-                repository: repository,
-                lineID: detail.route.id
-            ),
-            route: detail.route
-        )
-    }
-}
-
-#Preview("Travaux à venir — écran complet") {
-    let detail = PreviewLineStatusRepository.metro1Detail
-    let upcomingDetail = LineDetail(
-        route: detail.route,
-        branches: detail.branches,
-        directions: detail.directions,
-        source: detail.source,
-        fetchedAt: detail.fetchedAt,
-        disruptions: detail.disruptions.filter { !$0.isActive }
-    )
-    let repository = PreviewLineStatusRepository(
-        details: [detail.route.id: upcomingDetail]
     )
 
     NavigationStack {

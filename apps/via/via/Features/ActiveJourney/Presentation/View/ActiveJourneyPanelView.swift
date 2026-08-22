@@ -291,7 +291,7 @@ struct ActiveJourneyPanelView: View {
                 Button("Étape suivante", systemImage: "forward.end") {
                     Task { await model.moveToNextSection() }
                 }
-                Button("Terminer", systemImage: "checkered.flag") {
+                Button("Terminer", systemImage: "flag.checkered") {
                     Task { await model.finishJourney() }
                 }
                 Divider()

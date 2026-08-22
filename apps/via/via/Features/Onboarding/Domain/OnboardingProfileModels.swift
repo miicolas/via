@@ -16,19 +16,8 @@ enum TransitPassKind: String, Codable, CaseIterable, Hashable, Identifiable, Sen
         case .navigoMonthlyOrWeekly: "Navigo Mois ou Semaine"
         case .imagineR: "Imagine R"
         case .navigoLibertePlus: "Navigo Liberté+"
-        case .navigoEasyOrTickets: "Navigo Easy / tickets"
-        case .noneOrOther: "Aucun / autre"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .navigoAnnual: "Je me déplace toute l’année"
-        case .navigoMonthlyOrWeekly: "Mon forfait change selon les périodes"
-        case .imagineR: "Mon abonnement étudiant ou scolaire"
-        case .navigoLibertePlus: "Je paie mes trajets à l’usage"
-        case .navigoEasyOrTickets: "Un carnet, un ticket ou une carte Easy"
-        case .noneOrOther: "Je préfère ne pas préciser"
+        case .navigoEasyOrTickets: "Navigo Easy ou tickets"
+        case .noneOrOther: "Aucun ou autre"
         }
     }
 
@@ -59,14 +48,6 @@ enum IleDeFrancePresence: String, Codable, CaseIterable, Hashable, Identifiable,
         }
     }
 
-    var subtitle: String {
-        switch self {
-        case .resident: "Je connais déjà le réseau francilien"
-        case .visitor: "Je découvre Paris et l’Île-de-France"
-        case .both: "Je vis ici, mais je reçois aussi des proches"
-        }
-    }
-
     var systemImage: String {
         switch self {
         case .resident: "house.fill"
@@ -91,18 +72,10 @@ enum TransitUsageFrequency: String, Codable, CaseIterable, Hashable, Identifiabl
         }
     }
 
-    var subtitle: String {
-        switch self {
-        case .daily: "Travail, études ou trajets du quotidien"
-        case .regular: "Des habitudes, sans trajet tous les jours"
-        case .occasional: "Sorties, rendez-vous ou voyages"
-        }
-    }
-
     var systemImage: String {
         switch self {
         case .daily: "sun.max.fill"
-        case .regular: "calendar.badge.repeat"
+        case .regular: "calendar"
         case .occasional: "sparkles"
         }
     }

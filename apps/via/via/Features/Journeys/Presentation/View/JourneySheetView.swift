@@ -15,6 +15,13 @@ struct JourneySheetView: View {
     let onExpandMap: () -> Void
     let onOpenReport: () -> Void
 
+    /// Measured rather than read off `detent`: the selection only settles when
+    /// the drag ends, so the guidance panel would stay hidden all the way up.
+    /// Stored already reduced to the answer, and `nil` until the first
+    /// measurement — a zero height would read as the peek and flash the strip
+    /// over a full-height sheet on the first frame.
+    @State private var isAtPeek: Bool?
+
     init(
         journeyID: JourneyID,
         searchViewModel: SearchViewModel,
@@ -61,7 +68,50 @@ struct JourneySheetView: View {
                 }
             }
         }
-        .detailSheetPresentation(isLargeScreen: isLargeScreen, selection: $detent)
+        // At the peek the guidance panel has no room for its navigation bar and
+        // its pinned header at once: they overlap and spill over the map. The
+        // compact strip says the same thing in the height there is.
+        .opacity(showsCompactGuidance ? 0 : 1)
+        .accessibilityHidden(showsCompactGuidance)
+        .overlay(alignment: .top) { compactGuidance }
+        .onHeightChange(for: Self.isAtPeek(sheetHeight:)) { isAtPeek = $0 }
+        .detailSheetPresentation(
+            isLargeScreen: isLargeScreen,
+            collapsedHeight: JourneySheetDetents.peekHeight(isGuiding: activeJourneyModel.isGuiding),
+            selection: $detent
+        )
+    }
+
+    /// Sits above the (hidden) guidance panel rather than replacing it, so the
+    /// pushed stack keeps its scroll position while the sheet is put away.
+    @ViewBuilder
+    private var compactGuidance: some View {
+        if showsCompactGuidance {
+            ActiveJourneyCompactStrip(model: activeJourneyModel) {
+                detent = DetailSheetPresentation.expanded(isLargeScreen: isLargeScreen)
+            }
+            // Clears the drag indicator the sheet draws at its top edge.
+            .padding(.top, 16)
+            .transition(.opacity)
+        }
+    }
+
+    /// Whether the sheet sits low enough for the strip to take over. Kept free
+    /// of the eligibility question so the measurement reduces to a Bool that
+    /// changes twice per drag instead of a height that changes every frame.
+    private static func isAtPeek(sheetHeight: CGFloat) -> Bool {
+        guard sheetHeight > 0 else { return false }
+        return SheetTabPresentation.showsCompactContent(
+            isEligible: true,
+            measuredContentProgress: SheetTabDetents.contentProgress(
+                sheetHeight: sheetHeight,
+                hasCompactContent: true
+            )
+        )
+    }
+
+    private var showsCompactGuidance: Bool {
+        activeJourneyModel.isGuiding && isAtPeek == true
     }
 
     /// Prefers the live session so a restored journey resolves even when the
@@ -89,7 +139,7 @@ struct JourneySheetView: View {
     /// the push follows the running session and clears itself when it ends.
     private var guidanceBinding: Binding<Bool> {
         Binding(
-            get: { activeJourneyModel.isActive || activeJourneyModel.arrival != nil },
+            get: { activeJourneyModel.hasSurface },
             set: { _ in },
         )
     }

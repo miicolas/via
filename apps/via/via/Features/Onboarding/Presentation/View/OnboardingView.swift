@@ -14,26 +14,26 @@ struct OnboardingView: View {
     private let pages = OnboardingPage.allCases
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Color.black
-                .ignoresSafeArea()
-
+        OnboardingScaffold(
+            onBack: backAction,
+            backHint: "Revient à l’étape précédente de la présentation",
+            showsPanelBackground: currentPage.zoomScale > 1
+        ) {
             screenshotCarousel
                 .compositingGroup()
                 .scaleEffect(
                     currentPage.zoomScale,
                     anchor: currentPage.zoomAnchor
                 )
-                .padding(.top, 35)
-                .padding(.horizontal, 30)
-                .padding(.bottom, panelHeight + 10)
                 .accessibilityHidden(true)
-
-            bottomPanel
-
-            backButton
+        } panel: {
+            VStack(spacing: 10) {
+                textCarousel
+                    .frame(height: textCarouselHeight)
+                OnboardingStepIndicator(count: pages.count, currentIndex: currentIndex)
+                continueButton
+            }
         }
-        .preferredColorScheme(.dark)
     }
 
     private var screenshotCarousel: some View {
@@ -103,20 +103,6 @@ struct OnboardingView: View {
         }
     }
 
-    private var bottomPanel: some View {
-        VStack(spacing: 10) {
-            textCarousel
-            pageIndicator
-            continueButton
-        }
-        .padding(.top, 20)
-        .padding(.horizontal, 15)
-        .frame(height: panelHeight)
-        .background {
-            variableGlassBlur(15)
-        }
-    }
-
     private var textCarousel: some View {
         GeometryReader { proxy in
             ScrollView(.horizontal) {
@@ -124,24 +110,11 @@ struct OnboardingView: View {
                     ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
                         let isActive = currentIndex == index
 
-                        VStack(spacing: 6) {
-                            Text(page.title)
-                                .font(.title2.weight(.semibold))
-                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                                .minimumScaleFactor(0.8)
-                                .foregroundStyle(.white)
-
-                            Text(page.subtitle)
-                                .font(.callout)
-                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 2)
-                                .multilineTextAlignment(.center)
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                        .frame(width: proxy.size.width)
-                        .compositingGroup()
-                        .blur(radius: reduceMotion || isActive ? 0 : 30)
-                        .opacity(isActive ? 1 : 0)
-                        .accessibilityElement(children: .combine)
+                        OnboardingHeadline(title: page.title, subtitle: page.subtitle)
+                            .frame(width: proxy.size.width)
+                            .compositingGroup()
+                            .blur(radius: reduceMotion || isActive ? 0 : 30)
+                            .opacity(isActive ? 1 : 0)
                     }
                 }
                 .scrollTargetLayout()
@@ -154,21 +127,6 @@ struct OnboardingView: View {
         }
     }
 
-    private var pageIndicator: some View {
-        HStack(spacing: 6) {
-            ForEach(pages.indices, id: \.self) { index in
-                let isActive = currentIndex == index
-
-                Capsule()
-                    .fill(.white.opacity(isActive ? 1 : 0.4))
-                    .frame(width: isActive ? 25 : 6, height: 6)
-            }
-        }
-        .padding(.bottom, 5)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Étape \(currentIndex + 1) sur \(pages.count)")
-    }
-
     private var continueButton: some View {
         Button(action: advance) {
             Text(currentPage.isFinal ? "Commencer" : "Continuer")
@@ -179,32 +137,9 @@ struct OnboardingView: View {
         .padding(.horizontal, 30)
         .accessibilityHint(
             currentPage.isFinal
-                ? "Termine la présentation et ouvre Metyro"
+                ? "Termine la présentation et ouvre la connexion"
                 : "Affiche l’étape suivante"
         )
-    }
-
-    private var backButton: some View {
-        Button("Étape précédente", systemImage: "chevron.left", action: goBack)
-            .iconAction()
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .padding(.leading, 15)
-            .padding(.top, 5)
-            .opacity(currentIndex == 0 ? 0 : 1)
-            .disabled(currentIndex == 0)
-            .accessibilityHidden(currentIndex == 0)
-            .accessibilityHint("Revient à l’étape précédente de la présentation")
-    }
-
-    private func variableGlassBlur(_ radius: CGFloat) -> some View {
-        Rectangle()
-            .fill(.black.opacity(0.5))
-            .glassEffect(.clear, in: .rect)
-            .blur(radius: radius)
-            .padding([.horizontal, .bottom], -radius * 2)
-            .padding(.top, -radius / 2)
-            .opacity(currentPage.zoomScale > 1 ? 1 : 0)
-            .ignoresSafeArea()
     }
 
     private func advance() {
@@ -235,12 +170,22 @@ struct OnboardingView: View {
         )
     }
 
+    /// Spelled out rather than inlined in the ternary: the carousel's first
+    /// page has nowhere to go back to, and the scaffold reads that as `nil`.
+    private var backAction: (() -> Void)? {
+        guard currentIndex > 0 else { return nil }
+        return goBack
+    }
+
     private var currentPage: OnboardingPage {
         pages[currentIndex]
     }
 
-    private var panelHeight: CGFloat {
-        dynamicTypeSize.isAccessibilitySize ? 300 : 210
+    /// The text is the only part of the panel that has to be pinned: it rides a
+    /// `GeometryReader`, and a panel that resized page by page would shove the
+    /// screenshot up and down as the traveller advances.
+    private var textCarouselHeight: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 200 : 110
     }
 
     private var pageAnimation: Animation? {

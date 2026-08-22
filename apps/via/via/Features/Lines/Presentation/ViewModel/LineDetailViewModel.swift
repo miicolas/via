@@ -5,10 +5,9 @@ import Observation
 @Observable
 final class LineDetailViewModel {
     private(set) var detail: Loadable<LineDetail> = .idle
-    var selectedDirectionID: String?
-    /// Collapsed "⋯ N gares" runs the user opened; ids are stable across
-    /// refreshes, so an expansion survives the automatic reload.
-    private(set) var expandedRunIDs: Set<String> = []
+    /// Branches the rider opened; ids are stable across refreshes, so an open
+    /// branch survives the automatic reload.
+    private(set) var openedBranchIDs: Set<String> = []
 
     @ObservationIgnored private let repository: any LineStatusRepository
     @ObservationIgnored let lineID: RouteID
@@ -46,31 +45,22 @@ final class LineDetailViewModel {
         }
     }
 
-    /// The direction the schema draws: the user's choice, else the first one.
-    var selectedDirection: LineDirection? {
-        guard let directions = detail.value?.schemaDirections, !directions.isEmpty else {
-            return nil
-        }
-        if let selectedDirectionID,
-           let chosen = directions.first(where: { $0.id == selectedDirectionID }) {
-            return chosen
-        }
-        return directions.first
+    /// The trunk and its branches, in reading order.
+    var strips: [LinePlan.Strip] {
+        guard let detail = detail.value, let direction = detail.planDirection else { return [] }
+        return LinePlan.strips(for: direction, disruptions: detail.disruptions)
     }
 
-    /// Display rows of the selected direction: sections, stops, folded runs.
-    var schemaRows: [LineSchemaLayout.Row] {
-        guard let direction = selectedDirection, let detail = detail.value else { return [] }
-        return LineSchemaLayout.rows(
-            for: direction,
-            disruptions: detail.disruptions,
-            expandedRunIDs: expandedRunIDs
-        )
+    /// A branch opens on a tap, and a disrupted one opens by itself: the
+    /// screen's job is to show where the problem is, not to hide it one tap
+    /// deep.
+    func isOpen(_ strip: LinePlan.Strip) -> Bool {
+        strip.role == .trunk || strip.condition != nil || openedBranchIDs.contains(strip.id)
     }
 
-    func toggleRun(_ runID: String) {
-        if !expandedRunIDs.insert(runID).inserted {
-            expandedRunIDs.remove(runID)
+    func toggle(_ strip: LinePlan.Strip) {
+        if !openedBranchIDs.insert(strip.id).inserted {
+            openedBranchIDs.remove(strip.id)
         }
     }
 }

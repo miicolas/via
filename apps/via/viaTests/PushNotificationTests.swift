@@ -46,7 +46,7 @@ final class PushNotificationTests: XCTestCase {
 
     func testRemovalStoreMergesFallbackJournalWithOlderFile() async throws {
         let suiteName = "PushNotificationTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
+        nonisolated(unsafe) let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let directory = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -80,7 +80,7 @@ final class PushNotificationTests: XCTestCase {
 
     func testNewerEmptyFallbackDoesNotResurrectRemovalFromStaleFile() async throws {
         let suiteName = "PushNotificationTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
+        nonisolated(unsafe) let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let directory = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)
@@ -110,7 +110,7 @@ final class PushNotificationTests: XCTestCase {
 
     func testCorruptRemovalFileFailsClosedAndCanBeOverwritten() async throws {
         let suiteName = "PushNotificationTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
+        nonisolated(unsafe) let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let directory = FileManager.default.temporaryDirectory
             .appending(path: UUID().uuidString, directoryHint: .isDirectory)

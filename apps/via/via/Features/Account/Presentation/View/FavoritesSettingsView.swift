@@ -19,8 +19,10 @@ struct FavoritesSettingsView: View {
             if favorites.isEmpty {
                 Section {
                     EmptyStateView(.noFavorites) {
-                        Text("Ajoutez une station depuis sa fiche pour la retrouver ici.")
-                            .emptyStateHint()
+                        EmptyStateHint(
+                            Text("Touchez \(Image(systemName: "star")) sur la fiche d’une station pour la retrouver ici"),
+                            label: "Touchez l’étoile sur la fiche d’une station pour la retrouver ici",
+                        )
                     }
                         .listRowBackground(Color.clear)
                 }
@@ -59,7 +61,7 @@ struct FavoritesSettingsView: View {
             await routesModel.load(for: favorites)
         }
         .navigationTitle("Favoris")
-        .navigationBarTitleDisplayMode(.large)
+        .toolbarTitleDisplayMode(.inlineLarge)
         .environment(\.editMode, $editMode)
         .toolbar {
             if !favorites.isEmpty {

@@ -30,10 +30,12 @@ struct EmptyState {
 // MARK: - The dead ends Via has already worded
 
 extension EmptyState {
+    /// No message: the way out is a control on another screen, so the sentence
+    /// belongs to an `EmptyStateHint` that can carry that control's symbol
+    /// inline instead of describing it in words.
     static let noFavorites = EmptyState(
         systemImage: "star",
         title: "Aucune station favorite",
-        message: "Ajoute une station en favori depuis sa fiche pour la retrouver ici.",
     )
 
     /// Quoting the query back is what tells the traveller the search ran on what

@@ -199,11 +199,11 @@ struct StationsView: View {
     /// the sentence already carries the one symbol that matters.
     private func stateContent(_ state: EmptyState, onRetry: (() -> Void)?) -> some View {
         EmptyStateView(state) {
-            Text("Utilisez Recherche pour trouver une station près de vous.")
-                .emptyStateHint()
-
-            Button("Rechercher", systemImage: "magnifyingglass", action: onOpenSearch)
-                .primaryAction()
+            EmptyStateHint(
+                Text("Touchez \(Image(systemName: "magnifyingglass.circle.fill")) Recherche pour trouver une station près de vous"),
+                label: "Ouvrir Recherche pour trouver une station",
+                action: onOpenSearch,
+            )
 
             if let onRetry {
                 RetryButton(action: onRetry)
