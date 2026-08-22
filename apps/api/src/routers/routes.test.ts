@@ -33,6 +33,7 @@ test('the public route table is stable', async () => {
     'GET /api/lines/statuses',
     'GET /api/network/rail-map',
     'GET /api/network/stations',
+    'GET /api/notifications/inbox',
     'GET /api/search',
     'POST /api/account/delete',
     'POST /api/account/sync',
@@ -41,8 +42,11 @@ test('the public route table is stable', async () => {
     'POST /api/notifications/active-journey/unregister',
     'POST /api/notifications/device',
     'POST /api/notifications/device/unregister',
+    'POST /api/notifications/inbox/read',
     'POST /api/notifications/live-activity',
     'POST /api/notifications/live-activity/push-to-start',
     'POST /api/notifications/live-activity/unregister',
+    'POST /api/notifications/mute',
+    'POST /api/notifications/snooze',
   ]);
 });

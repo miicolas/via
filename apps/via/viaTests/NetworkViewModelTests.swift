@@ -12,12 +12,14 @@ final class NetworkViewModelTests: XCTestCase {
 
         await model.preload()
 
-        XCTAssertEqual(await repository.railCallCount, 1)
+        var railCalls = await repository.railCallCount
+        XCTAssertEqual(railCalls, 1)
 
         model.viewportChanged(to: viewport(), phase: .ended)
         await waitUntil { model.state.loading == .loaded }
 
-        XCTAssertEqual(await repository.railCallCount, 1)
+        railCalls = await repository.railCallCount
+        XCTAssertEqual(railCalls, 1)
         XCTAssertEqual(model.state.snapshot.routes.count, 2)
     }
 
@@ -49,7 +51,7 @@ final class NetworkViewModelTests: XCTestCase {
             area: area(stationID: "hidden", latitude: 48.85)
         )
         let model = NetworkViewModel(repository: repository)
-        // Past maximumStationSpanMeters (2 100 m): stations neither fetched nor drawn.
+        // Past maximumStationSpanMeters (1 600 m): stations neither fetched nor drawn.
         let overview = viewport(spanMeters: 2_500)
 
         model.viewportChanged(to: overview, phase: .ended)

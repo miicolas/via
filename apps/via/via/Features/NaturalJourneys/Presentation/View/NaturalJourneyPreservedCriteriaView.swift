@@ -21,36 +21,41 @@ struct NaturalJourneyPreservedCriteriaView: View {
 
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
-                    NaturalJourneyCriteriaChip(
+                    OptionChip(
                         title: fields.origin,
                         systemImage: "location.fill",
+                        isActive: true,
                     )
                     if let destination = fields.destination {
-                        NaturalJourneyCriteriaChip(
+                        OptionChip(
                             title: destination,
                             systemImage: "mappin.and.ellipse",
+                            isActive: true,
                         )
                     }
                     if let time = fields.time {
-                        NaturalJourneyCriteriaChip(title: time, systemImage: "calendar.badge.clock")
+                        OptionChip(title: time, systemImage: "calendar.badge.clock", isActive: true)
                     }
 
                     if fields.hasRequiredModes {
-                        NaturalJourneyCriteriaChip(
+                        OptionChip(
                             title: "Modes obligatoires conservés",
                             systemImage: "checkmark.circle",
+                            isActive: true,
                         )
                     }
                     if fields.hasExcludedModes {
-                        NaturalJourneyCriteriaChip(
+                        OptionChip(
                             title: "Modes exclus conservés",
                             systemImage: "nosign",
+                            isActive: true,
                         )
                     }
                     if fields.hasPreferredModes {
-                        NaturalJourneyCriteriaChip(
+                        OptionChip(
                             title: "Modes préférés conservés",
                             systemImage: "heart",
+                            isActive: true,
                         )
                     }
                 }

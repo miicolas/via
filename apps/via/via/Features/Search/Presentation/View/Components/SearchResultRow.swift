@@ -4,40 +4,49 @@ struct SearchResultRow: View {
     let result: SearchResult
     let accessibilityHint: String
     let action: () -> Void
+    let onDelete: (() -> Void)?
 
     init(
         result: SearchResult,
         accessibilityHint: String = "Sélectionne cette destination",
-        action: @escaping () -> Void
+        action: @escaping () -> Void,
+        onDelete: (() -> Void)? = nil,
     ) {
         self.result = result
         self.accessibilityHint = accessibilityHint
         self.action = action
+        self.onDelete = onDelete
     }
 
     var body: some View {
+        if let onDelete {
+            rowContent
+                .contextMenu {
+                    Button("Supprimer", systemImage: "trash", role: .destructive, action: onDelete)
+                }
+        } else {
+            rowContent
+        }
+    }
+
+    private var rowContent: some View {
         Button(action: action) {
             HStack(alignment: .center, spacing: 14) {
                 resultIcon
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(result.name)
-                        .font(.title3.weight(.semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
 
                     resultDetails
                 }
 
                 Spacer(minLength: 4)
-
-                Image(systemName: "chevron.forward")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
             }
-            .padding(.vertical, 12)
+            .padding(.vertical, 10)
+            .frame(minHeight: 52)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -49,26 +58,16 @@ struct SearchResultRow: View {
     private var resultIcon: some View {
         switch result {
         case .station(let station):
-            ZStack {
-                Circle()
-                    .fill(Color.accentColor.opacity(0.14))
-
-                Image(systemName: station.routes.first?.mode.chipSystemImage ?? "tram.fill")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .frame(width: 46, height: 46)
+            Image(systemName: station.routes.first?.mode.chipSystemImage ?? "tram.fill")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 32)
 
         case .address:
-            ZStack {
-                Circle()
-                    .fill(Color.secondary.opacity(0.14))
-
-                Image(systemName: "mappin.and.ellipse")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 46, height: 46)
+            Image(systemName: "mappin.and.ellipse")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 32)
         }
     }
 

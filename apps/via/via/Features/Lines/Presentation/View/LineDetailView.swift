@@ -1,44 +1,50 @@
 import SwiftUI
 
 struct LineDetailView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var viewModel: LineDetailViewModel
     private let route: RouteBadge
+    private let accountModel: AccountModel?
 
-    init(viewModel: LineDetailViewModel, route: RouteBadge) {
+    init(
+        viewModel: LineDetailViewModel,
+        route: RouteBadge,
+        accountModel: AccountModel? = nil
+    ) {
         _viewModel = State(initialValue: viewModel)
         self.route = route
+        self.accountModel = accountModel
     }
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 28) {
-                headerSection
+            LazyVStack(alignment: .leading, spacing: 20) {
+                LineDetailHeaderView(
+                    route: route,
+                    condition: viewModel.detail.value?.condition ?? .normal,
+                    source: viewModel.detail.value?.source ?? .unavailable,
+                    fetchedAt: viewModel.detail.value?.fetchedAt
+                )
 
                 if let detail = viewModel.detail.value {
-                    if viewModel.selectedDirection != nil {
-                        LineServiceMapCard(
-                            directions: detail.schemaDirections,
-                            selectedDirectionID: directionSelection,
-                            rows: viewModel.schemaRows,
-                            lineColor: Color(transitHex: route.colorHex, fallback: .secondary),
-                            activeDisruptions: detail.activeDisruptions,
-                            onToggleRun: { viewModel.toggleRun($0) }
+                    if !detail.disruptions.isEmpty {
+                        LineDisruptionsSection(
+                            active: detail.activeDisruptions,
+                            upcoming: detail.upcomingDisruptions
                         )
                     }
 
-                    if !detail.activeDisruptions.isEmpty {
-                        LineDisruptionsSection(
-                            title: "Travaux en cours",
-                            disruptions: detail.activeDisruptions
-                        )
-                    }
-
-                    if !detail.upcomingDisruptions.isEmpty {
-                        LineDisruptionsSection(
-                            title: "Travaux à venir",
-                            disruptions: detail.upcomingDisruptions
-                        )
-                    }
+                    LinePlanView(
+                        strips: viewModel.strips,
+                        lineColor: Color(transitHex: route.colorHex, fallback: .secondary),
+                        isOpen: { viewModel.isOpen($0) },
+                        onToggle: { strip in
+                            withAnimation(reduceMotion ? nil : .snappy) {
+                                viewModel.toggle(strip)
+                            }
+                        }
+                    )
                 }
             }
             .padding(.horizontal, 16)
@@ -49,6 +55,38 @@ struct LineDetailView: View {
         .task { await viewModel.runAutomaticRefresh() }
         .navigationTitle("\(route.mode.displayName) \(route.shortName)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let accountModel {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        accountModel.toggleNotificationAlert(
+                            topicKind: .line,
+                            topicID: route.id.rawValue,
+                            label: "\(route.mode.displayName) \(route.shortName)"
+                        )
+                    } label: {
+                        Image(systemName: accountModel.isFollowingNotification(
+                            topicKind: .line,
+                            topicID: route.id.rawValue
+                        ) ? "bell.fill" : "bell")
+                    }
+                    .labelStyle(.iconOnly)
+                    .contentTransition(
+                        reduceMotion
+                            ? .identity
+                            : .symbolEffect(
+                                .replace.magic(fallback: .offUp.byLayer),
+                                options: .nonRepeating
+                            )
+                    )
+                    .accessibilityLabel("Suivre la ligne")
+                    .accessibilityValue(accountModel.isFollowingNotification(
+                        topicKind: .line,
+                        topicID: route.id.rawValue
+                    ) ? "Activé" : "Désactivé")
+                }
+            }
+        }
         .overlay {
             if case .loading(nil) = viewModel.detail {
                 SkeletonGate(isLoading: true) {
@@ -76,25 +114,9 @@ struct LineDetailView: View {
             }
         }
     }
-
-    private var headerSection: some View {
-        LineDetailHeaderView(
-            route: route,
-            condition: viewModel.detail.value?.condition ?? .normal,
-            source: viewModel.detail.value?.source ?? .unavailable,
-            fetchedAt: viewModel.detail.value?.fetchedAt
-        )
-    }
-
-    private var directionSelection: Binding<String> {
-        Binding(
-            get: { viewModel.selectedDirection?.id ?? "" },
-            set: { viewModel.selectedDirectionID = $0 }
-        )
-    }
 }
 
-#Preview("Métro 1 — travaux actifs") {
+#Preview("Métro 1 — trafic interrompu") {
     NavigationStack {
         LineDetailView(
             viewModel: LineDetailViewModel(
@@ -106,7 +128,7 @@ struct LineDetailView: View {
     }
 }
 
-#Preview("RER A — branches et tronçons") {
+#Preview("RER A — tronc commun et branches") {
     NavigationStack {
         LineDetailView(
             viewModel: LineDetailViewModel(
@@ -123,9 +145,9 @@ struct LineDetailView: View {
         LineDetailView(
             viewModel: LineDetailViewModel(
                 repository: PreviewLineStatusRepository(),
-                lineID: PreviewLineStatusRepository.metro1.id
+                lineID: PreviewLineStatusRepository.rerA.id
             ),
-            route: PreviewLineStatusRepository.metro1
+            route: PreviewLineStatusRepository.rerA
         )
     }
     .preferredColorScheme(.dark)
@@ -156,31 +178,6 @@ struct LineDetailView: View {
     )
     let repository = PreviewLineStatusRepository(
         details: [detail.route.id: normalDetail]
-    )
-
-    NavigationStack {
-        LineDetailView(
-            viewModel: LineDetailViewModel(
-                repository: repository,
-                lineID: detail.route.id
-            ),
-            route: detail.route
-        )
-    }
-}
-
-#Preview("Travaux à venir — écran complet") {
-    let detail = PreviewLineStatusRepository.metro1Detail
-    let upcomingDetail = LineDetail(
-        route: detail.route,
-        branches: detail.branches,
-        directions: detail.directions,
-        source: detail.source,
-        fetchedAt: detail.fetchedAt,
-        disruptions: detail.disruptions.filter { !$0.isActive }
-    )
-    let repository = PreviewLineStatusRepository(
-        details: [detail.route.id: upcomingDetail]
     )
 
     NavigationStack {

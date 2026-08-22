@@ -65,7 +65,7 @@ struct AccountDataSettingsView: View {
             }
         }
         .navigationTitle("Données du compte")
-        .navigationBarTitleDisplayMode(.large)
+        .toolbarTitleDisplayMode(.inlineLarge)
         .confirmationDialog(
             confirmation?.title ?? "",
             isPresented: Binding(

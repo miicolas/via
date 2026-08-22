@@ -126,18 +126,8 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
         .presentationCornerRadius(isLargeScreen ? 45 : nil)
         .presentationBackgroundInteraction(.enabled)
         .interactiveDismissDisabled()
-        .background {
-            Rectangle()
-                .foregroundStyle(.clear)
-                .onGeometryChange(for: CGSize.self) {
-                    $0.size
-                } action: { newValue in
-                    tabVisibilityProgress = SheetTabDetents.contentProgress(
-                        sheetHeight: newValue.height,
-                        hasCompactContent: reservesCompactSpace
-                    )
-                }
-                .ignoresSafeArea()
+        .onHeightChange(for: contentProgress(sheetHeight:)) { newValue in
+            tabVisibilityProgress = newValue
         }
     }
 
@@ -170,6 +160,15 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
         #else
         base
         #endif
+    }
+
+    /// The progress the fade and the strip both read, resolved as the sheet is
+    /// measured rather than stored as a raw height.
+    private func contentProgress(sheetHeight: CGFloat) -> CGFloat {
+        SheetTabDetents.contentProgress(
+            sheetHeight: sheetHeight,
+            hasCompactContent: reservesCompactSpace
+        )
     }
 
     private var showsCompactContent: Bool {

@@ -7,6 +7,11 @@ import {
   notificationTokenStore,
 } from "../../notifications";
 import { NotificationInstallationOwnershipError } from "../../notifications/journey-subscriptions";
+import {
+  createDatabaseNotificationInboxStore,
+  muteNotification,
+  snoozeNotification,
+} from "../../notifications/inbox-store";
 
 function authenticatedUser(
   userId: string | undefined,
@@ -108,6 +113,38 @@ const unregisterActiveJourney =
     },
   );
 
+const inboxStore = createDatabaseNotificationInboxStore();
+
+const inbox = implementer.notifications.inbox.handler(async ({ input, context }) => {
+  const userId = authenticatedUser(context.userId, context.isAnonymous);
+  return inboxStore.list(userId, input);
+});
+
+const markInboxRead = implementer.notifications.markInboxRead.handler(
+  async ({ input, context }) => {
+    const userId = authenticatedUser(context.userId, context.isAnonymous);
+    await inboxStore.markRead(userId, new Date(input.readBefore));
+    return { removed: true as const };
+  },
+);
+
+const snooze = implementer.notifications.snooze.handler(async ({ input, context }) => {
+  const userId = authenticatedUser(context.userId, context.isAnonymous);
+  const updated = await snoozeNotification(userId, input.occurrenceId, new Date(input.until));
+  if (!updated) throw new ORPCError("NOT_FOUND");
+  return { registered: true as const };
+});
+
+const mute = implementer.notifications.mute.handler(async ({ input, context }) => {
+  const userId = authenticatedUser(context.userId, context.isAnonymous);
+  await muteNotification(userId, {
+    scope: input.scope,
+    key: input.key,
+    mutedUntil: input.mutedUntil ? new Date(input.mutedUntil) : undefined,
+  });
+  return { registered: true as const };
+});
+
 export const notificationsRouter = {
   registerDevice,
   unregisterDevice,
@@ -116,4 +153,8 @@ export const notificationsRouter = {
   registerPushToStart,
   registerActiveJourney,
   unregisterActiveJourney,
+  inbox,
+  markInboxRead,
+  snooze,
+  mute,
 };

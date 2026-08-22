@@ -25,6 +25,9 @@ struct MapShellView: View {
     let profileModel: ProfileModel
     let pushNotificationManager: PushNotificationManager
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
+    /// Replays the first run from the root, offered inside Réglages.
+    let onReplayOnboarding: @MainActor () -> Void
+    let notificationInboxRemote: any NotificationInboxRemote
 
     @State private var showTabSheet: Bool = true
     @State private var activeTab: MapShellTab = .stations
@@ -57,7 +60,9 @@ struct MapShellView: View {
         authSessionViewModel: AuthSessionViewModel,
         profileModel: ProfileModel,
         pushNotificationManager: PushNotificationManager = .preview,
-        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
+        onReplayOnboarding: @escaping @MainActor () -> Void = {},
+        notificationInboxRemote: any NotificationInboxRemote = NoOpNotificationInboxRemote()
     ) {
         self.networkViewModel = networkViewModel
         self.stationsViewModel = stationsViewModel
@@ -73,6 +78,8 @@ struct MapShellView: View {
         self.profileModel = profileModel
         self.pushNotificationManager = pushNotificationManager
         self.journeyNotificationCoordinator = journeyNotificationCoordinator
+        self.onReplayOnboarding = onReplayOnboarding
+        self.notificationInboxRemote = notificationInboxRemote
     }
 
     var body: some View {
@@ -155,7 +162,7 @@ struct MapShellView: View {
             }
             .onChange(of: activeJourneyModel.isActive) { _, isActive in
                 // Once guidance is running, peek so the map behind stays visible.
-                if isActive { journeySheetDetent = .height(80) }
+                if isActive { journeySheetDetent = journeyPeekDetent }
             }
             .onChange(of: searchSheetDestination) { _, destination in
                 // Reset the detent so the next journey opens expanded, not on the peek.
@@ -170,7 +177,7 @@ struct MapShellView: View {
                     if oldValue != .report {
                         previousTab = oldValue
                     }
-                    activeDetent = hasJourneySurface ? guidanceDetent : expandedDetent
+                    activeDetent = activeJourneyModel.hasSurface ? guidanceDetent : expandedDetent
                 } else if newValue == .report, oldValue != .report {
                     activeDetent = isLargeScreen ? .fraction(0.97) : .large
                 } else if oldValue == .search, newValue != .search {
@@ -195,7 +202,7 @@ struct MapShellView: View {
                     detailSheetDetent = .large
                 }
 
-                if newValue && journeySheetDetent != .height(80) {
+                if newValue && journeySheetDetent != journeyPeekDetent {
                     journeySheetDetent = .fraction(0.97)
                 } else if !newValue && journeySheetDetent == .fraction(0.97) {
                     journeySheetDetent = .large
@@ -232,10 +239,33 @@ struct MapShellView: View {
     }
 
     private func route(_ url: URL) {
-        guard url.scheme == "via", url.host == "journey" else { return }
+        guard url.scheme == "via", let host = url.host else { return }
+        if host == "notifications" {
+            presentAccountSheet(.notifications)
+            return
+        }
+
         let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        if host == "line" {
+            guard let routeID = queryItems.first(where: { $0.name == "routeId" })?.value else { return }
+            activeTab = .lines
+            linesViewModel.requestRoute(RouteID(rawValue: routeID))
+            return
+        }
+        if host == "station" {
+            guard let stationID = queryItems.first(where: { $0.name == "stationId" })?.value else { return }
+            activeTab = .stations
+            if let item = networkViewModel.stationMapItem(for: StationID(rawValue: stationID)) {
+                selectedStationModel.select(item)
+            }
+            return
+        }
+        guard host == "journey" else { return }
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
         let journeyID = queryItems
             .first(where: { $0.name == "journeyId" })?.value
+            .map(JourneyID.init(rawValue:))
+            ?? pathComponents.first
             .map(JourneyID.init(rawValue:))
         let mode = queryItems.first(where: { $0.name == "mode" })?.value
 
@@ -267,18 +297,8 @@ struct MapShellView: View {
         activeJourneyModel.isActive && activeDetent == collapsedDetent
     }
 
-    @ViewBuilder
     private var activeJourneyCompact: some View {
-        if let journey = activeJourneyModel.journey,
-           let progress = activeJourneyModel.progress,
-           let headline = activeJourneyModel.guidanceHeadline {
-            ActiveJourneyCompactView(
-                journey: journey,
-                headline: headline,
-                progress: progress,
-                action: showActiveJourney
-            )
-        }
+        ActiveJourneyCompactStrip(model: activeJourneyModel, action: showActiveJourney)
     }
 
     @ViewBuilder
@@ -318,7 +338,7 @@ struct MapShellView: View {
             }
 
             Tab(value: .lines) {
-                LinesView(viewModel: linesViewModel)
+                LinesView(viewModel: linesViewModel, accountModel: accountModel)
                     .sheetTabBarVisibility()
             } label: {
                 MapShellTab.lines.tabLabel
@@ -335,6 +355,7 @@ struct MapShellView: View {
                 SearchView(
                     viewModel: searchViewModel,
                     activeJourneyModel: activeJourneyModel,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator,
                     onClose: closeSearch,
                     onInspectJourney: { journey in
                         journeySheetDetent = expandedDetent
@@ -360,6 +381,19 @@ struct MapShellView: View {
                     profileModel: profileModel,
                     locationModel: locationModel,
                     pushNotificationManager: pushNotificationManager,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    onReplayOnboarding: onReplayOnboarding,
+                    notificationInboxRemote: notificationInboxRemote
+                )
+                .detailSheetPresentation(
+                    isLargeScreen: isLargeScreen,
+                    selection: $accountSheetDetent
+                )
+            case .notifications:
+                NotificationSettingsView(
+                    accountModel: accountModel,
+                    coordinator: .shared,
+                    inboxRemote: notificationInboxRemote,
                     journeyNotificationCoordinator: journeyNotificationCoordinator
                 )
                 .detailSheetPresentation(
@@ -380,7 +414,7 @@ struct MapShellView: View {
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
                     isLargeScreen: isLargeScreen,
                     detent: $journeySheetDetent,
-                    onExpandMap: { journeySheetDetent = .height(80) },
+                    onExpandMap: { journeySheetDetent = journeyPeekDetent },
                     onOpenReport: {
                         searchSheetDestination = nil
                         activeTab = .report
@@ -395,7 +429,7 @@ struct MapShellView: View {
                     scheduledReminder: journeyNotificationCoordinator.reminder(for: journeyID),
                     isLargeScreen: isLargeScreen,
                     detent: $journeySheetDetent,
-                    onExpandMap: { journeySheetDetent = .height(80) },
+                    onExpandMap: { journeySheetDetent = journeyPeekDetent },
                     onOpenReport: {
                         searchSheetDestination = nil
                         activeTab = .report
@@ -445,8 +479,10 @@ struct MapShellView: View {
         }
     }
 
-    private var hasJourneySurface: Bool {
-        activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+    /// The journey sheet's own peek: taller while guidance runs, where it hosts
+    /// the compact strip rather than the squashed panel.
+    private var journeyPeekDetent: PresentationDetent {
+        JourneySheetDetents.peek(isGuiding: activeJourneyModel.isGuiding)
     }
 
     private var collapsedDetent: PresentationDetent {
@@ -458,7 +494,7 @@ struct MapShellView: View {
     }
 
     private var expandedDetent: PresentationDetent {
-        isLargeScreen ? .fraction(0.97) : .large
+        DetailSheetPresentation.expanded(isLargeScreen: isLargeScreen)
     }
 }
 

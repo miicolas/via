@@ -8,6 +8,7 @@ final class LinesViewModel {
     /// Lines the backend matched for the current query — how bus lines,
     /// absent from the permanent rail catalogue, enter the tab.
     private(set) var remoteMatches: [LineStatus] = []
+    private(set) var requestedRouteID: RouteID?
     var searchText: String = ""
 
     @ObservationIgnored private let repository: any LineStatusRepository
@@ -75,6 +76,14 @@ final class LinesViewModel {
     /// detail screen needs.
     func detailViewModel(for route: RouteBadge) -> LineDetailViewModel {
         LineDetailViewModel(repository: repository, lineID: route.id)
+    }
+
+    func requestRoute(_ routeID: RouteID) {
+        requestedRouteID = routeID
+    }
+
+    func consumeRequestedRoute() {
+        requestedRouteID = nil
     }
 
     /// The permanent rail catalogue, one section per mode in display order,

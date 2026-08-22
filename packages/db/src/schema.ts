@@ -764,6 +764,215 @@ export const notificationLiveActivityStartTokens = pgTable(
  */
 export const NOTIFICATION_DELIVERY_SHARD_COUNT = 64;
 
+export const NOTIFICATION_CATEGORIES = [
+  'journey',
+  'commute',
+  'line',
+  'station',
+  'digest',
+  'recommendation',
+] as const;
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+
+export const NOTIFICATION_SEVERITIES = ['attention', 'disrupted', 'suspended'] as const;
+export type NotificationSeverity = (typeof NOTIFICATION_SEVERITIES)[number];
+
+export type NotificationCategoryPreference = {
+  category: NotificationCategory;
+  enabled: boolean;
+  minimumSeverity: NotificationSeverity;
+  dailyCap?: number;
+};
+
+export type NotificationLocation = {
+  id: string;
+  kind: 'station' | 'address';
+  name: string;
+  context?: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type NotificationTimeWindow = {
+  startMinute: number;
+  endMinute: number;
+};
+
+export const notificationPreferences = pgTable(
+  'notification_preferences',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    enabled: boolean('enabled').notNull().default(true),
+    timeZone: text('time_zone').notNull().default('Europe/Paris'),
+    quietHoursStartMinute: integer('quiet_hours_start_minute'),
+    quietHoursEndMinute: integer('quiet_hours_end_minute'),
+    mutedOnWeekends: boolean('muted_on_weekends').notNull().default(false),
+    mutedOnHolidays: boolean('muted_on_holidays').notNull().default(false),
+    minimumSeverity: text('minimum_severity', { enum: NOTIFICATION_SEVERITIES })
+      .notNull()
+      .default('attention'),
+    dailyCap: integer('daily_cap').notNull().default(20),
+    categories: jsonb('categories')
+      .$type<NotificationCategoryPreference[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [check('notification_preferences_time_zone_check', sql`${table.timeZone} = 'Europe/Paris'`)]
+);
+
+export const notificationSchedules = pgTable(
+  'notification_schedules',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: text('kind', { enum: ['commute', 'digest'] }).notNull(),
+    label: text('label').notNull(),
+    revision: integer('revision').notNull().default(1),
+    origin: jsonb('origin').$type<NotificationLocation>(),
+    destination: jsonb('destination').$type<NotificationLocation>(),
+    routeIds: text('route_ids').array().notNull().default(sql`'{}'::text[]`),
+    daysOfWeek: integer('days_of_week').array().notNull().default(sql`'{}'::integer[]`),
+    departureMinute: integer('departure_minute').notNull(),
+    leadMinutes: integer('lead_minutes').notNull().default(10),
+    skipHolidays: boolean('skip_holidays').notNull().default(false),
+    enabled: boolean('enabled').notNull().default(true),
+    pausedUntil: timestamp('paused_until', { withTimezone: true }),
+    timeZone: text('time_zone').notNull().default('Europe/Paris'),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('notification_schedules_user_idx').on(table.userId, table.id),
+    index('notification_schedules_active_idx')
+      .on(table.userId, table.enabled)
+      .where(sql`${table.enabled} = true AND ${table.deletedAt} IS NULL`),
+    check('notification_schedules_time_zone_check', sql`${table.timeZone} = 'Europe/Paris'`),
+  ]
+);
+
+export const notificationAlertSubscriptions = pgTable(
+  'notification_alert_subscriptions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    topicKind: text('topic_kind', { enum: ['line', 'station'] }).notNull(),
+    topicId: text('topic_id').notNull(),
+    label: text('label').notNull(),
+    daysOfWeek: integer('days_of_week').array().notNull().default(sql`'{}'::integer[]`),
+    windows: jsonb('windows').$type<NotificationTimeWindow[]>().notNull(),
+    minimumSeverity: text('minimum_severity', { enum: NOTIFICATION_SEVERITIES })
+      .notNull()
+      .default('attention'),
+    enabled: boolean('enabled').notNull().default(true),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('notification_alert_subscriptions_user_idx').on(table.userId, table.id),
+    index('notification_alert_subscriptions_topic_idx')
+      .on(table.topicKind, table.topicId)
+      .where(sql`${table.enabled} = true AND ${table.deletedAt} IS NULL`),
+    uniqueIndex('notification_alert_subscriptions_user_topic_uidx')
+      .on(table.userId, table.topicKind, table.topicId)
+      .where(sql`${table.deletedAt} IS NULL`),
+  ]
+);
+
+export const notificationOccurrences = pgTable(
+  'notification_occurrences',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    scheduleId: text('schedule_id').references(() => notificationSchedules.id, {
+      onDelete: 'set null',
+    }),
+    category: text('category', { enum: NOTIFICATION_CATEGORIES }).notNull(),
+    scheduleRevision: integer('schedule_revision').notNull().default(1),
+    dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+    state: text('state', { enum: ['pending', 'sending', 'sent', 'dropped'] })
+      .notNull()
+      .default('pending'),
+    dropReason: text('drop_reason'),
+    attempts: integer('attempts').notNull().default(0),
+    leaseUntil: timestamp('lease_until', { withTimezone: true }),
+    dedupeKey: text('dedupe_key').notNull().unique(),
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull(),
+    deliveryShard: integer('delivery_shard').generatedAlwaysAs(
+      sql.raw(
+        `mod(hashtextextended(user_id, 0) & 9223372036854775807, ${NOTIFICATION_DELIVERY_SHARD_COUNT})`
+      )
+    ),
+  },
+  (table) => [
+    index('notification_occurrences_pending_idx')
+      .on(table.dueAt, table.id)
+      .where(sql`${table.state} = 'pending'`),
+    index('notification_occurrences_sending_idx')
+      .on(table.leaseUntil)
+      .where(sql`${table.state} = 'sending'`),
+    index('notification_occurrences_user_idx').on(table.userId, table.dueAt),
+  ]
+);
+
+export const notificationInbox = pgTable(
+  'notification_inbox',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    occurrenceId: text('occurrence_id').references(() => notificationOccurrences.id, {
+      onDelete: 'set null',
+    }),
+    category: text('category', { enum: NOTIFICATION_CATEGORIES }).notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    deepLink: text('deep_link'),
+    topicKind: text('topic_kind', { enum: ['line', 'station'] }),
+    topicId: text('topic_id'),
+    severity: text('severity', { enum: NOTIFICATION_SEVERITIES }),
+    dropReason: text('drop_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex('notification_inbox_user_occurrence_uidx')
+      .on(table.userId, table.occurrenceId)
+      .where(sql`${table.occurrenceId} IS NOT NULL`),
+    index('notification_inbox_cursor_idx').on(table.userId, table.createdAt, table.id),
+    index('notification_inbox_unread_idx')
+      .on(table.userId)
+      .where(sql`${table.readAt} IS NULL`),
+  ]
+);
+
+export const notificationMutes = pgTable(
+  'notification_mutes',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    scope: text('scope', { enum: ['category', 'topic'] }).notNull(),
+    key: text('key').notNull(),
+    mutedUntil: timestamp('muted_until', { withTimezone: true }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.scope, table.key] }),
+    index('notification_mutes_active_idx').on(table.userId, table.scope, table.key),
+  ]
+);
+
 /**
  * One authenticated installation can follow one journey for disruption
  * alerts. The route ids are snapshotted with the timetable so the monitor
@@ -813,3 +1022,9 @@ export type StationFact = typeof stationFacts.$inferSelect;
 export type StationHourProfile = typeof stationHourProfiles.$inferSelect;
 export type TransitTrip = typeof transitTrips.$inferSelect;
 export type TransitLineSchemaStop = typeof transitLineSchemaStops.$inferSelect;
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type NotificationSchedule = typeof notificationSchedules.$inferSelect;
+export type NotificationAlertSubscription = typeof notificationAlertSubscriptions.$inferSelect;
+export type NotificationOccurrence = typeof notificationOccurrences.$inferSelect;
+export type NotificationInboxItem = typeof notificationInbox.$inferSelect;
+export type NotificationMute = typeof notificationMutes.$inferSelect;

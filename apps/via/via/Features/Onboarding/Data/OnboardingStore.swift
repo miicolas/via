@@ -27,6 +27,10 @@ struct OnboardingStore {
         defaults.set(true, forKey: Self.setupCompletionKey)
     }
 
+    func clearCompleted() {
+        defaults.removeObject(forKey: Self.completionKey)
+    }
+
     func reset() {
         defaults.removeObject(forKey: Self.completionKey)
         defaults.removeObject(forKey: Self.setupCompletionKey)
@@ -57,6 +61,15 @@ final class OnboardingModel {
         guard !isSetupCompleted else { return }
         store.markSetupCompleted()
         isSetupCompleted = true
+    }
+
+    /// Steps the first run back to the presentation. Only the carousel flag is
+    /// cleared — the setup flag and the answers already given stay put, so the
+    /// traveller returns to the questions on the same answers.
+    func stepBackToPresentation() {
+        guard isCompleted, !isSetupCompleted else { return }
+        store.clearCompleted()
+        isCompleted = false
     }
 
     func reset() {

@@ -7,8 +7,6 @@ struct SearchDeparturePickerView: View {
     let onSelect: (SearchDepartureSelection) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedShortcut: StationPlaceShortcut?
-    @State private var isManualSearchPresented = false
 
     init(
         viewModel: SearchViewModel,
@@ -20,53 +18,49 @@ struct SearchDeparturePickerView: View {
         self.savedPlaces = savedPlaces
         self.selection = selection
         self.onSelect = onSelect
-        _selectedShortcut = State(initialValue: selection.shortcut)
-    }
-
-    private var availableShortcuts: [StationPlaceShortcut] {
-        [.currentLocation] + savedPlaces.map { place in
-            switch place.role {
-            case .home: .home
-            case .work: .work
-            }
-        }
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
+
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Choisissez votre point de départ")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.secondary)
-
-                    StationPlacePicker(
-                        selection: $selectedShortcut,
-                        shortcuts: availableShortcuts,
-                        onAddPlace: { isManualSearchPresented = true }
-                    )
-                    .padding(.horizontal, -20)
-
-                    Button {
-                        isManualSearchPresented = true
-                    } label: {
-                        Label("Choisir une station ou une adresse", systemImage: "magnifyingglass")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 16)
-                            .frame(minHeight: 52)
-                            .background(
-                                Color.secondary.opacity(0.10),
-                                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Recherche manuellement une station ou une adresse de départ")
+            List {
+                SearchDestinationField(
+                    text: $viewModel.departureQuery,
+                    prompt: "Station ou adresse",
+                    accessibilityLabel: "Point de départ",
+                    clearAccessibilityLabel: "Effacer la recherche du départ",
+                    onClear: viewModel.clearDepartureSearch,
+                    onSubmit: viewModel.retryDepartureSearch,
+                )
+                .onChange(of: viewModel.departureQuery) { _, newValue in
+                    viewModel.updateDepartureQuery(newValue)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+                .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 10, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+
+                if viewModel.departureQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    shortcuts
+                } else {
+                    Section {
+                        SearchResultsSection(
+                            state: viewModel.departureLoadState,
+                            results: viewModel.departureResults,
+                            onRetry: viewModel.retryDepartureSearch,
+                            onSelect: { result in
+                                select(.manual(result))
+                            },
+                            accessibilityHint: "Sélectionne ce point de départ",
+                        )
+                    }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .listRowBackground(Color.clear)
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Départ")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
@@ -77,37 +71,55 @@ struct SearchDeparturePickerView: View {
                 }
             }
         }
-        .onChange(of: selectedShortcut) { _, shortcut in
-            guard let shortcut else { return }
-            select(shortcut)
-        }
-        .sheet(isPresented: $isManualSearchPresented) {
-            SearchManualDepartureView(
-                searchPlaces: viewModel.searchPlaces,
-                onSelect: { result in
-                    onSelect(.manual(result))
-                    isManualSearchPresented = false
-                    dismiss()
-                },
-                filters: viewModel.filters,
-                onSetRequiresAccessibleStations: viewModel.setRequiresAccessibleStations
-            )
+        .onAppear {
+            viewModel.clearDepartureSearch()
         }
     }
 
-    private func select(_ shortcut: StationPlaceShortcut) {
-        switch shortcut {
-        case .currentLocation:
-            onSelect(.currentLocation)
-        case .home, .work:
-            guard let place = savedPlaces.first(where: { place in
-                switch (shortcut, place.role) {
-                case (.home, .home), (.work, .work): true
-                default: false
-                }
-            }) else { return }
-            onSelect(.saved(place))
+    @ViewBuilder
+    private var shortcuts: some View {
+        Section {
+            shortcutRow(
+                title: "Ma position",
+                subtitle: "Position actuelle",
+                systemImage: "location.fill",
+                isSelected: selection == .currentLocation,
+                action: { select(.currentLocation) },
+            )
+
+            ForEach(savedPlaces) { place in
+                shortcutRow(
+                    title: place.role.displayTitle,
+                    subtitle: place.name == place.role.displayTitle ? "Lieu enregistré" : place.name,
+                    systemImage: place.role.systemImage,
+                    isSelected: selection == .saved(place),
+                    action: { select(.saved(place)) },
+                )
+            }
         }
+    }
+
+    private func shortcutRow(
+        title: String,
+        subtitle: String?,
+        systemImage: String,
+        isSelected: Bool,
+        action: @escaping () -> Void,
+    ) -> some View {
+        Button(action: action) {
+            SettingsRow(
+                title: title,
+                systemImage: systemImage,
+                subtitle: subtitle,
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isSelected ? "Sélectionné" : "Non sélectionné")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func select(_ departure: SearchDepartureSelection) {
+        onSelect(departure)
         dismiss()
     }
 }

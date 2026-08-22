@@ -1,8 +1,8 @@
 import { app } from './app';
 import { env } from './env';
-import { startNotificationDisruptionMonitor } from './notifications/monitor';
+import { startNotificationRuntime } from './notifications/runtime';
 
-startNotificationDisruptionMonitor();
+startNotificationRuntime();
 
 console.log(`[api] http://localhost:${env.PORT}`);
 

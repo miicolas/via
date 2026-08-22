@@ -54,7 +54,7 @@ final class NoOpJourneyNotificationActiveJourneyManager: JourneyNotificationActi
 
 @MainActor
 @Observable
-final class JourneyNotificationCoordinator {
+final class JourneyNotificationCoordinator: JourneyNotificationActiveJourneyManaging {
     static let preview = JourneyNotificationCoordinator(
         center: PreviewJourneyNotificationCenter(),
         reminderStore: InMemoryScheduledJourneyReminderStore(),

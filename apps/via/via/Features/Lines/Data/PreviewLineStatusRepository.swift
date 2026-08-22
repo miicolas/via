@@ -106,14 +106,14 @@ struct PreviewLineStatusRepository: LineStatusRepository {
     )
 
     private static let metro1Stops = [
-        LineSchemaStop(id: "IDFM:71264", name: "La Défense", isInterchange: true),
-        LineSchemaStop(id: "IDFM:71253", name: "Esplanade de la Défense", isInterchange: false),
-        LineSchemaStop(id: "IDFM:71217", name: "Charles de Gaulle — Étoile", isInterchange: true),
-        LineSchemaStop(id: "IDFM:71199", name: "Franklin D. Roosevelt", isInterchange: true),
-        LineSchemaStop(id: "IDFM:71167", name: "Concorde", isInterchange: true),
-        LineSchemaStop(id: "IDFM:71150", name: "Châtelet", isInterchange: true),
-        LineSchemaStop(id: "IDFM:71135", name: "Nation", isInterchange: true),
-        LineSchemaStop(id: "IDFM:71125", name: "Château de Vincennes", isInterchange: false),
+        LineSchemaStop(id: "IDFM:71264", name: "La Défense"),
+        LineSchemaStop(id: "IDFM:71253", name: "Esplanade de la Défense"),
+        LineSchemaStop(id: "IDFM:71217", name: "Charles de Gaulle — Étoile"),
+        LineSchemaStop(id: "IDFM:71199", name: "Franklin D. Roosevelt"),
+        LineSchemaStop(id: "IDFM:71167", name: "Concorde"),
+        LineSchemaStop(id: "IDFM:71150", name: "Châtelet"),
+        LineSchemaStop(id: "IDFM:71135", name: "Nation"),
+        LineSchemaStop(id: "IDFM:71125", name: "Château de Vincennes"),
     ]
 
     static let metro1Detail = LineDetail(
@@ -212,12 +212,8 @@ struct PreviewLineStatusRepository: LineStatusRepository {
         ]
     )
 
-    private static func schemaStop(
-        _ id: String,
-        _ name: String,
-        interchange: Bool = false
-    ) -> LineSchemaStop {
-        LineSchemaStop(id: id, name: name, isInterchange: interchange)
+    private static func schemaStop(_ id: String, _ name: String) -> LineSchemaStop {
+        LineSchemaStop(id: id, name: name)
     }
 
     /// A branched line with a shared sub-trunk, the shape the schema exists for.
@@ -247,7 +243,7 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                         termini: ["IDFM:74001", "IDFM:70648"],
                         stops: [
                             schemaStop("IDFM:73731", "Cergy-le-Haut"),
-                            schemaStop("IDFM:73733", "Conflans-Fin-d'Oise", interchange: true),
+                            schemaStop("IDFM:73733", "Conflans-Fin-d'Oise"),
                         ]
                     ),
                     LineSchemaSection(
@@ -266,7 +262,7 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                         origins: ["IDFM:73731", "IDFM:73699"],
                         termini: ["IDFM:74001", "IDFM:70648"],
                         stops: [
-                            schemaStop("IDFM:73688", "Sartrouville", interchange: true),
+                            schemaStop("IDFM:73688", "Sartrouville"),
                             schemaStop("IDFM:73690", "Maisons-Laffitte"),
                         ]
                     ),
@@ -277,11 +273,11 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                         termini: ["IDFM:74001", "IDFM:70648"],
                         stops: [
                             schemaStop("IDFM:71517", "Nanterre-Préfecture"),
-                            schemaStop("IDFM:71264", "La Défense", interchange: true),
-                            schemaStop("IDFM:71304", "Auber", interchange: true),
-                            schemaStop("IDFM:71150", "Châtelet — Les Halles", interchange: true),
-                            schemaStop("IDFM:71270", "Gare de Lyon", interchange: true),
-                            schemaStop("IDFM:71135", "Nation", interchange: true),
+                            schemaStop("IDFM:71264", "La Défense"),
+                            schemaStop("IDFM:71304", "Auber"),
+                            schemaStop("IDFM:71150", "Châtelet — Les Halles"),
+                            schemaStop("IDFM:71270", "Gare de Lyon"),
+                            schemaStop("IDFM:71135", "Nation"),
                             schemaStop("IDFM:71129", "Vincennes"),
                         ]
                     ),
@@ -291,7 +287,7 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                         origins: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
                         termini: ["IDFM:74001"],
                         stops: [
-                            schemaStop("IDFM:73942", "Val de Fontenay", interchange: true),
+                            schemaStop("IDFM:73942", "Val de Fontenay"),
                             schemaStop("IDFM:73952", "Noisy-le-Grand — Mont d'Est"),
                             schemaStop("IDFM:73963", "Val d'Europe"),
                             schemaStop("IDFM:74001", "Marne-la-Vallée – Chessy"),
@@ -321,11 +317,11 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                         termini: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
                         stops: [
                             schemaStop("IDFM:71129", "Vincennes"),
-                            schemaStop("IDFM:71135", "Nation", interchange: true),
-                            schemaStop("IDFM:71270", "Gare de Lyon", interchange: true),
-                            schemaStop("IDFM:71150", "Châtelet — Les Halles", interchange: true),
-                            schemaStop("IDFM:71304", "Auber", interchange: true),
-                            schemaStop("IDFM:71264", "La Défense", interchange: true),
+                            schemaStop("IDFM:71135", "Nation"),
+                            schemaStop("IDFM:71270", "Gare de Lyon"),
+                            schemaStop("IDFM:71150", "Châtelet — Les Halles"),
+                            schemaStop("IDFM:71304", "Auber"),
+                            schemaStop("IDFM:71264", "La Défense"),
                             schemaStop("IDFM:71517", "Nanterre-Préfecture"),
                         ]
                     ),

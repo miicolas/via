@@ -1,6 +1,13 @@
 import * as z from 'zod';
 
 import { coordinateSchema, networkModeSchema } from '../shared/schema';
+import {
+  NOTIFICATION_ALERT_LIMIT,
+  NOTIFICATION_SCHEDULE_LIMIT,
+  notificationAlertSubscriptionSchema,
+  notificationPreferencesSchema,
+  notificationScheduleSchema,
+} from '../notifications/schema';
 
 export const ACCOUNT_FAVORITE_LIMIT = 50;
 export const ACCOUNT_RECENT_LIMIT = 5;
@@ -55,6 +62,11 @@ export const accountSyncOperationSchema = z
       'preferences.set',
       'place.upsert',
       'place.remove',
+      'notifications.preferences.set',
+      'notifications.schedule.upsert',
+      'notifications.schedule.remove',
+      'notifications.alert.upsert',
+      'notifications.alert.remove',
     ]),
     occurredAt: z.iso.datetime({ offset: true }),
     station: favoriteStationSchema.optional(),
@@ -64,6 +76,11 @@ export const accountSyncOperationSchema = z
     preferences: transportPreferencesSchema.optional(),
     place: accountPlaceSchema.optional(),
     placeId: z.string().min(1).max(500).optional(),
+    notificationPreferences: notificationPreferencesSchema.optional(),
+    schedule: notificationScheduleSchema.optional(),
+    scheduleId: z.string().min(1).max(128).optional(),
+    alertSubscription: notificationAlertSubscriptionSchema.optional(),
+    alertSubscriptionId: z.string().min(1).max(128).optional(),
   })
   .superRefine((operation, context) => {
     const valid =
@@ -74,7 +91,17 @@ export const accountSyncOperationSchema = z
       operation.kind === 'recent.clear' ||
       (operation.kind === 'preferences.set' && operation.preferences !== undefined) ||
       (operation.kind === 'place.upsert' && operation.place !== undefined) ||
-      (operation.kind === 'place.remove' && operation.placeId !== undefined);
+      (operation.kind === 'place.remove' && operation.placeId !== undefined) ||
+      (operation.kind === 'notifications.preferences.set' &&
+        operation.notificationPreferences !== undefined) ||
+      (operation.kind === 'notifications.schedule.upsert' &&
+        operation.schedule !== undefined) ||
+      (operation.kind === 'notifications.schedule.remove' &&
+        operation.scheduleId !== undefined) ||
+      (operation.kind === 'notifications.alert.upsert' &&
+        operation.alertSubscription !== undefined) ||
+      (operation.kind === 'notifications.alert.remove' &&
+        operation.alertSubscriptionId !== undefined);
 
     if (!valid) {
       context.addIssue({
@@ -94,6 +121,9 @@ export const accountSyncResponseSchema = z.object({
   recents: z.array(accountRecentSearchSchema).max(ACCOUNT_RECENT_LIMIT),
   places: z.array(accountPlaceSchema).max(ACCOUNT_PLACE_LIMIT),
   preferences: transportPreferencesSchema,
+  notificationPreferences: notificationPreferencesSchema,
+  notificationSchedules: z.array(notificationScheduleSchema).max(NOTIFICATION_SCHEDULE_LIMIT),
+  notificationAlerts: z.array(notificationAlertSubscriptionSchema).max(NOTIFICATION_ALERT_LIMIT),
   syncedAt: z.iso.datetime({ offset: true }),
 });
 

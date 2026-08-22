@@ -58,20 +58,27 @@ struct GeoBounds: Codable, Sendable, Hashable {
     }
 }
 
-struct StationAccessibility: Sendable, Hashable, Codable {
-    enum Condition: String, Sendable, Hashable, Codable {
-        case reservationRequired
-        case staffAssistance
-        case autonomous
+/// How much autonomy a wheelchair user has on a station or a journey.
+///
+/// One enum for both, because the degree is the same fact wherever it is read:
+/// a second declaration is a second place to word it, colour it, or forget a
+/// case when a fourth degree arrives.
+enum AccessibilityCondition: String, Sendable, Hashable, Codable, CaseIterable {
+    case reservationRequired
+    case staffAssistance
+    case autonomous
 
-        var label: String {
-            switch self {
-            case .reservationRequired: "Sur réservation"
-            case .staffAssistance: "Avec un agent"
-            case .autonomous: "En autonomie"
-            }
+    var label: String {
+        switch self {
+        case .reservationRequired: "Sur réservation"
+        case .staffAssistance: "Avec un agent"
+        case .autonomous: "En autonomie"
         }
     }
+}
+
+struct StationAccessibility: Sendable, Hashable, Codable {
+    typealias Condition = AccessibilityCondition
 
     let condition: Condition
     let label: String
@@ -132,5 +139,13 @@ extension Loadable {
 extension Error {
     var via: ViaError {
         self as? ViaError ?? (self is DecodingError ? .decoding : .transport)
+    }
+}
+
+extension Collection<RouteBadge> {
+    /// The modes served, deduplicated and in `TransitMode` presentation order,
+    /// so every screen groups a station's lines the same way.
+    var modes: [TransitMode] {
+        TransitMode.allCases.filter { mode in contains { $0.mode == mode } }
     }
 }

@@ -3,34 +3,19 @@ import SwiftUI
 struct SearchJourneyResultsView: View {
     let step: SearchViewStep
     let result: JourneyResult?
-    let destinationName: String
-    let departureTitle: String
     var selectedJourneyID: JourneyID? = nil
+    var scheduledReminderJourneyID: JourneyID? = nil
+    var reminderLeadTime: JourneyNotificationPreferences.DepartureLeadTime = .tenMinutes
+    var isUpdatingReminder = false
     var onSelectJourney: (Journey) -> Void = { _ in }
+    var onScheduleReminder: (Journey, JourneyNotificationPreferences.DepartureLeadTime) -> Void = { _, _ in }
+    var onCancelReminder: () -> Void = {}
     let onRetry: () -> Void
     let onEdit: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            header
-            content
-        }
+        content
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Itinéraires")
-                .font(.system(.largeTitle, design: .rounded).weight(.bold))
-
-            Text("Depuis \(departureTitle)")
-                .font(.body)
-                .foregroundStyle(.secondary)
-
-            Label(destinationName, systemImage: "mappin.and.ellipse")
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.primary)
-        }
     }
 
     private var isPlanning: Bool {
@@ -97,9 +82,21 @@ struct SearchJourneyResultsView: View {
     }
 
     private func resultsContent(_ result: JourneyResult) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Options possibles")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Choisir un itinéraire")
+                    .font(.title3.weight(.bold))
+
+                Spacer()
+
+                Text(result.journeys.count, format: .number)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(.secondary.opacity(0.1), in: Capsule())
+                    .accessibilityLabel("\(result.journeys.count) itinéraires proposés")
+            }
 
             ForEach(Array(result.journeys.prefix(4))) { journey in
                 Button {
@@ -113,6 +110,15 @@ struct SearchJourneyResultsView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Ouvre le détail de cet itinéraire et l’affiche sur la carte")
+                .contextMenu {
+                    JourneyReminderContextMenu(
+                        selectedLeadTime: reminderLeadTime,
+                        isScheduled: scheduledReminderJourneyID == journey.id,
+                        isUpdating: isUpdatingReminder,
+                        onSchedule: { onScheduleReminder(journey, $0) },
+                        onCancel: onCancelReminder
+                    )
+                }
             }
         }
     }
@@ -180,144 +186,4 @@ private extension ViaError {
             "Une erreur inattendue est survenue."
         }
     }
-}
-
-#Preview("Résultats chargés") {
-    SearchJourneyResultsView(
-        step: .results,
-        result: .mapPreview,
-        destinationName: "La Défense",
-        departureTitle: "Ma position",
-        selectedJourneyID: JourneyResult.mapPreview.journeys.first?.id,
-        onSelectJourney: { _ in },
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Quatre variantes") {
-    SearchJourneyResultsView(
-        step: .results,
-        result: .mapPreview,
-        destinationName: "La Défense",
-        departureTitle: "Maison",
-        selectedJourneyID: nil,
-        onSelectJourney: { _ in },
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Perturbation") {
-    SearchJourneyResultsView(
-        step: .results,
-        result: SearchJourneyPreviewData.disrupted,
-        destinationName: "La Défense",
-        departureTitle: "Ma position",
-        selectedJourneyID: nil,
-        onSelectJourney: { _ in },
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Données théoriques") {
-    SearchJourneyResultsView(
-        step: .results,
-        result: SearchJourneyPreviewData.theoretical,
-        destinationName: "La Défense",
-        departureTitle: "Travail",
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Chargement") {
-    SearchJourneyResultsView(
-        step: .planning,
-        result: nil,
-        destinationName: "La Défense",
-        departureTitle: "Ma position",
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Aucun itinéraire") {
-    SearchJourneyResultsView(
-        step: .noRoute,
-        result: SearchJourneyPreviewData.noRoute,
-        destinationName: "La Défense",
-        departureTitle: "Ma position",
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Erreur") {
-    SearchJourneyResultsView(
-        step: .failed(.unavailable),
-        result: nil,
-        destinationName: "La Défense",
-        departureTitle: "Ma position",
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-#Preview("Localisation bloquée") {
-    SearchJourneyResultsView(
-        step: .locationBlocked(.denied),
-        result: nil,
-        destinationName: "La Défense",
-        departureTitle: "Ma position",
-        onRetry: {},
-        onEdit: {}
-    )
-    .padding()
-}
-
-private enum SearchJourneyPreviewData {
-    static let noRoute = JourneyResult(
-        status: .noRoute,
-        source: .realtime,
-        generatedAt: .now,
-        journeys: []
-    )
-
-    static let theoretical = JourneyResult(
-        status: .ready,
-        source: .theoretical,
-        generatedAt: .now,
-        journeys: JourneyResult.mapPreview.journeys
-    )
-
-    static let disrupted: JourneyResult = {
-        let base = JourneyResult.mapPreview.journeys[0]
-        let disruptedJourney = Journey(
-            id: base.id,
-            qualifier: base.qualifier,
-            durationSeconds: base.durationSeconds,
-            walkingDurationSeconds: base.walkingDurationSeconds,
-            transferCount: base.transferCount,
-            departureAt: base.departureAt,
-            arrivalAt: base.arrivalAt,
-            status: .disrupted,
-            warnings: ["La ligne A est perturbée"],
-            sections: base.sections
-        )
-        return JourneyResult(
-            status: .ready,
-            source: .realtime,
-            generatedAt: .now,
-            journeys: [disruptedJourney] + Array(JourneyResult.mapPreview.journeys.dropFirst())
-        )
-    }()
 }

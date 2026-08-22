@@ -19,7 +19,6 @@ protocol JourneyActivityManaging: Sendable {
     ) async
 }
 
-@MainActor
 final class JourneyActivityManager: JourneyActivityManaging {
     func start(
         attributes: JourneyActivityAttributes,

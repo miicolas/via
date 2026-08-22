@@ -104,11 +104,16 @@ final class SearchViewModel {
     private(set) var naturalJourneyUnresolvedDraft: NaturalJourneyDraft?
     private(set) var naturalInputErrorMessage: String?
     private(set) var recentSearches: [RecentSearch]
+    private(set) var requestedAt: Date? = nil
+    private(set) var datetimeRepresents: JourneyDatetimeRepresents = .departure
+    private(set) var departureResults: [SearchResult] = []
+    private(set) var departureLoadState: SearchLoadState = .idle
     /// One-shot signal: a natural-language search resolved to this journey, so
     /// the shell can close the IA sheet and open the journey sheet on it.
     private(set) var naturalResultJourneyID: JourneyID?
 
     var query = ""
+    var departureQuery = ""
     var naturalQuery = ""
 
     @ObservationIgnored private let repository: any SearchRepository
@@ -126,10 +131,12 @@ final class SearchViewModel {
     @ObservationIgnored private var journeyTask: Task<Void, Never>?
     @ObservationIgnored private var naturalCriteriaReplanTask: Task<Void, Never>?
     @ObservationIgnored private var naturalJourneyTask: Task<Void, Never>?
+    @ObservationIgnored private var departureSearchTask: Task<Void, Never>?
     @ObservationIgnored private var lastNaturalJourneyRequest: NaturalJourneyRequest?
     @ObservationIgnored private var naturalSearchStartedAt: Date?
     @ObservationIgnored private var naturalCorrectionCount = 0
     @ObservationIgnored private var lastSearchedQuery = ""
+    @ObservationIgnored private var lastDepartureSearchedQuery = ""
 
     init(
         repository: any SearchRepository,
@@ -502,6 +509,7 @@ final class SearchViewModel {
             || loadState != .idle
             || selectedDestination != nil
             || selectedDeparture != .currentLocation
+            || requestedAt != nil
             || naturalJourneyCriteria != nil
     }
 
@@ -535,6 +543,30 @@ final class SearchViewModel {
 
             guard !Task.isCancelled, let self else { return }
             await performSearch(normalized)
+        }
+    }
+
+    func updateDepartureQuery(_ value: String) {
+        departureQuery = value
+        departureSearchTask?.cancel()
+        departureResults = []
+        departureLoadState = .idle
+
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalized.count >= 2 else {
+            lastDepartureSearchedQuery = ""
+            return
+        }
+
+        departureSearchTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(250))
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled, let self else { return }
+            await performDepartureSearch(normalized)
         }
     }
 
@@ -577,8 +609,29 @@ final class SearchViewModel {
         }
     }
 
+    func retryDepartureSearch() {
+        let retryQuery = lastDepartureSearchedQuery.isEmpty
+            ? departureQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            : lastDepartureSearchedQuery
+
+        guard retryQuery.count >= 2 else { return }
+        departureSearchTask?.cancel()
+        departureSearchTask = Task { [weak self] in
+            guard !Task.isCancelled, let self else { return }
+            await performDepartureSearch(retryQuery)
+        }
+    }
+
     func clearQuery() {
         updateQuery("")
+    }
+
+    func clearDepartureSearch() {
+        departureSearchTask?.cancel()
+        departureQuery = ""
+        departureResults = []
+        departureLoadState = .idle
+        lastDepartureSearchedQuery = ""
     }
 
     /// Starts a genuinely new search while preserving user preferences such
@@ -610,6 +663,9 @@ final class SearchViewModel {
         naturalSearchStartedAt = nil
         naturalCorrectionCount = 0
         lastSearchedQuery = ""
+        requestedAt = nil
+        datetimeRepresents = .departure
+        clearDepartureSearch()
     }
 
     func setRequiresAccessibleStations(_ enabled: Bool) {
@@ -680,6 +736,14 @@ final class SearchViewModel {
 
     func retryJourney() {
         guard selectedDestination != nil else { return }
+        planJourney()
+    }
+
+    func updateTime(_ requestedAt: Date, represents: JourneyDatetimeRepresents) {
+        self.requestedAt = requestedAt
+        datetimeRepresents = represents
+
+        guard selectedDestination != nil, step != .destination else { return }
         planJourney()
     }
 
@@ -771,6 +835,9 @@ final class SearchViewModel {
                 request.requiredModes = criteria.requiredModes
                 request.excludedModes = criteria.excludedModes
                 request.preferredModes = criteria.preferredModes
+            } else if let requestedAt {
+                request.requestedAt = requestedAt
+                request.datetimeRepresents = datetimeRepresents
             }
 
             do {
@@ -837,6 +904,24 @@ final class SearchViewModel {
         } catch {
             guard !Task.isCancelled else { return }
             loadState = .failed(error.via)
+        }
+    }
+
+    private func performDepartureSearch(_ normalizedQuery: String) async {
+        departureLoadState = .loading
+        lastDepartureSearchedQuery = normalizedQuery
+
+        do {
+            let response = try await searchPlaces(query: normalizedQuery)
+            guard !Task.isCancelled else { return }
+
+            departureResults = response.results
+            accessibilitySource = response.accessibilitySource
+            departureLoadState = response.results.isEmpty ? .empty : .loaded
+        } catch is CancellationError {
+        } catch {
+            guard !Task.isCancelled else { return }
+            departureLoadState = .failed(error.via)
         }
     }
 }

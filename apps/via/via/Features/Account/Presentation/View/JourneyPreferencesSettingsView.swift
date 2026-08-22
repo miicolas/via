@@ -13,7 +13,13 @@ struct JourneyPreferencesSettingsView: View {
                             Text(preference.title).tag(preference)
                         }
                     } label: {
-                        Label(mode.displayName, systemImage: mode.chipSystemImage)
+                        HStack(spacing: 16) {
+                            TransitModeIconView(mode: mode, size: 26)
+                                .frame(width: 32)
+                                .accessibilityHidden(true)
+
+                            Text(mode.displayName)
+                        }
                     }
                     .pickerStyle(.menu)
                 }
@@ -44,7 +50,7 @@ struct JourneyPreferencesSettingsView: View {
             }
         }
         .navigationTitle("Préférences de trajet")
-        .navigationBarTitleDisplayMode(.large)
+        .toolbarTitleDisplayMode(.inlineLarge)
     }
 
     private func preferenceBinding(for mode: TransitMode) -> Binding<TransitModePreference> {

@@ -1,5 +1,6 @@
 import { env } from "../env";
 import { redis } from "../redis";
+import { jobDb } from "@via/db";
 
 import { createAPNsProvider } from "./apns";
 import { createNotificationDelivery } from "./delivery";
@@ -12,6 +13,7 @@ import { createDatabaseNotificationJourneySubscriptionStore } from "./journey-su
  * deployment supplies the provider key.
  */
 export const notificationTokenStore = createDatabaseNotificationTokenStore(redis);
+const notificationJobTokenStore = createDatabaseNotificationTokenStore(redis, jobDb);
 
 export const notificationDelivery = createNotificationDelivery({
   apns:
@@ -22,7 +24,7 @@ export const notificationDelivery = createNotificationDelivery({
           privateKey: env.APNS_PRIVATE_KEY,
         })
       : null,
-  tokens: notificationTokenStore,
+  tokens: notificationJobTokenStore,
 });
 
 export const notificationJourneySubscriptions =
@@ -32,3 +34,15 @@ export * from "./apns";
 export * from "./delivery";
 export * from "./repository";
 export * from "./journey-subscriptions";
+export * from "./inbox-store";
+export {
+  fitDeviceNotification,
+  payloadByteLength,
+  stableIdentifierHash,
+  truncateUTF8,
+} from "./payload";
+export type { DeviceNotification } from "./payload";
+export * from "./policy";
+export * from "./preferences";
+export * from "./recurrence";
+export * from "./render";

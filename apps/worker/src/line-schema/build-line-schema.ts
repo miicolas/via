@@ -118,6 +118,18 @@ export function buildLineSchema(rawVariants: LineVariant[]): LineSchema {
       addTo(terminiServing, stopId, last(variant));
     }
   }
+  // Short turns are not branches. A service group whose stops are all served
+  // by another group too — trains terminating at Gare du Nord, at Denfert, at
+  // Noisy-le-Grand — adds no station to the schema, only a signature that
+  // shatters the trunk into unreadable slivers. Dropping those groups is what
+  // makes the trunk a trunk again.
+  const realOrigins = branchEnds(originsServing, keptOrigins);
+  const realTermini = branchEnds(terminiServing, keptTermini);
+  for (const stopId of [...originsServing.keys()]) {
+    originsServing.set(stopId, intersect(originsServing.get(stopId)!, realOrigins));
+    terminiServing.set(stopId, intersect(terminiServing.get(stopId)!, realTermini));
+  }
+
   const byTrips = (counts: Map<string, number>) => (a: string, b: string) =>
     counts.get(b)! - counts.get(a)! || compare(a, b);
 
@@ -138,7 +150,7 @@ export function buildLineSchema(rawVariants: LineVariant[]): LineSchema {
     .toSorted((a, b) => orderIndex.get(a.stopIds[0]!)! - orderIndex.get(b.stopIds[0]!)!)
     .map(({ origins, termini, stopIds }) => ({
       role:
-        origins.length === keptOrigins.size && termini.length === keptTermini.size
+        origins.length === realOrigins.size && termini.length === realTermini.size
           ? ('trunk' as const)
           : ('branch' as const),
       origins,
@@ -148,10 +160,41 @@ export function buildLineSchema(rawVariants: LineVariant[]): LineSchema {
 
   return {
     sections,
-    originStopIds: [...keptOrigins.keys()].sort(byTrips(keptOrigins)),
-    terminusStopIds: [...keptTermini.keys()].sort(byTrips(keptTermini)),
+    originStopIds: [...realOrigins].sort(byTrips(keptOrigins)),
+    terminusStopIds: [...realTermini].sort(byTrips(keptTermini)),
     warnings,
   };
+}
+
+/**
+ * Which origin (or terminus) groups are real branch ends: the ones that are,
+ * somewhere, the only group serving a station. A group failing that test is a
+ * short turn riding on another group's tracks, so it is dropped — least busy
+ * first, re-testing after each drop, and never the last group standing. Every
+ * station therefore keeps at least one serving group.
+ */
+function branchEnds(
+  serving: Map<string, Set<string>>,
+  counts: Map<string, number>
+): Set<string> {
+  const groups = new Set(counts.keys());
+  while (groups.size > 1) {
+    const exclusive = new Set<string>();
+    for (const servers of serving.values()) {
+      const kept = [...servers].filter((group) => groups.has(group));
+      if (kept.length === 1) exclusive.add(kept[0]!);
+    }
+    const shortTurns = [...groups]
+      .filter((group) => !exclusive.has(group))
+      .sort((a, b) => counts.get(a)! - counts.get(b)! || compare(a, b));
+    if (shortTurns.length === 0) break;
+    groups.delete(shortTurns[0]!);
+  }
+  return groups;
+}
+
+function intersect(values: Set<string>, kept: Set<string>): Set<string> {
+  return new Set([...values].filter((value) => kept.has(value)));
 }
 
 /**

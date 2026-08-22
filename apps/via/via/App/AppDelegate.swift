@@ -7,7 +7,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        UNUserNotificationCenter.current().delegate = self
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        let mute = UNNotificationAction(
+            identifier: Self.muteActionIdentifier,
+            title: "Ne plus recevoir",
+            options: [.destructive, .authenticationRequired]
+        )
+        let categories = NotificationCategory.allCases.map { category in
+            UNNotificationCategory(
+                identifier: "via.notification.\(category.rawValue)",
+                actions: [mute],
+                intentIdentifiers: [],
+                options: [.customDismissAction]
+            )
+        }
+        center.setNotificationCategories(Set(categories))
         return true
     }
 
@@ -38,7 +53,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        PushNotificationManager.shared.didReceiveNotificationResponse(response)
+        if response.actionIdentifier == Self.muteActionIdentifier {
+            if let scheduleID = response.notification.request.content.userInfo["scheduleId"] as? String {
+                NotificationScheduleCoordinator.shared.mute(scheduleID: scheduleID)
+            }
+            PushNotificationManager.shared.muteNotification(from: response)
+        } else {
+            PushNotificationManager.shared.didReceiveNotificationResponse(response)
+        }
         completionHandler()
     }
+
+    static let muteActionIdentifier = "via.notification.mute"
 }

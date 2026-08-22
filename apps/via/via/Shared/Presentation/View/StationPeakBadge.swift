@@ -1,45 +1,29 @@
 import SwiftUI
 
-/// Icon-only habitual station profile badge shared by journey and station surfaces.
+/// Habitual station affluence, drawn as the PMR badge's twin: same glass square,
+/// tint and filled bars moving with the degree, explanation one tap away.
 struct StationPeakBadge: View {
     let peak: StationPeak
-    let accessibilityLabel: String
-
-    init(
-        peak: StationPeak,
-        accessibilityLabel: String = "Affluence habituelle"
-    ) {
-        self.peak = peak
-        self.accessibilityLabel = accessibilityLabel
-    }
+    var accessibilityLabel: String = "Affluence habituelle"
+    var size: CGFloat = 22
+    var isInteractive: Bool = true
 
     private var normalizedRatio: Double {
         min(1, max(0.25, peak.ratio))
     }
 
-    private var tint: Color {
-        switch peak.level {
-        case .peak: .orange
-        case .moderate: .yellow
-        case .off: .secondary
-        }
-    }
-
     var body: some View {
-        Label {
-            Text(accessibilityLabel)
-        } icon: {
-            Image(systemName: "cellularbars", variableValue: normalizedRatio)
-        }
-            .labelStyle(.iconOnly)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(tint)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(tint.opacity(0.12), in: Capsule())
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(accessibilityLabel)
-            .accessibilityValue(accessibilityValue)
+        InfoBadgeButton(
+            symbol: "cellularbars",
+            variableValue: normalizedRatio,
+            tint: peak.level.tint,
+            size: size,
+            isInteractive: isInteractive,
+            title: accessibilityLabel,
+            message: message,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityValue: accessibilityValue
+        )
     }
 
     var accessibilityValue: String {
@@ -48,4 +32,60 @@ struct StationPeakBadge: View {
         }
         return peak.label
     }
+
+    private var message: String {
+        let situation: String = if let stationName = peak.stationName, !stationName.isEmpty {
+            "\(stationName) : \(peak.label)."
+        } else {
+            "\(peak.label.prefix(1).uppercased())\(peak.label.dropFirst())."
+        }
+
+        return [situation, peak.level.explanation, Self.source].joined(separator: "\n\n")
+    }
+
+    private static let source = "Profil habituel reconstitué à partir des validations IDFM (T4 2025) — ce n’est pas une mesure en temps réel."
+}
+
+extension PeakLevel {
+    var tint: Color {
+        switch self {
+        case .off: .green
+        case .moderate: .orange
+        case .peak: .red
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .off:
+            "Creux de fréquentation : quais dégagés, vous montez sans attendre."
+        case .moderate:
+            "Fréquentation soutenue : rames bien remplies, place assise incertaine."
+        case .peak:
+            "Heure la plus chargée : quais denses, prévoyez de laisser passer une rame."
+        }
+    }
+}
+
+#Preview {
+    HStack(spacing: 10) {
+        StationPeakBadge(
+            peak: StationPeak(ratio: 0.3, level: .off, label: "trafic creux"),
+            size: 24
+        )
+        StationPeakBadge(
+            peak: StationPeak(ratio: 0.6, level: .moderate, label: "fréquentation soutenue"),
+            size: 24
+        )
+        StationPeakBadge(
+            peak: StationPeak(
+                ratio: 0.95,
+                level: .peak,
+                label: "heure la plus chargée",
+                stationName: "Châtelet"
+            ),
+            size: 24
+        )
+    }
+    .padding()
 }

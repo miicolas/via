@@ -149,11 +149,7 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
     enum Status: String, Codable, Sendable, Hashable { case normal, disrupted, theoretical }
 
     struct Accessibility: Codable, Sendable, Hashable {
-        enum Condition: String, Codable, Sendable, Hashable {
-            case reservationRequired
-            case staffAssistance
-            case autonomous
-        }
+        typealias Condition = AccessibilityCondition
 
         let condition: Condition
         let label: String

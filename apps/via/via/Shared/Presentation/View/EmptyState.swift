@@ -30,10 +30,36 @@ struct EmptyState {
 // MARK: - The dead ends Via has already worded
 
 extension EmptyState {
+    /// No message: the way out is a control on another screen, so the sentence
+    /// belongs to an `EmptyStateHint` that can carry that control's symbol
+    /// inline instead of describing it in words.
+    static let noNotificationSchedules = EmptyState(
+        systemImage: "calendar.badge.plus",
+        title: "Aucune programmation",
+        message: "Ajoutez un rappel domicile–travail ou un résumé quotidien pour ne plus avoir à y penser."
+    )
+
+    static let noFollowedLines = EmptyState(
+        systemImage: "tram",
+        title: "Aucune ligne suivie",
+        message: "Suivez une ligne depuis sa fiche pour recevoir ses perturbations et son retour à la normale."
+    )
+
+    static let emptyInbox = EmptyState(
+        systemImage: "bell",
+        title: "Tout est calme",
+        message: "Les informations importantes pour vos trajets apparaîtront ici."
+    )
+
+    static let notificationsDenied = EmptyState(
+        systemImage: "bell.slash",
+        title: "Notifications désactivées",
+        message: "Autorisez les notifications dans Réglages pour recevoir les alertes de Via."
+    )
+
     static let noFavorites = EmptyState(
         systemImage: "star",
         title: "Aucune station favorite",
-        message: "Ajoute une station en favori depuis sa fiche pour la retrouver ici.",
     )
 
     /// Quoting the query back is what tells the traveller the search ran on what

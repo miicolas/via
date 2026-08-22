@@ -115,6 +115,31 @@ describe('buildLineSchema', () => {
     expect(schema.terminusStopIds).toEqual(['MLV', 'Boissy']);
   });
 
+  test('a short turn is not a branch', () => {
+    // Half the trains start at the depot end, half short-turn from the middle
+    // of the trunk. The short turn adds no station, so it must not shatter the
+    // trunk into a "before Middle" and an "after Middle" pair of slivers.
+    const schema = buildLineSchema([
+      variant(['A', 'B', 'Middle', 'C', 'D'], 100),
+      variant(['Middle', 'C', 'D'], 60),
+      // A real branch still survives the same pass.
+      variant(['A', 'B', 'Middle', 'C', 'Branch'], 40),
+    ]);
+
+    expect(schema.originStopIds).toEqual(['A']);
+    expect(schema.terminusStopIds).toEqual(['D', 'Branch']);
+    expect(schema.sections).toEqual([
+      {
+        role: 'trunk',
+        origins: ['A'],
+        termini: ['D', 'Branch'],
+        stopIds: ['A', 'B', 'Middle', 'C'],
+      },
+      { role: 'branch', origins: ['A'], termini: ['D'], stopIds: ['D'] },
+      { role: 'branch', origins: ['A'], termini: ['Branch'], stopIds: ['Branch'] },
+    ]);
+  });
+
   test('a metro direction is a single trunk', () => {
     const schema = buildLineSchema([
       variant(['Vincennes', 'Nation', 'Bastille', 'Défense'], 500),

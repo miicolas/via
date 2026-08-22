@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Content of the dedicated search tab. A destination result immediately
 /// becomes a journey request; the map remains visible behind the sheet.
@@ -6,28 +7,33 @@ import SwiftUI
 struct SearchView: View {
     let viewModel: SearchViewModel
     let activeJourneyModel: ActiveJourneyModel
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
     let onClose: () -> Void
     let onInspectJourney: (Journey) -> Void
     let onShowActiveJourney: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
     @Namespace private var inputTransitionNamespace
     @State private var isDeparturePickerPresented = false
     @State private var isNaturalDatePickerPresented = false
     @State private var isNaturalOptionsPresented = false
     @State private var isAccessibilityInfoPresented = false
     @State private var isClearRecentsConfirmationPresented = false
+    @State private var isReminderErrorPresented = false
 
     init(
         viewModel: SearchViewModel,
         activeJourneyModel: ActiveJourneyModel,
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
         onClose: @escaping () -> Void = {},
         onInspectJourney: @escaping (Journey) -> Void = { _ in },
         onShowActiveJourney: @escaping () -> Void = {},
     ) {
         self.viewModel = viewModel
         self.activeJourneyModel = activeJourneyModel
+        self.journeyNotificationCoordinator = journeyNotificationCoordinator
         self.onClose = onClose
         self.onInspectJourney = onInspectJourney
         self.onShowActiveJourney = onShowActiveJourney
@@ -59,9 +65,6 @@ struct SearchView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        searchFiltersMenu
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
                         Button(role: .close) {
                             onClose()
                         }
@@ -84,6 +87,12 @@ struct SearchView: View {
                     initialDate: criteria.requestedAt,
                     initialMeaning: criteria.datetimeRepresents,
                     onApply: viewModel.updateNaturalTime,
+                )
+            } else {
+                NaturalJourneyDatePickerView(
+                    initialDate: viewModel.requestedAt ?? .now,
+                    initialMeaning: viewModel.datetimeRepresents,
+                    onApply: viewModel.updateTime,
                 )
             }
         }
@@ -112,22 +121,24 @@ struct SearchView: View {
         } message: {
             Text("Cette action supprime les destinations enregistrées sur cet appareil.")
         }
-    }
-
-    private var searchFiltersMenu: some View {
-        SearchFiltersMenu(
-            filters: viewModel.filters,
-            onSetRequiresAccessibleStations: { isEnabled in
-                viewModel.setRequiresAccessibleStations(isEnabled)
-            },
-            onShowAccessibilityInfo: {
-                isAccessibilityInfoPresented = true
+        .alert("Rappel non modifié", isPresented: $isReminderErrorPresented) {
+            if journeyNotificationCoordinator.authorizationStatus == .denied {
+                Button("Ouvrir les réglages iOS") {
+                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+                    openURL(url)
+                }
             }
-        )
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(
+                journeyNotificationCoordinator.lastError ??
+                    "Votre rappel est mémorisé et sera réessayé plus tard."
+            )
+        }
     }
 
     private var hasActiveJourneySurface: Bool {
-        activeJourneyModel.isActive || activeJourneyModel.arrival != nil
+        activeJourneyModel.hasSurface
     }
 
     @ToolbarContentBuilder
@@ -153,14 +164,18 @@ struct SearchView: View {
             HStack(spacing: 4) {
                 Text("Depuis ")
                     .foregroundStyle(.secondary)
+                    .fixedSize()
 
                 Text(viewModel.wrappedValue.selectedDeparture.title)
                     .foregroundStyle(.primary)
                     .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.primary)
+                    .fixedSize()
             }
         }
         .accessibilityLabel("Point de départ")
@@ -185,6 +200,24 @@ struct SearchView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
 
+            if viewModel.wrappedValue.naturalJourneyCriteria == nil {
+                SearchOptionsBar(
+                    requestedAt: viewModel.wrappedValue.requestedAt,
+                    datetimeRepresents: viewModel.wrappedValue.datetimeRepresents,
+                    requiresAccessibleStations: viewModel.wrappedValue.filters.requiresAccessibleStations,
+                    onEditTime: { isNaturalDatePickerPresented = true },
+                    onToggleAccessibleStations: {
+                        viewModel.wrappedValue.setRequiresAccessibleStations(
+                            !viewModel.wrappedValue.filters.requiresAccessibleStations
+                        )
+                    },
+                    onShowAccessibilityInfo: { isAccessibilityInfoPresented = true },
+                )
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+
             if viewModel.wrappedValue.showsRecentSearches {
                 Section {
                     ForEach(viewModel.wrappedValue.recentSearches) { recent in
@@ -193,6 +226,8 @@ struct SearchView: View {
                             accessibilityHint: "Relance un trajet vers cette destination",
                         ) {
                             viewModel.wrappedValue.selectRecentSearch(recent)
+                        } onDelete: {
+                            viewModel.wrappedValue.removeRecentSearch(id: recent.id)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button("Supprimer", systemImage: "trash", role: .destructive) {
@@ -218,14 +253,15 @@ struct SearchView: View {
             }
 
             if viewModel.wrappedValue.loadState != .idle {
-                SearchResultsSection(
-                    state: viewModel.wrappedValue.loadState,
-                    results: viewModel.wrappedValue.results,
-                    onRetry: viewModel.wrappedValue.retry,
-                    onSelect: viewModel.wrappedValue.selectDestination,
-                )
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 24, trailing: 16))
-                .listRowSeparator(.hidden)
+                Section {
+                    SearchResultsSection(
+                        state: viewModel.wrappedValue.loadState,
+                        results: viewModel.wrappedValue.results,
+                        onRetry: viewModel.wrappedValue.retry,
+                        onSelect: viewModel.wrappedValue.selectDestination,
+                    )
+                }
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowBackground(Color.clear)
             }
         }
@@ -249,18 +285,57 @@ struct SearchView: View {
                         onEditTime: { isNaturalDatePickerPresented = true },
                         onEditOptions: { isNaturalOptionsPresented = true },
                     )
+                } else if viewModel.wrappedValue.step == .results {
+                    SearchOptionsBar(
+                        requestedAt: viewModel.wrappedValue.requestedAt,
+                        datetimeRepresents: viewModel.wrappedValue.datetimeRepresents,
+                        requiresAccessibleStations: viewModel.wrappedValue.filters.requiresAccessibleStations,
+                        onEditTime: { isNaturalDatePickerPresented = true },
+                        onToggleAccessibleStations: {
+                            viewModel.wrappedValue.setRequiresAccessibleStations(
+                                !viewModel.wrappedValue.filters.requiresAccessibleStations
+                            )
+                        },
+                        onShowAccessibilityInfo: { isAccessibilityInfoPresented = true },
+                    )
                 }
 
-                if let destination = viewModel.wrappedValue.selectedDestination {
+                if viewModel.wrappedValue.selectedDestination != nil {
                     SearchJourneyResultsView(
                         step: viewModel.wrappedValue.step,
                         result: viewModel.wrappedValue.journeyResult,
-                        destinationName: destination.name,
-                        departureTitle: viewModel.wrappedValue.selectedDeparture.title,
                         selectedJourneyID: viewModel.wrappedValue.selectedJourneyID,
+                        scheduledReminderJourneyID: journeyNotificationCoordinator.scheduledJourneyID,
+                        reminderLeadTime: journeyNotificationCoordinator.preferences.departureLeadTime,
+                        isUpdatingReminder: journeyNotificationCoordinator.isUpdatingReminder,
                         onSelectJourney: { journey in
                             viewModel.wrappedValue.selectJourney(journey)
                             onInspectJourney(journey)
+                        },
+                        onScheduleReminder: { journey, leadTime in
+                            guard let destination = viewModel.wrappedValue.journeyDestination else { return }
+                            let source = viewModel.wrappedValue.journeyResult?.source
+                            Task {
+                                if journeyNotificationCoordinator.preferences.departureLeadTime != leadTime {
+                                    await journeyNotificationCoordinator.updateDepartureLeadTime(leadTime)
+                                    guard journeyNotificationCoordinator.preferences.departureLeadTime == leadTime else {
+                                        isReminderErrorPresented = true
+                                        return
+                                    }
+                                }
+                                await journeyNotificationCoordinator.scheduleReminder(
+                                    for: journey,
+                                    destination: destination,
+                                    source: source
+                                )
+                                isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
+                            }
+                        },
+                        onCancelReminder: {
+                            Task {
+                                await journeyNotificationCoordinator.cancelReminder()
+                                isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
+                            }
                         },
                         onRetry: viewModel.wrappedValue.retryJourney,
                         onEdit: viewModel.wrappedValue.editDestination,

@@ -53,7 +53,7 @@ struct PermissionsSettingsView: View {
             }
         }
         .navigationTitle("Autorisations iOS")
-        .navigationBarTitleDisplayMode(.large)
+        .toolbarTitleDisplayMode(.inlineLarge)
         .id(scenePhase)
         .task { await journeyNotificationCoordinator.refreshAuthorizationStatus() }
     }

@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import { NOTIFICATION_DELIVERY_SHARD_COUNT } from "@via/db";
 
 import { getDisruptionsSnapshot } from "../routers/lines/disruptions/snapshot";
@@ -10,7 +8,13 @@ import {
   NotificationDeliveryError,
   type NotificationDelivery,
 } from "./delivery";
-import { deviceNotificationPayload } from "./apns";
+import {
+  fitDeviceNotification,
+  notificationTextEncoder as encoder,
+  stableIdentifierHash,
+  truncateUTF8,
+} from "./payload";
+import type { DeviceNotification } from "./payload";
 import type {
   NotificationJourneyRecipient,
   NotificationJourneySubscription,
@@ -23,8 +27,6 @@ import {
   notificationSubscriptionLeaseKey,
   setNotificationSubscriptionVersionWhenIdle,
 } from "./journey-subscriptions";
-
-const encoder = new TextEncoder();
 
 const DEDUP_TTL_SECONDS = 60 * 60 * 24 * 3;
 const DELIVERY_CLAIM_TTL_SECONDS = 5 * 60;
@@ -128,25 +130,6 @@ function computeDisruptionVersion(disruption: NormalizedDisruption): string {
   return `${disruption.severity}:${(hash >>> 0).toString(16)}`;
 }
 
-function stableIdentifierHash(value: string): string {
-  return createHash("sha256").update(value).digest("hex").slice(0, 16);
-}
-
-function truncateUTF8(value: string, maximumBytes: number): string {
-  if (encoder.encode(value).byteLength <= maximumBytes) return value;
-  const suffix = "…";
-  const suffixBytes = encoder.encode(suffix).byteLength;
-  let result = "";
-  let byteLength = 0;
-  for (const character of value) {
-    const characterBytes = encoder.encode(character).byteLength;
-    if (byteLength + characterBytes + suffixBytes > maximumBytes) break;
-    result += character;
-    byteLength += characterBytes;
-  }
-  return result + suffix;
-}
-
 export function journeyDisruptionNotification(
   subscription: Pick<
     NotificationJourneySubscription,
@@ -154,7 +137,7 @@ export function journeyDisruptionNotification(
   >,
   disruption: NormalizedDisruption,
   now = new Date(),
-) {
+): DeviceNotification & { collapseId: string; expirationAt: Date } {
   const deepLink = `via://journey?journeyId=${encodeURIComponent(subscription.journeyId)}&mode=active`;
   const compatibleDeepLink =
     encoder.encode(deepLink).byteLength <= 1_024 ? { deepLink } : {};
@@ -188,6 +171,10 @@ export function journeyDisruptionNotification(
       2_500,
     ),
     sound: "default",
+    threadId: `via.notification.journey.${stableIdentifierHash(subscription.journeyId)}`,
+    categoryId: "via.notification.journey",
+    interruptionLevel: disruption.severity === "suspended" ? "timeSensitive" : "active",
+    relevanceScore: disruption.severity === "suspended" ? 1 : 0.7,
     expirationAt,
     collapseId,
     data: {
@@ -198,18 +185,9 @@ export function journeyDisruptionNotification(
       ...compatibleDeepLink,
     },
   } as const;
-  const payloadByteLength = encoder.encode(
-    JSON.stringify(deviceNotificationPayload(notification)),
-  ).byteLength;
-  if (payloadByteLength <= 4_096) return notification;
-
-  const bodyByteLength = encoder.encode(notification.body).byteLength;
-  return {
-    ...notification,
-    body: truncateUTF8(
-      notification.body,
-      Math.max(32, bodyByteLength - (payloadByteLength - 4_096) - 16),
-    ),
+  return fitDeviceNotification(notification) as DeviceNotification & {
+    collapseId: string;
+    expirationAt: Date;
   };
 }
 

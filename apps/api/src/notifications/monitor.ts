@@ -1,6 +1,7 @@
 import { env } from '../env';
 import { redis } from '../redis';
 import { notificationDelivery, notificationJourneySubscriptions } from './index';
+import { NOTIFICATION_DISRUPTION_POLL_SECONDS } from './config';
 import { NotificationDisruptionMonitor } from './disruption-monitor';
 
 let monitor: NotificationDisruptionMonitor | null = null;
@@ -13,7 +14,7 @@ export function startNotificationDisruptionMonitor(): NotificationDisruptionMoni
     return null;
   }
 
-  const intervalMilliseconds = env.NOTIFICATION_DISRUPTION_POLL_SECONDS * 1_000;
+  const intervalMilliseconds = NOTIFICATION_DISRUPTION_POLL_SECONDS * 1_000;
   monitor = new NotificationDisruptionMonitor({
     redis,
     subscriptions: notificationJourneySubscriptions,

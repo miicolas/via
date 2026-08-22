@@ -12,6 +12,10 @@ filter:
     - notifications.unregisterDevice
     - notifications.registerActiveJourney
     - notifications.unregisterActiveJourney
+    - notifications.inbox
+    - notifications.markInboxRead
+    - notifications.snooze
+    - notifications.mute
     - departures.forStation
     - health
     - journeys.plan

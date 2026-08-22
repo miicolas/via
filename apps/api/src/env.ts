@@ -79,12 +79,6 @@ const envSchema = z.object({
     .default("800")
     .transform(Number)
     .pipe(z.number().int().min(0)),
-  /** Authenticated journey disruption polling cadence. */
-  NOTIFICATION_DISRUPTION_POLL_SECONDS: z
-    .string()
-    .default("120")
-    .transform(Number)
-    .pipe(z.number().int().min(30)),
   /**
    * Daily request ceiling of the PRIM token (new tokens: 1 000/day). The
    * governor keeps a safety margin below it; raise this only after PRIM

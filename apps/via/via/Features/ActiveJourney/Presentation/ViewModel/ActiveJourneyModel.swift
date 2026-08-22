@@ -53,6 +53,16 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
     var isActive: Bool { session != nil }
     var isTracking: Bool { session?.isTrackingStarted == true && !requiresResume }
+
+    /// Guidance is running: a session under way that has not arrived yet. The
+    /// journey sheet sizes its peek on this and the strip shows at that peek, so
+    /// the two must be asking the model, not each other.
+    var isGuiding: Bool { isActive && arrival == nil }
+
+    /// There is a journey surface to show — the running panel, or the arrival
+    /// that outlives the session.
+    var hasSurface: Bool { isActive || arrival != nil }
+
     var journey: Journey? { session?.journey }
     var mapPresentation: JourneyMapPresentation? {
         journey.map(JourneyMapPresentation.init)

@@ -26,6 +26,7 @@ struct ApplicationEntry: App {
     @State private var profileModel: ProfileModel
     @State private var pushNotificationManager: PushNotificationManager
     @State private var journeyNotificationCoordinator: JourneyNotificationCoordinator
+    @State private var notificationInboxRemote: any NotificationInboxRemote
 
     init() {
         let pushNotificationManager = PushNotificationManager.shared
@@ -100,6 +101,7 @@ struct ApplicationEntry: App {
         _profileModel = State(initialValue: ProfileModel())
         _pushNotificationManager = State(initialValue: dependencies.pushNotificationManager)
         _journeyNotificationCoordinator = State(initialValue: dependencies.journeyNotificationCoordinator)
+        _notificationInboxRemote = State(initialValue: dependencies.notificationInboxRemote)
     }
 
     var body: some Scene {
@@ -177,12 +179,14 @@ struct ApplicationEntry: App {
                 if authSessionViewModel.isSignedIn || isContinuingAsGuest {
                     OnboardingProfileView(
                         model: onboardingProfileModel,
+                        onBack: stepBackFromProfile,
                         onComplete: onboardingModel.completeSetup
                     )
                     .transition(.opacity)
                 } else {
                     OnboardingAccountView(
                         authSessionViewModel: authSessionViewModel,
+                        onBack: stepBackToPresentation,
                         onContinueAsGuest: { isContinuingAsGuest = true }
                     )
                     .transition(.opacity)
@@ -203,9 +207,44 @@ struct ApplicationEntry: App {
                     profileModel: profileModel,
                     pushNotificationManager: pushNotificationManager,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    onReplayOnboarding: replayOnboarding,
+                    notificationInboxRemote: notificationInboxRemote,
                 )
                 .transition(.opacity)
             }
+        }
+    }
+
+    /// The first question hands the traveller back to the screen they came
+    /// from: the account step for a guest, the presentation for someone who
+    /// arrived already signed in — signing out to see a login screen again is
+    /// not what a back tap means. Answers already given are kept either way.
+    private func stepBackFromProfile() {
+        guard !authSessionViewModel.isSignedIn, isContinuingAsGuest else {
+            stepBackToPresentation()
+            return
+        }
+
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+            isContinuingAsGuest = false
+        }
+    }
+
+    private func stepBackToPresentation() {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+            isContinuingAsGuest = false
+            onboardingModel.stepBackToPresentation()
+        }
+    }
+
+    /// Réglages hands the first run back: the carousel, the account step and
+    /// the profile questions replay in order. Nothing stored is thrown away —
+    /// the questions reopen on the answers already given, so leaving halfway
+    /// costs the traveller nothing.
+    private func replayOnboarding() {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+            isContinuingAsGuest = false
+            onboardingModel.reset()
         }
     }
 
@@ -267,6 +306,7 @@ struct ApplicationEntry: App {
                 journeyNotificationCoordinator: JourneyNotificationCoordinator(
                     activeJourneyManager: pushNotificationManager
                 ),
+                notificationInboxRemote: NoOpNotificationInboxRemote(),
             )
         }
 
@@ -339,6 +379,7 @@ struct ApplicationEntry: App {
             journeyNotificationCoordinator: JourneyNotificationCoordinator(
                 activeJourneyManager: pushNotificationManager
             ),
+            notificationInboxRemote: LiveNotificationInboxRemote(transport: transport),
         )
     }
 
@@ -362,5 +403,6 @@ struct ApplicationEntry: App {
         let onboardingProfileModel: OnboardingProfileModel
         let pushNotificationManager: PushNotificationManager
         let journeyNotificationCoordinator: JourneyNotificationCoordinator
+        let notificationInboxRemote: any NotificationInboxRemote
     }
 }

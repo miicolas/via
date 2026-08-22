@@ -7,10 +7,40 @@ struct SettingsView: View {
     let authSessionViewModel: AuthSessionViewModel
     let profileModel: ProfileModel
     let locationModel: LocationModel
-    let pushNotificationManager: PushNotificationManager = .preview
-    let journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
+    let pushNotificationManager: PushNotificationManager
+    let journeyNotificationCoordinator: JourneyNotificationCoordinator
+    /// Hands the whole first run back to the root: the carousel, the account
+    /// step and the three profile questions replay in order. Owned there
+    /// because that is where the flow is branched.
+    let onReplayOnboarding: @MainActor () -> Void
+    let notificationInboxRemote: any NotificationInboxRemote
 
     @Environment(\.dismiss) private var dismiss
+    @State private var isConfirmingOnboardingReplay = false
+
+    init(
+        accountModel: AccountModel,
+        favoriteRoutesModel: FavoriteRoutesModel,
+        searchViewModel: SearchViewModel,
+        authSessionViewModel: AuthSessionViewModel,
+        profileModel: ProfileModel,
+        locationModel: LocationModel,
+        pushNotificationManager: PushNotificationManager = .preview,
+        journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
+        onReplayOnboarding: @escaping @MainActor () -> Void = {},
+        notificationInboxRemote: any NotificationInboxRemote = NoOpNotificationInboxRemote()
+    ) {
+        self.accountModel = accountModel
+        self.favoriteRoutesModel = favoriteRoutesModel
+        self.searchViewModel = searchViewModel
+        self.authSessionViewModel = authSessionViewModel
+        self.profileModel = profileModel
+        self.locationModel = locationModel
+        self.pushNotificationManager = pushNotificationManager
+        self.journeyNotificationCoordinator = journeyNotificationCoordinator
+        self.onReplayOnboarding = onReplayOnboarding
+        self.notificationInboxRemote = notificationInboxRemote
+    }
 
     var body: some View {
         NavigationStack {
@@ -54,14 +84,17 @@ struct SettingsView: View {
                     }
 
                     NavigationLink {
-                        JourneyNotificationsSettingsView(
-                            coordinator: journeyNotificationCoordinator
+                        NotificationSettingsView(
+                            accountModel: accountModel,
+                            coordinator: .shared,
+                            inboxRemote: notificationInboxRemote,
+                            journeyNotificationCoordinator: journeyNotificationCoordinator
                         )
                     } label: {
                         SettingsRow(
-                            title: "Rappels de trajet",
+                            title: "Notifications",
                             systemImage: "bell.badge.fill",
-                            subtitle: "Départ, correspondances et arrivée"
+                            subtitle: "Alertes, rappels et lignes suivies"
                         )
                     }
 
@@ -121,6 +154,16 @@ struct SettingsView: View {
                 }
 
                 Section("PLUS") {
+                    Button {
+                        isConfirmingOnboardingReplay = true
+                    } label: {
+                        SettingsRow(
+                            title: "Revoir l’introduction",
+                            systemImage: "sparkles.rectangle.stack",
+                            subtitle: "Présentation, compte et questions"
+                        )
+                    }
+
                     NavigationLink {
                         AboutView()
                     } label: {
@@ -133,11 +176,24 @@ struct SettingsView: View {
             }
             .listStyle(.plain)
             .navigationTitle("Réglages")
-            .navigationBarTitleDisplayMode(.large)
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(role: .close) { dismiss() }
                 }
+            }
+            .confirmationDialog(
+                "Revoir l’introduction ?",
+                isPresented: $isConfirmingOnboardingReplay,
+                titleVisibility: .visible
+            ) {
+                Button("Revoir") {
+                    dismiss()
+                    onReplayOnboarding()
+                }
+                Button("Annuler", role: .cancel) {}
+            } message: {
+                Text("Metyro repart du premier écran. Ton compte, tes favoris et tes réponses actuelles sont conservés.")
             }
         }
     }

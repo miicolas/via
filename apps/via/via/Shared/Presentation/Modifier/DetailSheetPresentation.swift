@@ -3,17 +3,35 @@ import SwiftUI
 extension View {
     func detailSheetPresentation(
         isLargeScreen: Bool,
+        collapsedHeight: CGFloat = DetailSheetPresentation.collapsedHeight,
         selection: Binding<PresentationDetent>
     ) -> some View {
         modifier(DetailSheetPresentationModifier(
             isLargeScreen: isLargeScreen,
+            collapsedHeight: collapsedHeight,
             selection: selection
         ))
     }
 }
 
+enum DetailSheetPresentation {
+    /// The peek: tall enough for the navigation title, short enough that the map
+    /// keeps the screen. Sheets whose collapsed state has something else to say
+    /// pass their own height.
+    static let collapsedHeight: CGFloat = 80
+
+    /// The top of the detent set below — what a sheet raises itself to. Views
+    /// that drive a detent programmatically must ask for it here: a hand-written
+    /// copy that drifts targets a detent this modifier no longer offers, and the
+    /// sheet silently refuses to move.
+    static func expanded(isLargeScreen: Bool) -> PresentationDetent {
+        isLargeScreen ? .fraction(0.97) : .large
+    }
+}
+
 private struct DetailSheetPresentationModifier: ViewModifier {
     let isLargeScreen: Bool
+    let collapsedHeight: CGFloat
     @Binding var selection: PresentationDetent
 
     func body(content: Content) -> some View {
@@ -27,9 +45,9 @@ private struct DetailSheetPresentationModifier: ViewModifier {
     }
 
     private var detents: Set<PresentationDetent> {
-        if isLargeScreen {
-            return [.height(80), .fraction(0.97)]
-        }
-        return [.height(80), .large]
+        [
+            .height(collapsedHeight),
+            DetailSheetPresentation.expanded(isLargeScreen: isLargeScreen)
+        ]
     }
 }
