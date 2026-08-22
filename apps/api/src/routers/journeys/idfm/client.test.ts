@@ -54,3 +54,25 @@ test('pins a PMR station journey to the selected stop areas', () => {
   expect(url.searchParams.get('to')).toBe('stop_area:IDFM:71264');
   expect(url.searchParams.get('wheelchair')).toBe('true');
 });
+
+test('preserves a Navitia-qualified stop point when pinning departure choices', () => {
+  const input: JourneyInput = {
+    origin: { latitude: 48.854, longitude: 2.35 },
+    originStationId: 'stop_point:IDFM:22149',
+    destination: {
+      kind: 'station',
+      id: 'IDFM:71264',
+      name: 'Châtelet',
+      coordinate: { latitude: 48.8584, longitude: 2.347 },
+    },
+    limit: 1,
+  };
+
+  const url = journeyUrl(
+    'https://example.test/journeys',
+    input,
+    new Date('2026-08-23T12:00:00+02:00')
+  );
+
+  expect(url.searchParams.get('from')).toBe('stop_point:IDFM:22149');
+});

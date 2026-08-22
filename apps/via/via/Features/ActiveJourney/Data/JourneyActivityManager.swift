@@ -58,9 +58,12 @@ final class JourneyActivityManager: JourneyActivityManaging {
         dismissAt: Date
     ) async {
         guard let current = activity(for: journeyID) else { return }
+        let dismissalPolicy: ActivityUIDismissalPolicy = dismissAt <= Date()
+            ? .immediate
+            : .after(dismissAt)
         await current.end(
             ActivityContent(state: finalState, staleDate: nil),
-            dismissalPolicy: .after(dismissAt)
+            dismissalPolicy: dismissalPolicy
         )
     }
 

@@ -14,121 +14,163 @@ struct JourneyActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: JourneyActivityAttributes.self) { context in
             JourneyActivityLockScreenView(context: context)
-                .activityBackgroundTint(Color.black.opacity(0.88))
+                .activityBackgroundTint(.black)
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    routeBadge(context.state)
+                    routeBadge(context.state, size: 24)
                 }
+
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(context.state.arrivalAt, style: .time)
-                        .font(.headline.monospacedDigit())
+                    JourneyActivityTimeSummary(state: context.state)
                 }
+
                 DynamicIslandExpandedRegion(.center) {
-                    if context.isStale {
-                        Label("Mise à jour suspendue", systemImage: "pause.circle.fill")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.orange)
-                    } else if context.state.isOffline {
-                        Label("Hors connexion", systemImage: "wifi.slash")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.orange)
-                    } else {
-                        Text(context.state.phaseTitle)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
+                    JourneyActivityStatusView(
+                        state: context.state,
+                        isStale: context.isStale,
+                        compact: true
+                    )
                 }
+
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 5) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(context.state.instructionTitle)
-                            .font(.headline)
+                            .font(.headline.weight(.semibold))
                             .lineLimit(2)
+
                         if let detail = context.state.instructionDetail {
                             Text(detail)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
-                        if !context.state.isArrived {
-                            JourneyActivityProgressBar(fraction: context.state.progressFraction)
+
+                        if context.state.presentationPhase != .arrived,
+                           context.state.presentationPhase != .ended {
+                            JourneyActivityProgressBar(
+                                fraction: context.state.progressFraction,
+                                tint: context.state.progressTint
+                            )
+                        }
+
+                        if let nextAction = context.state.nextAction {
+                            Text("Ensuite · \(nextAction)")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                if context.isStale || context.state.isOffline {
-                    Image(systemName: context.isStale ? "pause.circle.fill" : "wifi.slash")
-                        .foregroundStyle(.orange)
-                        .accessibilityLabel(
-                            context.isStale ? "Mise à jour suspendue" : "Hors connexion"
-                        )
+                if context.isStale || context.state.isOffline || context.state.presentationPhase == .paused {
+                    JourneyActivityStatusIcon(
+                        state: context.state,
+                        isStale: context.isStale
+                    )
                 } else {
-                    routeBadge(context.state)
+                    routeBadge(context.state, size: 22)
                 }
             } compactTrailing: {
-                if let stopsRemaining = context.state.stopsRemaining,
-                   !context.state.isArrived,
-                   stopsRemaining > 0 {
-                    // A bare count would read as a time; the arrow says what it
-                    // counts down to.
-                    Label("\(stopsRemaining)", systemImage: "arrow.down.right")
-                        .font(.caption2.weight(.bold).monospacedDigit())
-                        .labelStyle(.titleAndIcon)
-                        .accessibilityLabel(
-                            stopsRemaining == 1
-                                ? "Descendre au prochain arrêt"
-                                : "Descendre dans \(stopsRemaining) arrêts"
-                        )
-                } else if context.state.stopsRemaining == 0, !context.state.isArrived {
-                    Image(systemName: "arrow.down.right.circle.fill")
-                        .accessibilityLabel("Descendre maintenant")
-                } else {
-                    Text(context.state.arrivalAt, style: .time)
-                        .font(.caption2.monospacedDigit())
-                }
+                compactTrailing(for: context.state)
             } minimal: {
-                if context.isStale || context.state.isOffline {
-                    Image(systemName: context.isStale ? "pause.circle.fill" : "wifi.slash")
-                        .foregroundStyle(.orange)
-                        .accessibilityLabel(
-                            context.isStale ? "Mise à jour suspendue" : "Hors connexion"
-                        )
-                } else if let line = context.state.line,
-                          !context.state.isArrived,
-                          line.shortName.count <= 2 {
-                    // The minimal slot is a circle: only a one or two character
-                    // line name fits, tinted so the line reads without a badge.
-                    Text(line.shortName)
-                        .font(.caption2.weight(.heavy))
-                        .foregroundStyle(Color(activityHex: line.colorHex, fallback: .blue))
-                        .accessibilityLabel("Ligne \(line.shortName)")
-                } else {
-                    Image(systemName: context.state.isArrived ? "checkmark" : "location.fill")
-                        .foregroundStyle(context.state.isArrived ? .green : .blue)
-                        .accessibilityLabel(
-                            context.state.isArrived ? "Vous êtes arrivé" : "Trajet actif"
-                        )
-                }
+                minimalContent(for: context.state, isStale: context.isStale)
             }
             .keylineTint(routeColor(context.state))
-            .widgetURL(URL(string: "via://journey/\(context.attributes.journeyID)"))
+            .widgetURL(context.attributes.journeyURL)
         }
     }
 
-    /// The line badge, or a phase symbol when the current leg has no line.
     @ViewBuilder
-    private func routeBadge(_ state: JourneyActivityAttributes.ContentState) -> some View {
-        if let line = state.line, !state.isArrived {
-            JourneyActivityLineBadgeView(line: line, size: 25)
+    private func compactTrailing(
+        for state: JourneyActivityAttributes.ContentState
+    ) -> some View {
+        switch state.presentationPhase {
+        case .scheduled:
+            if let date = state.countdownDate {
+                JourneyActivityCountdownView(date: date)
+                    .font(.caption2.monospacedDigit())
+                    .accessibilityLabel("Temps avant le départ")
+            }
+        case .underway:
+            if let stopsRemaining = state.stopsRemaining, stopsRemaining > 0 {
+                HStack(spacing: 2) {
+                    Image(systemName: "arrow.down.right")
+                        .font(.caption2.weight(.bold))
+                    Text("\(stopsRemaining)")
+                        .font(.caption2.weight(.bold).monospacedDigit())
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(
+                    stopsRemaining == 1
+                        ? "Descendre au prochain arrêt"
+                        : "Descendre dans \(stopsRemaining) arrêts"
+                )
+            } else if state.stopsRemaining == 0 {
+                Image(systemName: "arrow.down.right.circle.fill")
+                    .accessibilityLabel("Descendre maintenant")
+            } else {
+                Text(state.arrivalAt, style: .time)
+                    .font(.caption2.monospacedDigit())
+                    .accessibilityLabel("Arrivée prévue à")
+            }
+        case .paused:
+            Text(state.arrivalAt, style: .time)
+                .font(.caption2.monospacedDigit())
+                .accessibilityLabel("Arrivée prévue à")
+        case .arrived:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .accessibilityLabel("Vous êtes arrivé")
+        case .ended:
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(state.phaseTitle)
+        }
+    }
+
+    @ViewBuilder
+    private func minimalContent(
+        for state: JourneyActivityAttributes.ContentState,
+        isStale: Bool
+    ) -> some View {
+        if isStale || state.isOffline || state.presentationPhase == .paused {
+            JourneyActivityStatusIcon(state: state, isStale: isStale)
+        } else if state.presentationPhase == .arrived {
+            Image(systemName: "checkmark")
+                .foregroundStyle(.green)
+                .accessibilityLabel("Vous êtes arrivé")
+        } else if let line = state.line, line.shortName.count <= 2 {
+            Text(line.shortName)
+                .font(.caption2.weight(.heavy).monospacedDigit())
+                .foregroundStyle(Color(activityHex: line.colorHex, fallback: .blue))
+                .accessibilityLabel("Ligne \(line.shortName)")
         } else {
-            Image(systemName: state.isArrived ? "checkmark.circle.fill" : "figure.walk")
-                .foregroundStyle(state.isArrived ? .green : .blue)
+            Image(systemName: "location.fill")
+                .foregroundStyle(.blue)
+                .accessibilityLabel("Trajet actif")
+        }
+    }
+
+    /// The line badge, or a phase symbol when the current step has no line.
+    @ViewBuilder
+    private func routeBadge(
+        _ state: JourneyActivityAttributes.ContentState,
+        size: CGFloat
+    ) -> some View {
+        if let line = state.line,
+           state.presentationPhase != .arrived,
+           state.presentationPhase != .ended {
+            JourneyActivityLineBadgeView(line: line, size: size)
+        } else {
+            Image(systemName: state.phaseSystemImage)
+                .foregroundStyle(state.phaseTint)
         }
     }
 
     private func routeColor(_ state: JourneyActivityAttributes.ContentState) -> Color {
-        Color(activityHex: state.line?.colorHex, fallback: .blue)
+        Color(activityHex: state.line?.colorHex, fallback: state.phaseTint)
     }
 }

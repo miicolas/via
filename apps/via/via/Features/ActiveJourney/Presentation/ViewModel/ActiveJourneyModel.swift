@@ -243,6 +243,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         requiresResume = true
         evaluateProgress(at: referenceDate)
         startTimeMonitoring()
+        await updateActivity()
     }
 
     func resume() async {
@@ -806,30 +807,58 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
 
     private func activityState(isArrived: Bool) -> JourneyActivityAttributes.ContentState {
+        let statePhase: JourneyActivityAttributes.Phase
         let phaseTitle: String
-        switch phase {
-        case .scheduled(let interval):
-            phaseTitle = "Départ dans \(JourneyFormatting.countdown(interval))"
-        case .underway:
-            phaseTitle = isArrived ? "Vous êtes arrivé" : "En route"
+        if isArrived {
+            statePhase = .arrived
+            phaseTitle = "Vous êtes arrivé"
+        } else if requiresResume {
+            statePhase = .paused
+            phaseTitle = "Trajet en pause"
+        } else {
+            switch phase {
+            case .scheduled:
+                statePhase = .scheduled
+                phaseTitle = "Départ"
+            case .underway:
+                statePhase = .underway
+                phaseTitle = "En route"
+            }
         }
         // The lock screen says the same sentence as the guidance header and the
         // tab bar accessory, from the same derivation.
         let headline = guidanceHeadline
         let currentProgress = progress
+        let instructionTitle: String
+        let instructionDetail: String?
+        if isArrived {
+            instructionTitle = destinationName
+            instructionDetail = nil
+        } else if statePhase == .scheduled {
+            // The countdown belongs to the system-rendered timer. Keep the
+            // title stable so it does not freeze at the value from the last
+            // app update.
+            instructionTitle = "Trajet vers \(destinationName)"
+            instructionDetail = headline?.detail
+        } else {
+            instructionTitle = headline?.title ?? destinationName
+            instructionDetail = headline?.detail
+        }
         return JourneyActivityAttributes.ContentState(
-            phaseTitle: isArrived ? "Vous êtes arrivé" : phaseTitle,
-            instructionTitle: isArrived ? destinationName : headline?.title ?? destinationName,
-            instructionDetail: isArrived ? nil : headline?.detail,
+            phaseTitle: phaseTitle,
+            instructionTitle: instructionTitle,
+            instructionDetail: instructionDetail,
             nextAction: isArrived ? nil : nextInstruction?.title,
             line: isArrived ? nil : activityLine,
             nextLine: isArrived ? nil : activityNextLine,
             arrivalAt: journey?.arrivalAt ?? referenceDate,
-            isOffline: isOffline,
+            isOffline: isArrived ? false : isOffline,
             isArrived: isArrived,
             progressFraction: isArrived ? 1 : currentProgress?.overallFraction ?? 0,
             stopsRemaining: isArrived ? nil : headline?.stopsUntilAlighting,
-            alightStopName: isArrived ? nil : headline?.alightStopName
+            alightStopName: isArrived ? nil : headline?.alightStopName,
+            phase: statePhase,
+            departureAt: journey?.departureAt
         )
     }
 
@@ -872,7 +901,9 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             isArrived: false,
             progressFraction: 1,
             stopsRemaining: nil,
-            alightStopName: nil
+            alightStopName: nil,
+            phase: .ended,
+            departureAt: session.journey.departureAt
         )
     }
 
