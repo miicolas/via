@@ -1,5 +1,11 @@
-export { journeysPlanRelation } from './relation';
+export { journeyDepartureChoicesRelation, journeysPlanRelation } from './relation';
 export {
+  journeyDepartureChoiceGroupSchema,
+  journeyDepartureChoicesInputSchema,
+  journeyDepartureChoicesResponseSchema,
+  journeyDepartureChoiceSchema,
+  journeyDepartureSelectionSchema,
+  journeyPlanningPolicySchema,
   journeyDestinationSchema,
   journeyDatetimeRepresentsSchema,
   journeyInputSchema,
@@ -12,6 +18,12 @@ export {
   journeyStatusSchema,
 } from './schema';
 export type {
+  JourneyDepartureChoice,
+  JourneyDepartureChoiceGroup,
+  JourneyDepartureChoicesInput,
+  JourneyDepartureChoicesResponse,
+  JourneyDepartureSelection,
+  JourneyPlanningPolicy,
   Journey,
   JourneyDestination,
   JourneyInput,

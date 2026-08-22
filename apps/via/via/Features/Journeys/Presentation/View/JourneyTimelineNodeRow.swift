@@ -11,6 +11,12 @@ struct JourneyTimelineNodeRow: View {
     var isCursorLive = false
     var isHighlighted = false
     @Binding var isExpanded: Bool
+    var departureChoicesGroup: JourneyDepartureChoiceGroup?
+    var isDepartureChoicesLoading = false
+    var departureChoicesError: String?
+    var canSelectDepartures = false
+    var onSelectDeparture: ((JourneyDepartureChoice) -> Void)?
+    var onRetryDepartures: (() -> Void)?
     /// `nil` when rows are not selectable, as in guidance where the map already
     /// follows the current section.
     var onSelect: (() -> Void)?
@@ -25,19 +31,47 @@ struct JourneyTimelineNodeRow: View {
                     JourneyStopListView(stops: intermediate, rail: node.railBelow, state: state)
                 }
             }
-        } else if let onSelect {
-            Button(action: onSelect) {
-                rowBody
+        } else if case .board(_, let route, _, _, _) = node.kind,
+                  showsDepartureChoices {
+            VStack(alignment: .leading, spacing: 2) {
+                selectableRow
+                JourneyDepartureChoicesView(
+                    route: route,
+                    group: departureChoicesGroup,
+                    isLoading: isDepartureChoicesLoading,
+                    errorMessage: departureChoicesError,
+                    canSelect: canSelectDepartures,
+                    onSelect: { onSelectDeparture?($0) },
+                    onRetry: { onRetryDepartures?() }
+                )
+                .padding(.leading, JourneyTimelineRail.width + 8)
+                .padding(.trailing, Self.timeColumnWidth + 8)
+                .padding(.bottom, 8)
             }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(accessibilityLabel)
-            .accessibilityAddTraits(state == .current ? [.isSelected] : [])
+        } else {
+            selectableRow
+        }
+    }
+
+    @ViewBuilder
+    private var selectableRow: some View {
+        if let onSelect {
+            Button(action: onSelect) { rowBody }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(accessibilityLabel)
+                .accessibilityAddTraits(state == .current ? [.isSelected] : [])
         } else {
             rowBody
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(accessibilityLabel)
         }
+    }
+
+    private var showsDepartureChoices: Bool {
+        departureChoicesGroup != nil
+            || isDepartureChoicesLoading
+            || departureChoicesError != nil
     }
 
     // MARK: - Generic row
@@ -101,12 +135,14 @@ struct JourneyTimelineNodeRow: View {
                 }
             }
         case .alight(let stop, let exit):
-            VStack(alignment: .leading, spacing: 3) {
-                Text(stop.name)
-                    .font(.headline)
-                Label("Descendre ici", systemImage: "arrow.down.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.down.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    Text(stop.name)
+                        .font(.headline)
+                }
                 if let exit {
                     JourneyExitView(exit: exit, isDimmed: state == .done)
                 }
@@ -214,12 +250,18 @@ struct JourneyTimelineNodeRow: View {
                 route.map { "\($0.mode.displayName) \($0.shortName)" },
                 direction.map { "direction \($0)" },
                 platform.map { "quai \($0)" },
-                position.map { JourneyBoardingPositionView(position: $0).accessibilityLabel },
+                position.map(JourneyFormatting.boardingPositionAccessibilityLabel),
             ].compactMap(\.self).joined(separator: ", ")
         case .alight(let stop, let exit):
             [
                 "Descendre à \(stop.name) à \(time)",
-                exit.map { JourneyExitView(exit: $0).accessibilityLabel },
+                exit.map {
+                    JourneyFormatting.exitAccessibilityLabel(
+                        name: $0.name,
+                        number: $0.number,
+                        walkingMeters: $0.walkingMeters
+                    )
+                },
             ].compactMap(\.self).joined(separator: ". ")
         case .walk(let destination):
             "Marcher \(JourneyFormatting.duration(node.durationSeconds)) jusqu'à \(destination)"

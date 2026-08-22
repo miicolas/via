@@ -131,6 +131,7 @@ struct JourneyResultDTO: Decodable {
 
     struct StopDTO: Decodable {
         let id: String
+        let stationId: String?
         let name: String
         let coordinate: CoordinateDTO
         let arrivalAt: Date?
@@ -193,12 +194,18 @@ struct JourneyResultDTO: Decodable {
     }
 
     struct SectionDTO: Decodable {
+        let id: String?
+        let serviceId: String?
+        let timingSource: String?
+        let departureStatus: String?
         let type: String
         let durationSeconds: Int
         let from: PlaceDTO
         let to: PlaceDTO
         let departureAt: Date?
         let arrivalAt: Date?
+        let scheduledDepartureAt: Date?
+        let scheduledArrivalAt: Date?
         let geometry: [CoordinateDTO]
         let route: RouteDTO?
         let direction: String?
@@ -225,13 +232,18 @@ struct JourneyResultDTO: Decodable {
                 )
             }
             return JourneySection(
-                id: id,
+                id: self.id ?? id,
+                serviceID: serviceId,
+                timingSource: timingSource.flatMap(JourneyTimingSource.init(rawValue:)),
+                departureStatus: departureStatus.flatMap(DepartureStatus.init(rawValue:)),
                 kind: kind,
                 durationSeconds: durationSeconds,
                 from: JourneyPlace(name: from.name, coordinate: from.coordinate.domain),
                 to: JourneyPlace(name: to.name, coordinate: to.coordinate.domain),
                 departureAt: departureAt,
                 arrivalAt: arrivalAt,
+                scheduledDepartureAt: scheduledDepartureAt,
+                scheduledArrivalAt: scheduledArrivalAt,
                 geometry: geometry.map(\.domain),
                 route: mappedRoute,
                 direction: direction,
@@ -239,6 +251,7 @@ struct JourneyResultDTO: Decodable {
                 stops: stops.map {
                     JourneyStop(
                         id: $0.id,
+                        stationID: $0.stationId.map(StationID.init(rawValue:)),
                         name: $0.name,
                         coordinate: $0.coordinate.domain,
                         arrivalAt: $0.arrivalAt,

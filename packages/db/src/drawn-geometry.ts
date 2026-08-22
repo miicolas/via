@@ -1,4 +1,4 @@
-import { sql, type SQL } from 'drizzle-orm';
+import { and, eq, isNotNull, sql, type SQL } from 'drizzle-orm';
 
 import { drawnRouteCondition } from './network-scope';
 import { transitRoutePatterns, transitRoutePatternStops, transitRoutes } from './schema';
@@ -22,6 +22,20 @@ const DUPLICATE_TRACK_TOLERANCE_METERS = 25;
  * direction cannot make a second line. Real branches and one-way terminal loops
  * are then reduced to track outside everything already retained.
  *
+ * `draw_rank` is that "already retained" order made explicit — canonical first,
+ * then by id — so both halves of the rule become a comparison on one number
+ * instead of a correlated `is_canonical OR id < …` re-derived per row. A stop is
+ * first reached by exactly one rank, so `first_reach` names every branch in a
+ * single grouped pass, and only those few patterns pay for geometry at all.
+ *
+ * The corridor to subtract is a union of per-pattern buffers rather than a
+ * buffer of the accumulated union: buffering distributes over union, so the two
+ * agree to floating-point noise, but this one buffers each pattern once instead
+ * of re-buffering the whole route for every branch. It also drops the running
+ * window `ST_Union`, whose frame ends one row back and so re-ran the aggregate's
+ * final union for every pattern of every route — quadratic in patterns per
+ * route, and paid even by rows the `CASE` then threw away.
+ *
  * Like `snapped_location`, the result only changes when an import runs, so it
  * is computed once here and stored — the read side serves it with a plain
  * indexed SELECT instead of seconds of windowed PostGIS per request. An UPDATE
@@ -32,54 +46,87 @@ const DUPLICATE_TRACK_TOLERANCE_METERS = 25;
  * also leave points where tracks touch), and `ST_Multi` pins the column type,
  * so a canonical LineString and a multi-piece branch store as the same shape.
  *
- * Migration 0010 carries a copy of this statement to backfill rows that predate
- * it. That copy is frozen history, not the definition — this module is.
+ * One route per call. Every join and every window here already stays inside a
+ * single `route_id`, so scoping the statement to one route changes no result —
+ * it only turns the network-wide UPDATE into a series of statements small enough
+ * to carry a timeout and to name the route that fails. `drawnRouteCondition`
+ * stays in the WHERE so a caller cannot draw a route the map never draws.
+ *
+ * Migration 0010 carries a copy of the statement this replaced, to backfill rows
+ * that predate the column. That copy is frozen history, not the definition —
+ * this module is.
  */
-export function computeDrawnGeometry(): SQL {
+export function computeDrawnGeometry(routeId: string): SQL {
   return sql`
-    WITH normalized AS (
-      SELECT p.id AS pattern_id,
-        CASE
-          WHEN p.is_canonical THEN ST_Multi(p.geometry)
-          WHEN EXISTS (
-            SELECT 1 FROM ${transitRoutePatternStops} AS candidate_stops
-            WHERE candidate_stops.pattern_id = p.id
-              AND NOT EXISTS (
-                SELECT 1 FROM ${transitRoutePatternStops} AS covered_stops
-                JOIN ${transitRoutePatterns} AS covering_patterns
-                  ON covered_stops.pattern_id = covering_patterns.id
-                WHERE covering_patterns.route_id = p.route_id
-                  AND (covering_patterns.is_canonical OR covering_patterns.id < p.id)
-                  AND covered_stops.stop_id = candidate_stops.stop_id
-              )
-          ) THEN ST_Multi(ST_CollectionExtract(ST_LineMerge(ST_Difference(
-            p.geometry,
-            ST_Buffer(ST_Collect(
-              COALESCE(
-                ST_Union(p.geometry) FILTER (WHERE p.is_canonical)
-                  OVER (PARTITION BY p.route_id),
-                ST_GeomFromText('LINESTRING EMPTY', 4326)
-              ),
-              COALESCE(
-                ST_Union(p.geometry) FILTER (WHERE NOT p.is_canonical)
-                  OVER (
-                    PARTITION BY p.route_id
-                    ORDER BY p.id
-                    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-                  ),
-                ST_GeomFromText('LINESTRING EMPTY', 4326)
-              )
-            )::geography, ${DUPLICATE_TRACK_TOLERANCE_METERS})::geometry
-          )), 2))
-          ELSE ST_GeomFromText('MULTILINESTRING EMPTY', 4326)
-        END AS drawn_geometry
+    WITH scoped AS (
+      SELECT p.id, p.route_id, p.geometry, p.is_canonical,
+        row_number() OVER (
+          PARTITION BY p.route_id ORDER BY p.is_canonical DESC, p.id
+        ) AS draw_rank
       FROM ${transitRoutePatterns} AS p
       JOIN ${transitRoutes} ON ${transitRoutes}.id = p.route_id
-      WHERE ${drawnRouteCondition()}
+      WHERE ${and(drawnRouteCondition(), eq(transitRoutes.id, routeId))}
+    ),
+    first_reach AS (
+      SELECT reached.route_id, min(reached.draw_rank) AS draw_rank
+      FROM (
+        SELECT scoped.route_id, scoped.draw_rank, pattern_stops.stop_id
+        FROM ${transitRoutePatternStops} AS pattern_stops
+        JOIN scoped ON scoped.id = pattern_stops.pattern_id
+      ) AS reached
+      GROUP BY reached.route_id, reached.stop_id
+    ),
+    branch AS (
+      SELECT scoped.id, scoped.route_id, scoped.geometry, scoped.draw_rank
+      FROM scoped
+      WHERE NOT scoped.is_canonical
+        AND EXISTS (
+          SELECT 1 FROM first_reach
+          WHERE first_reach.route_id = scoped.route_id
+            AND first_reach.draw_rank = scoped.draw_rank
+        )
+    ),
+    covered AS (
+      SELECT branch.id,
+        ST_Union(
+          ST_Buffer(earlier.geometry::geography, ${DUPLICATE_TRACK_TOLERANCE_METERS})::geometry
+        ) AS corridor
+      FROM branch
+      JOIN scoped AS earlier
+        ON earlier.route_id = branch.route_id
+       AND earlier.draw_rank < branch.draw_rank
+      GROUP BY branch.id
+    ),
+    resolved AS (
+      SELECT scoped.id AS pattern_id,
+        CASE
+          WHEN scoped.is_canonical THEN ST_Multi(scoped.geometry)
+          WHEN branch.id IS NULL THEN ST_GeomFromText('MULTILINESTRING EMPTY', 4326)
+          ELSE ST_Multi(ST_CollectionExtract(ST_LineMerge(ST_Difference(
+            scoped.geometry,
+            COALESCE(covered.corridor, ST_GeomFromText('MULTILINESTRING EMPTY', 4326))
+          )), 2))
+        END AS drawn_geometry
+      FROM scoped
+      LEFT JOIN branch ON branch.id = scoped.id
+      LEFT JOIN covered ON covered.id = scoped.id
     )
     UPDATE ${transitRoutePatterns} AS target
-    SET drawn_geometry = normalized.drawn_geometry
-    FROM normalized
-    WHERE target.id = normalized.pattern_id
+    SET drawn_geometry = resolved.drawn_geometry
+    FROM resolved
+    WHERE target.id = resolved.pattern_id
   `;
+}
+
+/**
+ * Which routes `computeDrawnGeometry` will actually update.
+ *
+ * It lives beside the statement it feeds because the two share one rule: a
+ * route the map never draws, or one whose patterns carry no source geometry,
+ * has nothing to compute. Stated twice — once to enumerate and once inside the
+ * UPDATE — the pair could silently disagree, leaving a route enumerated but
+ * never updated (stale `drawn_geometry`) or updated but never named.
+ */
+export function drawnGeometryRouteCondition() {
+  return and(drawnRouteCondition(), isNotNull(transitRoutePatterns.geometry));
 }

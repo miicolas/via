@@ -42,6 +42,11 @@ Open `apps/via/via.xcodeproj` in Xcode for development, or run `bun run ios` for
 | `bun run db:studio`                      | Drizzle Studio                                                                       |
 | `bun run gtfs:import <path>`             | imports metro, RER A–E and all bus lines from an extracted IDFM GTFS feed            |
 
+Pass `--force` after the feed path to rebuild an unchanged feed. The importer
+holds one database-wide advisory lock for the whole run, so a second command
+fails immediately instead of competing for the production database. Expensive
+PostGIS geometry is derived one line at a time with a per-line timeout.
+
 ## Database
 
 `docker-compose.yml` runs `imresamu/postgis:18-3.6-alpine` and a local Redis 7

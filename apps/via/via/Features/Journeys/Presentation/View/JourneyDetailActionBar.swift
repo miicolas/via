@@ -8,76 +8,50 @@ struct JourneyDetailActionBar: View {
   let onAction: (JourneyActivationAction) -> Void
   let onReminder: () -> Void
 
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
   var body: some View {
     TimelineView(.periodic(from: .now, by: 30)) { context in
       let action = actionAt(context.date)
 
-      VStack(spacing: 10) {
-        Button {
-          onAction(action)
-        } label: {
-          HStack(spacing: 9) {
-            if isActivating {
-              ProgressView()
-                .controlSize(.small)
-                .tint(.white)
-            } else {
-              Image(systemName: action.systemImage)
-                .contentTransition(
-                  reduceMotion
-                    ? .identity
-                    : .symbolEffect(
-                      .replace.magic(fallback: .offUp.byLayer),
-                      options: .nonRepeating
-                    )
-                )
-                .animation(reduceMotion ? nil : .default, value: action)
-            }
+      GlassEffectContainer(spacing: 12) {
+        HStack(spacing: 12) {
+          GlyphActionButton(
+            systemImage: action.systemImage,
+            isProminent: true,
+            isBusy: isActivating,
+            value: action,
+            action: { onAction(action) }
+          )
+          .disabled(isActivating || action == .active)
+          .accessibilityLabel(action.title)
+          .accessibilityHint(
+            action == .active
+              ? "Ce trajet est déjà actif"
+              : "Active le guidage étape par étape dans Metyro"
+          )
 
-            Text(action.title)
-              .font(.headline)
-          }
+          GlyphActionButton(
+            systemImage: StateSymbol.bell(isOn: isReminderScheduled),
+            isBusy: isUpdatingReminder,
+            value: isReminderScheduled,
+            action: onReminder
+          )
+          .disabled(isUpdatingReminder)
+          .accessibilityLabel(isReminderScheduled ? "Rappel programmé" : "Me rappeler")
+          .accessibilityValue(
+            isUpdatingReminder ? "Mise à jour" : (isReminderScheduled ? "Activé" : "Désactivé")
+          )
+          .accessibilityHint("Ouvre le réglage du délai avant le départ")
         }
-        .primaryAction()
-        .disabled(isActivating || action == .active)
-        .accessibilityHint(
-          action == .active
-            ? "Ce trajet est déjà actif"
-            : "Active le guidage étape par étape dans Metyro"
-        )
-
-        Button(action: onReminder) {
-          Label {
-            Text(isReminderScheduled ? "Rappel programmé" : "Me rappeler")
-          } icon: {
-            Image(systemName: isReminderScheduled ? "bell.fill" : "bell")
-              .contentTransition(
-                reduceMotion
-                  ? .identity
-                  : .symbolEffect(
-                    .replace.magic(fallback: .offUp.byLayer),
-                    options: .nonRepeating
-                  )
-              )
-              .animation(reduceMotion ? nil : .default, value: isReminderScheduled)
-          }
-          .font(.headline)
-        }
-        .secondaryAction()
-        .disabled(isUpdatingReminder)
-        .accessibilityValue(isReminderScheduled ? "Activé" : "Désactivé")
-        .accessibilityHint("Ouvre le réglage du délai avant le départ")
       }
+      .frame(maxWidth: .infinity)
       .padding(.horizontal, 16)
-      .padding(.vertical, 10)
+      .padding(.vertical, 12)
       .background(.bar)
     }
   }
 }
 
-private extension JourneyActivationAction {
+extension JourneyActivationAction {
   var systemImage: String {
     switch self {
     case .go: "location.fill"

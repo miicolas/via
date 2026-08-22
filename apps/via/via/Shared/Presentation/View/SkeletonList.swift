@@ -190,7 +190,7 @@ extension SkeletonList.Row {
         verticalPadding: 11
     )
 
-    /// `LineStatusRow`: 36pt line badge, body summary over a caption, trailing
+    /// `LineStatusCard`: 36pt line badge, body summary over a caption, trailing
     /// condition pill. 52pt minimum height.
     static let lineStatus = Self(
         leading: .lineBadge(36),

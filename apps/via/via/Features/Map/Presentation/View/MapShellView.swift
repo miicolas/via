@@ -25,6 +25,7 @@ struct MapShellView: View {
     let profileModel: ProfileModel
     let pushNotificationManager: PushNotificationManager
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
+    let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
     /// Replays the first run from the root, offered inside Réglages.
     let onReplayOnboarding: @MainActor () -> Void
     let notificationInboxRemote: any NotificationInboxRemote
@@ -61,6 +62,7 @@ struct MapShellView: View {
         profileModel: ProfileModel,
         pushNotificationManager: PushNotificationManager = .preview,
         journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
+        journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository = InMemoryJourneyDepartureChoicesRepository.unavailable,
         onReplayOnboarding: @escaping @MainActor () -> Void = {},
         notificationInboxRemote: any NotificationInboxRemote = NoOpNotificationInboxRemote()
     ) {
@@ -78,6 +80,7 @@ struct MapShellView: View {
         self.profileModel = profileModel
         self.pushNotificationManager = pushNotificationManager
         self.journeyNotificationCoordinator = journeyNotificationCoordinator
+        self.journeyDepartureChoicesRepository = journeyDepartureChoicesRepository
         self.onReplayOnboarding = onReplayOnboarding
         self.notificationInboxRemote = notificationInboxRemote
     }
@@ -412,6 +415,7 @@ struct MapShellView: View {
                     searchViewModel: searchViewModel,
                     activeJourneyModel: activeJourneyModel,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    departureChoicesRepository: journeyDepartureChoicesRepository,
                     isLargeScreen: isLargeScreen,
                     detent: $journeySheetDetent,
                     onExpandMap: { journeySheetDetent = journeyPeekDetent },
@@ -426,6 +430,7 @@ struct MapShellView: View {
                     searchViewModel: searchViewModel,
                     activeJourneyModel: activeJourneyModel,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    departureChoicesRepository: journeyDepartureChoicesRepository,
                     scheduledReminder: journeyNotificationCoordinator.reminder(for: journeyID),
                     isLargeScreen: isLargeScreen,
                     detent: $journeySheetDetent,

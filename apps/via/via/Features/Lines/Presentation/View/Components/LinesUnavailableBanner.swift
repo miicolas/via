@@ -1,21 +1,17 @@
 import SwiftUI
 
-/// Shown when the disruptions feed cannot be read: the catalogue stays, but a
-/// green-less banner keeps "no data" from reading as "all clear".
 struct LinesUnavailableBanner: View {
-    var body: some View {
-        Label(
-            "L’état du trafic est indisponible pour le moment.",
-            systemImage: "wifi.exclamationmark"
-        )
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-#Preview {
-    List {
-        LinesUnavailableBanner()
-    }
+  var body: some View {
+    Label(
+      "Les dernières données restent affichées. L’état en temps réel est indisponible.",
+      systemImage: "wifi.exclamationmark"
+    )
+    .font(.subheadline)
+    .foregroundStyle(.orange)
+    .fixedSize(horizontal: false, vertical: true)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .padding(14)
+    .background(.orange.opacity(0.1), in: .rect(cornerRadius: 16))
+    .accessibilityElement(children: .combine)
+  }
 }

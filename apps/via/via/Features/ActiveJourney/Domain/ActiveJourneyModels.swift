@@ -1,10 +1,10 @@
 import Foundation
 
 struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
-    let journey: Journey
+    var journey: Journey
     let destination: JourneyDestination
     let source: JourneyResult.Source?
-    var requiresAccessibleStations = false
+    var planningPolicy: JourneyPlanningPolicy
     var currentSectionIndex: Int
     var lastCoordinate: GeoCoordinate?
     var horizontalAccuracy: Double?
@@ -13,6 +13,10 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
     var allowsBackgroundTracking: Bool
 
     var id: JourneyID { journey.id }
+
+    /// Reads through to the policy the session was planned with. Stored
+    /// separately it was a second copy the initialiser happily let disagree.
+    var requiresAccessibleStations: Bool { planningPolicy.requiresAccessibleStations }
 
     var currentSection: JourneySection? {
         guard journey.sections.indices.contains(currentSectionIndex) else { return nil }
@@ -23,7 +27,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         journey: Journey,
         destination: JourneyDestination,
         source: JourneyResult.Source?,
-        requiresAccessibleStations: Bool,
+        planningPolicy: JourneyPlanningPolicy,
         currentSectionIndex: Int,
         lastCoordinate: GeoCoordinate?,
         horizontalAccuracy: Double?,
@@ -34,7 +38,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         self.journey = journey
         self.destination = destination
         self.source = source
-        self.requiresAccessibleStations = requiresAccessibleStations
+        self.planningPolicy = planningPolicy
         self.currentSectionIndex = currentSectionIndex
         self.lastCoordinate = lastCoordinate
         self.horizontalAccuracy = horizontalAccuracy
@@ -47,7 +51,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         case journey
         case destination
         case source
-        case requiresAccessibleStations
+        case planningPolicy
         case currentSectionIndex
         case lastCoordinate
         case horizontalAccuracy
@@ -56,12 +60,25 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         case allowsBackgroundTracking
     }
 
+    /// The pre-policy shape: a bare accessibility flag and nothing else.
+    private enum LegacyCodingKeys: String, CodingKey {
+        case requiresAccessibleStations
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         journey = try container.decode(Journey.self, forKey: .journey)
         destination = try container.decode(JourneyDestination.self, forKey: .destination)
         source = try container.decodeIfPresent(JourneyResult.Source.self, forKey: .source)
-        requiresAccessibleStations = try container.decodeIfPresent(Bool.self, forKey: .requiresAccessibleStations) ?? false
+        // Sessions written before the policy existed carry only the flag.
+        planningPolicy = try container.decodeIfPresent(
+            JourneyPlanningPolicy.self,
+            forKey: .planningPolicy
+        ) ?? JourneyPlanningPolicy(
+            requiresAccessibleStations: try decoder
+                .container(keyedBy: LegacyCodingKeys.self)
+                .decodeIfPresent(Bool.self, forKey: .requiresAccessibleStations) ?? false
+        )
         currentSectionIndex = try container.decode(Int.self, forKey: .currentSectionIndex)
         lastCoordinate = try container.decodeIfPresent(GeoCoordinate.self, forKey: .lastCoordinate)
         horizontalAccuracy = try container.decodeIfPresent(Double.self, forKey: .horizontalAccuracy)

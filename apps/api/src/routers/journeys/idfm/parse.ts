@@ -112,6 +112,8 @@ function toSection(value: unknown, input: JourneyInput, generatedAt: Date): Jour
       durationSeconds: safeSeconds(durationSeconds),
       from,
       to,
+      departureAt: navitiaDate(section.departure_date_time),
+      arrivalAt: navitiaDate(section.arrival_date_time),
       geometry: geometryOf(sourceGeometry, from.coordinate, to.coordinate),
       stops: [],
     }];
@@ -122,6 +124,8 @@ function toSection(value: unknown, input: JourneyInput, generatedAt: Date): Jour
       durationSeconds: safeSeconds(durationSeconds),
       from,
       to,
+      departureAt: navitiaDate(section.departure_date_time),
+      arrivalAt: navitiaDate(section.arrival_date_time),
       geometry: geometryOf(sourceGeometry, from.coordinate, to.coordinate),
       stops: [],
     }];
@@ -132,6 +136,8 @@ function toSection(value: unknown, input: JourneyInput, generatedAt: Date): Jour
       durationSeconds: safeSeconds(durationSeconds),
       from,
       to,
+      departureAt: navitiaDate(section.departure_date_time),
+      arrivalAt: navitiaDate(section.arrival_date_time),
       geometry: [],
       stops: [],
     }];
@@ -149,24 +155,31 @@ function toSection(value: unknown, input: JourneyInput, generatedAt: Date): Jour
     stopTimes.map((stop) => stop.coordinate)
   );
   return [{
+    id: textOf(section.id),
     type: 'transit',
     durationSeconds: safeSeconds(durationSeconds),
     from,
     to,
     departureAt: navitiaDate(section.departure_date_time) ?? navitiaDate(section.boarding_time),
     arrivalAt: navitiaDate(section.arrival_date_time) ?? navitiaDate(section.alighting_time),
+    scheduledDepartureAt: navitiaDate(section.base_departure_date_time),
+    scheduledArrivalAt: navitiaDate(section.base_arrival_date_time),
     geometry,
     route: line,
     direction,
     platform: textOf(section.from?.platform) ?? textOf(section.boarding?.platform),
     stops: stopTimes,
+    serviceId: linkedId(section, 'vehicle_journey'),
+    timingSource: section.data_freshness === 'realtime' ? 'realtime' : 'theoretical',
+    departureStatus: departureStatusOf(section.status),
   }];
 }
 
 function displayOfLine(display: Record<string, any>, section: Record<string, any>) {
   const mode = modeOf(display.commercial_mode ?? section.physical_mode ?? display.network);
+  const lineId = textOf(display.uris?.line) ?? linkedId(section, 'line');
   return {
-    id: textOf(display.code) ?? textOf(display.id) ?? 'unknown',
+    id: normalizeLineId(lineId) ?? textOf(display.code) ?? textOf(display.id) ?? 'unknown',
     shortName: textOf(display.code) ?? textOf(display.name) ?? '?',
     longName: textOf(display.name) ?? textOf(display.code) ?? 'Transport',
     mode,
@@ -183,11 +196,30 @@ function stopOf(value: unknown) {
   const name = textOf(place.name) ?? 'Arrêt';
   return [{
     id: textOf(place.id) ?? name,
+    stationId: textOf(place.stop_area?.id) ?? textOf(place.parent_station?.id),
     name,
     coordinate,
     arrivalAt: navitiaDate(stop.arrival_date_time),
     departureAt: navitiaDate(stop.departure_date_time),
   }];
+}
+
+function linkedId(value: Record<string, any>, type: string) {
+  return asArray(value.links)
+    .map((link) => link as Record<string, unknown>)
+    .find((link) => link.type === type)?.id as string | undefined;
+}
+
+function normalizeLineId(value?: string) {
+  return value?.replace(/^line:/, '');
+}
+
+function departureStatusOf(value: unknown) {
+  const status = String(value ?? '').toLowerCase();
+  if (status === 'cancelled' || status === 'canceled') return 'cancelled' as const;
+  if (status === 'departed') return 'departed' as const;
+  if (status === 'arrived') return 'arrived' as const;
+  return undefined;
 }
 
 function placeOf(value: unknown, fallbackCoordinate: Coordinate, fallbackName: string) {

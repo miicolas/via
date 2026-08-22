@@ -83,6 +83,20 @@ extension EmptyState {
         EmptyState(systemImage: "wifi.exclamationmark", title: title, message: message)
     }
 
+    /// Everything is there, the filters are hiding it. Distinct from
+    /// `noResults` — nothing was searched for — and from `unavailable`: the way
+    /// out is a control the traveller already set, not a retry.
+    static func filtered(
+        title: String,
+        message: String
+    ) -> EmptyState {
+        EmptyState(
+            systemImage: "line.3.horizontal.decrease",
+            title: title,
+            message: message
+        )
+    }
+
     static func unavailable(title: String, message: String) -> EmptyState {
         EmptyState(systemImage: "exclamationmark.triangle", title: title, message: message)
     }

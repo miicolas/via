@@ -10,42 +10,36 @@ struct JourneyLegHeaderView: View {
     var isDimmed = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                if let route {
-                    LineBadgeView(route: route.badge, size: 26)
-                    Text(route.longName)
-                        .font(.subheadline.weight(.semibold))
-                } else {
-                    Image(systemName: "tram.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    Text("Transport")
-                        .font(.subheadline.weight(.semibold))
-                }
+        HStack(spacing: 8) {
+            if let route {
+                LineBadgeView(route: route.badge, size: 26)
+            } else {
+                Image(systemName: "tram.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
 
-                Spacer(minLength: 8)
+            if let direction, !direction.isEmpty {
+                Label(direction, systemImage: "arrow.forward")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
 
-                Text(JourneyFormatting.duration(durationSeconds))
+            if let platform, !platform.isEmpty {
+                Label(platform, systemImage: "rectangle.split.3x1")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
 
-            if let subtitle {
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Spacer(minLength: 8)
+
+            Text(JourneyFormatting.duration(durationSeconds))
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(.secondary)
         }
         .opacity(isDimmed ? 0.45 : 1)
         .accessibilityElement(children: .combine)
-    }
-
-    private var subtitle: String? {
-        var parts: [String] = []
-        if let direction, !direction.isEmpty { parts.append("Direction \(direction)") }
-        if let platform, !platform.isEmpty { parts.append("Quai \(platform)") }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 

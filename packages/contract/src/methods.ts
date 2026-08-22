@@ -9,6 +9,7 @@ const POST_PROCEDURES = new Set([
   'account.delete',
   'account.sync',
   'naturalJourneys.submit',
+  'journeys.departureChoices',
   'notifications.registerDevice',
   'notifications.unregisterDevice',
   'notifications.registerActivity',

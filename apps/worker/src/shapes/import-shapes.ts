@@ -6,6 +6,7 @@ import type { db } from '@via/db';
 import { transitShapes } from '@via/db/schema';
 import { sql } from 'drizzle-orm';
 
+import { copyTextRow } from '../copy';
 import { formatCount, logStep } from '../progress';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -52,14 +53,12 @@ export async function importShapes({
     for await (const point of readCsv(join(gtfsPath, 'shapes.txt'))) {
       if (!shapeIds.has(point.shape_id)) continue;
       pointCount += 1;
-      yield [
+      yield copyTextRow([
         point.shape_id,
         requiredNumber(point.shape_pt_sequence, 'shape_pt_sequence'),
         requiredNumber(point.shape_pt_lon, 'shape_pt_lon'),
         requiredNumber(point.shape_pt_lat, 'shape_pt_lat'),
-      ]
-        .map(copyTextCell)
-        .join('\t') + '\n';
+      ]);
     }
   })();
 
@@ -98,12 +97,4 @@ function requiredNumber(value: string | undefined, field: string) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) throw new Error(`Invalid ${field} in shapes.txt: ${value ?? '<missing>'}`);
   return parsed;
-}
-
-function copyTextCell(value: string | number) {
-  return String(value)
-    .replaceAll('\\', '\\\\')
-    .replaceAll('\t', '\\t')
-    .replaceAll('\n', '\\n')
-    .replaceAll('\r', '\\r');
 }

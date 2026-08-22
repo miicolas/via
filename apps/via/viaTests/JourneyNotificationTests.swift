@@ -88,7 +88,6 @@ final class JourneyNotificationTests: XCTestCase {
 
         XCTAssertEqual(coordinator.reminder?.journey.id, second.id)
         XCTAssertEqual(center.removedIdentifiers, [
-            "via.journey.first.departure",
             "via.journey.first.connection-transit-2",
             "via.journey.first.arrival",
         ])
@@ -153,7 +152,6 @@ final class JourneyNotificationTests: XCTestCase {
         XCTAssertEqual(
             Set(center.requests.map(\.identifier)),
             Set([
-                "via.journey.first.departure",
                 "via.journey.first.connection-transit-2",
                 "via.journey.first.arrival",
             ])
@@ -265,6 +263,36 @@ final class JourneyNotificationTests: XCTestCase {
         XCTAssertEqual(coordinator.scheduledJourneyID, journey.id)
         XCTAssertFalse(center.requests.isEmpty)
         XCTAssertNotNil(coordinator.lastError)
+    }
+
+    func testJourneyRevisionRebuildsReminderEventsAndPreservesPlanningPolicy() async {
+        let now = Date(timeIntervalSince1970: 1_787_000_000)
+        let center = FakeJourneyNotificationCenter(status: .authorized)
+        let coordinator = JourneyNotificationCoordinator(
+            center: center,
+            reminderStore: InMemoryScheduledJourneyReminderStore(),
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore(),
+            now: { now }
+        )
+        let original = makeJourney(departureAt: now.addingTimeInterval(3_600))
+        let revised = makeJourney(departureAt: now.addingTimeInterval(3_900))
+        let policy = JourneyPlanningPolicy(preferredModes: [.metro])
+        await coordinator.scheduleReminder(
+            for: original,
+            destination: makeDestination(),
+            source: .realtime,
+            planningPolicy: policy
+        )
+
+        await coordinator.applyJourneyRevision(revised)
+
+        XCTAssertEqual(coordinator.reminder?.journey, revised)
+        XCTAssertEqual(coordinator.reminder?.planningPolicy, policy)
+        XCTAssertEqual(
+            coordinator.reminder?.events.first?.date,
+            revised.departureAt.addingTimeInterval(-600)
+        )
+        XCTAssertEqual(coordinator.scheduledJourneyID, revised.id)
     }
 
     private func makeDestination() -> JourneyDestination {

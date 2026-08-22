@@ -304,6 +304,73 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertEqual(model.recalculationState, .idle)
     }
 
+    func testDepartureRevisionPreservesRunningSessionProgressAndTracking() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let model = makeModel(now: journey.departureAt)
+        let policy = JourneyPlanningPolicy(
+            requiredModes: [.rer],
+            requiresAccessibleStations: true
+        )
+        await model.go(
+            journey: journey,
+            destination: destination,
+            source: .realtime,
+            planningPolicy: policy,
+            allowsBackgroundTracking: false
+        )
+        await model.moveToNextSection()
+        let previousIndex = model.session?.currentSectionIndex
+        let revised = Journey(
+            id: journey.id,
+            qualifier: journey.qualifier,
+            durationSeconds: journey.durationSeconds + 300,
+            walkingDurationSeconds: journey.walkingDurationSeconds,
+            transferCount: journey.transferCount,
+            departureAt: journey.departureAt,
+            arrivalAt: journey.arrivalAt.addingTimeInterval(300),
+            status: journey.status,
+            warnings: journey.warnings,
+            accessibility: journey.accessibility,
+            peak: journey.peak,
+            sections: journey.sections
+        )
+
+        await model.applyDepartureRevision(revised)
+
+        XCTAssertEqual(model.session?.journey, revised)
+        XCTAssertEqual(model.session?.currentSectionIndex, previousIndex)
+        XCTAssertEqual(model.session?.planningPolicy, policy)
+        XCTAssertTrue(model.isTracking)
+        XCTAssertNil(model.alternative)
+    }
+
+    func testOldSessionPayloadRestoresACompatiblePlanningPolicy() throws {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let session = ActiveJourneySession(
+            journey: journey,
+            destination: destination,
+            source: .realtime,
+            planningPolicy: JourneyPlanningPolicy(requiresAccessibleStations: true),
+            currentSectionIndex: 0,
+            lastCoordinate: nil,
+            horizontalAccuracy: nil,
+            manualOverrideUntil: nil,
+            isTrackingStarted: false,
+            allowsBackgroundTracking: false
+        )
+        let encoded = try JSONEncoder().encode(session)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        // The shape written before the policy existed: the bare flag, no policy.
+        object.removeValue(forKey: "planningPolicy")
+        object["requiresAccessibleStations"] = true
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(ActiveJourneySession.self, from: legacy)
+
+        XCTAssertTrue(decoded.planningPolicy.requiresAccessibleStations)
+        XCTAssertTrue(decoded.planningPolicy.requiredModes.isEmpty)
+    }
+
     private var destination: JourneyDestination {
         .address(
             id: "test:destination",

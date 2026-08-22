@@ -144,17 +144,39 @@ final class JourneyNotificationCoordinator: JourneyNotificationActiveJourneyMana
     func scheduleReminder(
         for journey: Journey,
         destination: JourneyDestination,
-        source: JourneyResult.Source?
+        source: JourneyResult.Source?,
+        planningPolicy: JourneyPlanningPolicy = JourneyPlanningPolicy()
     ) async {
         await beginReminderUpdate()
         defer { endReminderUpdate() }
-        await replaceReminder(for: journey, destination: destination, source: source)
+        await replaceReminder(
+            for: journey,
+            destination: destination,
+            source: source,
+            planningPolicy: planningPolicy
+        )
+    }
+
+    /// Replans every pending event from a revised timetable. The replacement
+    /// path saves the new plan before removing old requests and rolls back if
+    /// installing the new notifications fails.
+    func applyJourneyRevision(_ journey: Journey) async {
+        guard let reminder, reminder.journey.id == journey.id else { return }
+        await beginReminderUpdate()
+        defer { endReminderUpdate() }
+        await replaceReminder(
+            for: journey,
+            destination: reminder.destination,
+            source: reminder.source,
+            planningPolicy: reminder.planningPolicy
+        )
     }
 
     private func replaceReminder(
         for journey: Journey,
         destination: JourneyDestination,
-        source: JourneyResult.Source?
+        source: JourneyResult.Source?,
+        planningPolicy: JourneyPlanningPolicy
     ) async {
         let currentDate = now()
         let events = JourneyNotificationPlanner.events(
@@ -171,6 +193,7 @@ final class JourneyNotificationCoordinator: JourneyNotificationActiveJourneyMana
             journey: journey,
             destination: destination,
             source: source,
+            planningPolicy: planningPolicy,
             scheduledAt: currentDate,
             events: events
         )
@@ -248,7 +271,8 @@ final class JourneyNotificationCoordinator: JourneyNotificationActiveJourneyMana
         await replaceReminder(
             for: reminder.journey,
             destination: reminder.destination,
-            source: reminder.source
+            source: reminder.source,
+            planningPolicy: reminder.planningPolicy
         )
     }
 
@@ -304,6 +328,7 @@ final class JourneyNotificationCoordinator: JourneyNotificationActiveJourneyMana
             journey: stored.journey,
             destination: stored.destination,
             source: stored.source,
+            planningPolicy: stored.planningPolicy,
             scheduledAt: stored.scheduledAt,
             events: events
         )
@@ -343,18 +368,16 @@ final class JourneyNotificationCoordinator: JourneyNotificationActiveJourneyMana
             lastError = nil
             return true
         case .notDetermined:
-            do {
-                _ = try await center.requestAuthorization()
-                await refreshAuthorizationStatus()
-                guard isAuthorized else {
-                    lastError = "Les rappels restent mémorisés. Autorisez les notifications dans Réglages iOS."
-                    return false
-                }
-                return true
-            } catch {
-                lastError = "Les rappels restent mémorisés, mais les notifications n’ont pas pu être activées."
+            // Through the shared seam so the grant registers the APNs token on
+            // the same turn rather than on the next foreground.
+            let granted = await NotificationAuthorization.request(center: center)
+            await refreshAuthorizationStatus()
+            guard granted, isAuthorized else {
+                lastError = "Les rappels restent mémorisés. Autorisez les notifications dans Réglages iOS."
                 return false
             }
+            lastError = nil
+            return true
         case .denied:
             lastError = "Les rappels restent mémorisés. Autorisez les notifications dans Réglages iOS."
             return false

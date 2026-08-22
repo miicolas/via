@@ -7,7 +7,7 @@ struct StationDetailView: View {
   @Binding var detailDetent: PresentationDetent
 
   @Environment(\.dismiss) private var dismiss
-  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var isNotificationAuthorizationRequested = false
 
   /// The sheet's collapsed detent only shows the navigation title, so the
   /// bottom-bar favorite control is hidden until the sheet is expanded.
@@ -57,18 +57,15 @@ struct StationDetailView: View {
           if !isCollapsed {
             ToolbarItem(placement: .bottomBar) {
               Button {
-                selection.toggleNotificationFollow()
+                // The prompt belongs to the moment someone follows the station,
+                // not to a settings screen they may never open.
+                if selection.toggleNotificationFollow() {
+                  isNotificationAuthorizationRequested = true
+                }
               } label: {
-                Image(systemName: selection.isNotificationFollowed ? "bell.fill" : "bell")
+                Image(systemName: StateSymbol.bell(isOn: selection.isNotificationFollowed))
               }
-              .contentTransition(
-                reduceMotion
-                  ? .identity
-                  : .symbolEffect(
-                    .replace.magic(fallback: .offUp.byLayer),
-                    options: .nonRepeating
-                  )
-              )
+              .stateSymbolTransition(value: selection.isNotificationFollowed)
               .tint(selection.isNotificationFollowed ? .orange : .primary)
               .accessibilityLabel("Suivre la station")
               .accessibilityValue(selection.isNotificationFollowed ? "Activé" : "Désactivé")
@@ -79,19 +76,8 @@ struct StationDetailView: View {
               Button {
                 selection.toggleFavorite()
               } label: {
-                Image(systemName: selection.isFavorite ? "star.fill" : "star")
-                  .contentTransition(
-                    reduceMotion
-                      ? .identity
-                      : .symbolEffect(
-                        .replace.magic(fallback: .offUp.byLayer),
-                        options: .nonRepeating
-                      )
-                  )
-                  .animation(
-                    reduceMotion ? nil : .default,
-                    value: selection.isFavorite
-                  )
+                Image(systemName: StateSymbol.star(isOn: selection.isFavorite))
+                  .stateSymbolTransition(value: selection.isFavorite)
               }
               .tint(selection.isFavorite ? .orange : .primary)
               .accessibilityLabel("Favoris")
@@ -104,6 +90,10 @@ struct StationDetailView: View {
         }
       }
     }
+    .notificationAuthorization(
+      isRequested: $isNotificationAuthorizationRequested,
+      message: "Autorisez les notifications dans Réglages iOS pour être prévenu des perturbations de cette station."
+    )
     .detailSheetPresentation(isLargeScreen: isLargeScreen, selection: $detailDetent)
   }
 }

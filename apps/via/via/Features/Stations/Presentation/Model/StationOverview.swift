@@ -82,22 +82,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
 
     var distanceText: String? {
         guard let distanceMeters else { return nil }
-
-        let formatter = MeasurementFormatter()
-        formatter.locale = Locale(identifier: "fr_FR")
-        formatter.unitOptions = .providedUnit
-        formatter.numberFormatter.maximumFractionDigits = distanceMeters >= 1_000 ? 1 : 0
-        formatter.numberFormatter.minimumFractionDigits = 0
-
-        if distanceMeters >= 1_000 {
-            return formatter.string(
-                from: Measurement(value: distanceMeters / 1_000, unit: UnitLength.kilometers)
-            )
-        }
-
-        return formatter.string(
-            from: Measurement(value: distanceMeters, unit: UnitLength.meters)
-        )
+        return DistanceFormatting.text(meters: distanceMeters)
     }
 
     var sourceText: String {

@@ -5,6 +5,7 @@ import {
   notificationInbox,
   notificationOccurrences,
   notificationMutes,
+  timestamptz,
   type NotificationCategory,
   type NotificationSeverity,
 } from '@via/db';
@@ -119,7 +120,7 @@ export function createDatabaseNotificationInboxStore(database: InboxDatabase = d
         WHERE item.id IN (
           SELECT candidate.id
           FROM notification_inbox AS candidate
-          WHERE candidate.created_at < ${before}
+          WHERE candidate.created_at < ${timestamptz(before)}
           ORDER BY candidate.created_at, candidate.id
           LIMIT ${limit}
         )

@@ -444,6 +444,77 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// Actualiser ou choisir un passage dans un trajet
+    ///
+    /// Retourne le passage retenu et le suivant pour chaque tronçon de transport. Une sélection conserve les étapes en amont et recalcule tout l'aval.
+    ///
+    /// - Remark: HTTP `POST /journeys/departure-choices`.
+    /// - Remark: Generated from `#/paths//journeys/departure-choices/post(journeys.departureChoices)`.
+    internal func journeys_period_departureChoices(_ input: Operations.journeys_period_departureChoices.Input) async throws -> Operations.journeys_period_departureChoices.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.journeys_period_departureChoices.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/journeys/departure-choices",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.journeys_period_departureChoices.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
     /// Enregistrer un appareil pour les notifications
     ///
     /// Associe le token APNs de l’installation au compte courant.

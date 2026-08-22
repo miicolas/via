@@ -47,6 +47,13 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /journeys`.
     /// - Remark: Generated from `#/paths//journeys/get(journeys.plan)`.
     func journeys_period_plan(_ input: Operations.journeys_period_plan.Input) async throws -> Operations.journeys_period_plan.Output
+    /// Actualiser ou choisir un passage dans un trajet
+    ///
+    /// Retourne le passage retenu et le suivant pour chaque tronçon de transport. Une sélection conserve les étapes en amont et recalcule tout l'aval.
+    ///
+    /// - Remark: HTTP `POST /journeys/departure-choices`.
+    /// - Remark: Generated from `#/paths//journeys/departure-choices/post(journeys.departureChoices)`.
+    func journeys_period_departureChoices(_ input: Operations.journeys_period_departureChoices.Input) async throws -> Operations.journeys_period_departureChoices.Output
     /// Enregistrer un appareil pour les notifications
     ///
     /// Associe le token APNs de l’installation au compte courant.
@@ -216,6 +223,21 @@ extension APIProtocol {
         try await journeys_period_plan(Operations.journeys_period_plan.Input(
             query: query,
             headers: headers
+        ))
+    }
+    /// Actualiser ou choisir un passage dans un trajet
+    ///
+    /// Retourne le passage retenu et le suivant pour chaque tronçon de transport. Une sélection conserve les étapes en amont et recalcule tout l'aval.
+    ///
+    /// - Remark: HTTP `POST /journeys/departure-choices`.
+    /// - Remark: Generated from `#/paths//journeys/departure-choices/post(journeys.departureChoices)`.
+    internal func journeys_period_departureChoices(
+        headers: Operations.journeys_period_departureChoices.Input.Headers = .init(),
+        body: Operations.journeys_period_departureChoices.Input.Body
+    ) async throws -> Operations.journeys_period_departureChoices.Output {
+        try await journeys_period_departureChoices(Operations.journeys_period_departureChoices.Input(
+            headers: headers,
+            body: body
         ))
     }
     /// Enregistrer un appareil pour les notifications
@@ -3328,6 +3350,8 @@ internal enum Operations {
                             internal var peak: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload?
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload`.
                             internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/id`.
+                                internal var id: Swift.String?
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/type`.
                                 internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case walk = "walk"
@@ -3439,6 +3463,10 @@ internal enum Operations {
                                 internal var departureAt: Foundation.Date?
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/arrivalAt`.
                                 internal var arrivalAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/scheduledDepartureAt`.
+                                internal var scheduledDepartureAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/scheduledArrivalAt`.
+                                internal var scheduledArrivalAt: Foundation.Date?
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/geometryPayload`.
                                 internal struct geometryPayloadPayload: Codable, Hashable, Sendable {
                                     /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/geometryPayload/latitude`.
@@ -3531,6 +3559,8 @@ internal enum Operations {
                                 internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
                                     /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/stopsPayload/id`.
                                     internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/stopsPayload/stationId`.
+                                    internal var stationId: Swift.String?
                                     /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/stopsPayload/name`.
                                     internal var name: Swift.String
                                     /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/stopsPayload/coordinate`.
@@ -3566,18 +3596,21 @@ internal enum Operations {
                                     ///
                                     /// - Parameters:
                                     ///   - id:
+                                    ///   - stationId:
                                     ///   - name:
                                     ///   - coordinate:
                                     ///   - arrivalAt:
                                     ///   - departureAt:
                                     internal init(
                                         id: Swift.String,
+                                        stationId: Swift.String? = nil,
                                         name: Swift.String,
                                         coordinate: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload,
                                         arrivalAt: Foundation.Date? = nil,
                                         departureAt: Foundation.Date? = nil
                                     ) {
                                         self.id = id
+                                        self.stationId = stationId
                                         self.name = name
                                         self.coordinate = coordinate
                                         self.arrivalAt = arrivalAt
@@ -3585,6 +3618,7 @@ internal enum Operations {
                                     }
                                     internal enum CodingKeys: String, CodingKey {
                                         case id
+                                        case stationId
                                         case name
                                         case coordinate
                                         case arrivalAt
@@ -3595,6 +3629,29 @@ internal enum Operations {
                                 internal typealias stopsPayload = [Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayloadPayload]
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/stops`.
                                 internal var stops: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayload?
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/serviceId`.
+                                internal var serviceId: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/timingSource`.
+                                internal enum timingSourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case realtime = "realtime"
+                                    case theoretical = "theoretical"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/timingSource`.
+                                internal var timingSource: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.timingSourcePayload?
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/departureStatus`.
+                                internal enum departureStatusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case on_time = "on_time"
+                                    case delayed = "delayed"
+                                    case early = "early"
+                                    case cancelled = "cancelled"
+                                    case missed = "missed"
+                                    case arrived = "arrived"
+                                    case departed = "departed"
+                                    case no_report = "no_report"
+                                    case scheduled = "scheduled"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/departureStatus`.
+                                internal var departureStatus: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.departureStatusPayload?
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition`.
                                 internal struct boardingPositionPayload: Codable, Hashable, Sendable {
                                     /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/boardingPosition/car`.
@@ -3724,60 +3781,84 @@ internal enum Operations {
                                 /// Creates a new `sectionsPayloadPayload`.
                                 ///
                                 /// - Parameters:
+                                ///   - id:
                                 ///   - _type:
                                 ///   - durationSeconds:
                                 ///   - from:
                                 ///   - to:
                                 ///   - departureAt:
                                 ///   - arrivalAt:
+                                ///   - scheduledDepartureAt:
+                                ///   - scheduledArrivalAt:
                                 ///   - geometry:
                                 ///   - route:
                                 ///   - direction:
                                 ///   - platform:
                                 ///   - stops:
+                                ///   - serviceId:
+                                ///   - timingSource:
+                                ///   - departureStatus:
                                 ///   - boardingPosition:
                                 ///   - exit:
                                 internal init(
+                                    id: Swift.String? = nil,
                                     _type: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload._typePayload,
                                     durationSeconds: Swift.Int,
                                     from: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.fromPayload,
                                     to: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.toPayload,
                                     departureAt: Foundation.Date? = nil,
                                     arrivalAt: Foundation.Date? = nil,
+                                    scheduledDepartureAt: Foundation.Date? = nil,
+                                    scheduledArrivalAt: Foundation.Date? = nil,
                                     geometry: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.geometryPayload,
                                     route: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.routePayload? = nil,
                                     direction: Swift.String? = nil,
                                     platform: Swift.String? = nil,
                                     stops: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayload? = nil,
+                                    serviceId: Swift.String? = nil,
+                                    timingSource: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.timingSourcePayload? = nil,
+                                    departureStatus: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.departureStatusPayload? = nil,
                                     boardingPosition: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload? = nil,
                                     exit: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload? = nil
                                 ) {
+                                    self.id = id
                                     self._type = _type
                                     self.durationSeconds = durationSeconds
                                     self.from = from
                                     self.to = to
                                     self.departureAt = departureAt
                                     self.arrivalAt = arrivalAt
+                                    self.scheduledDepartureAt = scheduledDepartureAt
+                                    self.scheduledArrivalAt = scheduledArrivalAt
                                     self.geometry = geometry
                                     self.route = route
                                     self.direction = direction
                                     self.platform = platform
                                     self.stops = stops
+                                    self.serviceId = serviceId
+                                    self.timingSource = timingSource
+                                    self.departureStatus = departureStatus
                                     self.boardingPosition = boardingPosition
                                     self.exit = exit
                                 }
                                 internal enum CodingKeys: String, CodingKey {
+                                    case id
                                     case _type = "type"
                                     case durationSeconds
                                     case from
                                     case to
                                     case departureAt
                                     case arrivalAt
+                                    case scheduledDepartureAt
+                                    case scheduledArrivalAt
                                     case geometry
                                     case route
                                     case direction
                                     case platform
                                     case stops
+                                    case serviceId
+                                    case timingSource
+                                    case departureStatus
                                     case boardingPosition
                                     case exit
                                 }
@@ -3912,6 +3993,1939 @@ internal enum Operations {
             /// - Throws: An error if `self` is not `.ok`.
             /// - SeeAlso: `.ok`.
             internal var ok: Operations.journeys_period_plan.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Actualiser ou choisir un passage dans un trajet
+    ///
+    /// Retourne le passage retenu et le suivant pour chaque tronçon de transport. Une sélection conserve les étapes en amont et recalcule tout l'aval.
+    ///
+    /// - Remark: HTTP `POST /journeys/departure-choices`.
+    /// - Remark: Generated from `#/paths//journeys/departure-choices/post(journeys.departureChoices)`.
+    internal enum journeys_period_departureChoices {
+        internal static let id: Swift.String = "journeys.departureChoices"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.journeys_period_departureChoices.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.journeys_period_departureChoices.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.journeys_period_departureChoices.Input.Headers
+            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey`.
+                    internal struct journeyPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/id`.
+                        internal var id: Swift.String
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/qualifier`.
+                        internal enum qualifierPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case recommended = "recommended"
+                            case rapid = "rapid"
+                            case less_hyphen_walking = "less-walking"
+                            case comfort = "comfort"
+                            case walking = "walking"
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/qualifier`.
+                        internal var qualifier: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.qualifierPayload
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/durationSeconds`.
+                        internal var durationSeconds: Swift.Int
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/walkingDurationSeconds`.
+                        internal var walkingDurationSeconds: Swift.Int
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/transferCount`.
+                        internal var transferCount: Swift.Int
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/departureAt`.
+                        internal var departureAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/arrivalAt`.
+                        internal var arrivalAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/status`.
+                        internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case normal = "normal"
+                            case disrupted = "disrupted"
+                            case theoretical = "theoretical"
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/status`.
+                        internal var status: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.statusPayload
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/warnings`.
+                        internal var warnings: [Swift.String]
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/accessibility`.
+                        internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/accessibility/condition`.
+                            internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case reservationRequired = "reservationRequired"
+                                case staffAssistance = "staffAssistance"
+                                case autonomous = "autonomous"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/accessibility/condition`.
+                            internal var condition: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.accessibilityPayload.conditionPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/accessibility/label`.
+                            internal var label: Swift.String
+                            /// Creates a new `accessibilityPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - condition:
+                            ///   - label:
+                            internal init(
+                                condition: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.accessibilityPayload.conditionPayload,
+                                label: Swift.String
+                            ) {
+                                self.condition = condition
+                                self.label = label
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case condition
+                                case label
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/accessibility`.
+                        internal var accessibility: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.accessibilityPayload?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak`.
+                        internal struct peakPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/ratio`.
+                            internal var ratio: Swift.Double
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/level`.
+                            internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case moderate = "moderate"
+                                case peak = "peak"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/level`.
+                            internal var level: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload.levelPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/stationName`.
+                            internal var stationName: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/label`.
+                            internal var label: Swift.String
+                            /// Creates a new `peakPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - ratio:
+                            ///   - level:
+                            ///   - stationName:
+                            ///   - label:
+                            internal init(
+                                ratio: Swift.Double,
+                                level: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload.levelPayload,
+                                stationName: Swift.String,
+                                label: Swift.String
+                            ) {
+                                self.ratio = ratio
+                                self.level = level
+                                self.stationName = stationName
+                                self.label = label
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case ratio
+                                case level
+                                case stationName
+                                case label
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak`.
+                        internal var peak: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload`.
+                        internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/id`.
+                            internal var id: Swift.String?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/type`.
+                            internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case walk = "walk"
+                                case wait = "wait"
+                                case transfer = "transfer"
+                                case transit = "transit"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/type`.
+                            internal var _type: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload._typePayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/durationSeconds`.
+                            internal var durationSeconds: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/from`.
+                            internal struct fromPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/from/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/from/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/from/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/from/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/from/coordinate`.
+                                internal var coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                /// Creates a new `fromPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - name:
+                                ///   - coordinate:
+                                internal init(
+                                    name: Swift.String,
+                                    coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                ) {
+                                    self.name = name
+                                    self.coordinate = coordinate
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case name
+                                    case coordinate
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/from`.
+                            internal var from: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.fromPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/to`.
+                            internal struct toPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/to/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/to/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/to/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/to/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/to/coordinate`.
+                                internal var coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                /// Creates a new `toPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - name:
+                                ///   - coordinate:
+                                internal init(
+                                    name: Swift.String,
+                                    coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                ) {
+                                    self.name = name
+                                    self.coordinate = coordinate
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case name
+                                    case coordinate
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/to`.
+                            internal var to: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.toPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/departureAt`.
+                            internal var departureAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/arrivalAt`.
+                            internal var arrivalAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/scheduledDepartureAt`.
+                            internal var scheduledDepartureAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/scheduledArrivalAt`.
+                            internal var scheduledArrivalAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/geometryPayload`.
+                            internal struct geometryPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/geometryPayload/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/geometryPayload/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `geometryPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/geometry`.
+                            internal typealias geometryPayload = [Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.geometryPayloadPayload]
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/geometry`.
+                            internal var geometry: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.geometryPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route`.
+                            internal struct routePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route/shortName`.
+                                internal var shortName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route/longName`.
+                                internal var longName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route/mode`.
+                                internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case metro = "metro"
+                                    case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
+                                    case bus = "bus"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route/mode`.
+                                internal var mode: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route/color`.
+                                internal var color: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route/textColor`.
+                                internal var textColor: Swift.String
+                                /// Creates a new `routePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - shortName:
+                                ///   - longName:
+                                ///   - mode:
+                                ///   - color:
+                                ///   - textColor:
+                                internal init(
+                                    id: Swift.String,
+                                    shortName: Swift.String,
+                                    longName: Swift.String,
+                                    mode: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload,
+                                    color: Swift.String,
+                                    textColor: Swift.String
+                                ) {
+                                    self.id = id
+                                    self.shortName = shortName
+                                    self.longName = longName
+                                    self.mode = mode
+                                    self.color = color
+                                    self.textColor = textColor
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case shortName
+                                    case longName
+                                    case mode
+                                    case color
+                                    case textColor
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/route`.
+                            internal var route: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.routePayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/direction`.
+                            internal var direction: Swift.String?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/platform`.
+                            internal var platform: Swift.String?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload`.
+                            internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/stationId`.
+                                internal var stationId: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/coordinate`.
+                                internal var coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/arrivalAt`.
+                                internal var arrivalAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stopsPayload/departureAt`.
+                                internal var departureAt: Foundation.Date?
+                                /// Creates a new `stopsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - stationId:
+                                ///   - name:
+                                ///   - coordinate:
+                                ///   - arrivalAt:
+                                ///   - departureAt:
+                                internal init(
+                                    id: Swift.String,
+                                    stationId: Swift.String? = nil,
+                                    name: Swift.String,
+                                    coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload,
+                                    arrivalAt: Foundation.Date? = nil,
+                                    departureAt: Foundation.Date? = nil
+                                ) {
+                                    self.id = id
+                                    self.stationId = stationId
+                                    self.name = name
+                                    self.coordinate = coordinate
+                                    self.arrivalAt = arrivalAt
+                                    self.departureAt = departureAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case stationId
+                                    case name
+                                    case coordinate
+                                    case arrivalAt
+                                    case departureAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stops`.
+                            internal typealias stopsPayload = [Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/stops`.
+                            internal var stops: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/serviceId`.
+                            internal var serviceId: Swift.String?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/timingSource`.
+                            internal enum timingSourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case realtime = "realtime"
+                                case theoretical = "theoretical"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/timingSource`.
+                            internal var timingSource: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/departureStatus`.
+                            internal enum departureStatusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case on_time = "on_time"
+                                case delayed = "delayed"
+                                case early = "early"
+                                case cancelled = "cancelled"
+                                case missed = "missed"
+                                case arrived = "arrived"
+                                case departed = "departed"
+                                case no_report = "no_report"
+                                case scheduled = "scheduled"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/departureStatus`.
+                            internal var departureStatus: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition`.
+                            internal struct boardingPositionPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition/car`.
+                                internal var car: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition/carCount`.
+                                internal var carCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition/zone`.
+                                internal enum zonePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case front = "front"
+                                    case middle = "middle"
+                                    case rear = "rear"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition/zone`.
+                                internal var zone: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition/reason`.
+                                internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case exit = "exit"
+                                    case transfer = "transfer"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition/reason`.
+                                internal var reason: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition/equipment`.
+                                internal enum equipmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case escalator = "escalator"
+                                    case lift = "lift"
+                                    case stairs = "stairs"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition/equipment`.
+                                internal var equipment: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload?
+                                /// Creates a new `boardingPositionPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - car:
+                                ///   - carCount:
+                                ///   - zone:
+                                ///   - reason:
+                                ///   - equipment:
+                                internal init(
+                                    car: Swift.Int,
+                                    carCount: Swift.Int,
+                                    zone: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload,
+                                    reason: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload,
+                                    equipment: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload? = nil
+                                ) {
+                                    self.car = car
+                                    self.carCount = carCount
+                                    self.zone = zone
+                                    self.reason = reason
+                                    self.equipment = equipment
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case car
+                                    case carCount
+                                    case zone
+                                    case reason
+                                    case equipment
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/boardingPosition`.
+                            internal var boardingPosition: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit`.
+                            internal struct exitPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit/number`.
+                                internal var number: Swift.Int?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit/coordinate`.
+                                internal var coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit/walkingMeters`.
+                                internal var walkingMeters: Swift.Int?
+                                /// Creates a new `exitPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - name:
+                                ///   - number:
+                                ///   - coordinate:
+                                ///   - walkingMeters:
+                                internal init(
+                                    id: Swift.String,
+                                    name: Swift.String,
+                                    number: Swift.Int? = nil,
+                                    coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload,
+                                    walkingMeters: Swift.Int? = nil
+                                ) {
+                                    self.id = id
+                                    self.name = name
+                                    self.number = number
+                                    self.coordinate = coordinate
+                                    self.walkingMeters = walkingMeters
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case name
+                                    case number
+                                    case coordinate
+                                    case walkingMeters
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/exit`.
+                            internal var exit: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.exitPayload?
+                            /// Creates a new `sectionsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - _type:
+                            ///   - durationSeconds:
+                            ///   - from:
+                            ///   - to:
+                            ///   - departureAt:
+                            ///   - arrivalAt:
+                            ///   - scheduledDepartureAt:
+                            ///   - scheduledArrivalAt:
+                            ///   - geometry:
+                            ///   - route:
+                            ///   - direction:
+                            ///   - platform:
+                            ///   - stops:
+                            ///   - serviceId:
+                            ///   - timingSource:
+                            ///   - departureStatus:
+                            ///   - boardingPosition:
+                            ///   - exit:
+                            internal init(
+                                id: Swift.String? = nil,
+                                _type: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload._typePayload,
+                                durationSeconds: Swift.Int,
+                                from: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.fromPayload,
+                                to: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.toPayload,
+                                departureAt: Foundation.Date? = nil,
+                                arrivalAt: Foundation.Date? = nil,
+                                scheduledDepartureAt: Foundation.Date? = nil,
+                                scheduledArrivalAt: Foundation.Date? = nil,
+                                geometry: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.geometryPayload,
+                                route: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.routePayload? = nil,
+                                direction: Swift.String? = nil,
+                                platform: Swift.String? = nil,
+                                stops: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayload? = nil,
+                                serviceId: Swift.String? = nil,
+                                timingSource: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload? = nil,
+                                departureStatus: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload? = nil,
+                                boardingPosition: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload? = nil,
+                                exit: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.exitPayload? = nil
+                            ) {
+                                self.id = id
+                                self._type = _type
+                                self.durationSeconds = durationSeconds
+                                self.from = from
+                                self.to = to
+                                self.departureAt = departureAt
+                                self.arrivalAt = arrivalAt
+                                self.scheduledDepartureAt = scheduledDepartureAt
+                                self.scheduledArrivalAt = scheduledArrivalAt
+                                self.geometry = geometry
+                                self.route = route
+                                self.direction = direction
+                                self.platform = platform
+                                self.stops = stops
+                                self.serviceId = serviceId
+                                self.timingSource = timingSource
+                                self.departureStatus = departureStatus
+                                self.boardingPosition = boardingPosition
+                                self.exit = exit
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case _type = "type"
+                                case durationSeconds
+                                case from
+                                case to
+                                case departureAt
+                                case arrivalAt
+                                case scheduledDepartureAt
+                                case scheduledArrivalAt
+                                case geometry
+                                case route
+                                case direction
+                                case platform
+                                case stops
+                                case serviceId
+                                case timingSource
+                                case departureStatus
+                                case boardingPosition
+                                case exit
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sections`.
+                        internal typealias sectionsPayload = [Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sections`.
+                        internal var sections: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayload
+                        /// Creates a new `journeyPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - id:
+                        ///   - qualifier:
+                        ///   - durationSeconds:
+                        ///   - walkingDurationSeconds:
+                        ///   - transferCount:
+                        ///   - departureAt:
+                        ///   - arrivalAt:
+                        ///   - status:
+                        ///   - warnings:
+                        ///   - accessibility:
+                        ///   - peak:
+                        ///   - sections:
+                        internal init(
+                            id: Swift.String,
+                            qualifier: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.qualifierPayload,
+                            durationSeconds: Swift.Int,
+                            walkingDurationSeconds: Swift.Int,
+                            transferCount: Swift.Int,
+                            departureAt: Foundation.Date,
+                            arrivalAt: Foundation.Date,
+                            status: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.statusPayload,
+                            warnings: [Swift.String],
+                            accessibility: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.accessibilityPayload? = nil,
+                            peak: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload? = nil,
+                            sections: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayload
+                        ) {
+                            self.id = id
+                            self.qualifier = qualifier
+                            self.durationSeconds = durationSeconds
+                            self.walkingDurationSeconds = walkingDurationSeconds
+                            self.transferCount = transferCount
+                            self.departureAt = departureAt
+                            self.arrivalAt = arrivalAt
+                            self.status = status
+                            self.warnings = warnings
+                            self.accessibility = accessibility
+                            self.peak = peak
+                            self.sections = sections
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case id
+                            case qualifier
+                            case durationSeconds
+                            case walkingDurationSeconds
+                            case transferCount
+                            case departureAt
+                            case arrivalAt
+                            case status
+                            case warnings
+                            case accessibility
+                            case peak
+                            case sections
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey`.
+                    internal var journey: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination`.
+                    internal struct destinationPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1`.
+                        internal struct Value1Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1/coordinate`.
+                            internal var coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload.Value1Payload.coordinatePayload
+                            /// Creates a new `Value1Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - kind:
+                            ///   - id:
+                            ///   - name:
+                            ///   - coordinate:
+                            internal init(
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                id: Swift.String,
+                                name: Swift.String,
+                                coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload.Value1Payload.coordinatePayload
+                            ) {
+                                self.kind = kind
+                                self.id = id
+                                self.name = name
+                                self.coordinate = coordinate
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case kind
+                                case id
+                                case name
+                                case coordinate
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value1`.
+                        internal var value1: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload.Value1Payload?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2`.
+                        internal struct Value2Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2/context`.
+                            internal var context: Swift.String?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2/coordinate`.
+                            internal var coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload.Value2Payload.coordinatePayload
+                            /// Creates a new `Value2Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - kind:
+                            ///   - id:
+                            ///   - name:
+                            ///   - context:
+                            ///   - coordinate:
+                            internal init(
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                id: Swift.String,
+                                name: Swift.String,
+                                context: Swift.String? = nil,
+                                coordinate: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload.Value2Payload.coordinatePayload
+                            ) {
+                                self.kind = kind
+                                self.id = id
+                                self.name = name
+                                self.context = context
+                                self.coordinate = coordinate
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case kind
+                                case id
+                                case name
+                                case context
+                                case coordinate
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination/value2`.
+                        internal var value2: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload.Value2Payload?
+                        /// Creates a new `destinationPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - value1:
+                        ///   - value2:
+                        internal init(
+                            value1: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload.Value1Payload? = nil,
+                            value2: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload.Value2Payload? = nil
+                        ) {
+                            self.value1 = value1
+                            self.value2 = value2
+                        }
+                        internal init(from decoder: any Swift.Decoder) throws {
+                            var errors: [any Swift.Error] = []
+                            do {
+                                self.value1 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value2 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                                [
+                                    self.value1,
+                                    self.value2
+                                ],
+                                type: Self.self,
+                                codingPath: decoder.codingPath,
+                                errors: errors
+                            )
+                        }
+                        internal func encode(to encoder: any Swift.Encoder) throws {
+                            try self.value1?.encode(to: encoder)
+                            try self.value2?.encode(to: encoder)
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/destination`.
+                    internal var destination: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy`.
+                    internal struct policyPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/requiredModesPayload`.
+                        internal enum requiredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case metro = "metro"
+                            case rer = "rer"
+                            case transilien = "transilien"
+                            case tram = "tram"
+                            case bus = "bus"
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/requiredModes`.
+                        internal typealias requiredModesPayload = [Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.requiredModesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/requiredModes`.
+                        internal var requiredModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.requiredModesPayload?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/excludedModesPayload`.
+                        internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case metro = "metro"
+                            case rer = "rer"
+                            case transilien = "transilien"
+                            case tram = "tram"
+                            case bus = "bus"
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/excludedModes`.
+                        internal typealias excludedModesPayload = [Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.excludedModesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/excludedModes`.
+                        internal var excludedModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.excludedModesPayload?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/preferredModesPayload`.
+                        internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case metro = "metro"
+                            case rer = "rer"
+                            case transilien = "transilien"
+                            case tram = "tram"
+                            case bus = "bus"
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/preferredModes`.
+                        internal typealias preferredModesPayload = [Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.preferredModesPayloadPayload]
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/preferredModes`.
+                        internal var preferredModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.preferredModesPayload?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/requiresAccessibleStations`.
+                        internal var requiresAccessibleStations: Swift.Bool?
+                        /// Creates a new `policyPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - requiredModes:
+                        ///   - excludedModes:
+                        ///   - preferredModes:
+                        ///   - requiresAccessibleStations:
+                        internal init(
+                            requiredModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.requiredModesPayload? = nil,
+                            excludedModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.excludedModesPayload? = nil,
+                            preferredModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.preferredModesPayload? = nil,
+                            requiresAccessibleStations: Swift.Bool? = nil
+                        ) {
+                            self.requiredModes = requiredModes
+                            self.excludedModes = excludedModes
+                            self.preferredModes = preferredModes
+                            self.requiresAccessibleStations = requiresAccessibleStations
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case requiredModes
+                            case excludedModes
+                            case preferredModes
+                            case requiresAccessibleStations
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy`.
+                    internal var policy: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload?
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/selection`.
+                    internal struct selectionPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/selection/sectionId`.
+                        internal var sectionId: Swift.String
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/selection/departureId`.
+                        internal var departureId: Swift.String
+                        /// Creates a new `selectionPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - sectionId:
+                        ///   - departureId:
+                        internal init(
+                            sectionId: Swift.String,
+                            departureId: Swift.String
+                        ) {
+                            self.sectionId = sectionId
+                            self.departureId = departureId
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case sectionId
+                            case departureId
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/selection`.
+                    internal var selection: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.selectionPayload?
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - journey:
+                    ///   - destination:
+                    ///   - policy:
+                    ///   - selection:
+                    internal init(
+                        journey: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload,
+                        destination: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.destinationPayload,
+                        policy: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload? = nil,
+                        selection: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.selectionPayload? = nil
+                    ) {
+                        self.journey = journey
+                        self.destination = destination
+                        self.policy = policy
+                        self.selection = selection
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case journey
+                        case destination
+                        case policy
+                        case selection
+                    }
+                }
+                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/content/application\/json`.
+                case json(Operations.journeys_period_departureChoices.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.journeys_period_departureChoices.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.journeys_period_departureChoices.Input.Headers = .init(),
+                body: Operations.journeys_period_departureChoices.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey`.
+                        internal struct journeyPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/qualifier`.
+                            internal enum qualifierPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case recommended = "recommended"
+                                case rapid = "rapid"
+                                case less_hyphen_walking = "less-walking"
+                                case comfort = "comfort"
+                                case walking = "walking"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/qualifier`.
+                            internal var qualifier: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.qualifierPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/durationSeconds`.
+                            internal var durationSeconds: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/walkingDurationSeconds`.
+                            internal var walkingDurationSeconds: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/transferCount`.
+                            internal var transferCount: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/departureAt`.
+                            internal var departureAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/arrivalAt`.
+                            internal var arrivalAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/status`.
+                            internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case normal = "normal"
+                                case disrupted = "disrupted"
+                                case theoretical = "theoretical"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/status`.
+                            internal var status: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.statusPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/warnings`.
+                            internal var warnings: [Swift.String]
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/accessibility`.
+                            internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/accessibility/condition`.
+                                internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case reservationRequired = "reservationRequired"
+                                    case staffAssistance = "staffAssistance"
+                                    case autonomous = "autonomous"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/accessibility/condition`.
+                                internal var condition: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.accessibilityPayload.conditionPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/accessibility/label`.
+                                internal var label: Swift.String
+                                /// Creates a new `accessibilityPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - condition:
+                                ///   - label:
+                                internal init(
+                                    condition: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.accessibilityPayload.conditionPayload,
+                                    label: Swift.String
+                                ) {
+                                    self.condition = condition
+                                    self.label = label
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case condition
+                                    case label
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/accessibility`.
+                            internal var accessibility: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.accessibilityPayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak`.
+                            internal struct peakPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/ratio`.
+                                internal var ratio: Swift.Double
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case moderate = "moderate"
+                                    case peak = "peak"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/level`.
+                                internal var level: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload.levelPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/label`.
+                                internal var label: Swift.String
+                                /// Creates a new `peakPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - ratio:
+                                ///   - level:
+                                ///   - stationName:
+                                ///   - label:
+                                internal init(
+                                    ratio: Swift.Double,
+                                    level: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload.levelPayload,
+                                    stationName: Swift.String,
+                                    label: Swift.String
+                                ) {
+                                    self.ratio = ratio
+                                    self.level = level
+                                    self.stationName = stationName
+                                    self.label = label
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case ratio
+                                    case level
+                                    case stationName
+                                    case label
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak`.
+                            internal var peak: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload`.
+                            internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/id`.
+                                internal var id: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/type`.
+                                internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case walk = "walk"
+                                    case wait = "wait"
+                                    case transfer = "transfer"
+                                    case transit = "transit"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/type`.
+                                internal var _type: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload._typePayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/durationSeconds`.
+                                internal var durationSeconds: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/from`.
+                                internal struct fromPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/from/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/from/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/from/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/from/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/from/coordinate`.
+                                    internal var coordinate: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                    /// Creates a new `fromPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - name:
+                                    ///   - coordinate:
+                                    internal init(
+                                        name: Swift.String,
+                                        coordinate: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                    ) {
+                                        self.name = name
+                                        self.coordinate = coordinate
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case name
+                                        case coordinate
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/from`.
+                                internal var from: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.fromPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/to`.
+                                internal struct toPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/to/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/to/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/to/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/to/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/to/coordinate`.
+                                    internal var coordinate: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                    /// Creates a new `toPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - name:
+                                    ///   - coordinate:
+                                    internal init(
+                                        name: Swift.String,
+                                        coordinate: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                    ) {
+                                        self.name = name
+                                        self.coordinate = coordinate
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case name
+                                        case coordinate
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/to`.
+                                internal var to: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.toPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/departureAt`.
+                                internal var departureAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/arrivalAt`.
+                                internal var arrivalAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/scheduledDepartureAt`.
+                                internal var scheduledDepartureAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/scheduledArrivalAt`.
+                                internal var scheduledArrivalAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/geometryPayload`.
+                                internal struct geometryPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/geometryPayload/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/geometryPayload/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `geometryPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/geometry`.
+                                internal typealias geometryPayload = [Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.geometryPayloadPayload]
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/geometry`.
+                                internal var geometry: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.geometryPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route`.
+                                internal struct routePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route/shortName`.
+                                    internal var shortName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route/longName`.
+                                    internal var longName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route/mode`.
+                                    internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case metro = "metro"
+                                        case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
+                                        case bus = "bus"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route/mode`.
+                                    internal var mode: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route/color`.
+                                    internal var color: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route/textColor`.
+                                    internal var textColor: Swift.String
+                                    /// Creates a new `routePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - shortName:
+                                    ///   - longName:
+                                    ///   - mode:
+                                    ///   - color:
+                                    ///   - textColor:
+                                    internal init(
+                                        id: Swift.String,
+                                        shortName: Swift.String,
+                                        longName: Swift.String,
+                                        mode: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload,
+                                        color: Swift.String,
+                                        textColor: Swift.String
+                                    ) {
+                                        self.id = id
+                                        self.shortName = shortName
+                                        self.longName = longName
+                                        self.mode = mode
+                                        self.color = color
+                                        self.textColor = textColor
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case shortName
+                                        case longName
+                                        case mode
+                                        case color
+                                        case textColor
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/route`.
+                                internal var route: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.routePayload?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/direction`.
+                                internal var direction: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/platform`.
+                                internal var platform: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload`.
+                                internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/stationId`.
+                                    internal var stationId: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/coordinate`.
+                                    internal var coordinate: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/arrivalAt`.
+                                    internal var arrivalAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stopsPayload/departureAt`.
+                                    internal var departureAt: Foundation.Date?
+                                    /// Creates a new `stopsPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - stationId:
+                                    ///   - name:
+                                    ///   - coordinate:
+                                    ///   - arrivalAt:
+                                    ///   - departureAt:
+                                    internal init(
+                                        id: Swift.String,
+                                        stationId: Swift.String? = nil,
+                                        name: Swift.String,
+                                        coordinate: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload,
+                                        arrivalAt: Foundation.Date? = nil,
+                                        departureAt: Foundation.Date? = nil
+                                    ) {
+                                        self.id = id
+                                        self.stationId = stationId
+                                        self.name = name
+                                        self.coordinate = coordinate
+                                        self.arrivalAt = arrivalAt
+                                        self.departureAt = departureAt
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case stationId
+                                        case name
+                                        case coordinate
+                                        case arrivalAt
+                                        case departureAt
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stops`.
+                                internal typealias stopsPayload = [Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload]
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/stops`.
+                                internal var stops: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayload?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/serviceId`.
+                                internal var serviceId: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/timingSource`.
+                                internal enum timingSourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case realtime = "realtime"
+                                    case theoretical = "theoretical"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/timingSource`.
+                                internal var timingSource: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/departureStatus`.
+                                internal enum departureStatusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case on_time = "on_time"
+                                    case delayed = "delayed"
+                                    case early = "early"
+                                    case cancelled = "cancelled"
+                                    case missed = "missed"
+                                    case arrived = "arrived"
+                                    case departed = "departed"
+                                    case no_report = "no_report"
+                                    case scheduled = "scheduled"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/departureStatus`.
+                                internal var departureStatus: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition`.
+                                internal struct boardingPositionPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition/car`.
+                                    internal var car: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition/carCount`.
+                                    internal var carCount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition/zone`.
+                                    internal enum zonePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case front = "front"
+                                        case middle = "middle"
+                                        case rear = "rear"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition/zone`.
+                                    internal var zone: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition/reason`.
+                                    internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case exit = "exit"
+                                        case transfer = "transfer"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition/reason`.
+                                    internal var reason: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition/equipment`.
+                                    internal enum equipmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case escalator = "escalator"
+                                        case lift = "lift"
+                                        case stairs = "stairs"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition/equipment`.
+                                    internal var equipment: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload?
+                                    /// Creates a new `boardingPositionPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - car:
+                                    ///   - carCount:
+                                    ///   - zone:
+                                    ///   - reason:
+                                    ///   - equipment:
+                                    internal init(
+                                        car: Swift.Int,
+                                        carCount: Swift.Int,
+                                        zone: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload,
+                                        reason: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload,
+                                        equipment: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload? = nil
+                                    ) {
+                                        self.car = car
+                                        self.carCount = carCount
+                                        self.zone = zone
+                                        self.reason = reason
+                                        self.equipment = equipment
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case car
+                                        case carCount
+                                        case zone
+                                        case reason
+                                        case equipment
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/boardingPosition`.
+                                internal var boardingPosition: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit`.
+                                internal struct exitPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit/number`.
+                                    internal var number: Swift.Int?
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit/coordinate`.
+                                    internal var coordinate: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload
+                                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit/walkingMeters`.
+                                    internal var walkingMeters: Swift.Int?
+                                    /// Creates a new `exitPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - name:
+                                    ///   - number:
+                                    ///   - coordinate:
+                                    ///   - walkingMeters:
+                                    internal init(
+                                        id: Swift.String,
+                                        name: Swift.String,
+                                        number: Swift.Int? = nil,
+                                        coordinate: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload,
+                                        walkingMeters: Swift.Int? = nil
+                                    ) {
+                                        self.id = id
+                                        self.name = name
+                                        self.number = number
+                                        self.coordinate = coordinate
+                                        self.walkingMeters = walkingMeters
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case name
+                                        case number
+                                        case coordinate
+                                        case walkingMeters
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/exit`.
+                                internal var exit: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.exitPayload?
+                                /// Creates a new `sectionsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - _type:
+                                ///   - durationSeconds:
+                                ///   - from:
+                                ///   - to:
+                                ///   - departureAt:
+                                ///   - arrivalAt:
+                                ///   - scheduledDepartureAt:
+                                ///   - scheduledArrivalAt:
+                                ///   - geometry:
+                                ///   - route:
+                                ///   - direction:
+                                ///   - platform:
+                                ///   - stops:
+                                ///   - serviceId:
+                                ///   - timingSource:
+                                ///   - departureStatus:
+                                ///   - boardingPosition:
+                                ///   - exit:
+                                internal init(
+                                    id: Swift.String? = nil,
+                                    _type: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload._typePayload,
+                                    durationSeconds: Swift.Int,
+                                    from: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.fromPayload,
+                                    to: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.toPayload,
+                                    departureAt: Foundation.Date? = nil,
+                                    arrivalAt: Foundation.Date? = nil,
+                                    scheduledDepartureAt: Foundation.Date? = nil,
+                                    scheduledArrivalAt: Foundation.Date? = nil,
+                                    geometry: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.geometryPayload,
+                                    route: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.routePayload? = nil,
+                                    direction: Swift.String? = nil,
+                                    platform: Swift.String? = nil,
+                                    stops: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.stopsPayload? = nil,
+                                    serviceId: Swift.String? = nil,
+                                    timingSource: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload? = nil,
+                                    departureStatus: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload? = nil,
+                                    boardingPosition: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload? = nil,
+                                    exit: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload.exitPayload? = nil
+                                ) {
+                                    self.id = id
+                                    self._type = _type
+                                    self.durationSeconds = durationSeconds
+                                    self.from = from
+                                    self.to = to
+                                    self.departureAt = departureAt
+                                    self.arrivalAt = arrivalAt
+                                    self.scheduledDepartureAt = scheduledDepartureAt
+                                    self.scheduledArrivalAt = scheduledArrivalAt
+                                    self.geometry = geometry
+                                    self.route = route
+                                    self.direction = direction
+                                    self.platform = platform
+                                    self.stops = stops
+                                    self.serviceId = serviceId
+                                    self.timingSource = timingSource
+                                    self.departureStatus = departureStatus
+                                    self.boardingPosition = boardingPosition
+                                    self.exit = exit
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case _type = "type"
+                                    case durationSeconds
+                                    case from
+                                    case to
+                                    case departureAt
+                                    case arrivalAt
+                                    case scheduledDepartureAt
+                                    case scheduledArrivalAt
+                                    case geometry
+                                    case route
+                                    case direction
+                                    case platform
+                                    case stops
+                                    case serviceId
+                                    case timingSource
+                                    case departureStatus
+                                    case boardingPosition
+                                    case exit
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sections`.
+                            internal typealias sectionsPayload = [Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sections`.
+                            internal var sections: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayload
+                            /// Creates a new `journeyPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - qualifier:
+                            ///   - durationSeconds:
+                            ///   - walkingDurationSeconds:
+                            ///   - transferCount:
+                            ///   - departureAt:
+                            ///   - arrivalAt:
+                            ///   - status:
+                            ///   - warnings:
+                            ///   - accessibility:
+                            ///   - peak:
+                            ///   - sections:
+                            internal init(
+                                id: Swift.String,
+                                qualifier: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.qualifierPayload,
+                                durationSeconds: Swift.Int,
+                                walkingDurationSeconds: Swift.Int,
+                                transferCount: Swift.Int,
+                                departureAt: Foundation.Date,
+                                arrivalAt: Foundation.Date,
+                                status: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.statusPayload,
+                                warnings: [Swift.String],
+                                accessibility: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.accessibilityPayload? = nil,
+                                peak: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload? = nil,
+                                sections: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayload
+                            ) {
+                                self.id = id
+                                self.qualifier = qualifier
+                                self.durationSeconds = durationSeconds
+                                self.walkingDurationSeconds = walkingDurationSeconds
+                                self.transferCount = transferCount
+                                self.departureAt = departureAt
+                                self.arrivalAt = arrivalAt
+                                self.status = status
+                                self.warnings = warnings
+                                self.accessibility = accessibility
+                                self.peak = peak
+                                self.sections = sections
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case qualifier
+                                case durationSeconds
+                                case walkingDurationSeconds
+                                case transferCount
+                                case departureAt
+                                case arrivalAt
+                                case status
+                                case warnings
+                                case accessibility
+                                case peak
+                                case sections
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey`.
+                        internal var journey: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/generatedAt`.
+                        internal var generatedAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload`.
+                        internal struct groupsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/sectionId`.
+                            internal var sectionId: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/availability`.
+                            internal enum availabilityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case ready = "ready"
+                                case unavailable = "unavailable"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/availability`.
+                            internal var availability: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.availabilityPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/source`.
+                            internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case realtime = "realtime"
+                                case theoretical = "theoretical"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/source`.
+                            internal var source: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.sourcePayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/fetchedAt`.
+                            internal var fetchedAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload`.
+                            internal struct choicesPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/scheduledAt`.
+                                internal var scheduledAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/expectedAt`.
+                                internal var expectedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case on_time = "on_time"
+                                    case delayed = "delayed"
+                                    case early = "early"
+                                    case cancelled = "cancelled"
+                                    case missed = "missed"
+                                    case arrived = "arrived"
+                                    case departed = "departed"
+                                    case no_report = "no_report"
+                                    case scheduled = "scheduled"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/status`.
+                                internal var status: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayloadPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/source`.
+                                internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case realtime = "realtime"
+                                    case theoretical = "theoretical"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/source`.
+                                internal var source: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayloadPayload.sourcePayload?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/fetchedAt`.
+                                internal var fetchedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choicesPayload/isSelected`.
+                                internal var isSelected: Swift.Bool
+                                /// Creates a new `choicesPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - scheduledAt:
+                                ///   - expectedAt:
+                                ///   - status:
+                                ///   - source:
+                                ///   - fetchedAt:
+                                ///   - isSelected:
+                                internal init(
+                                    id: Swift.String,
+                                    scheduledAt: Foundation.Date? = nil,
+                                    expectedAt: Foundation.Date? = nil,
+                                    status: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayloadPayload.statusPayload,
+                                    source: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayloadPayload.sourcePayload? = nil,
+                                    fetchedAt: Foundation.Date? = nil,
+                                    isSelected: Swift.Bool
+                                ) {
+                                    self.id = id
+                                    self.scheduledAt = scheduledAt
+                                    self.expectedAt = expectedAt
+                                    self.status = status
+                                    self.source = source
+                                    self.fetchedAt = fetchedAt
+                                    self.isSelected = isSelected
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case scheduledAt
+                                    case expectedAt
+                                    case status
+                                    case source
+                                    case fetchedAt
+                                    case isSelected
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choices`.
+                            internal typealias choicesPayload = [Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayloadPayload]
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groupsPayload/choices`.
+                            internal var choices: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayload
+                            /// Creates a new `groupsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - sectionId:
+                            ///   - availability:
+                            ///   - source:
+                            ///   - fetchedAt:
+                            ///   - choices:
+                            internal init(
+                                sectionId: Swift.String,
+                                availability: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.availabilityPayload,
+                                source: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.sourcePayload? = nil,
+                                fetchedAt: Foundation.Date? = nil,
+                                choices: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload.choicesPayload
+                            ) {
+                                self.sectionId = sectionId
+                                self.availability = availability
+                                self.source = source
+                                self.fetchedAt = fetchedAt
+                                self.choices = choices
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case sectionId
+                                case availability
+                                case source
+                                case fetchedAt
+                                case choices
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groups`.
+                        internal typealias groupsPayload = [Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/groups`.
+                        internal var groups: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayload
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - journey:
+                        ///   - generatedAt:
+                        ///   - groups:
+                        internal init(
+                            journey: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload,
+                            generatedAt: Foundation.Date,
+                            groups: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.groupsPayload
+                        ) {
+                            self.journey = journey
+                            self.generatedAt = generatedAt
+                            self.groups = groups
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case journey
+                            case generatedAt
+                            case groups
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/application\/json`.
+                    case json(Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.journeys_period_departureChoices.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.journeys_period_departureChoices.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//journeys/departure-choices/post(journeys.departureChoices)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.journeys_period_departureChoices.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.journeys_period_departureChoices.Output.Ok {
                 get throws {
                     switch self {
                     case let .ok(response):

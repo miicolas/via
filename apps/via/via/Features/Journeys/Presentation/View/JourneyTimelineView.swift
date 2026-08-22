@@ -25,6 +25,15 @@ struct JourneyTimelineView: View {
     var highlightedSectionID: String?
     /// `nil` leaves the rows non-interactive, which is what guidance wants.
     var onSelectSection: ((String) -> Void)?
+    /// `nil` on the screens that do not offer departure re-picking.
+    var departureChoices: JourneyDepartureChoicesModel?
+    /// Which sections may still be re-picked, from
+    /// `ActiveJourneyRules.revisableSectionIDs`. Precomputed by the caller
+    /// rather than asked per row: the guidance panel would otherwise re-project
+    /// progress over the whole journey once per node, on every body pass.
+    var revisableSectionIDs: Set<String> = []
+    var onSelectDeparture: ((JourneyDepartureChoice, String) -> Void)?
+    var onRetryDepartures: (() -> Void)?
 
     /// Identifier the guidance screen scrolls to when the traveller advances.
     static func currentNodeID(in journey: Journey, progress: JourneyProgress?) -> String? {
@@ -34,8 +43,9 @@ struct JourneyTimelineView: View {
     }
 
     var body: some View {
-        let nodes = JourneyTimeline.nodes(for: journey)
-        let cursor = JourneyTimeline.cursor(in: nodes, progress: mode.progress)
+        let allNodes = JourneyTimeline.nodes(for: journey)
+        let nodes = allNodes.filter(\.isTravellerInstruction)
+        let cursor = JourneyTimeline.cursor(in: allNodes, progress: mode.progress)
         let groups = nodeGroups(from: nodes)
         // Rank in the whole rail, not in the group: the cascade has to run down
         // the journey once, not restart at every leg.
@@ -56,6 +66,18 @@ struct JourneyTimelineView: View {
                             isCursorLive: mode.progress?.isLocationDerived == true,
                             isHighlighted: isSelected,
                             isExpanded: binding(for: node.sectionID),
+                            departureChoicesGroup: departureChoices?
+                                .groupsBySectionID[node.sectionID],
+                            isDepartureChoicesLoading: departureChoices?.isRefreshing == true
+                                || departureChoices?.selectingSectionID == node.sectionID,
+                            departureChoicesError: departureChoices?
+                                .errorMessage(for: node.sectionID),
+                            canSelectDepartures: revisableSectionIDs.contains(node.sectionID)
+                                && departureChoices?.selectingSectionID == nil,
+                            onSelectDeparture: onSelectDeparture.map { select in
+                                { choice in select(choice, node.sectionID) }
+                            },
+                            onRetryDepartures: onRetryDepartures,
                             onSelect: onSelectSection.map { select in { select(node.sectionID) } }
                         )
                         .id(node.id)

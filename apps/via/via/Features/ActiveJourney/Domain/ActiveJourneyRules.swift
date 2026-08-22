@@ -64,6 +64,38 @@ enum ActiveJourneyRules {
         return sections.lastIndex(where: { now >= $0.startsAt }) ?? 0
     }
 
+    /// The sections whose departure the traveller may still re-pick.
+    ///
+    /// One rule, because three surfaces asked the same question and answered it
+    /// differently: the planning screen ("is it in the future?"), the guidance
+    /// panel ("…and not behind the cursor, and not the leg I am riding"), and
+    /// the server, which decides which sections get choices at all. The
+    /// planning screen simply has no `progress`, which is why the same function
+    /// serves both.
+    ///
+    /// Riding a leg is the interesting case: swapping the train you are already
+    /// on is not a choice the traveller can act on, so it is offered only while
+    /// tracking says they are not yet aboard.
+    static func revisableSectionIDs(
+        in journey: Journey,
+        progress: JourneyProgress?,
+        isTracking: Bool,
+        at now: Date
+    ) -> Set<String> {
+        var revisable: Set<String> = []
+        for (index, section) in journey.sections.enumerated() {
+            guard let departureAt = section.departureAt, departureAt > now else { continue }
+            if let progress {
+                guard index >= progress.sectionIndex else { continue }
+                if isTracking, index == progress.sectionIndex, section.kind == .transit {
+                    continue
+                }
+            }
+            revisable.insert(section.id)
+        }
+        return revisable
+    }
+
     static func nextMonitoringDelay(in journey: Journey, at now: Date) -> TimeInterval {
         let schedule = schedule(for: journey)
         let closeToTransition = schedule.contains { section in

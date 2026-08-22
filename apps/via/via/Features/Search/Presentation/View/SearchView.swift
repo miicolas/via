@@ -326,7 +326,8 @@ struct SearchView: View {
                                 await journeyNotificationCoordinator.scheduleReminder(
                                     for: journey,
                                     destination: destination,
-                                    source: source
+                                    source: source,
+                                    planningPolicy: viewModel.wrappedValue.journeyPlanningPolicy
                                 )
                                 isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
                             }

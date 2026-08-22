@@ -179,6 +179,54 @@ final class JourneyTimelineTests: XCTestCase {
         XCTAssertNil(alighted.first ?? nil)
     }
 
+    func testDisplayedNodesHideOnlyZeroLengthMovementScaffolding() {
+        let nodes = [
+            displayNode(id: "origin", kind: .origin(name: "Opéra"), duration: 0),
+            displayNode(id: "walk:zero", kind: .walk(destination: "Opéra"), duration: 0),
+            displayNode(id: "wait:zero", kind: .wait(place: "Opéra"), duration: 0),
+            displayNode(id: "transfer:zero", kind: .transfer(destination: "Opéra"), duration: 0),
+            displayNode(id: "walk:real", kind: .walk(destination: "Quai"), duration: 60),
+            displayNode(id: "destination", kind: .destination(name: "Bastille"), duration: 0),
+        ]
+
+        let displayed = nodes.filter(\.isTravellerInstruction)
+
+        XCTAssertEqual(
+            displayed.map(\.id),
+            ["origin", "walk:real", "destination"]
+        )
+        XCTAssertEqual(nodes.count, 6, "the progress projection remains untouched")
+    }
+
+    func testBoardingPositionUsesTheThreeTrainCarSymbols() {
+        let cases: [(JourneyBoardingPosition.Zone, String)] = [
+            (.front, "train.side.front.car"),
+            (.middle, "train.side.middle.car"),
+            (.rear, "train.side.rear.car"),
+        ]
+
+        for (zone, expectedSymbol) in cases {
+            let position = JourneyBoardingPosition(
+                car: 5,
+                carCount: 8,
+                zone: zone,
+                reason: .exit,
+                equipment: nil
+            )
+            XCTAssertEqual(position.systemImage, expectedSymbol)
+            XCTAssertEqual(position.carLabel, "5/8")
+        }
+    }
+
+    func testJourneyActionSymbolsCoverEveryState() {
+        XCTAssertEqual(JourneyActivationAction.go.systemImage, "location.fill")
+        XCTAssertEqual(JourneyActivationAction.activate.systemImage, "play.fill")
+        XCTAssertEqual(JourneyActivationAction.resume.systemImage, "arrow.clockwise")
+        XCTAssertEqual(JourneyActivationAction.active.systemImage, "checkmark")
+        XCTAssertEqual(StateSymbol.bell(isOn: false), "bell")
+        XCTAssertEqual(StateSymbol.bell(isOn: true), "bell.fill")
+    }
+
     // MARK: - Fixtures
 
     private func intermediateStops(in nodes: [JourneyTimelineNode]) -> [JourneyStop] {
@@ -186,6 +234,25 @@ final class JourneyTimelineTests: XCTestCase {
             guard case .ride(let intermediate) = node.kind else { return [] }
             return intermediate
         }
+    }
+
+    private func displayNode(
+        id: String,
+        kind: JourneyTimelineNode.Kind,
+        duration: TimeInterval
+    ) -> JourneyTimelineNode {
+        JourneyTimelineNode(
+            id: id,
+            sectionID: "section:\(id)",
+            sectionIndex: 0,
+            kind: kind,
+            startsAt: referenceDate,
+            endsAt: referenceDate.addingTimeInterval(duration),
+            railAbove: .pedestrian,
+            railBelow: .pedestrian,
+            bead: .none,
+            mode: nil
+        )
     }
 
     private func makeJourney(

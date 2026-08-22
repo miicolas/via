@@ -1,7 +1,7 @@
 import { accountDeleteRelation, accountSyncRelation } from './account';
 import { departuresForStationRelation } from './departures';
 import { healthRelation } from './health';
-import { journeysPlanRelation } from './journeys';
+import { journeyDepartureChoicesRelation, journeysPlanRelation } from './journeys';
 import { lineDetailRelation, lineSearchRelation, lineStatusesRelation } from './lines';
 import { naturalJourneysSubmitRelation } from './natural-journeys';
 import { railMapRelation, stationsInAreaRelation } from './network';
@@ -31,6 +31,7 @@ export const contract = {
   health: healthRelation,
   journeys: {
     plan: journeysPlanRelation,
+    departureChoices: journeyDepartureChoicesRelation,
   },
   naturalJourneys: {
     submit: naturalJourneysSubmitRelation,

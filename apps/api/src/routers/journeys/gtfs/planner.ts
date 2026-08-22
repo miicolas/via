@@ -595,17 +595,23 @@ function toSection(leg: PlannedLeg, serviceDate: string) {
     to: { name: leg.to.stop.name, coordinate: leg.to.stop.coordinate },
     departureAt: toInstant(serviceDate, leg.from.departureSeconds),
     arrivalAt: toInstant(serviceDate, leg.to.arrivalSeconds),
+    scheduledDepartureAt: toInstant(serviceDate, leg.from.departureSeconds),
+    scheduledArrivalAt: toInstant(serviceDate, leg.to.arrivalSeconds),
     geometry,
     shapeId: leg.trip.shapeId,
     route: leg.trip.route,
     direction: leg.trip.headsign,
     stops: leg.calls.map((call) => ({
       id: call.stop.id,
+      stationId: call.stop.id,
       name: call.stop.name,
       coordinate: call.stop.coordinate,
       arrivalAt: toInstant(serviceDate, call.arrivalSeconds),
       departureAt: toInstant(serviceDate, call.departureSeconds),
     })),
+    serviceId: leg.trip.id,
+    timingSource: 'theoretical' as const,
+    departureStatus: 'scheduled' as const,
   };
 }
 

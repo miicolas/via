@@ -5,12 +5,16 @@ struct JourneyDetailView: View {
   let destination: JourneyDestination
   let source: JourneyResult.Source?
   let activeJourneyModel: ActiveJourneyModel
-  let journeyNotificationCoordinator: JourneyNotificationCoordinator
-  let prefersGoAction: Bool
+  var journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
+  let planningPolicy: JourneyPlanningPolicy
+  let departureChoicesModel: JourneyDepartureChoicesModel
+  let onSelectDeparture: (JourneyDepartureChoice, String) -> Void
+  let onRetryDepartures: () async -> Void
+  var prefersGoAction: Bool = false
   let onHighlightSection: (String?) -> Void
   let onExpandMap: () -> Void
 
-  @State private var expandedSectionIDs: Set<String>
+  @State private var expandedSectionIDs: Set<String> = []
   @State private var highlightedSectionID: String?
   @State private var isActivationExplanationPresented = false
   @State private var isActivating = false
@@ -18,49 +22,37 @@ struct JourneyDetailView: View {
 
   @Environment(\.dismiss) private var dismiss
 
-  init(
-    journey: Journey,
-    destination: JourneyDestination,
-    source: JourneyResult.Source?,
-    activeJourneyModel: ActiveJourneyModel,
-    journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
-    prefersGoAction: Bool = false,
-    onHighlightSection: @escaping (String?) -> Void,
-    onExpandMap: @escaping () -> Void
-  ) {
-    self.journey = journey
-    self.destination = destination
-    self.source = source
-    self.activeJourneyModel = activeJourneyModel
-    self.journeyNotificationCoordinator = journeyNotificationCoordinator
-    self.prefersGoAction = prefersGoAction
-    self.onHighlightSection = onHighlightSection
-    self.onExpandMap = onExpandMap
-    _expandedSectionIDs = State(initialValue: [])
-    _highlightedSectionID = State(initialValue: nil)
-  }
-
   var body: some View {
     ScrollView {
-      VStack(alignment: .leading, spacing: 28) {
+      VStack(alignment: .leading, spacing: 18) {
         JourneyDetailSummaryView(journey: journey, source: source)
 
         if !journey.warnings.isEmpty {
           JourneyWarningBanner(warnings: journey.warnings)
         }
 
-        JourneyGuidanceOverviewView(sections: journey.sections)
-
-        JourneyDetailTimelineSection(
+        JourneyTimelineView(
           journey: journey,
           expandedSectionIDs: $expandedSectionIDs,
           highlightedSectionID: highlightedSectionID,
-          onSelectSection: selectSection
+          onSelectSection: selectSection,
+          departureChoices: departureChoicesModel,
+          revisableSectionIDs: ActiveJourneyRules.revisableSectionIDs(
+            in: journey,
+            progress: nil,
+            isTracking: false,
+            at: .now
+          ),
+          onSelectDeparture: onSelectDeparture,
+          onRetryDepartures: { Task { await onRetryDepartures() } }
         )
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color.secondary.opacity(0.055), in: RoundedRectangle(cornerRadius: 22))
       }
       .padding(.horizontal, 16)
       .padding(.top, 12)
-      .padding(.bottom, 24)
+      .padding(.bottom, 16)
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .navigationTitle("Détail du trajet")
@@ -136,7 +128,8 @@ struct JourneyDetailView: View {
         await activeJourneyModel.activate(
           journey: journey,
           destination: destination,
-          source: source
+          source: source,
+          planningPolicy: planningPolicy
         )
       }
     case .resume:
@@ -164,7 +157,8 @@ struct JourneyDetailView: View {
       await journeyNotificationCoordinator.scheduleReminder(
         for: journey,
         destination: destination,
-        source: source
+        source: source,
+        planningPolicy: planningPolicy
       )
     }
 
@@ -182,6 +176,7 @@ struct JourneyDetailView: View {
         journey: journey,
         destination: destination,
         source: source,
+        planningPolicy: planningPolicy,
         allowsBackgroundTracking: allowsBackgroundTracking
       )
     }

@@ -6,6 +6,7 @@ struct JourneySummaryCard: View {
   var isSelected = false
 
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -34,6 +35,7 @@ struct JourneySummaryCard: View {
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(accessibilityLabel)
     .accessibilityAddTraits(isSelected ? .isSelected : [])
+    .animation(reduceMotion ? nil : .snappy, value: isSelected)
   }
 
   private var header: some View {
@@ -56,7 +58,7 @@ struct JourneySummaryCard: View {
       Image(systemName: isSelected ? "checkmark.circle.fill" : "chevron.right")
         .font(isSelected ? .body.weight(.semibold) : .caption.weight(.bold))
         .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
-        .contentTransition(.symbolEffect(.replace.magic(fallback: .offUp.byLayer), options: .nonRepeating))
+        .stateSymbolTransition(value: isSelected)
         .accessibilityHidden(true)
     }
   }
@@ -264,12 +266,12 @@ struct JourneySummaryCard: View {
   }
 
   private var accessibilityLabel: String {
-    var value = "\(journey.qualifier.displayName), départ à \(JourneyFormatting.time(journey.departureAt)), arrivée à \(JourneyFormatting.time(journey.arrivalAt)), \(JourneyFormatting.duration(journey.durationSeconds)), \(transferLabel)"
+    var value = "\(String(localized: journey.qualifier.displayName)), départ à \(JourneyFormatting.time(journey.departureAt)), arrivée à \(JourneyFormatting.time(journey.arrivalAt)), \(JourneyFormatting.duration(journey.durationSeconds)), \(transferLabel)"
     if journey.walkingDurationSeconds > 0 {
       value += ", \(JourneyFormatting.duration(journey.walkingDurationSeconds)) de marche"
     }
     if let serviceStatus {
-      value += ", \(serviceStatus.title)"
+      value += ", \(String(localized: serviceStatus.title))"
     }
     if let accessibility = journey.accessibility {
       value += ", \(accessibility.label)"
@@ -293,44 +295,4 @@ private struct JourneyServiceStatus {
   var title: LocalizedStringResource
   var systemImage: String
   var color: Color
-}
-
-private extension Journey.Qualifier {
-  var displayName: LocalizedStringResource {
-    switch self {
-    case .recommended: "Recommandé"
-    case .rapid: "Le plus rapide"
-    case .lessWalking: "Moins de marche"
-    case .comfort: "Le plus simple"
-    case .walking: "À pied"
-    }
-  }
-
-  var systemImage: String {
-    switch self {
-    case .recommended: "sparkles"
-    case .rapid: "hare.fill"
-    case .lessWalking: "figure.walk"
-    case .comfort: "arrow.forward"
-    case .walking: "figure.walk"
-    }
-  }
-
-  var color: Color {
-    switch self {
-    case .recommended: .accentColor
-    case .rapid: .green
-    case .lessWalking: .indigo
-    case .comfort: .cyan
-    case .walking: .secondary
-    }
-  }
-}
-
-private extension Image {
-  func routeSeparatorStyle() -> some View {
-    font(.system(size: 8, weight: .bold))
-      .foregroundStyle(.tertiary)
-      .accessibilityHidden(true)
-  }
 }

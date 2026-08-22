@@ -36,13 +36,12 @@ final class NotificationScheduleCoordinator {
         authorizationStatus = await center.notificationSettings().authorizationStatus
     }
 
+    /// Through the shared seam so the grant registers the APNs token on the
+    /// same turn rather than on the next foreground.
     func requestAuthorization() async {
-        do {
-            _ = try await center.requestAuthorization(options: [.alert, .badge, .sound])
-            await restore()
-        } catch {
-            lastError = "Les notifications n’ont pas pu être activées."
-        }
+        let granted = await NotificationAuthorization.request()
+        await restore()
+        lastError = granted ? nil : "Les notifications n’ont pas pu être activées."
     }
 
     /// A notification action can opt one local schedule out immediately. The
