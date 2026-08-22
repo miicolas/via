@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// One criterion of an interpreted journey, shown as a capsule. A `nil` action
-/// leaves it non-interactive, which is what the preserved-criteria recap wants.
-struct NaturalJourneyCriteriaChip: View {
+/// A compact glass option that can either edit a criterion or simply recap it.
+/// Active options keep the same shape while adding Via's accent tint.
+struct OptionChip: View {
     let title: String
     let systemImage: String
+    let isActive: Bool
     var action: (() -> Void)? = nil
 
     var body: some View {
@@ -15,11 +16,15 @@ struct NaturalJourneyCriteriaChip: View {
             .buttonStyle(.glass)
             .buttonBorderShape(.capsule)
             .controlSize(.large)
-            .accessibilityHint("Modifier ce critère")
+            .tint(isActive ? Color.accentColor : nil)
         } else {
             label
                 .padding(.horizontal, 14)
                 .frame(minHeight: 44)
+                .background(
+                    isActive ? Color.accentColor.opacity(0.14) : .clear,
+                    in: Capsule()
+                )
                 .glassEffect(.regular, in: .capsule)
         }
     }
@@ -27,6 +32,7 @@ struct NaturalJourneyCriteriaChip: View {
     private var label: some View {
         Label(title, systemImage: systemImage)
             .font(.subheadline.weight(.semibold))
+            .foregroundStyle(isActive ? Color.accentColor : Color.primary)
             .lineLimit(1)
     }
 }

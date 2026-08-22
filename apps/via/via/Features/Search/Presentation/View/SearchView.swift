@@ -59,9 +59,6 @@ struct SearchView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        searchFiltersMenu
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
                         Button(role: .close) {
                             onClose()
                         }
@@ -84,6 +81,12 @@ struct SearchView: View {
                     initialDate: criteria.requestedAt,
                     initialMeaning: criteria.datetimeRepresents,
                     onApply: viewModel.updateNaturalTime,
+                )
+            } else {
+                NaturalJourneyDatePickerView(
+                    initialDate: viewModel.requestedAt ?? .now,
+                    initialMeaning: viewModel.datetimeRepresents,
+                    onApply: viewModel.updateTime,
                 )
             }
         }
@@ -112,18 +115,6 @@ struct SearchView: View {
         } message: {
             Text("Cette action supprime les destinations enregistrées sur cet appareil.")
         }
-    }
-
-    private var searchFiltersMenu: some View {
-        SearchFiltersMenu(
-            filters: viewModel.filters,
-            onSetRequiresAccessibleStations: { isEnabled in
-                viewModel.setRequiresAccessibleStations(isEnabled)
-            },
-            onShowAccessibilityInfo: {
-                isAccessibilityInfoPresented = true
-            }
-        )
     }
 
     private var hasActiveJourneySurface: Bool {
@@ -185,6 +176,24 @@ struct SearchView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
 
+            if viewModel.wrappedValue.naturalJourneyCriteria == nil {
+                SearchOptionsBar(
+                    requestedAt: viewModel.wrappedValue.requestedAt,
+                    datetimeRepresents: viewModel.wrappedValue.datetimeRepresents,
+                    requiresAccessibleStations: viewModel.wrappedValue.filters.requiresAccessibleStations,
+                    onEditTime: { isNaturalDatePickerPresented = true },
+                    onToggleAccessibleStations: {
+                        viewModel.wrappedValue.setRequiresAccessibleStations(
+                            !viewModel.wrappedValue.filters.requiresAccessibleStations
+                        )
+                    },
+                    onShowAccessibilityInfo: { isAccessibilityInfoPresented = true },
+                )
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+
             if viewModel.wrappedValue.showsRecentSearches {
                 Section {
                     ForEach(viewModel.wrappedValue.recentSearches) { recent in
@@ -193,6 +202,8 @@ struct SearchView: View {
                             accessibilityHint: "Relance un trajet vers cette destination",
                         ) {
                             viewModel.wrappedValue.selectRecentSearch(recent)
+                        } onDelete: {
+                            viewModel.wrappedValue.removeRecentSearch(id: recent.id)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button("Supprimer", systemImage: "trash", role: .destructive) {
@@ -218,14 +229,15 @@ struct SearchView: View {
             }
 
             if viewModel.wrappedValue.loadState != .idle {
-                SearchResultsSection(
-                    state: viewModel.wrappedValue.loadState,
-                    results: viewModel.wrappedValue.results,
-                    onRetry: viewModel.wrappedValue.retry,
-                    onSelect: viewModel.wrappedValue.selectDestination,
-                )
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 24, trailing: 16))
-                .listRowSeparator(.hidden)
+                Section {
+                    SearchResultsSection(
+                        state: viewModel.wrappedValue.loadState,
+                        results: viewModel.wrappedValue.results,
+                        onRetry: viewModel.wrappedValue.retry,
+                        onSelect: viewModel.wrappedValue.selectDestination,
+                    )
+                }
+                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 .listRowBackground(Color.clear)
             }
         }
@@ -248,6 +260,19 @@ struct SearchView: View {
                         onEditDestination: viewModel.wrappedValue.editDestination,
                         onEditTime: { isNaturalDatePickerPresented = true },
                         onEditOptions: { isNaturalOptionsPresented = true },
+                    )
+                } else if viewModel.wrappedValue.step == .results {
+                    SearchOptionsBar(
+                        requestedAt: viewModel.wrappedValue.requestedAt,
+                        datetimeRepresents: viewModel.wrappedValue.datetimeRepresents,
+                        requiresAccessibleStations: viewModel.wrappedValue.filters.requiresAccessibleStations,
+                        onEditTime: { isNaturalDatePickerPresented = true },
+                        onToggleAccessibleStations: {
+                            viewModel.wrappedValue.setRequiresAccessibleStations(
+                                !viewModel.wrappedValue.filters.requiresAccessibleStations
+                            )
+                        },
+                        onShowAccessibilityInfo: { isAccessibilityInfoPresented = true },
                     )
                 }
 
