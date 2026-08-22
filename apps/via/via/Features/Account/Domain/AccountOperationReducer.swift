@@ -6,6 +6,11 @@ enum AccountMutation: Sendable {
     case savePlace(SavedPlace)
     case removePlace(id: String, at: Date)
     case setPreferences(TransportPreferences)
+    case setNotificationPreferences(NotificationPreferences)
+    case saveNotificationSchedule(NotificationSchedule)
+    case removeNotificationSchedule(id: String, at: Date)
+    case saveNotificationAlert(NotificationAlertSubscription)
+    case removeNotificationAlert(id: String, at: Date)
 }
 
 struct AccountMutationResult: Sendable {
@@ -93,6 +98,46 @@ enum AccountOperationReducer {
                 preferences: preferences
             )]
             favoriteIsSaved = nil
+
+        case .setNotificationPreferences(let preferences):
+            operations = [AccountSyncOperation(
+                kind: .notificationPreferencesSet,
+                occurredAt: preferences.updatedAt,
+                notificationPreferences: preferences
+            )]
+            favoriteIsSaved = nil
+
+        case .saveNotificationSchedule(let schedule):
+            operations = [AccountSyncOperation(
+                kind: .notificationScheduleUpsert,
+                occurredAt: schedule.updatedAt,
+                schedule: schedule
+            )]
+            favoriteIsSaved = nil
+
+        case .removeNotificationSchedule(let id, let date):
+            operations = [AccountSyncOperation(
+                kind: .notificationScheduleRemove,
+                occurredAt: date,
+                scheduleID: id
+            )]
+            favoriteIsSaved = nil
+
+        case .saveNotificationAlert(let alert):
+            operations = [AccountSyncOperation(
+                kind: .notificationAlertUpsert,
+                occurredAt: alert.updatedAt,
+                alertSubscription: alert
+            )]
+            favoriteIsSaved = nil
+
+        case .removeNotificationAlert(let id, let date):
+            operations = [AccountSyncOperation(
+                kind: .notificationAlertRemove,
+                occurredAt: date,
+                alertSubscriptionID: id
+            )]
+            favoriteIsSaved = nil
         }
 
         for operation in operations {
@@ -140,6 +185,39 @@ enum AccountOperationReducer {
             normalize(&snapshot)
         case .placeRemove:
             snapshot.places.removeAll { $0.id == operation.placeID }
+        case .notificationPreferencesSet:
+            if let preferences = operation.notificationPreferences,
+               preferences.updatedAt >= snapshot.notificationPreferences.updatedAt {
+                snapshot.notificationPreferences = preferences
+            }
+        case .notificationScheduleUpsert:
+            guard let schedule = operation.schedule else { return }
+            if let existing = snapshot.notificationSchedules.first(where: { $0.id == schedule.id }),
+               existing.updatedAt > schedule.updatedAt {
+                return
+            }
+            snapshot.notificationSchedules.removeAll { $0.id == schedule.id }
+            snapshot.notificationSchedules.insert(schedule, at: 0)
+            snapshot.notificationSchedules = Array(snapshot.notificationSchedules
+                .filter { $0.deletedAt == nil }
+                .sorted { $0.savedAt > $1.savedAt }
+                .prefix(20))
+        case .notificationScheduleRemove:
+            snapshot.notificationSchedules.removeAll { $0.id == operation.scheduleID }
+        case .notificationAlertUpsert:
+            guard let alert = operation.alertSubscription else { return }
+            if let existing = snapshot.notificationAlerts.first(where: { $0.id == alert.id }),
+               existing.updatedAt > alert.updatedAt {
+                return
+            }
+            snapshot.notificationAlerts.removeAll { $0.id == alert.id }
+            snapshot.notificationAlerts.insert(alert, at: 0)
+            snapshot.notificationAlerts = Array(snapshot.notificationAlerts
+                .filter { $0.deletedAt == nil }
+                .sorted { $0.savedAt > $1.savedAt }
+                .prefix(40))
+        case .notificationAlertRemove:
+            snapshot.notificationAlerts.removeAll { $0.id == operation.alertSubscriptionID }
         }
     }
 

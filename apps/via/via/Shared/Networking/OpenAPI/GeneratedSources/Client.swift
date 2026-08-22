@@ -728,6 +728,295 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// Lire le centre de notifications
+    ///
+    /// Renvoie une page de notifications persistées et le compteur non lu.
+    ///
+    /// - Remark: HTTP `GET /notifications/inbox`.
+    /// - Remark: Generated from `#/paths//notifications/inbox/get(notifications.inbox)`.
+    internal func notifications_period_inbox(_ input: Operations.notifications_period_inbox.Input) async throws -> Operations.notifications_period_inbox.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.notifications_period_inbox.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/notifications/inbox",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "cursor",
+                    value: input.query.cursor
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "limit",
+                    value: input.query.limit
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.notifications_period_inbox.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.notifications_period_inbox.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Marquer les notifications comme lues
+    ///
+    /// Marque comme lues les notifications antérieures à une date donnée.
+    ///
+    /// - Remark: HTTP `POST /notifications/inbox/read`.
+    /// - Remark: Generated from `#/paths//notifications/inbox/read/post(notifications.markInboxRead)`.
+    internal func notifications_period_markInboxRead(_ input: Operations.notifications_period_markInboxRead.Input) async throws -> Operations.notifications_period_markInboxRead.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.notifications_period_markInboxRead.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/notifications/inbox/read",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.notifications_period_markInboxRead.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.notifications_period_markInboxRead.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Reporter une notification
+    ///
+    /// Reporte une occurrence locale ou serveur jusqu’à la date fournie.
+    ///
+    /// - Remark: HTTP `POST /notifications/snooze`.
+    /// - Remark: Generated from `#/paths//notifications/snooze/post(notifications.snooze)`.
+    internal func notifications_period_snooze(_ input: Operations.notifications_period_snooze.Input) async throws -> Operations.notifications_period_snooze.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.notifications_period_snooze.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/notifications/snooze",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.notifications_period_snooze.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.notifications_period_snooze.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Mettre une notification en sourdine
+    ///
+    /// Désactive une catégorie ou un sujet depuis une notification.
+    ///
+    /// - Remark: HTTP `POST /notifications/mute`.
+    /// - Remark: Generated from `#/paths//notifications/mute/post(notifications.mute)`.
+    internal func notifications_period_mute(_ input: Operations.notifications_period_mute.Input) async throws -> Operations.notifications_period_mute.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.notifications_period_mute.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/notifications/mute",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.notifications_period_mute.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.notifications_period_mute.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
     /// État des lignes ferrées
     ///
     /// Toutes les lignes de métro, RER, Transilien et tram avec leur niveau de service, issu du flux perturbations IDFM rafraîchi côté serveur. `source` dit si le flux a répondu ; `upcoming` annonce une fermeture prévue sous sept jours.

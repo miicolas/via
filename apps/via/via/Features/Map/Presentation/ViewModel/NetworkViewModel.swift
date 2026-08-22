@@ -123,6 +123,10 @@ final class NetworkViewModel {
     }
   }
 
+  func stationMapItem(for stationID: StationID) -> StationMapItem? {
+    loadedStations.first { $0.id == stationID }
+  }
+
   private func publishSnapshot(
     for viewport: NetworkViewport,
     loading: NetworkMapLoadingState

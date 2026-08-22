@@ -13,6 +13,7 @@ struct SettingsView: View {
     /// step and the three profile questions replay in order. Owned there
     /// because that is where the flow is branched.
     let onReplayOnboarding: @MainActor () -> Void
+    let notificationInboxRemote: any NotificationInboxRemote
 
     @Environment(\.dismiss) private var dismiss
     @State private var isConfirmingOnboardingReplay = false
@@ -26,7 +27,8 @@ struct SettingsView: View {
         locationModel: LocationModel,
         pushNotificationManager: PushNotificationManager = .preview,
         journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
-        onReplayOnboarding: @escaping @MainActor () -> Void = {}
+        onReplayOnboarding: @escaping @MainActor () -> Void = {},
+        notificationInboxRemote: any NotificationInboxRemote = NoOpNotificationInboxRemote()
     ) {
         self.accountModel = accountModel
         self.favoriteRoutesModel = favoriteRoutesModel
@@ -37,6 +39,7 @@ struct SettingsView: View {
         self.pushNotificationManager = pushNotificationManager
         self.journeyNotificationCoordinator = journeyNotificationCoordinator
         self.onReplayOnboarding = onReplayOnboarding
+        self.notificationInboxRemote = notificationInboxRemote
     }
 
     var body: some View {
@@ -81,14 +84,17 @@ struct SettingsView: View {
                     }
 
                     NavigationLink {
-                        JourneyNotificationsSettingsView(
-                            coordinator: journeyNotificationCoordinator
+                        NotificationSettingsView(
+                            accountModel: accountModel,
+                            coordinator: .shared,
+                            inboxRemote: notificationInboxRemote,
+                            journeyNotificationCoordinator: journeyNotificationCoordinator
                         )
                     } label: {
                         SettingsRow(
-                            title: "Rappels de trajet",
+                            title: "Notifications",
                             systemImage: "bell.badge.fill",
-                            subtitle: "Départ, correspondances et arrivée"
+                            subtitle: "Alertes, rappels et lignes suivies"
                         )
                     }
 

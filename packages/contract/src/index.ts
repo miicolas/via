@@ -13,6 +13,10 @@ import {
   notificationsUnregisterActivityRelation,
   notificationsUnregisterActiveJourneyRelation,
   notificationsUnregisterDeviceRelation,
+  notificationsInboxRelation,
+  notificationsMarkInboxReadRelation,
+  notificationsSnoozeRelation,
+  notificationsMuteRelation,
 } from './notifications';
 import { searchQueryRelation } from './search';
 
@@ -39,6 +43,10 @@ export const contract = {
     registerPushToStart: notificationsRegisterPushToStartRelation,
     registerActiveJourney: notificationsRegisterActiveJourneyRelation,
     unregisterActiveJourney: notificationsUnregisterActiveJourneyRelation,
+    inbox: notificationsInboxRelation,
+    markInboxRead: notificationsMarkInboxReadRelation,
+    snooze: notificationsSnoozeRelation,
+    mute: notificationsMuteRelation,
   },
   lines: {
     statuses: lineStatusesRelation,

@@ -57,6 +57,26 @@ struct StationDetailView: View {
           if !isCollapsed {
             ToolbarItem(placement: .bottomBar) {
               Button {
+                selection.toggleNotificationFollow()
+              } label: {
+                Image(systemName: selection.isNotificationFollowed ? "bell.fill" : "bell")
+              }
+              .contentTransition(
+                reduceMotion
+                  ? .identity
+                  : .symbolEffect(
+                    .replace.magic(fallback: .offUp.byLayer),
+                    options: .nonRepeating
+                  )
+              )
+              .tint(selection.isNotificationFollowed ? .orange : .primary)
+              .accessibilityLabel("Suivre la station")
+              .accessibilityValue(selection.isNotificationFollowed ? "Activé" : "Désactivé")
+              .accessibilityHint("Active ou désactive les alertes de perturbation de cette station.")
+            }
+
+            ToolbarItem(placement: .bottomBar) {
+              Button {
                 selection.toggleFavorite()
               } label: {
                 Image(systemName: selection.isFavorite ? "star.fill" : "star")

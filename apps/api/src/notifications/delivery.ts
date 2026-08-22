@@ -42,6 +42,8 @@ export interface NotificationDelivery {
     target: NotificationDeviceTarget,
     notification: DeviceNotification,
   ): Promise<void>;
+  /** Fan-out is keyed by account, so one occurrence produces one inbox row. */
+  sendToUser?(userId: string, notification: DeviceNotification): Promise<void>;
 }
 
 export function createNotificationDelivery(options: {
@@ -97,6 +99,31 @@ export function createNotificationDelivery(options: {
         target.environment,
         notification,
       );
+    },
+
+    async sendToUser(userId, notification) {
+      if (!options.tokens.listDevices) {
+        throw new Error("The token store cannot list devices for a user.");
+      }
+      const devices = await options.tokens.listDevices(userId);
+      const failures: unknown[] = [];
+      await Promise.all(
+        devices.map(async (device) => {
+          try {
+            await sendDevice(
+              device.deviceToken,
+              device.bundleId,
+              device.environment,
+              notification,
+            );
+          } catch (error) {
+            failures.push(error);
+          }
+        }),
+      );
+      if (failures.length > 0) {
+        throw new AggregateError(failures, "Notification fan-out failed.");
+      }
     },
   };
 }

@@ -27,6 +27,7 @@ struct MapShellView: View {
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
     /// Replays the first run from the root, offered inside Réglages.
     let onReplayOnboarding: @MainActor () -> Void
+    let notificationInboxRemote: any NotificationInboxRemote
 
     @State private var showTabSheet: Bool = true
     @State private var activeTab: MapShellTab = .stations
@@ -60,7 +61,8 @@ struct MapShellView: View {
         profileModel: ProfileModel,
         pushNotificationManager: PushNotificationManager = .preview,
         journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
-        onReplayOnboarding: @escaping @MainActor () -> Void = {}
+        onReplayOnboarding: @escaping @MainActor () -> Void = {},
+        notificationInboxRemote: any NotificationInboxRemote = NoOpNotificationInboxRemote()
     ) {
         self.networkViewModel = networkViewModel
         self.stationsViewModel = stationsViewModel
@@ -77,6 +79,7 @@ struct MapShellView: View {
         self.pushNotificationManager = pushNotificationManager
         self.journeyNotificationCoordinator = journeyNotificationCoordinator
         self.onReplayOnboarding = onReplayOnboarding
+        self.notificationInboxRemote = notificationInboxRemote
     }
 
     var body: some View {
@@ -236,10 +239,33 @@ struct MapShellView: View {
     }
 
     private func route(_ url: URL) {
-        guard url.scheme == "via", url.host == "journey" else { return }
+        guard url.scheme == "via", let host = url.host else { return }
+        if host == "notifications" {
+            presentAccountSheet(.notifications)
+            return
+        }
+
         let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        if host == "line" {
+            guard let routeID = queryItems.first(where: { $0.name == "routeId" })?.value else { return }
+            activeTab = .lines
+            linesViewModel.requestRoute(RouteID(rawValue: routeID))
+            return
+        }
+        if host == "station" {
+            guard let stationID = queryItems.first(where: { $0.name == "stationId" })?.value else { return }
+            activeTab = .stations
+            if let item = networkViewModel.stationMapItem(for: StationID(rawValue: stationID)) {
+                selectedStationModel.select(item)
+            }
+            return
+        }
+        guard host == "journey" else { return }
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
         let journeyID = queryItems
             .first(where: { $0.name == "journeyId" })?.value
+            .map(JourneyID.init(rawValue:))
+            ?? pathComponents.first
             .map(JourneyID.init(rawValue:))
         let mode = queryItems.first(where: { $0.name == "mode" })?.value
 
@@ -312,7 +338,7 @@ struct MapShellView: View {
             }
 
             Tab(value: .lines) {
-                LinesView(viewModel: linesViewModel)
+                LinesView(viewModel: linesViewModel, accountModel: accountModel)
                     .sheetTabBarVisibility()
             } label: {
                 MapShellTab.lines.tabLabel
@@ -356,7 +382,19 @@ struct MapShellView: View {
                     locationModel: locationModel,
                     pushNotificationManager: pushNotificationManager,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
-                    onReplayOnboarding: onReplayOnboarding
+                    onReplayOnboarding: onReplayOnboarding,
+                    notificationInboxRemote: notificationInboxRemote
+                )
+                .detailSheetPresentation(
+                    isLargeScreen: isLargeScreen,
+                    selection: $accountSheetDetent
+                )
+            case .notifications:
+                NotificationSettingsView(
+                    accountModel: accountModel,
+                    coordinator: .shared,
+                    inboxRemote: notificationInboxRemote,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator
                 )
                 .detailSheetPresentation(
                     isLargeScreen: isLargeScreen,

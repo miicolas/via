@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 
 import {
   db,
+  jobDb,
   notificationDevices,
   notificationJourneySubscriptions,
 } from "@via/db";
@@ -151,6 +152,7 @@ export async function setNotificationSubscriptionVersionWhenIdle(
 
 export function createDatabaseNotificationJourneySubscriptionStore(
   redis: RedisClient,
+  database: typeof db = jobDb,
 ): NotificationJourneySubscriptionStore {
   return {
     async register(userId, input) {
@@ -169,7 +171,7 @@ export function createDatabaseNotificationJourneySubscriptionStore(
       ];
       const startsAt = new Date(input.startsAt);
       const endsAt = new Date(input.endsAt);
-      const now = await db.transaction(async (transaction) => {
+      const now = await database.transaction(async (transaction) => {
         await transaction.execute(
           sql`select pg_advisory_xact_lock(hashtext(${input.installationId}))`,
         );
@@ -218,7 +220,7 @@ export function createDatabaseNotificationJourneySubscriptionStore(
     },
 
     async unregister(userId, input) {
-      const removed = await db.transaction(async (transaction) => {
+      const removed = await database.transaction(async (transaction) => {
         await transaction.execute(
           sql`select pg_advisory_xact_lock(hashtext(${input.installationId}))`,
         );
@@ -256,7 +258,7 @@ export function createDatabaseNotificationJourneySubscriptionStore(
     },
 
     async listActiveBatch(now, afterInstallationId, limit, shard) {
-      const rows = await db
+      const rows = await database
         .select({
           installationId: notificationJourneySubscriptions.installationId,
           userId: notificationJourneySubscriptions.userId,
@@ -319,7 +321,7 @@ export function createDatabaseNotificationJourneySubscriptionStore(
 
     async filterCurrentBatch(recipients) {
       if (recipients.length === 0) return [];
-      const current = await db
+      const current = await database
         .select({
           installationId: notificationJourneySubscriptions.installationId,
           journeyId: notificationJourneySubscriptions.journeyId,
@@ -374,7 +376,7 @@ export function createDatabaseNotificationJourneySubscriptionStore(
     },
 
     async deleteExpiredBatch(now, limit) {
-      const expired = db
+      const expired = database
         .select({
           installationId: notificationJourneySubscriptions.installationId,
         })
@@ -382,7 +384,7 @@ export function createDatabaseNotificationJourneySubscriptionStore(
         .where(lte(notificationJourneySubscriptions.endsAt, now))
         .orderBy(asc(notificationJourneySubscriptions.endsAt))
         .limit(limit);
-      const deleted = await db
+      const deleted = await database
         .delete(notificationJourneySubscriptions)
         .where(
           inArray(notificationJourneySubscriptions.installationId, expired),

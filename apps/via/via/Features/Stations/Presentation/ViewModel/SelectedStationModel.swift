@@ -34,6 +34,11 @@ final class SelectedStationModel {
     return account.isFavorite(stationID: overview.id)
   }
 
+  var isNotificationFollowed: Bool {
+    guard let overview else { return false }
+    return account.isFollowingNotification(topicKind: .station, topicID: overview.id.rawValue)
+  }
+
   /// Opens a station whose current overview is already available, such as
   /// the nearest station displayed in the stations tab.
   func select(_ overview: StationOverview) {
@@ -78,6 +83,16 @@ final class SelectedStationModel {
       stationID: overview.id,
       name: overview.name,
       coordinate: overview.coordinate
+    )
+  }
+
+  @discardableResult
+  func toggleNotificationFollow() -> Bool {
+    guard let overview else { return false }
+    return account.toggleNotificationAlert(
+      topicKind: .station,
+      topicID: overview.id.rawValue,
+      label: overview.name
     )
   }
 

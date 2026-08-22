@@ -27,6 +27,12 @@ protocol PushNotificationRemote: Sendable {
     func unregisterDevice(installationID: String) async throws
     func registerActiveJourney(_ registration: PushActiveJourneyRegistration) async throws
     func unregisterActiveJourney(installationID: String, journeyID: String) async throws
+    func mute(scope: NotificationMuteScope, key: String, until: Date?) async throws
+}
+
+enum NotificationMuteScope: String, Sendable, Hashable {
+    case category
+    case topic
 }
 
 struct LivePushNotificationRemote: PushNotificationRemote {
@@ -106,6 +112,22 @@ struct LivePushNotificationRemote: PushNotificationRemote {
         }
     }
 
+    func mute(scope: NotificationMuteScope, key: String, until: Date?) async throws {
+        try await transport.perform("notifications_mute") { client in
+            let payload = Operations.notifications_period_mute.Input.Body.jsonPayload(
+                scope: scope == .category ? .category : .topic,
+                key: key,
+                mutedUntil: until
+            )
+            switch try await client.notifications_period_mute(.init(body: .json(payload))) {
+            case .ok:
+                return
+            case .undocumented(let statusCode, _):
+                throw APITransport.error(for: statusCode)
+            }
+        }
+    }
+
     private func deviceEnvironment(
         for value: APNsEnvironment
     ) -> Operations.notifications_period_registerDevice.Input.Body.jsonPayload.environmentPayload {
@@ -122,4 +144,9 @@ struct NoOpPushNotificationRemote: PushNotificationRemote {
     func unregisterDevice(installationID: String) async throws {}
     func registerActiveJourney(_ registration: PushActiveJourneyRegistration) async throws {}
     func unregisterActiveJourney(installationID: String, journeyID: String) async throws {}
+    func mute(scope: NotificationMuteScope, key: String, until: Date?) async throws {}
+}
+
+extension PushNotificationRemote {
+    func mute(scope: NotificationMuteScope, key: String, until: Date?) async throws {}
 }

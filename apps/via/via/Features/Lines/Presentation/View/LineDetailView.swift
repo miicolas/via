@@ -5,10 +5,16 @@ struct LineDetailView: View {
 
     @State private var viewModel: LineDetailViewModel
     private let route: RouteBadge
+    private let accountModel: AccountModel?
 
-    init(viewModel: LineDetailViewModel, route: RouteBadge) {
+    init(
+        viewModel: LineDetailViewModel,
+        route: RouteBadge,
+        accountModel: AccountModel? = nil
+    ) {
         _viewModel = State(initialValue: viewModel)
         self.route = route
+        self.accountModel = accountModel
     }
 
     var body: some View {
@@ -49,6 +55,38 @@ struct LineDetailView: View {
         .task { await viewModel.runAutomaticRefresh() }
         .navigationTitle("\(route.mode.displayName) \(route.shortName)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let accountModel {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        accountModel.toggleNotificationAlert(
+                            topicKind: .line,
+                            topicID: route.id.rawValue,
+                            label: "\(route.mode.displayName) \(route.shortName)"
+                        )
+                    } label: {
+                        Image(systemName: accountModel.isFollowingNotification(
+                            topicKind: .line,
+                            topicID: route.id.rawValue
+                        ) ? "bell.fill" : "bell")
+                    }
+                    .labelStyle(.iconOnly)
+                    .contentTransition(
+                        reduceMotion
+                            ? .identity
+                            : .symbolEffect(
+                                .replace.magic(fallback: .offUp.byLayer),
+                                options: .nonRepeating
+                            )
+                    )
+                    .accessibilityLabel("Suivre la ligne")
+                    .accessibilityValue(accountModel.isFollowingNotification(
+                        topicKind: .line,
+                        topicID: route.id.rawValue
+                    ) ? "Activé" : "Désactivé")
+                }
+            }
+        }
         .overlay {
             if case .loading(nil) = viewModel.detail {
                 SkeletonGate(isLoading: true) {

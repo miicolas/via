@@ -39,6 +39,12 @@ export function parisDayType(instant: Date): ParisDayType {
   return 'weekday';
 }
 
+/** ISO-date weekday on the Paris civil calendar (Sunday = 0, like Date). */
+export function parisWeekday(instant: Date): 0 | 1 | 2 | 3 | 4 | 5 | 6 {
+  const date = parisDate(instant);
+  return new Date(`${date}T00:00:00Z`).getUTCDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+}
+
 /** Meeus/Gauss computus for Gregorian Easter Sunday. */
 function easterSunday(year: number): string {
   const a = year % 19;
