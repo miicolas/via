@@ -130,10 +130,14 @@ const envSchema = z.object({
     .default("1000")
     .transform(Number)
     .pipe(z.number().int().min(0)),
-  /** Per-person burst protection before a journey may spend the global quota. */
+  /**
+   * Per-person burst protection before a journey may spend the global quota.
+   * One departure-choices request fans out into several planner calls, so the
+   * ceiling meters IDFM calls, not user actions — keep it well above 20.
+   */
   PRIM_JOURNEYS_PERSONAL_LIMIT: z
     .string()
-    .default("20")
+    .default("100")
     .transform(Number)
     .pipe(z.number().int().min(1)),
   PRIM_JOURNEYS_PERSONAL_WINDOW_SECONDS: z

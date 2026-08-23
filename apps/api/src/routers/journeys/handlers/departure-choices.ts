@@ -11,7 +11,7 @@ export function createDepartureChoicesHandler(module: JourneyDepartureChoicesMod
     context.resHeaders?.set('Cache-Control', 'private, no-store');
     try {
       return await module.resolve(input, {
-        identity: context.userId ?? 'anonymous',
+        identity: context.userId ?? context.requestIPHash?.() ?? 'anonymous',
         signal,
       });
     } catch (error) {
