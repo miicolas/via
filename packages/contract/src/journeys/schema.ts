@@ -196,8 +196,30 @@ export const journeySchema = z.object({
       ratio: z.number().min(0).max(1),
       /** `off` is omitted from journeys; a badge only exists for a warning. */
       level: z.enum(['moderate', 'peak']),
+      /** Canonical station id, so a live report can supersede this annotation. */
+      stationId: z.string().optional(),
       stationName: z.string(),
       label: z.string(),
+    })
+    .optional(),
+  /** A recent community observation, applied after the stable planner cache. */
+  reportedCrowding: z
+    .object({
+      level: z.enum(['low', 'moderate', 'high', 'saturated']),
+      stationName: z.string(),
+      label: z.string(),
+      reporterCount: z.number().int().positive(),
+      expiresAt: z.iso.datetime({ offset: true }),
+    })
+    .optional(),
+  /** A live PMR warning; one report warns, two distinct reports can exclude. */
+  wheelchairReport: z
+    .object({
+      stationName: z.string(),
+      label: z.string(),
+      reporterCount: z.number().int().positive(),
+      confidence: z.enum(['observed', 'confirmed']),
+      expiresAt: z.iso.datetime({ offset: true }),
     })
     .optional(),
   sections: z.array(journeySectionSchema).min(1),

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  type AnyPgColumn,
   date,
   doublePrecision,
   foreignKey,
@@ -525,6 +526,102 @@ export const users = pgTable('users', {
   preferencesUpdatedAt: timestamp('preferences_updated_at', { withTimezone: true }),
 });
 
+export const REPORT_CATEGORIES = [
+  'pickpocket',
+  'crowding',
+  'restroomsClosed',
+  'ticketMachinesUnavailable',
+  'wheelchairAccessUnavailable',
+  'elevatorsUnavailable',
+  'escalatorUnavailable',
+  'validatorsUnavailable',
+  'entranceOrExitClosed',
+  'stopRelocated',
+  'stopNotServed',
+  'passengerInformationUnavailable',
+  'passageObstructed',
+] as const;
+export const REPORT_VALUES = [
+  'occurrence',
+  'resolved',
+  'low',
+  'moderate',
+  'high',
+  'saturated',
+] as const;
+export const REPORT_SCOPE_KINDS = ['station', 'line', 'vehicle'] as const;
+
+/**
+ * The CHECK mirrors the column enum, built from the same list so a new
+ * category can never be accepted by one and rejected by the other.
+ */
+function oneOf(column: AnyPgColumn, values: readonly string[]) {
+  // Raw, not bound: a CHECK is stored as text, and these come from our own lists.
+  return sql`${column} IN (${sql.raw(values.map((value) => `'${value}'`).join(', '))})`;
+}
+
+/**
+ * One current voice per person and report subject. `stationId` deliberately
+ * has no foreign key: the GTFS importer replaces `transit_stops`, and a
+ * network refresh must never cascade into community observations.
+ */
+export const reportCurrentVotes = pgTable(
+  'report_current_votes',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    stationId: text('station_id').notNull(),
+    category: text('category', { enum: REPORT_CATEGORIES }).notNull(),
+    scopeKind: text('scope_kind', { enum: REPORT_SCOPE_KINDS }).notNull(),
+    scopeId: text('scope_id').notNull(),
+    value: text('value', { enum: REPORT_VALUES }).notNull(),
+    observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.userId, table.stationId, table.category, table.scopeKind, table.scopeId],
+    }),
+    index('report_current_votes_station_observed_idx').on(
+      table.stationId,
+      table.observedAt
+    ),
+    check('report_current_votes_category_check', oneOf(table.category, REPORT_CATEGORIES)),
+    check('report_current_votes_scope_kind_check', oneOf(table.scopeKind, REPORT_SCOPE_KINDS)),
+    check('report_current_votes_value_check', oneOf(table.value, REPORT_VALUES)),
+  ]
+);
+
+/** Accepted idempotent submissions retained for seven days for abuse review. */
+export const reportEvents = pgTable(
+  'report_events',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    stationId: text('station_id').notNull(),
+    category: text('category', { enum: REPORT_CATEGORIES }).notNull(),
+    scopeKind: text('scope_kind', { enum: REPORT_SCOPE_KINDS }).notNull(),
+    scopeId: text('scope_id').notNull(),
+    value: text('value', { enum: REPORT_VALUES }).notNull(),
+    lineId: text('line_id'),
+    journeyId: text('journey_id'),
+    vehicleId: text('vehicle_id'),
+    observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('report_events_station_observed_idx').on(table.stationId, table.observedAt),
+    index('report_events_created_idx').on(table.createdAt),
+    index('report_events_user_created_idx').on(table.userId, table.createdAt),
+    check('report_events_category_check', oneOf(table.category, REPORT_CATEGORIES)),
+    check('report_events_scope_kind_check', oneOf(table.scopeKind, REPORT_SCOPE_KINDS)),
+    check('report_events_value_check', oneOf(table.value, REPORT_VALUES)),
+  ]
+);
+
 export const sessions = pgTable(
   'sessions',
   {
@@ -626,6 +723,7 @@ export const accountPlaces = pgTable(
     context: text('context'),
     latitude: doublePrecision('latitude').notNull(),
     longitude: doublePrecision('longitude').notNull(),
+    systemImage: text('system_image').notNull(),
     savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
@@ -633,6 +731,36 @@ export const accountPlaces = pgTable(
     primaryKey({ columns: [table.userId, table.id] }),
     index('account_places_user_role_idx').on(table.userId, table.role),
     check('account_places_role_check', sql`${table.role} IN ('home', 'work')`),
+  ]
+);
+
+export const accountSavedDestinations = pgTable(
+  'account_saved_destinations',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    id: text('id').notNull(),
+    destinationId: text('destination_id').notNull(),
+    kind: text('kind', { enum: ['station', 'address'] }).notNull(),
+    name: text('name').notNull(),
+    context: text('context'),
+    latitude: doublePrecision('latitude').notNull(),
+    longitude: doublePrecision('longitude').notNull(),
+    label: text('label').notNull(),
+    systemImage: text('system_image').notNull(),
+    position: integer('position').notNull(),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
+    uniqueIndex('account_saved_destinations_user_destination_idx').on(
+      table.userId,
+      table.destinationId
+    ),
+    index('account_saved_destinations_user_position_idx').on(table.userId, table.position),
+    check('account_saved_destinations_position_check', sql`${table.position} >= 0`),
   ]
 );
 
@@ -974,3 +1102,5 @@ export type NotificationAlertSubscription = typeof notificationAlertSubscription
 export type NotificationOccurrence = typeof notificationOccurrences.$inferSelect;
 export type NotificationInboxItem = typeof notificationInbox.$inferSelect;
 export type NotificationMute = typeof notificationMutes.$inferSelect;
+export type ReportCurrentVote = typeof reportCurrentVotes.$inferSelect;
+export type ReportEvent = typeof reportEvents.$inferSelect;

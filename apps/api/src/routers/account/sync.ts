@@ -1,9 +1,10 @@
-import { and, desc, eq, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 import {
   accountFavoriteStations,
   accountPlaces,
   accountRecentSearches,
+  accountSavedDestinations,
   accountSyncOperations,
   db,
   NETWORK_MODES,
@@ -15,6 +16,7 @@ import {
 } from '@via/db';
 import {
   ACCOUNT_FAVORITE_LIMIT,
+  ACCOUNT_SAVED_DESTINATION_LIMIT,
   NOTIFICATION_ALERT_LIMIT,
   NOTIFICATION_SCHEDULE_LIMIT,
   ACCOUNT_RECENT_LIMIT,
@@ -144,6 +146,14 @@ export async function synchronizeAccount(
         case 'place.upsert': {
           if (!operation.place) break;
           const place = operation.place;
+          await transaction
+            .delete(accountSavedDestinations)
+            .where(
+              and(
+                eq(accountSavedDestinations.userId, userId),
+                eq(accountSavedDestinations.destinationId, place.id)
+              )
+            );
           // Home and work are unique per user: reassigning the role evicts
           // the previous holder, last writer wins on `updatedAt`.
           await transaction
@@ -167,6 +177,8 @@ export async function synchronizeAccount(
               context: place.context ?? null,
               latitude: place.coordinate.latitude,
               longitude: place.coordinate.longitude,
+              systemImage:
+                place.systemImage ?? (place.role === 'home' ? 'house.fill' : 'briefcase.fill'),
               savedAt: new Date(place.savedAt),
               updatedAt: new Date(place.updatedAt),
             })
@@ -179,6 +191,8 @@ export async function synchronizeAccount(
                 context: place.context ?? null,
                 latitude: place.coordinate.latitude,
                 longitude: place.coordinate.longitude,
+                systemImage:
+                  place.systemImage ?? (place.role === 'home' ? 'house.fill' : 'briefcase.fill'),
                 savedAt: new Date(place.savedAt),
                 updatedAt: new Date(place.updatedAt),
               },
@@ -186,6 +200,103 @@ export async function synchronizeAccount(
             });
           break;
         }
+
+        case 'destination.upsert': {
+          if (!operation.destination) break;
+          const destination = operation.destination;
+          const pinned = await transaction
+            .select({ id: accountPlaces.id })
+            .from(accountPlaces)
+            .where(
+              and(
+                eq(accountPlaces.userId, userId),
+                eq(accountPlaces.id, destination.destinationId)
+              )
+            )
+            .limit(1);
+          if (pinned.length > 0) break;
+
+          const duplicate = await transaction
+            .select({
+              id: accountSavedDestinations.id,
+              updatedAt: accountSavedDestinations.updatedAt,
+            })
+            .from(accountSavedDestinations)
+            .where(
+              and(
+                eq(accountSavedDestinations.userId, userId),
+                eq(accountSavedDestinations.destinationId, destination.destinationId),
+                ne(accountSavedDestinations.id, destination.id)
+              )
+            )
+            .limit(1);
+          if (duplicate[0]?.updatedAt && duplicate[0].updatedAt > new Date(destination.updatedAt)) {
+            break;
+          }
+          if (duplicate[0]) {
+            await transaction
+              .delete(accountSavedDestinations)
+              .where(
+                and(
+                  eq(accountSavedDestinations.userId, userId),
+                  eq(accountSavedDestinations.id, duplicate[0].id)
+                )
+              );
+          }
+
+          await transaction
+            .insert(accountSavedDestinations)
+            .values({
+              userId,
+              id: destination.id,
+              destinationId: destination.destinationId,
+              kind: destination.kind,
+              name: destination.name,
+              context: destination.context ?? null,
+              latitude: destination.coordinate.latitude,
+              longitude: destination.coordinate.longitude,
+              label: destination.label,
+              systemImage: destination.systemImage,
+              position: destination.position,
+              savedAt: new Date(destination.savedAt),
+              updatedAt: new Date(destination.updatedAt),
+            })
+            .onConflictDoUpdate({
+              target: [accountSavedDestinations.userId, accountSavedDestinations.id],
+              set: {
+                destinationId: destination.destinationId,
+                kind: destination.kind,
+                name: destination.name,
+                context: destination.context ?? null,
+                latitude: destination.coordinate.latitude,
+                longitude: destination.coordinate.longitude,
+                label: destination.label,
+                systemImage: destination.systemImage,
+                position: destination.position,
+                savedAt: new Date(destination.savedAt),
+                updatedAt: new Date(destination.updatedAt),
+              },
+              setWhere: lte(
+                accountSavedDestinations.updatedAt,
+                new Date(destination.updatedAt)
+              ),
+            });
+          break;
+        }
+
+        case 'destination.remove':
+          if (operation.destinationId) {
+            await transaction
+              .delete(accountSavedDestinations)
+              .where(
+                and(
+                  eq(accountSavedDestinations.userId, userId),
+                  eq(accountSavedDestinations.id, operation.destinationId),
+                  lte(accountSavedDestinations.updatedAt, new Date(operation.occurredAt))
+                )
+              );
+          }
+          break;
 
         case 'place.remove':
           if (operation.placeId) {
@@ -412,6 +523,13 @@ export async function synchronizeAccount(
       limit: ACCOUNT_RECENT_LIMIT,
     });
     await trimOldest(transaction, userId, {
+      table: accountSavedDestinations,
+      idColumn: accountSavedDestinations.id,
+      savedAtColumn: accountSavedDestinations.savedAt,
+      userIdColumn: accountSavedDestinations.userId,
+      limit: ACCOUNT_SAVED_DESTINATION_LIMIT,
+    });
+    await trimOldest(transaction, userId, {
       table: notificationSchedules,
       idColumn: notificationSchedules.id,
       savedAtColumn: notificationSchedules.savedAt,
@@ -447,7 +565,7 @@ export async function synchronizeAccount(
     `);
   });
 
-  const [favorites, recents, places, preferences, storedNotificationPreferences, schedules, alerts] = await Promise.all([
+  const [favorites, recents, places, destinations, preferences, storedNotificationPreferences, schedules, alerts] = await Promise.all([
     db
       .select()
       .from(accountFavoriteStations)
@@ -463,6 +581,11 @@ export async function synchronizeAccount(
       .from(accountPlaces)
       .where(eq(accountPlaces.userId, userId))
       .orderBy(desc(accountPlaces.savedAt)),
+    db
+      .select()
+      .from(accountSavedDestinations)
+      .where(eq(accountSavedDestinations.userId, userId))
+      .orderBy(asc(accountSavedDestinations.position), asc(accountSavedDestinations.id)),
     db
       .select({
         preferredModes: users.preferredModes,
@@ -546,8 +669,22 @@ export async function synchronizeAccount(
       context: place.context ?? undefined,
       coordinate: { latitude: place.latitude, longitude: place.longitude },
       role: place.role,
+      systemImage: place.systemImage,
       savedAt: place.savedAt.toISOString(),
       updatedAt: place.updatedAt.toISOString(),
+    })),
+    destinations: destinations.map((destination) => ({
+      id: destination.id,
+      destinationId: destination.destinationId,
+      kind: destination.kind,
+      name: destination.name,
+      context: destination.context ?? undefined,
+      coordinate: { latitude: destination.latitude, longitude: destination.longitude },
+      label: destination.label,
+      systemImage: destination.systemImage,
+      position: destination.position,
+      savedAt: destination.savedAt.toISOString(),
+      updatedAt: destination.updatedAt.toISOString(),
     })),
     preferences: {
       preferredModes: parseModes(storedPreferences?.preferredModes),

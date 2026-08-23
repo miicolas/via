@@ -19,6 +19,7 @@ import {
   notificationsMuteRelation,
 } from './notifications';
 import { searchQueryRelation } from './search';
+import { reportSubmitRelation, stationStatusRelation } from './reports/relation';
 
 export const contract = {
   account: {
@@ -61,6 +62,10 @@ export const contract = {
   search: {
     query: searchQueryRelation,
   },
+  reports: {
+    submit: reportSubmitRelation,
+    stationStatus: stationStatusRelation,
+  },
 };
 
 export * from './account';
@@ -79,4 +84,6 @@ export * from './network/schema';
 export * from './network/type';
 export * from './search/schema';
 export * from './search/type';
+export * from './reports/schema';
+export * from './reports/type';
 export * from './shared';

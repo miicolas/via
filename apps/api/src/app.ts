@@ -18,6 +18,8 @@ import { requireAuth } from './auth/session';
 import { redis } from './redis';
 import { transitNetworkCacheVersion } from './routers/departures/network-version';
 import { versionedPayloadCache } from './http/versioned-payload-cache';
+import { requestIPHash } from './http/ip-identity';
+import { env } from './env';
 
 const app = new Hono<AppEnv>();
 
@@ -67,6 +69,8 @@ function mount(handler: FetchHandler<ApiContext>, prefix: '/api' | '/rpc') {
       context: {
         userId: authSession?.user.id,
         isAnonymous: authSession?.user.isAnonymous ?? undefined,
+        // Lazy: only a procedure that needs to tell callers apart pays the HMAC.
+        requestIPHash: () => requestIPHash(c.req.raw, env.BETTER_AUTH_SECRET),
       },
     });
 
