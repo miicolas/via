@@ -28,6 +28,8 @@ const rows: StationInAreaRow[] = [
     latitude: '48.8765' as unknown as number,
     accessibilityCondition: 'autonomous',
     accessibilityDetail: null,
+    toiletStopId: 'IDFM:10001',
+    toiletDetail: 'Accès gratuit · Accessible PMR',
     routes: [BUS_38, BUS_47],
   },
   {
@@ -37,6 +39,8 @@ const rows: StationInAreaRow[] = [
     latitude: 48.8778 as number,
     accessibilityCondition: null,
     accessibilityDetail: null,
+    toiletStopId: null,
+    toiletDetail: null,
     routes: [BUS_38],
   },
 ];
@@ -53,6 +57,10 @@ describe('toStationsInArea', () => {
       accessibility: {
         condition: 'autonomous',
         label: 'En autonomie',
+      },
+      toilets: {
+        label: 'Sanitaires disponibles',
+        detail: 'Accès gratuit · Accessible PMR',
       },
     });
   });

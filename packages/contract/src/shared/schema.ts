@@ -36,6 +36,32 @@ export const accessibilityConditionSchema = z.enum([
   'autonomous',
 ]);
 
+export const elevatorStatusSchema = z.enum(['available', 'notavailable', 'unknown']);
+export const elevatorReasonSchema = z.enum([
+  'liftFailure',
+  'closedForMaintenance',
+  'undefinedEquipmentProblem',
+]);
+
+export const sourceSnapshotStatusSchema = z.object({
+  status: z.enum(['ok', 'unavailable']),
+  sourceUpdatedAt: z.iso.datetime({ offset: true }).optional(),
+  importedAt: z.iso.datetime({ offset: true }).optional(),
+});
+
+export const stationElevatorSchema = z.object({
+  id: z.string(),
+  status: elevatorStatusSchema,
+  reason: elevatorReasonSchema.optional(),
+  situation: z.string().optional(),
+  direction: z.string().optional(),
+  updatedAt: z.iso.datetime({ offset: true }).optional(),
+});
+
+export const stationElevatorSnapshotSchema = sourceSnapshotStatusSchema.extend({
+  items: z.array(stationElevatorSchema),
+});
+
 /** Boolean values arrive as `"true"`/`"false"` in a GET query string. */
 export const queryBooleanSchema = z.preprocess(
   (value) => {

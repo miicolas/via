@@ -246,6 +246,20 @@
       "when": 1787480259050,
       "tag": "0034_cultured_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1787510452199,
+      "tag": "0035_goofy_firebird",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1787517185995,
+      "tag": "0036_great_phil_sheldon",
+      "breakpoints": true
     }
   ]
 }

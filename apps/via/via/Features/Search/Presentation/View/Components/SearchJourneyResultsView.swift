@@ -47,6 +47,8 @@ struct SearchJourneyResultsView: View {
     case .unavailable:
       if result?.reason == .accessibilityDataUnavailable {
         stateContent(.accessibilityUnavailable, actionTitle: "Réessayer")
+      } else if result?.reason == .elevatorDataUnavailable {
+        stateContent(.elevatorDataUnavailable, actionTitle: "Réessayer")
       } else {
         stateContent(
           .offline(
@@ -127,6 +129,8 @@ struct SearchJourneyResultsView: View {
   private func noRouteContent(result: JourneyResult?) -> some View {
     if result?.reason == .noAccessibleRoute {
       stateContent(.noAccessibleRoute, actionTitle: "Réessayer")
+    } else if result?.reason == .noOperationalElevatorRoute {
+      stateContent(.noOperationalElevatorRoute, actionTitle: "Réessayer")
     } else {
       EmptyStateView(
         EmptyState(

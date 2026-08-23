@@ -67,6 +67,8 @@
 	</array>
 	<key>VIA_API_BASE_URL</key>
 	<string>$(VIA_API_BASE_URL)</string>
+	<key>VIA_API_CLIENT_KEY</key>
+	<string>$(VIA_API_CLIENT_KEY)</string>
 	<key>VIA_APNS_ENVIRONMENT</key>
 	<string>$(VIA_APNS_ENVIRONMENT)</string>
 </dict>

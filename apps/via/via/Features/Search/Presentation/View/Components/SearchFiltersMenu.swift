@@ -4,6 +4,7 @@ import SwiftUI
 struct SearchFiltersMenu: View {
     let filters: SearchFilters
     let onSetRequiresAccessibleStations: @MainActor (Bool) -> Void
+    let onSetRequiresOperationalElevators: @MainActor (Bool) -> Void
     let onShowAccessibilityInfo: @MainActor () -> Void
 
     var body: some View {
@@ -18,6 +19,17 @@ struct SearchFiltersMenu: View {
                     .labelStyle(.iconOnly)
             }
             .accessibilityLabel("PMR")
+
+            Toggle(
+                isOn: Binding(
+                    get: { filters.requiresOperationalElevators },
+                    set: onSetRequiresOperationalElevators
+                )
+            ) {
+                Label("Ascenseurs", systemImage: "arrow.up.arrow.down.square")
+                    .labelStyle(.iconOnly)
+            }
+            .accessibilityLabel("Ascenseurs opérationnels")
 
             Divider()
 

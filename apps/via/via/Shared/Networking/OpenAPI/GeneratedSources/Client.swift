@@ -399,6 +399,13 @@ internal struct Client: APIProtocol {
                     in: &request,
                     style: .form,
                     explode: true,
+                    name: "requiresOperationalElevators",
+                    value: input.query.requiresOperationalElevators
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
                     name: "originStationId",
                     value: input.query.originStationId
                 )

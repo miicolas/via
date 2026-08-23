@@ -8,9 +8,11 @@ struct JourneySheetView: View {
     let journeyID: JourneyID
     let searchViewModel: SearchViewModel
     let activeJourneyModel: ActiveJourneyModel
+    let plannedJourneyDraftModel: PlannedJourneyDraftModel
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
     let departureChoicesRepository: any JourneyDepartureChoicesRepository
     let scheduledReminder: ScheduledJourneyReminder?
+    let isPlannedJourney: Bool
     var isLargeScreen: Bool
     @Binding var detent: PresentationDetent
     let onExpandMap: () -> Void
@@ -30,9 +32,11 @@ struct JourneySheetView: View {
         journeyID: JourneyID,
         searchViewModel: SearchViewModel,
         activeJourneyModel: ActiveJourneyModel,
+        plannedJourneyDraftModel: PlannedJourneyDraftModel,
         journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
         departureChoicesRepository: any JourneyDepartureChoicesRepository = InMemoryJourneyDepartureChoicesRepository.unavailable,
         scheduledReminder: ScheduledJourneyReminder? = nil,
+        isPlannedJourney: Bool = false,
         isLargeScreen: Bool,
         detent: Binding<PresentationDetent>,
         onExpandMap: @escaping () -> Void,
@@ -41,9 +45,11 @@ struct JourneySheetView: View {
         self.journeyID = journeyID
         self.searchViewModel = searchViewModel
         self.activeJourneyModel = activeJourneyModel
+        self.plannedJourneyDraftModel = plannedJourneyDraftModel
         self.journeyNotificationCoordinator = journeyNotificationCoordinator
         self.departureChoicesRepository = departureChoicesRepository
         self.scheduledReminder = scheduledReminder
+        self.isPlannedJourney = isPlannedJourney
         self.isLargeScreen = isLargeScreen
         _detent = detent
         _departureChoicesModel = State(
@@ -62,12 +68,16 @@ struct JourneySheetView: View {
                         destination: resolved.destination,
                         source: resolved.source,
                         activeJourneyModel: activeJourneyModel,
+                        plannedJourneyDraftModel: plannedJourneyDraftModel,
                         journeyNotificationCoordinator: journeyNotificationCoordinator,
                         planningPolicy: resolved.policy,
                         departureChoicesModel: departureChoicesModel,
                         onSelectDeparture: selectDeparture,
                         onRetryDepartures: refreshDepartureChoices,
-                        prefersGoAction: scheduledReminder != nil,
+                        prefersGoAction: scheduledReminder != nil || isPlannedJourney,
+                        prefersPlanAction: scheduledReminder == nil
+                            && !isPlannedJourney
+                            && !searchViewModel.selectedDeparture.isCurrentLocation,
                         onHighlightSection: searchViewModel.highlightJourneySection,
                         onExpandMap: onExpandMap,
                     )
@@ -146,6 +156,9 @@ struct JourneySheetView: View {
         source: JourneyResult.Source?,
         policy: JourneyPlanningPolicy
     )? {
+        if let session = activeJourneyModel.session, session.journey.id == journeyID {
+            return (session.journey, session.destination, session.source, session.planningPolicy)
+        }
         if scheduledReminder != nil,
            let scheduledReminder = journeyNotificationCoordinator.reminder(for: journeyID) {
             return (
@@ -155,8 +168,10 @@ struct JourneySheetView: View {
                 scheduledReminder.planningPolicy
             )
         }
-        if let session = activeJourneyModel.session, session.journey.id == journeyID {
-            return (session.journey, session.destination, session.source, session.planningPolicy)
+        if isPlannedJourney,
+           let draft = plannedJourneyDraftModel.draft,
+           draft.journey.id == journeyID {
+            return (draft.journey, draft.destination, draft.source, draft.planningPolicy)
         }
         if let journey = searchViewModel.journeyResult?.journeys.first(where: { $0.id == journeyID }),
            let destination = searchViewModel.journeyDestination {
@@ -192,7 +207,6 @@ struct JourneySheetView: View {
                 departureChoicesModel: departureChoicesModel,
                 onSelectDeparture: selectDeparture,
                 onRetryDepartures: refreshDepartureChoices,
-                onOpenReport: onOpenReport,
             )
         }
     }
@@ -227,6 +241,8 @@ struct JourneySheetView: View {
     private func applyRevision(_ journey: Journey) async {
         if activeJourneyModel.session?.journey.id == journey.id {
             await activeJourneyModel.applyDepartureRevision(journey)
+        } else if plannedJourneyDraftModel.draft?.journey.id == journey.id {
+            await plannedJourneyDraftModel.applyJourneyRevision(journey)
         } else {
             searchViewModel.replaceJourney(journey)
             await journeyNotificationCoordinator.applyJourneyRevision(journey)

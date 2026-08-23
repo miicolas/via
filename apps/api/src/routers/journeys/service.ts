@@ -12,11 +12,12 @@ import {
 } from './accessibility';
 import { annotatePeakJourneys } from './peak';
 import { annotateWayfinding } from './wayfinding';
+import { applyOperationalElevatorConstraint } from './elevators';
 
 type PlannedJourneys = {
   status: 'ready' | 'no-route' | 'unavailable';
   journeys: Journey[];
-  reason?: 'no-accessible-route' | 'accessibility-data-unavailable';
+  reason?: JourneysResponse['reason'];
 };
 
 export type IdfmJourneyPlanner = {
@@ -94,6 +95,7 @@ export function createJourneyPlanner({
         excludedModes: input.excludedModes,
         preferredModes: input.preferredModes,
         requiresAccessibleStations: input.requiresAccessibleStations,
+        requiresOperationalElevators: input.requiresOperationalElevators,
         originStationId: input.originStationId,
         dayType: parisDayType(requestedAt),
         hour: Math.floor(parisDay(requestedAt).seconds / 3600),
@@ -185,10 +187,14 @@ export function createJourneyPlanner({
 
       const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
         const { value, ttlSeconds } = await planned();
+        const constrained = await applyOperationalElevatorConstraint(value, input);
         return {
           value: {
-            ...value,
-            journeys: await annotateWayfinding(value.journeys, input.destination.coordinate),
+            ...constrained,
+            journeys: await annotateWayfinding(
+              constrained.journeys,
+              input.destination.coordinate
+            ),
           },
           ttlSeconds,
         };

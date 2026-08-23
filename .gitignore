@@ -18,6 +18,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# Shared client key for the API, per developer and never committed.
+apps/via/Configuration/Secrets.xcconfig
+
 # local env files
 .env
 .env*.local

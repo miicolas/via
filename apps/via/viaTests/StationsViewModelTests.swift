@@ -64,6 +64,33 @@ final class StationsViewModelTests: XCTestCase {
         XCTAssertLessThan(candidate?.distanceMeters ?? .greatestFiniteMagnitude, 100)
     }
 
+    func testOverviewCarriesStationToiletsIntoTheDetailModel() {
+        let route = route(id: "metro-14", shortName: "14", mode: .metro)
+        let toilets = StationToilets(
+            label: "Sanitaires disponibles",
+            detail: "Accès gratuit · Accessible PMR"
+        )
+        let candidate = StationCandidate(
+            station: NetworkStation(
+                id: StationID(rawValue: "station"),
+                name: "Station",
+                coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
+                routeIDs: [route.id],
+                toilets: toilets
+            ),
+            routes: [route],
+            distanceMeters: 50
+        )
+
+        let overview = StationOverviewBuilder.makeOverview(
+            from: candidate,
+            board: DepartureBoard(source: .unavailable, generatedAt: nil, groups: []),
+            now: Date(timeIntervalSince1970: 1_000_000)
+        )
+
+        XCTAssertEqual(overview.toilets, toilets)
+    }
+
     func testNextDeparturesKeepsTheEarliestFutureGroupPerRouteAndDestination() {
         let now = Date(timeIntervalSince1970: 1_000_000)
         let routeA = route(id: "a", shortName: "1", mode: .metro)

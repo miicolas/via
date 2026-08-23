@@ -18,20 +18,28 @@ struct NetworkStation: Sendable, Hashable, Identifiable {
     let coordinate: GeoCoordinate
     let routeIDs: [RouteID]
     let accessibility: StationAccessibility?
+    let toilets: StationToilets?
 
     init(
         id: StationID,
         name: String,
         coordinate: GeoCoordinate,
         routeIDs: [RouteID],
-        accessibility: StationAccessibility? = nil
+        accessibility: StationAccessibility? = nil,
+        toilets: StationToilets? = nil
     ) {
         self.id = id
         self.name = name
         self.coordinate = coordinate
         self.routeIDs = routeIDs
         self.accessibility = accessibility
+        self.toilets = toilets
     }
+}
+
+struct StationToilets: Sendable, Hashable, Codable {
+    let label: String
+    let detail: String?
 }
 
 struct TransitNetwork: Sendable, Hashable {

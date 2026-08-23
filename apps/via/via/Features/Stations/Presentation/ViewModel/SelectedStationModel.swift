@@ -60,6 +60,7 @@ final class SelectedStationModel {
       coordinate: item.coordinate,
       routes: item.routes,
       accessibility: item.accessibility,
+      toilets: item.toilets,
       distanceMeters: locationModel.coordinate.map {
         item.coordinate.metersAway(from: $0)
       },
@@ -211,6 +212,7 @@ final class SelectedStationModel {
           coordinate: initialOverview.coordinate,
           routes: initialOverview.routes,
           accessibility: initialOverview.accessibility,
+          toilets: initialOverview.toilets,
           distanceMeters: initialOverview.distanceMeters,
           departures: StationOverviewBuilder.nextDepartures(
             from: board,
@@ -219,7 +221,8 @@ final class SelectedStationModel {
           ),
           departureSource: board.source,
           departureFetchedAt: board.fetchedAt,
-          peak: board.peak
+          peak: board.peak,
+          elevators: board.elevators
         )
         loadingState = .loaded
       } catch is CancellationError {

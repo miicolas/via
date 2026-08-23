@@ -5,6 +5,7 @@ import {
   transitRoutes,
   transitStopRoutes,
   transitStops,
+  type AccessibilityStationFactCondition,
 } from '@via/db/schema';
 import { and, asc, eq, sql } from 'drizzle-orm';
 
@@ -52,7 +53,7 @@ export function selectMatchingStations(
         'color', ${transitRoutes.color},
         'textColor', ${transitRoutes.textColor}
       ))`,
-      accessibilityCondition: stationFacts.condition,
+      accessibilityCondition: sql<AccessibilityStationFactCondition | null>`${stationFacts.condition}`,
       accessibilityDetail: stationFacts.detail,
     })
     .from(transitStops)

@@ -7,10 +7,12 @@ import UIKit
 struct SearchView: View {
   let viewModel: SearchViewModel
   let activeJourneyModel: ActiveJourneyModel
+  let plannedJourneyDraftModel: PlannedJourneyDraftModel
   let journeyNotificationCoordinator: JourneyNotificationCoordinator
   let onClose: () -> Void
   let onInspectJourney: (Journey) -> Void
   let onShowActiveJourney: () -> Void
+  let onShowPlannedJourney: () -> Void
   let isSelectingSavedDestination: Bool
   let onSelectSavedDestination: (SearchResult) -> Void
   let isSavedDestination: (SearchResult) -> Bool
@@ -31,10 +33,12 @@ struct SearchView: View {
   init(
     viewModel: SearchViewModel,
     activeJourneyModel: ActiveJourneyModel,
+    plannedJourneyDraftModel: PlannedJourneyDraftModel = PlannedJourneyDraftModel(),
     journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
     onClose: @escaping () -> Void = {},
     onInspectJourney: @escaping (Journey) -> Void = { _ in },
     onShowActiveJourney: @escaping () -> Void = {},
+    onShowPlannedJourney: @escaping () -> Void = {},
     isSelectingSavedDestination: Bool = false,
     onSelectSavedDestination: @escaping (SearchResult) -> Void = { _ in },
     isSavedDestination: @escaping (SearchResult) -> Bool = { _ in false },
@@ -43,10 +47,12 @@ struct SearchView: View {
   ) {
     self.viewModel = viewModel
     self.activeJourneyModel = activeJourneyModel
+    self.plannedJourneyDraftModel = plannedJourneyDraftModel
     self.journeyNotificationCoordinator = journeyNotificationCoordinator
     self.onClose = onClose
     self.onInspectJourney = onInspectJourney
     self.onShowActiveJourney = onShowActiveJourney
+    self.onShowPlannedJourney = onShowPlannedJourney
     self.isSelectingSavedDestination = isSelectingSavedDestination
     self.onSelectSavedDestination = onSelectSavedDestination
     self.isSavedDestination = isSavedDestination
@@ -72,6 +78,7 @@ struct SearchView: View {
             }
           }
           activeJourneyToolbarItem
+          plannedJourneyToolbarItem
           if viewModel.canResetSearch {
             ToolbarItem(placement: .topBarTrailing) {
               Button("Nouvelle recherche", systemImage: "arrow.counterclockwise") {
@@ -124,7 +131,10 @@ struct SearchView: View {
       }
     }
     .sheet(isPresented: $isAccessibilityInfoPresented) {
-      SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
+      SearchAccessibilityInfoView(
+        source: viewModel.accessibilitySource,
+        elevatorSource: viewModel.elevatorSource
+      )
     }
     .confirmationDialog(
       "Effacer les recherches récentes ?",
@@ -165,6 +175,21 @@ struct SearchView: View {
         Button("Trajet actif", systemImage: "location.fill") {
           onShowActiveJourney()
         }
+        .labelStyle(.iconOnly)
+        .accessibilityHint("Ouvre le guidage du trajet actif")
+      }
+    }
+  }
+
+  @ToolbarContentBuilder
+  private var plannedJourneyToolbarItem: some ToolbarContent {
+    if plannedJourneyDraftModel.draft != nil {
+      ToolbarItem(placement: .topBarLeading) {
+        Button("Trajet prévu", systemImage: "calendar.badge.clock") {
+          onShowPlannedJourney()
+        }
+        .labelStyle(.iconOnly)
+        .accessibilityHint("Ouvre le brouillon prêt à être lancé")
       }
     }
   }
@@ -222,10 +247,16 @@ struct SearchView: View {
           requestedAt: viewModel.wrappedValue.requestedAt,
           datetimeRepresents: viewModel.wrappedValue.datetimeRepresents,
           requiresAccessibleStations: viewModel.wrappedValue.filters.requiresAccessibleStations,
+          requiresOperationalElevators: viewModel.wrappedValue.filters.requiresOperationalElevators,
           onEditTime: { isNaturalDatePickerPresented = true },
           onToggleAccessibleStations: {
             viewModel.wrappedValue.setRequiresAccessibleStations(
               !viewModel.wrappedValue.filters.requiresAccessibleStations
+            )
+          },
+          onToggleOperationalElevators: {
+            viewModel.wrappedValue.setRequiresOperationalElevators(
+              !viewModel.wrappedValue.filters.requiresOperationalElevators
             )
           },
           onShowAccessibilityInfo: { isAccessibilityInfoPresented = true },
@@ -309,10 +340,16 @@ struct SearchView: View {
             requestedAt: viewModel.wrappedValue.requestedAt,
             datetimeRepresents: viewModel.wrappedValue.datetimeRepresents,
             requiresAccessibleStations: viewModel.wrappedValue.filters.requiresAccessibleStations,
+            requiresOperationalElevators: viewModel.wrappedValue.filters.requiresOperationalElevators,
             onEditTime: { isNaturalDatePickerPresented = true },
             onToggleAccessibleStations: {
               viewModel.wrappedValue.setRequiresAccessibleStations(
                 !viewModel.wrappedValue.filters.requiresAccessibleStations
+              )
+            },
+            onToggleOperationalElevators: {
+              viewModel.wrappedValue.setRequiresOperationalElevators(
+                !viewModel.wrappedValue.filters.requiresOperationalElevators
               )
             },
             onShowAccessibilityInfo: { isAccessibilityInfoPresented = true },

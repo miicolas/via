@@ -30,6 +30,12 @@ export function toStationsInArea(rows: StationInAreaRow[]): StationsInArea {
               comment: row.accessibilityDetail ?? undefined,
             } }
           : {}),
+        ...(row.toiletStopId
+          ? { toilets: {
+              label: 'Sanitaires disponibles',
+              detail: row.toiletDetail ?? undefined,
+            } }
+          : {}),
       };
     }),
     routes: [...badgeRows.values()].map(toRouteBadge),

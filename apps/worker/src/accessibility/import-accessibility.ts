@@ -2,7 +2,7 @@ import { db } from '@via/db';
 import {
   stationFacts,
   transitStops,
-  type StationFactCondition,
+  type AccessibilityStationFactCondition,
 } from '@via/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 
@@ -21,7 +21,7 @@ type AccessibilityRow = {
   commentaire?: unknown;
 };
 
-const CONDITION_BY_LEVEL = new Map<number, StationFactCondition>([
+const CONDITION_BY_LEVEL = new Map<number, AccessibilityStationFactCondition>([
   [3, 'reservationRequired'],
   [4, 'staffAssistance'],
   [6, 'autonomous'],

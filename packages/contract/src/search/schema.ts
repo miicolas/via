@@ -1,6 +1,11 @@
 import * as z from 'zod';
 
-import { accessibilityConditionSchema, coordinateSchema, routeBadgeSchema } from '../shared/schema';
+import {
+  accessibilityConditionSchema,
+  coordinateSchema,
+  routeBadgeSchema,
+  sourceSnapshotStatusSchema,
+} from '../shared/schema';
 
 export const searchInputSchema = z
   .object({
@@ -68,5 +73,6 @@ export const searchResponseSchema = z.object({
       sourceUpdatedAt: z.iso.datetime({ offset: true }).optional(),
       importedAt: z.iso.datetime({ offset: true }).optional(),
     }),
+    elevators: sourceSnapshotStatusSchema,
   }),
 });

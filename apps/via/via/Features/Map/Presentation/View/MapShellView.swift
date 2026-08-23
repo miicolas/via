@@ -17,6 +17,7 @@ struct MapShellView: View {
   let selectedStationModel: SelectedStationModel
   let searchViewModel: SearchViewModel
   let activeJourneyModel: ActiveJourneyModel
+  let plannedJourneyDraftModel: PlannedJourneyDraftModel
   let reportViewModel: ReportViewModel
   let locationModel: LocationModel
   let accountModel: AccountModel
@@ -50,6 +51,7 @@ struct MapShellView: View {
   @State private var savedDestinationSelectionContext: SavedDestinationSelectionContext?
   @State private var savedDestinationDraft: SavedDestinationDraft?
   @State private var returnsToPreviousTabAfterSavingDestination = false
+  @State private var isPlannedJourneyLaunchPresented = false
 
   init(
     networkViewModel: NetworkViewModel,
@@ -58,6 +60,7 @@ struct MapShellView: View {
     selectedStationModel: SelectedStationModel,
     searchViewModel: SearchViewModel,
     activeJourneyModel: ActiveJourneyModel,
+    plannedJourneyDraftModel: PlannedJourneyDraftModel,
     reportViewModel: ReportViewModel,
     locationModel: LocationModel,
     accountModel: AccountModel,
@@ -77,6 +80,7 @@ struct MapShellView: View {
     self.selectedStationModel = selectedStationModel
     self.searchViewModel = searchViewModel
     self.activeJourneyModel = activeJourneyModel
+    self.plannedJourneyDraftModel = plannedJourneyDraftModel
     self.reportViewModel = reportViewModel
     self.locationModel = locationModel
     self.accountModel = accountModel
@@ -438,13 +442,22 @@ struct MapShellView: View {
   /// Only worth showing once the sheet is out of the way: with the sheet open,
   /// the guidance header says the same thing and the two overlap.
   private var isActiveJourneyCompactVisible: Bool {
-    activeJourneyModel.isActive
+    (activeJourneyModel.isActive || plannedJourneyDraftModel.draft != nil)
       && !searchViewModel.isNaturalSearchPresented
       && activeDetent == collapsedDetent
   }
 
-  private var activeJourneyCompact: some View {
-    ActiveJourneyCompactStrip(model: activeJourneyModel, action: showActiveJourney)
+  @ViewBuilder
+  private var journeyCompact: some View {
+    if activeJourneyModel.isActive {
+      ActiveJourneyCompactStrip(model: activeJourneyModel, action: showActiveJourney)
+    } else if let draft = plannedJourneyDraftModel.draft {
+      PlannedJourneyDraftCompactView(
+        draft: draft,
+        onOpen: showPlannedJourney,
+        onLaunch: { isPlannedJourneyLaunchPresented = true }
+      )
+    }
   }
 
   @ViewBuilder
@@ -457,9 +470,9 @@ struct MapShellView: View {
         || reportViewModel.isPresentingAnotherSheet || accountSheetDestination != nil
         || searchSheetDestination != nil || savedDestinationDraft != nil,
       hidesTabBar: searchViewModel.isNaturalSearchPresented,
-      reservesCompactSpace: activeJourneyModel.isActive,
+      reservesCompactSpace: activeJourneyModel.isActive || plannedJourneyDraftModel.draft != nil,
       isCompactVisible: isActiveJourneyCompactVisible,
-      compactContent: { activeJourneyCompact }
+      compactContent: { journeyCompact }
     ) {
       Tab(value: .stations) {
         StationsView(
@@ -507,6 +520,7 @@ struct MapShellView: View {
         SearchView(
           viewModel: searchViewModel,
           activeJourneyModel: activeJourneyModel,
+          plannedJourneyDraftModel: plannedJourneyDraftModel,
           journeyNotificationCoordinator: journeyNotificationCoordinator,
           onClose: closeSearch,
           onInspectJourney: { journey in
@@ -514,6 +528,7 @@ struct MapShellView: View {
             searchSheetDestination = .journey(journey.id)
           },
           onShowActiveJourney: showActiveJourney,
+          onShowPlannedJourney: showPlannedJourney,
           isSelectingSavedDestination: savedDestinationSelectionContext != nil,
           onSelectSavedDestination: selectSavedDestinationResult,
           isSavedDestination: { result in
@@ -602,8 +617,26 @@ struct MapShellView: View {
           journeyID: journeyID,
           searchViewModel: searchViewModel,
           activeJourneyModel: activeJourneyModel,
+          plannedJourneyDraftModel: plannedJourneyDraftModel,
           journeyNotificationCoordinator: journeyNotificationCoordinator,
           departureChoicesRepository: journeyDepartureChoicesRepository,
+          isLargeScreen: isLargeScreen,
+          detent: $journeySheetDetent,
+          onExpandMap: { journeySheetDetent = journeyPeekDetent },
+          onOpenReport: {
+            searchSheetDestination = nil
+            activeTab = .report
+          }
+        )
+      case .plannedJourney(let journeyID):
+        JourneySheetView(
+          journeyID: journeyID,
+          searchViewModel: searchViewModel,
+          activeJourneyModel: activeJourneyModel,
+          plannedJourneyDraftModel: plannedJourneyDraftModel,
+          journeyNotificationCoordinator: journeyNotificationCoordinator,
+          departureChoicesRepository: journeyDepartureChoicesRepository,
+          isPlannedJourney: true,
           isLargeScreen: isLargeScreen,
           detent: $journeySheetDetent,
           onExpandMap: { journeySheetDetent = journeyPeekDetent },
@@ -617,6 +650,7 @@ struct MapShellView: View {
           journeyID: journeyID,
           searchViewModel: searchViewModel,
           activeJourneyModel: activeJourneyModel,
+          plannedJourneyDraftModel: plannedJourneyDraftModel,
           journeyNotificationCoordinator: journeyNotificationCoordinator,
           departureChoicesRepository: journeyDepartureChoicesRepository,
           scheduledReminder: journeyNotificationCoordinator.reminder(for: journeyID),
@@ -649,18 +683,28 @@ struct MapShellView: View {
       reduceMotion ? nil : .snappy(duration: 0.3, extraBounce: 0),
       value: searchViewModel.isNaturalSearchPresented
     )
+    .journeyTrackingAlert(isPresented: $isPlannedJourneyLaunchPresented) {
+      launchPlannedJourney(allowsBackgroundTracking: $0)
+    }
   }
 
   private var isJourneySheetUp: Bool {
     switch searchSheetDestination {
-    case .journey, .scheduledJourney: true
+    case .journey, .plannedJourney, .scheduledJourney: true
     default: false
     }
   }
 
   private var displayedJourneyPresentation: JourneyMapPresentation? {
     activeJourneyModel.mapPresentation
+      ?? plannedJourneyPresentation
       ?? ((activeTab == .search || isJourneySheetUp) ? searchViewModel.mapPresentation : nil)
+  }
+
+  private var plannedJourneyPresentation: JourneyMapPresentation? {
+    guard case .plannedJourney = searchSheetDestination,
+          let journey = plannedJourneyDraftModel.draft?.journey else { return nil }
+    return JourneyMapPresentation(journey: journey)
   }
 
   private var displayedHighlightedSectionID: String? {
@@ -693,6 +737,22 @@ struct MapShellView: View {
     }
   }
 
+  private func showPlannedJourney() {
+    guard let journeyID = plannedJourneyDraftModel.draft?.journey.id else { return }
+    activeTab = .search
+    journeySheetDetent = expandedDetent
+    searchSheetDestination = .plannedJourney(journeyID)
+  }
+
+  private func launchPlannedJourney(allowsBackgroundTracking: Bool) {
+    Task {
+      await plannedJourneyDraftModel.launch(
+        using: activeJourneyModel,
+        allowsBackgroundTracking: allowsBackgroundTracking
+      )
+    }
+  }
+
   /// The journey sheet's own peek: taller while guidance runs, where it hosts
   /// the compact strip rather than the squashed panel.
   private var journeyPeekDetent: PresentationDetent {
@@ -700,7 +760,9 @@ struct MapShellView: View {
   }
 
   private var collapsedDetent: PresentationDetent {
-    SheetTabDetents.collapsed(hasCompactContent: activeJourneyModel.isActive)
+    SheetTabDetents.collapsed(
+      hasCompactContent: activeJourneyModel.isActive || plannedJourneyDraftModel.draft != nil
+    )
   }
 
   private var guidanceDetent: PresentationDetent {
@@ -752,6 +814,7 @@ struct MapShellView: View {
       locationModel: locationModel,
       journeyRepository: InMemoryJourneyRepository(result: .mapPreview)
     ),
+    plannedJourneyDraftModel: PlannedJourneyDraftModel(),
     reportViewModel: ReportViewModel(
       contextResolver: ReportContextResolver(
         locationModel: locationModel,

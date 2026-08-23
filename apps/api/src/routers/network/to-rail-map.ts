@@ -70,6 +70,12 @@ function toStations(
             comment: station.accessibilityDetail ?? undefined,
           } }
         : {}),
+      ...(station.toiletStopId
+        ? { toilets: {
+            label: 'Sanitaires disponibles',
+            detail: station.toiletDetail ?? undefined,
+          } }
+        : {}),
     };
   });
 }

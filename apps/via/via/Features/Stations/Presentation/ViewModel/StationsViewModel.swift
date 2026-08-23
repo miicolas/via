@@ -62,6 +62,7 @@ enum StationOverviewBuilder {
             coordinate: candidate.station.coordinate,
             routes: candidate.routes,
             accessibility: candidate.station.accessibility,
+            toilets: candidate.station.toilets,
             distanceMeters: candidate.distanceMeters,
             departures: nextDepartures(
                 from: board,
@@ -70,7 +71,8 @@ enum StationOverviewBuilder {
             ),
             departureSource: board.source,
             departureFetchedAt: board.fetchedAt,
-            peak: board.peak
+            peak: board.peak,
+            elevators: board.elevators
         )
     }
 

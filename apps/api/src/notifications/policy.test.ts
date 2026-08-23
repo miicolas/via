@@ -3,6 +3,16 @@ import { expect, test } from 'bun:test';
 import { defaultNotificationPreferences } from './preferences';
 import { evaluateDelivery } from './policy';
 
+test('legacy in-app master switch no longer disables delivery', () => {
+  const preferences = defaultNotificationPreferences();
+  preferences.enabled = false;
+
+  expect(evaluateDelivery({
+    preferences,
+    category: 'journey',
+  })).toEqual({ send: true, interruptionLevel: 'active' });
+});
+
 test('disabled categories win before their daily cap', () => {
   const preferences = defaultNotificationPreferences(new Date('2026-08-21T10:00:00Z'));
   preferences.categories = preferences.categories.map((category) =>

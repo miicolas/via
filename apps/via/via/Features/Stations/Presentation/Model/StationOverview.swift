@@ -46,11 +46,13 @@ struct StationOverview: Sendable, Hashable, Identifiable {
     let coordinate: GeoCoordinate
     let routes: [RouteBadge]
     let accessibility: StationAccessibility?
+    let toilets: StationToilets?
     let distanceMeters: Double?
     let departures: [StationDeparture]
     let departureSource: DepartureBoard.Source
     let departureFetchedAt: Date?
     let peak: StationPeak?
+    let elevators: StationElevatorSnapshot
 
     init(
         id: StationID,
@@ -58,22 +60,26 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         coordinate: GeoCoordinate,
         routes: [RouteBadge],
         accessibility: StationAccessibility? = nil,
+        toilets: StationToilets? = nil,
         distanceMeters: Double?,
         departures: [StationDeparture],
         departureSource: DepartureBoard.Source,
         departureFetchedAt: Date? = nil,
-        peak: StationPeak? = nil
+        peak: StationPeak? = nil,
+        elevators: StationElevatorSnapshot = .unavailable
     ) {
         self.id = id
         self.name = name
         self.coordinate = coordinate
         self.routes = routes
         self.accessibility = accessibility
+        self.toilets = toilets
         self.distanceMeters = distanceMeters
         self.departures = departures
         self.departureSource = departureSource
         self.departureFetchedAt = departureFetchedAt
         self.peak = peak
+        self.elevators = elevators
     }
 
     var primaryMode: TransitMode {
@@ -146,6 +152,10 @@ extension StationOverview {
                 condition: .autonomous,
                 label: "En autonomie",
                 comment: nil
+            ),
+            toilets: StationToilets(
+                label: "Sanitaires disponibles",
+                detail: "Accès gratuit · Accessible PMR\nÀ proximité de la sortie 3."
             ),
             distanceMeters: 250,
             departures: [
