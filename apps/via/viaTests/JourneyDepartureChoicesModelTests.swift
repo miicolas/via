@@ -6,11 +6,25 @@ final class JourneyDepartureChoicesModelTests: XCTestCase {
     func testSelectionAppliesCompleteRevisionOnlyAfterSuccess() async {
         let current = JourneyResult.mapPreview.journeys[0]
         let revised = revisedJourney(current, minutes: 5)
-        let snapshot = makeSnapshot(journey: revised, choiceID: "revised")
+        let initial = makeSnapshot(
+            journey: current,
+            choiceID: "current",
+            additionalChoices: [nextChoice]
+        )
+        let revisedSnapshot = makeSnapshot(journey: revised, choiceID: "revised")
         let model = JourneyDepartureChoicesModel(
-            repository: InMemoryJourneyDepartureChoicesRepository(snapshot: snapshot)
+            repository: InMemoryJourneyDepartureChoicesRepository { request in
+                request.selection == nil ? initial : revisedSnapshot
+            }
         )
         var applied: Journey?
+
+        await model.refresh(
+            journey: current,
+            destination: destination,
+            policy: JourneyPlanningPolicy(),
+            apply: { _ in }
+        )
 
         await model.select(
             nextChoice,
@@ -28,7 +42,11 @@ final class JourneyDepartureChoicesModelTests: XCTestCase {
 
     func testSelectionFailureKeepsTheLastSnapshotAndJourneyUntouched() async {
         let current = JourneyResult.mapPreview.journeys[0]
-        let previous = makeSnapshot(journey: current, choiceID: "previous")
+        let previous = makeSnapshot(
+            journey: current,
+            choiceID: "previous",
+            additionalChoices: [nextChoice]
+        )
         let repository = InMemoryJourneyDepartureChoicesRepository { request in
             if request.selection == nil { return previous }
             throw ViaError.unavailable
@@ -54,6 +72,38 @@ final class JourneyDepartureChoicesModelTests: XCTestCase {
         XCTAssertFalse(applied)
         XCTAssertEqual(model.groupsBySectionID.values.first?.choices.first?.id, "previous")
         XCTAssertNotNil(model.errorMessage(for: sectionID(in: current)))
+    }
+
+    func testSelectionIgnoresAChoiceThatIsNoLongerInTheLatestSnapshot() async {
+        let current = JourneyResult.mapPreview.journeys[0]
+        let requests = DepartureChoicesRequestCounter()
+        let snapshot = makeSnapshot(journey: current, choiceID: "current")
+        let model = JourneyDepartureChoicesModel(
+            repository: InMemoryJourneyDepartureChoicesRepository { request in
+                await requests.record(request)
+                return snapshot
+            }
+        )
+        await model.refresh(
+            journey: current,
+            destination: destination,
+            policy: JourneyPlanningPolicy(),
+            apply: { _ in }
+        )
+
+        await model.select(
+            nextChoice,
+            in: sectionID(in: current),
+            journey: current,
+            destination: destination,
+            policy: JourneyPlanningPolicy(),
+            apply: { _ in }
+        )
+
+        let requestCount = await requests.count
+        XCTAssertEqual(requestCount, 1)
+        XCTAssertNil(model.selectingSectionID)
+        XCTAssertNil(model.failure)
     }
 
     func testOlderRefreshResponseCannotOverwriteTheNewestSnapshot() async {
@@ -112,7 +162,11 @@ final class JourneyDepartureChoicesModelTests: XCTestCase {
         journey.sections.first(where: { $0.kind == .transit })?.id ?? "transit"
     }
 
-    private func makeSnapshot(journey: Journey, choiceID: String) -> JourneyDepartureChoicesSnapshot {
+    private func makeSnapshot(
+        journey: Journey,
+        choiceID: String,
+        additionalChoices: [JourneyDepartureChoice] = []
+    ) -> JourneyDepartureChoicesSnapshot {
         JourneyDepartureChoicesSnapshot(
             journey: journey,
             generatedAt: .now,
@@ -130,7 +184,7 @@ final class JourneyDepartureChoicesModelTests: XCTestCase {
                             status: .onTime,
                             isSelected: true
                         ),
-                    ]
+                    ] + additionalChoices
                 ),
             ]
         )
@@ -176,5 +230,13 @@ private actor DepartureChoicesGate {
     func resume(index: Int, with snapshot: JourneyDepartureChoicesSnapshot) {
         continuations[index]?.resume(returning: snapshot)
         continuations[index] = nil
+    }
+}
+
+private actor DepartureChoicesRequestCounter {
+    private(set) var count = 0
+
+    func record(_: JourneyDepartureChoicesRequest) {
+        count += 1
     }
 }
