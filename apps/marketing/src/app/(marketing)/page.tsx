@@ -8,7 +8,7 @@ import { JourneyMomentsSection } from "@/components/sections/journey-moments/jou
 import { frequentlyAskedQuestions } from "@/constants/faq";
 import { featureContent } from "@/constants/features";
 import { journeyMoments } from "@/constants/journey-moments";
-import { heroLogos, pageContent } from "@/constants/page";
+import { pageContent } from "@/constants/page";
 // import { pricingPlans } from "@/constants/pricing";
 import { project } from "@/constants/project";
 import { createPageMetadata } from "@/lib/metadata";
@@ -23,7 +23,7 @@ export const metadata: Metadata = createPageMetadata({
 export default function MarketingPage(): ReactNode {
   return (
     <main id="main-content" className="flex-1">
-      <HeroSection content={pageContent.hero} logos={heroLogos} />
+      <HeroSection content={pageContent.hero} />
       <BlurHeadlineSection text={pageContent.blurHeadline} />
       <FeaturesSection content={featureContent} />
       <JourneyMomentsSection

@@ -2,21 +2,18 @@
 
 import type { PageContent } from "@/constants/page";
 import { marketingMedia } from "@/constants/media";
-import type { LogoAsset } from "@/constants/types";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import { useRef, type MouseEvent, type ReactNode } from "react";
 import { HeroCopy } from "./hero-copy";
-import { HeroLogoLoop } from "./hero-logo-loop";
 import { ProductPreview } from "./product-preview";
 
 const PARALLAX_INTENSITY = 20;
 
 interface HeroSectionProps {
   readonly content: PageContent["hero"];
-  readonly logos: readonly LogoAsset[];
 }
 
-export function HeroSection({ content, logos }: HeroSectionProps): ReactNode {
+export function HeroSection({ content }: HeroSectionProps): ReactNode {
   const sectionRef = useRef<HTMLElement>(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -62,7 +59,6 @@ export function HeroSection({ content, logos }: HeroSectionProps): ReactNode {
         <HeroCopy content={content} />
       </div>
       <ProductPreview preview={content.preview} />
-      <HeroLogoLoop logos={logos} />
     </section>
   );
 }
