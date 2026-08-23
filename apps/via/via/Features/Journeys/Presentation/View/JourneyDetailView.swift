@@ -71,6 +71,16 @@ struct JourneyDetailView: View {
           .labelStyle(.iconOnly)
           .accessibilityHint("Réduit la fiche pour explorer le trajet sur la carte")
       }
+      if isPlannedDraft {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button("Supprimer le trajet prévu", systemImage: "trash", role: .destructive) {
+            discardPlannedDraft()
+          }
+          .labelStyle(.iconOnly)
+          .disabled(isActivating)
+          .accessibilityHint("Supprime ce trajet prévu de cet appareil")
+        }
+      }
     }
     .safeAreaInset(edge: .bottom, spacing: 0) {
       JourneyDetailActionBar(
@@ -113,13 +123,26 @@ struct JourneyDetailView: View {
     }
   }
 
+  private var isPlannedDraft: Bool {
+    plannedJourneyDraftModel.draft?.journey.id == journey.id
+  }
+
   private func action(at date: Date) -> JourneyActivationAction {
     ActiveJourneyRules.detailAction(
       activeAction: activeJourneyModel.activationAction(for: journey, at: date),
-      isPlanned: plannedJourneyDraftModel.draft?.journey.id == journey.id,
+      isPlanned: isPlannedDraft,
       prefersGo: prefersGoAction,
       prefersPlan: prefersPlanAction
     )
+  }
+
+  /// Deleting the plan closes the detail as well: the sheet may have been
+  /// opened for the draft itself, which no longer exists to resolve it.
+  private func discardPlannedDraft() {
+    perform {
+      await plannedJourneyDraftModel.discard()
+      dismiss()
+    }
   }
 
   private func selectSection(_ sectionID: String) {

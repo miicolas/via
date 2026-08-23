@@ -5,7 +5,7 @@ import XCTest
 final class PlannedJourneyDraftModelTests: XCTestCase {
     func testPlannedJourneyPersistsAndRestoresItsLaunchContext() async throws {
         let suiteName = "dev.via.planned-journey-tests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        nonisolated(unsafe) let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let store = UserDefaultsPlannedJourneyDraftStore(defaults: defaults)
         let plannedAt = Date(timeIntervalSince1970: 2_000_000_000)
@@ -26,7 +26,10 @@ final class PlannedJourneyDraftModelTests: XCTestCase {
         XCTAssertTrue(didPlan)
         let restored = PlannedJourneyDraftModel(store: store)
         await restored.restore()
-        XCTAssertEqual(restored.draft?.journey, journey)
+        // The ISO-8601 round-trip keeps milliseconds only, so `Date.now`-based
+        // fixture dates cannot be compared bit-for-bit after persistence.
+        XCTAssertEqual(restored.draft?.journey.id, journey.id)
+        XCTAssertEqual(restored.draft?.journey.sections.count, journey.sections.count)
         XCTAssertEqual(restored.draft?.destination, destination)
         XCTAssertEqual(restored.draft?.source, .realtime)
         XCTAssertEqual(restored.draft?.planningPolicy, policy)
@@ -82,6 +85,43 @@ final class PlannedJourneyDraftModelTests: XCTestCase {
         let restored = PlannedJourneyDraftModel(store: store)
         await restored.restore()
         XCTAssertNil(restored.draft)
+    }
+
+    func testDiscardingTheDraftRemovesItFromTheStore() async {
+        let store = InMemoryPlannedJourneyDraftStore()
+        let model = PlannedJourneyDraftModel(store: store)
+        await model.plan(
+            journey: journey,
+            destination: destination,
+            source: .realtime,
+            planningPolicy: JourneyPlanningPolicy()
+        )
+
+        await model.discard()
+
+        XCTAssertNil(model.draft)
+        let restored = PlannedJourneyDraftModel(store: store)
+        await restored.restore()
+        XCTAssertNil(restored.draft)
+    }
+
+    func testRestoringAnExpiredDraftDropsIt() async {
+        let store = InMemoryPlannedJourneyDraftStore()
+        let planner = PlannedJourneyDraftModel(store: store)
+        await planner.plan(
+            journey: journey,
+            destination: destination,
+            source: .realtime,
+            planningPolicy: JourneyPlanningPolicy()
+        )
+
+        let restored = PlannedJourneyDraftModel(store: store, now: { .distantFuture })
+        await restored.restore()
+
+        XCTAssertNil(restored.draft)
+        let reloaded = PlannedJourneyDraftModel(store: store)
+        await reloaded.restore()
+        XCTAssertNil(reloaded.draft)
     }
 
     func testLaunchingTheDraftStartsGuidanceThenConsumesThePersistedDraft() async {

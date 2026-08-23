@@ -266,6 +266,26 @@ struct SearchView: View {
         .listRowBackground(Color.clear)
       }
 
+      if showsPlannedJourney(viewModel: viewModel.wrappedValue),
+        let draft = plannedJourneyDraftModel.draft
+      {
+        Section {
+          PlannedJourneyRow(
+            draft: draft,
+            action: onShowPlannedJourney,
+            onDelete: discardPlannedJourney
+          )
+          .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button("Supprimer", systemImage: "trash", role: .destructive) {
+              discardPlannedJourney()
+            }
+            .labelStyle(.iconOnly)
+          }
+        } header: {
+          Text("Trajet prévu")
+        }
+      }
+
       if viewModel.wrappedValue.showsRecentSearches {
         Section {
           ForEach(viewModel.wrappedValue.recentSearches) { recent in
@@ -496,6 +516,19 @@ struct SearchView: View {
         : "Ouvre l’éditeur du favori"
     )
     .animation(reduceMotion ? nil : .default, value: isSaved)
+  }
+
+  /// The planned journey rides above the recent searches, on the same quiet
+  /// step of the list: gone as soon as the traveller types or picks a result.
+  private func showsPlannedJourney(viewModel: SearchViewModel) -> Bool {
+    !isSelectingSavedDestination
+      && plannedJourneyDraftModel.draft != nil
+      && viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && viewModel.loadState == .idle
+  }
+
+  private func discardPlannedJourney() {
+    Task { await plannedJourneyDraftModel.discard() }
   }
 
   private func selectResult(_ result: SearchResult, viewModel: SearchViewModel) {

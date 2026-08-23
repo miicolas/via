@@ -31,6 +31,19 @@ final class PlannedJourneyDraftModel {
             await store.clear()
             lastError = "Un trajet prévu illisible a été supprimé de cet appareil."
         }
+
+        if let restored = draft, ActiveJourneyRules.isExpired(restored.journey, at: now()) {
+            draft = nil
+            await store.clear()
+        }
+    }
+
+    /// Removes the draft without starting it — the traveller changed their mind.
+    func discard() async {
+        guard draft != nil else { return }
+        draft = nil
+        lastError = nil
+        await store.clear()
     }
 
     @discardableResult

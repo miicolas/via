@@ -10,39 +10,6 @@ struct StationLiveStatusSection: View {
       Text("État en direct")
         .font(.title3.weight(.bold))
 
-      if let accessibility = status.accessibility {
-        statusCard(
-          title: accessibility.label,
-          systemImage: accessibility.source == .reported
-            ? "figure.roll.runningpace" : "figure.roll",
-          source: accessibility.source,
-          attribution: ReportAttribution.source(
-            accessibility.source,
-            reporterCount: accessibility.reporterCount
-          ),
-          observedAt: accessibility.observedAt,
-          expiresAt: accessibility.expiresAt
-        )
-
-        if accessibility.source == .reported {
-          recoveryButton(for: .wheelchairAccessUnavailable)
-        }
-      }
-
-      if let crowding = status.crowding {
-        statusCard(
-          title: crowding.label,
-          systemImage: crowding.level.systemImage,
-          source: crowding.source,
-          attribution: ReportAttribution.source(
-            crowding.source,
-            reporterCount: crowding.reporterCount
-          ),
-          observedAt: crowding.observedAt,
-          expiresAt: crowding.expiresAt
-        )
-      }
-
       ForEach(status.incidents) { incident in
         statusCard(
           title: incident.label,

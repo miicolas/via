@@ -35,7 +35,9 @@ struct StationDetailView: View {
               sourceSystemImage: currentStation.sourceSystemImage
             )
 
-            if let liveStatus = selection.liveStatus {
+            // Accessibility and crowding already live as header badges; the
+            // section only exists while travellers have open incident reports.
+            if let liveStatus = selection.liveStatus, !liveStatus.incidents.isEmpty {
               StationLiveStatusSection(
                 status: liveStatus,
                 pendingRecoveryCategory: selection.pendingRecoveryCategory,

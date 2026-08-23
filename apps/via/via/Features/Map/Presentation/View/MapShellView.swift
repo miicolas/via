@@ -51,7 +51,6 @@ struct MapShellView: View {
   @State private var savedDestinationSelectionContext: SavedDestinationSelectionContext?
   @State private var savedDestinationDraft: SavedDestinationDraft?
   @State private var returnsToPreviousTabAfterSavingDestination = false
-  @State private var isPlannedJourneyLaunchPresented = false
 
   init(
     networkViewModel: NetworkViewModel,
@@ -442,7 +441,7 @@ struct MapShellView: View {
   /// Only worth showing once the sheet is out of the way: with the sheet open,
   /// the guidance header says the same thing and the two overlap.
   private var isActiveJourneyCompactVisible: Bool {
-    (activeJourneyModel.isActive || plannedJourneyDraftModel.draft != nil)
+    activeJourneyModel.isActive
       && !searchViewModel.isNaturalSearchPresented
       && activeDetent == collapsedDetent
   }
@@ -451,12 +450,6 @@ struct MapShellView: View {
   private var journeyCompact: some View {
     if activeJourneyModel.isActive {
       ActiveJourneyCompactStrip(model: activeJourneyModel, action: showActiveJourney)
-    } else if let draft = plannedJourneyDraftModel.draft {
-      PlannedJourneyDraftCompactView(
-        draft: draft,
-        onOpen: showPlannedJourney,
-        onLaunch: { isPlannedJourneyLaunchPresented = true }
-      )
     }
   }
 
@@ -470,7 +463,7 @@ struct MapShellView: View {
         || reportViewModel.isPresentingAnotherSheet || accountSheetDestination != nil
         || searchSheetDestination != nil || savedDestinationDraft != nil,
       hidesTabBar: searchViewModel.isNaturalSearchPresented,
-      reservesCompactSpace: activeJourneyModel.isActive || plannedJourneyDraftModel.draft != nil,
+      reservesCompactSpace: activeJourneyModel.isActive,
       isCompactVisible: isActiveJourneyCompactVisible,
       compactContent: { journeyCompact }
     ) {
@@ -683,9 +676,6 @@ struct MapShellView: View {
       reduceMotion ? nil : .snappy(duration: 0.3, extraBounce: 0),
       value: searchViewModel.isNaturalSearchPresented
     )
-    .journeyTrackingAlert(isPresented: $isPlannedJourneyLaunchPresented) {
-      launchPlannedJourney(allowsBackgroundTracking: $0)
-    }
   }
 
   private var isJourneySheetUp: Bool {
@@ -744,15 +734,6 @@ struct MapShellView: View {
     searchSheetDestination = .plannedJourney(journeyID)
   }
 
-  private func launchPlannedJourney(allowsBackgroundTracking: Bool) {
-    Task {
-      await plannedJourneyDraftModel.launch(
-        using: activeJourneyModel,
-        allowsBackgroundTracking: allowsBackgroundTracking
-      )
-    }
-  }
-
   /// The journey sheet's own peek: taller while guidance runs, where it hosts
   /// the compact strip rather than the squashed panel.
   private var journeyPeekDetent: PresentationDetent {
@@ -760,9 +741,7 @@ struct MapShellView: View {
   }
 
   private var collapsedDetent: PresentationDetent {
-    SheetTabDetents.collapsed(
-      hasCompactContent: activeJourneyModel.isActive || plannedJourneyDraftModel.draft != nil
-    )
+    SheetTabDetents.collapsed(hasCompactContent: activeJourneyModel.isActive)
   }
 
   private var guidanceDetent: PresentationDetent {
