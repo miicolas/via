@@ -408,7 +408,10 @@ struct MapShellView: View {
         .sheet(item: $searchSheetDestination) { destination in
             switch destination {
             case .naturalSearch:
-                NaturalJourneySheet(viewModel: searchViewModel)
+                NaturalJourneySheet(
+                    viewModel: searchViewModel,
+                    isLargeScreen: isLargeScreen
+                )
             case let .journey(journeyID):
                 JourneySheetView(
                     journeyID: journeyID,

@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class SearchViewModelTests: XCTestCase {
-    func testFirstNaturalSearchOpeningShowsOnboardingOnce() {
+    func testFirstNaturalSearchOpeningGoesStraightToInput() {
         let onboarding = InMemoryNaturalJourneyOnboardingStore(hasSeenOnboarding: false)
         let model = makeModel(
             naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
@@ -14,15 +14,11 @@ final class SearchViewModelTests: XCTestCase {
         model.openNaturalSearch()
 
         XCTAssertTrue(model.isNaturalSearchPresented)
-        XCTAssertEqual(model.naturalSearchState, .onboarding)
-
-        model.showNaturalSearchInput()
-
         XCTAssertEqual(model.naturalSearchState, .input)
         XCTAssertTrue(onboarding.hasSeenOnboarding)
     }
 
-    func testDismissingOnboardingDoesNotShowItAgain() {
+    func testReopeningNaturalSearchReturnsToInput() {
         let onboarding = InMemoryNaturalJourneyOnboardingStore(hasSeenOnboarding: false)
         let model = makeModel(
             naturalJourneyRepository: InMemoryNaturalJourneyRepository(),

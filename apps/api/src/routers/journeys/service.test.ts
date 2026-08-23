@@ -29,12 +29,14 @@ function setup(options: {
   idfmResult?: Awaited<ReturnType<IdfmJourneyPlanner['plan']>>;
   idfmResults?: Array<Awaited<ReturnType<IdfmJourneyPlanner['plan']>>>;
   gtfsError?: Error;
+  gtfsDelayMs?: number;
   personalLimit?: number;
   dailyBudget?: number;
 } = {}) {
   const { client, store, expiries } = fakeRedis();
   let currentNow = now;
   const calls = { idfm: 0, gtfs: 0 };
+  const gtfsConcurrency = { active: 0, max: 0 };
   const signals: Array<AbortSignal | undefined> = [];
   const idfm: IdfmJourneyPlanner = {
     plan: async (_input, _now, signal) => {
@@ -48,8 +50,17 @@ function setup(options: {
     plan: async (_input, _now, signal) => {
       calls.gtfs += 1;
       signals.push(signal);
-      if (options.gtfsError) throw options.gtfsError;
-      return theoretical;
+      gtfsConcurrency.active += 1;
+      gtfsConcurrency.max = Math.max(gtfsConcurrency.max, gtfsConcurrency.active);
+      try {
+        if (options.gtfsDelayMs) {
+          await new Promise((resolve) => setTimeout(resolve, options.gtfsDelayMs));
+        }
+        if (options.gtfsError) throw options.gtfsError;
+        return theoretical;
+      } finally {
+        gtfsConcurrency.active -= 1;
+      }
     },
   };
   const planner = createJourneyPlanner({
@@ -70,6 +81,7 @@ function setup(options: {
     store,
     expiries,
     calls,
+    gtfsConcurrency,
     signals,
     advance: (milliseconds: number) => {
       currentNow = new Date(currentNow.getTime() + milliseconds);
@@ -112,6 +124,23 @@ describe('journey planning module', () => {
     expect(response).toMatchObject({ status: 'no-route', source: 'gtfs-theoretical' });
     expect(calls).toEqual({ idfm: 0, gtfs: 1 });
     expect(cachedTtl(expiries)).toBe(30);
+  });
+
+  test('serializes concurrent GTFS fallbacks', async () => {
+    const { planner, gtfsConcurrency } = setup({ apiKey: false, gtfsDelayMs: 10 });
+
+    await Promise.all([
+      plan(planner, undefined, {
+        ...input,
+        destination: { ...input.destination, id: 'destination-one' },
+      }),
+      plan(planner, undefined, {
+        ...input,
+        destination: { ...input.destination, id: 'destination-two' },
+      }),
+    ]);
+
+    expect(gtfsConcurrency.max).toBe(1);
   });
 
   test('uses GTFS when the personal quota refuses the request', async () => {

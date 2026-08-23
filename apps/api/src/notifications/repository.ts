@@ -49,6 +49,17 @@ export async function lockInstallations(
   }
 }
 
+export function notificationDeviceLockKey(
+  input: Pick<
+    NotificationDeviceRegistration,
+    "bundleId" | "environment" | "deviceToken"
+  >,
+): string {
+  // PostgreSQL text parameters cannot contain NUL bytes. JSON keeps the
+  // components unambiguous while escaping control characters in the values.
+  return JSON.stringify([input.bundleId, input.environment, input.deviceToken]);
+}
+
 export interface NotificationTokenStore {
   registerDevice(
     userId: string,
@@ -96,7 +107,7 @@ export function createDatabaseNotificationTokenStore(
           sql`select pg_advisory_xact_lock(hashtext(${userId}))`,
         );
         await transaction.execute(
-          sql`select pg_advisory_xact_lock(hashtext(${`${input.bundleId}\u0000${input.environment}\u0000${input.deviceToken}`}))`,
+          sql`select pg_advisory_xact_lock(hashtext(${notificationDeviceLockKey(input)}))`,
         );
         const now = new Date();
         const displacedCondition = or(
