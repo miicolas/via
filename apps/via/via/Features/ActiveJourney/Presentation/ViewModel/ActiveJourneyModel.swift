@@ -594,6 +594,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         request.excludedModes = session.planningPolicy.excludedModes
         request.preferredModes = session.planningPolicy.preferredModes
         request.requiresAccessibleStations = session.planningPolicy.requiresAccessibleStations
+        request.requiresOperationalElevators = session.planningPolicy.requiresOperationalElevators
 
         do {
             let result = try await journeyRepository.plan(request)

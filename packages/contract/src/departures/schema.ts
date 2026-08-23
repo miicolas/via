@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-import { routeBadgeSchema } from '../shared/schema';
+import { routeBadgeSchema, stationElevatorSnapshotSchema } from '../shared/schema';
 
 /** How deep a departure board group goes — the server builds to this cap, the schema enforces it. */
 export const DEPARTURES_PER_GROUP = 4;
@@ -66,5 +66,7 @@ export const departuresResponseSchema = z.object({
       label: z.string(),
     })
     .optional(),
+  /** Current equipment snapshot for the station detail opened from this board. */
+  elevators: stationElevatorSnapshotSchema,
   groups: z.array(departureGroupSchema),
 });

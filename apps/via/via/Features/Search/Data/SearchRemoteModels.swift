@@ -10,6 +10,7 @@ struct SearchResponseDTO: Decodable {
 
         let ban: String
         let accessibility: Accessibility?
+        let elevators: Accessibility?
     }
     let results: [SearchResultDTO]
     let sources: Sources
@@ -22,6 +23,11 @@ struct SearchResponseDTO: Decodable {
                 status: sources.accessibility?.status == "ok" ? .ok : .unavailable,
                 sourceUpdatedAt: sources.accessibility?.sourceUpdatedAt,
                 importedAt: sources.accessibility?.importedAt
+            ),
+            elevatorSource: .init(
+                status: sources.elevators?.status == "ok" ? .ok : .unavailable,
+                sourceUpdatedAt: sources.elevators?.sourceUpdatedAt,
+                importedAt: sources.elevators?.importedAt
             )
         )
     }

@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:api": "turbo run dev --filter=@via/api",
+    "dev:marketing": "turbo run dev --filter=@via/marketing",
     "ios": "xcodebuild -project apps/via/via.xcodeproj -scheme via -configuration Debug -destination 'generic/platform=iOS Simulator' build",
     "deploy:testflight": "bash scripts/deploy-testflight.sh",
     "typecheck": "turbo run typecheck",
@@ -24,7 +25,9 @@
     "gtfs:import": "bun --env-file=.env apps/worker/src/index.ts",
     "gtfs:import:metro": "bun --env-file=.env apps/worker/src/index.ts",
     "accessibility:import": "bun --env-file=.env apps/worker/src/accessibility/cli.ts",
+    "elevators:import": "bun --env-file=.env apps/worker/src/elevators/cli.ts",
     "station-peaks:import": "bun --env-file=.env apps/worker/src/station-peaks/cli.ts",
+    "toilets:import": "bun --env-file=.env apps/worker/src/toilets/cli.ts",
     "wayfinding:import": "bun --env-file=.env apps/worker/src/wayfinding/cli.ts",
     "check:transit-alignment": "bun --env-file=.env scripts/check-transit-map-alignment.ts",
     "generate:openapi": "bun scripts/generate-openapi.ts",
@@ -34,6 +37,7 @@
     "push:tokens": "bun --env-file=.env scripts/push-device-tokens.ts"
   },
   "devDependencies": {
+    "railway": "3.10.0",
     "turbo": "^2.10.9",
     "typescript": "~6.0.3"
   }

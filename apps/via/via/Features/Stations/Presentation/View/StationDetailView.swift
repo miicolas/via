@@ -33,12 +33,22 @@ struct StationDetailView: View {
               sourceSystemImage: currentStation.sourceSystemImage
             )
 
+            StationElevatorsSection(
+              snapshot: currentStation.elevators,
+              loadingState: selection.loadingState,
+              onRetry: selection.retry
+            )
+
             if let liveStatus = selection.liveStatus {
               StationLiveStatusSection(
                 status: liveStatus,
                 pendingRecoveryCategory: selection.pendingRecoveryCategory,
                 onRecovery: selection.reportRecovery
               )
+            }
+
+            if let toilets = currentStation.toilets {
+              StationToiletsSection(toilets: toilets)
             }
 
             StationDeparturesSection(

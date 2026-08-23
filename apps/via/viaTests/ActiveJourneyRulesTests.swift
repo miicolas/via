@@ -14,7 +14,52 @@ final class ActiveJourneyRulesTests: XCTestCase {
         )
         XCTAssertEqual(
             ActiveJourneyRules.activationAction(for: future, now: referenceDate),
-            .activate
+            .plan
+        )
+    }
+
+    func testManualOriginOffersPlanEvenWhenDepartureIsImminent() {
+        XCTAssertEqual(
+            ActiveJourneyRules.detailAction(
+                activeAction: .go,
+                isPlanned: false,
+                prefersGo: false,
+                prefersPlan: true
+            ),
+            .plan
+        )
+    }
+
+    func testOpeningAPlannedDraftOffersGoAndAnActiveSessionStillWins() {
+        XCTAssertEqual(
+            ActiveJourneyRules.detailAction(
+                activeAction: .plan,
+                isPlanned: true,
+                prefersGo: true,
+                prefersPlan: true
+            ),
+            .go
+        )
+        XCTAssertEqual(
+            ActiveJourneyRules.detailAction(
+                activeAction: .resume,
+                isPlanned: true,
+                prefersGo: true,
+                prefersPlan: true
+            ),
+            .resume
+        )
+    }
+
+    func testSavedDraftIsPresentedAsPlannedOutsideItsLaunchSurface() {
+        XCTAssertEqual(
+            ActiveJourneyRules.detailAction(
+                activeAction: .plan,
+                isPlanned: true,
+                prefersGo: false,
+                prefersPlan: false
+            ),
+            .planned
         )
     }
 

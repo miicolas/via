@@ -5,9 +5,8 @@ struct ActiveJourneyPanelView: View {
     let departureChoicesModel: JourneyDepartureChoicesModel
     let onSelectDeparture: (JourneyDepartureChoice, String) -> Void
     let onRetryDepartures: () async -> Void
-    let onOpenReport: () -> Void
 
-    @State private var isStopConfirmationPresented = false
+    @State private var isFinishConfirmationPresented = false
     @State private var isAlternativesPresented = false
     @State private var isLocationExplanationPresented = false
     @State private var isStarting = false
@@ -82,16 +81,16 @@ struct ActiveJourneyPanelView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { journeyToolbar }
         .confirmationDialog(
-            "Arrêter ce trajet ?",
-            isPresented: $isStopConfirmationPresented,
+            "Terminer ce trajet ?",
+            isPresented: $isFinishConfirmationPresented,
             titleVisibility: .visible
         ) {
-            Button("Arrêter le trajet", role: .destructive) {
-                Task { await model.cancelJourney() }
+            Button("Terminer le trajet", systemImage: "flag.checkered", role: .destructive) {
+                Task { await model.finishJourney() }
             }
             Button("Continuer", role: .cancel) {}
         } message: {
-            Text("Le suivi et la Live Activity seront arrêtés.")
+            Text("Le trajet sera marqué comme terminé et le suivi sera arrêté.")
         }
         .journeyTrackingAlert(isPresented: $isLocationExplanationPresented) {
             startTracking(allowsBackgroundTracking: $0)
@@ -128,8 +127,8 @@ struct ActiveJourneyPanelView: View {
             )
         } else if model.isTracking && !model.hasLocationFix {
             statusBanner(
-                title: "Progression manuelle",
-                message: "La position n’est pas disponible. Utilisez le menu pour changer d’étape.",
+                title: "Position indisponible",
+                message: "La position n’est pas disponible. La progression reste basée sur les horaires prévus.",
                 systemImage: "location.slash",
                 color: .orange
             )
@@ -265,12 +264,6 @@ struct ActiveJourneyPanelView: View {
         .background(.bar)
     }
 
-    /// Nothing here asks for `.bottomBar`. This screen is pushed inside a tab of
-    /// the map sheet, and on iOS 26 the tab bar owns the bottom of that sheet: a
-    /// bottom toolbar declared here is laid out underneath it, so its buttons end
-    /// up half-hidden behind the tab bar. The recalculation stays reachable in
-    /// one tap next to the menu; reporting joins the menu, since the sheet
-    /// already carries a Signaler tab.
     @ToolbarContentBuilder
     private var journeyToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
@@ -292,26 +285,13 @@ struct ActiveJourneyPanelView: View {
         }
 
         ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Button("Étape précédente", systemImage: "backward.end") {
-                    Task { await model.moveToPreviousSection() }
-                }
-                Button("Étape suivante", systemImage: "forward.end") {
-                    Task { await model.moveToNextSection() }
-                }
-                Button("Terminer", systemImage: "flag.checkered") {
-                    Task { await model.finishJourney() }
-                }
-                Divider()
-                Button("Signaler", systemImage: "exclamationmark.bubble", action: onOpenReport)
-                Divider()
-                Button("Arrêter le trajet", systemImage: "xmark", role: .destructive) {
-                    isStopConfirmationPresented = true
-                }
+            Button {
+                isFinishConfirmationPresented = true
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "flag.checkered")
             }
-            .accessibilityLabel("Actions du trajet")
+            .accessibilityLabel("Terminer le trajet")
+            .accessibilityHint("Marque le trajet comme terminé et arrête le suivi")
         }
     }
 

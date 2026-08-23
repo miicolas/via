@@ -249,12 +249,14 @@ private struct JourneyDepartureChoicesRequestDTO: Encodable {
         let excludedModes: [TransitMode]
         let preferredModes: [TransitMode]
         let requiresAccessibleStations: Bool
+        let requiresOperationalElevators: Bool
 
         init(_ value: JourneyPlanningPolicy) {
             requiredModes = value.requiredModes.sorted { $0.rawValue < $1.rawValue }
             excludedModes = value.excludedModes.sorted { $0.rawValue < $1.rawValue }
             preferredModes = value.preferredModes.sorted { $0.rawValue < $1.rawValue }
             requiresAccessibleStations = value.requiresAccessibleStations
+            requiresOperationalElevators = value.requiresOperationalElevators
         }
     }
 

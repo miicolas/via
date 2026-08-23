@@ -3,14 +3,14 @@ import { db } from '@via/db';
 import {
   stationFacts,
   transitStopAliases,
-  type StationFactCondition,
+  type AccessibilityStationFactCondition,
 } from '@via/db/schema';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { ACCESSIBILITY_CONDITION_LABELS } from '../accessibility-labels';
 
 export type JourneyAccessibility = {
-  condition: StationFactCondition;
+  condition: AccessibilityStationFactCondition;
   label: string;
 };
 
@@ -40,7 +40,10 @@ export async function accessibilityForStationIDs(ids: Iterable<string>) {
   const values = [...new Set([...ids].filter(Boolean))];
   if (values.length === 0) return new Map<string, JourneyAccessibility>();
   const rows = await db
-    .select({ stopId: stationFacts.stopId, condition: stationFacts.condition })
+    .select({
+      stopId: stationFacts.stopId,
+      condition: sql<AccessibilityStationFactCondition>`${stationFacts.condition}`,
+    })
     .from(stationFacts)
     .where(
       and(eq(stationFacts.kind, 'accessibility'), inArray(stationFacts.stopId, values))

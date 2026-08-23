@@ -80,6 +80,11 @@ enum SearchDepartureSelection: Sendable, Hashable {
     case .work: return .work
     }
   }
+
+  var isCurrentLocation: Bool {
+    if case .currentLocation = self { return true }
+    return false
+  }
 }
 
 @MainActor
@@ -95,6 +100,11 @@ final class SearchViewModel {
   private(set) var highlightedJourneySectionID: String?
   private(set) var filters: SearchFilters
   private(set) var accessibilitySource = SearchResponse.AccessibilitySource(
+    status: .unavailable,
+    sourceUpdatedAt: nil,
+    importedAt: nil
+  )
+  private(set) var elevatorSource = SearchResponse.ElevatorSource(
     status: .unavailable,
     sourceUpdatedAt: nil,
     importedAt: nil
@@ -544,7 +554,8 @@ final class SearchViewModel {
       requiredModes: naturalJourneyCriteria?.requiredModes ?? [],
       excludedModes: naturalJourneyCriteria?.excludedModes ?? [],
       preferredModes: naturalJourneyCriteria?.preferredModes ?? [],
-      requiresAccessibleStations: filters.requiresAccessibleStations
+      requiresAccessibleStations: filters.requiresAccessibleStations,
+      requiresOperationalElevators: filters.requiresOperationalElevators
     )
   }
 
@@ -717,6 +728,11 @@ final class SearchViewModel {
       sourceUpdatedAt: nil,
       importedAt: nil
     )
+    elevatorSource = SearchResponse.ElevatorSource(
+      status: .unavailable,
+      sourceUpdatedAt: nil,
+      importedAt: nil
+    )
     journeyResult = nil
     mapPresentation = nil
     selectedDestination = nil
@@ -738,6 +754,10 @@ final class SearchViewModel {
 
   func setRequiresAccessibleStations(_ enabled: Bool) {
     updateFilters { $0.requiresAccessibleStations = enabled }
+  }
+
+  func setRequiresOperationalElevators(_ enabled: Bool) {
+    updateFilters { $0.requiresOperationalElevators = enabled }
   }
 
   private func updateFilters(_ update: (inout SearchFilters) -> Void) {
@@ -893,6 +913,7 @@ final class SearchViewModel {
       )
       request.limit = 4
       request.requiresAccessibleStations = filters.requiresAccessibleStations
+      request.requiresOperationalElevators = filters.requiresOperationalElevators
       if case .manual(.station(let station)) = selectedDeparture {
         request.originStationID = station.id
       }
@@ -969,6 +990,7 @@ final class SearchViewModel {
 
       results = response.results
       accessibilitySource = response.accessibilitySource
+      elevatorSource = response.elevatorSource
       loadState = response.results.isEmpty ? .empty : .loaded
     } catch is CancellationError {
     } catch {
@@ -987,6 +1009,7 @@ final class SearchViewModel {
 
       departureResults = response.results
       accessibilitySource = response.accessibilitySource
+      elevatorSource = response.elevatorSource
       departureLoadState = response.results.isEmpty ? .empty : .loaded
     } catch is CancellationError {
     } catch {

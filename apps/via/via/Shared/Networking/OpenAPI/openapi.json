@@ -1625,6 +1625,71 @@
                         "label"
                       ]
                     },
+                    "elevators": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "ok",
+                            "unavailable"
+                          ],
+                          "type": "string"
+                        },
+                        "sourceUpdatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "importedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "enum": [
+                                  "available",
+                                  "notavailable",
+                                  "unknown"
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "enum": [
+                                  "liftFailure",
+                                  "closedForMaintenance",
+                                  "undefinedEquipmentProblem"
+                                ],
+                                "type": "string"
+                              },
+                              "situation": {
+                                "type": "string"
+                              },
+                              "direction": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "status"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "items"
+                      ]
+                    },
                     "groups": {
                       "type": "array",
                       "items": {
@@ -1732,6 +1797,7 @@
                   "required": [
                     "source",
                     "generatedAt",
+                    "elevators",
                     "groups"
                   ]
                 }
@@ -1971,6 +2037,16 @@
             "allowReserved": true
           },
           {
+            "name": "requiresOperationalElevators",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
             "name": "originStationId",
             "in": "query",
             "required": false,
@@ -2012,7 +2088,9 @@
                     "reason": {
                       "enum": [
                         "no-accessible-route",
-                        "accessibility-data-unavailable"
+                        "accessibility-data-unavailable",
+                        "no-operational-elevator-route",
+                        "elevator-data-unavailable"
                       ],
                       "type": "string"
                     },
@@ -3201,13 +3279,18 @@
                       "requiresAccessibleStations": {
                         "type": "boolean",
                         "default": false
+                      },
+                      "requiresOperationalElevators": {
+                        "type": "boolean",
+                        "default": false
                       }
                     },
                     "default": {
                       "requiredModes": [],
                       "excludedModes": [],
                       "preferredModes": [],
-                      "requiresAccessibleStations": false
+                      "requiresAccessibleStations": false,
+                      "requiresOperationalElevators": false
                     }
                   },
                   "selection": {
@@ -4375,7 +4458,9 @@
                             "reason": {
                               "enum": [
                                 "no-accessible-route",
-                                "accessibility-data-unavailable"
+                                "accessibility-data-unavailable",
+                                "no-operational-elevator-route",
+                                "elevator-data-unavailable"
                               ],
                               "type": "string"
                             },
@@ -6496,6 +6581,20 @@
                               "condition",
                               "label"
                             ]
+                          },
+                          "toilets": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "detail": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "label"
+                            ]
                           }
                         },
                         "required": [
@@ -6636,6 +6735,20 @@
                             },
                             "required": [
                               "condition",
+                              "label"
+                            ]
+                          },
+                          "toilets": {
+                            "type": "object",
+                            "properties": {
+                              "label": {
+                                "type": "string"
+                              },
+                              "detail": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
                               "label"
                             ]
                           }
@@ -6944,11 +7057,35 @@
                           "required": [
                             "status"
                           ]
+                        },
+                        "elevators": {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "enum": [
+                                "ok",
+                                "unavailable"
+                              ],
+                              "type": "string"
+                            },
+                            "sourceUpdatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "importedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
                         }
                       },
                       "required": [
                         "ban",
-                        "accessibility"
+                        "accessibility",
+                        "elevators"
                       ]
                     }
                   },

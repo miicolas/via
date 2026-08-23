@@ -2852,6 +2852,109 @@ internal enum Operations {
                         }
                         /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/peak`.
                         internal var peak: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.peakPayload?
+                        /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators`.
+                        internal struct elevatorsPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/status`.
+                            internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case ok = "ok"
+                                case unavailable = "unavailable"
+                            }
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/status`.
+                            internal var status: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.statusPayload
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/sourceUpdatedAt`.
+                            internal var sourceUpdatedAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/importedAt`.
+                            internal var importedAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload`.
+                            internal struct itemsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case available = "available"
+                                    case notavailable = "notavailable"
+                                    case unknown = "unknown"
+                                }
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload/status`.
+                                internal var status: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.itemsPayloadPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload/reason`.
+                                internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case liftFailure = "liftFailure"
+                                    case closedForMaintenance = "closedForMaintenance"
+                                    case undefinedEquipmentProblem = "undefinedEquipmentProblem"
+                                }
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload/reason`.
+                                internal var reason: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.itemsPayloadPayload.reasonPayload?
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload/situation`.
+                                internal var situation: Swift.String?
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload/direction`.
+                                internal var direction: Swift.String?
+                                /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/itemsPayload/updatedAt`.
+                                internal var updatedAt: Foundation.Date?
+                                /// Creates a new `itemsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - status:
+                                ///   - reason:
+                                ///   - situation:
+                                ///   - direction:
+                                ///   - updatedAt:
+                                internal init(
+                                    id: Swift.String,
+                                    status: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.itemsPayloadPayload.statusPayload,
+                                    reason: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.itemsPayloadPayload.reasonPayload? = nil,
+                                    situation: Swift.String? = nil,
+                                    direction: Swift.String? = nil,
+                                    updatedAt: Foundation.Date? = nil
+                                ) {
+                                    self.id = id
+                                    self.status = status
+                                    self.reason = reason
+                                    self.situation = situation
+                                    self.direction = direction
+                                    self.updatedAt = updatedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case status
+                                    case reason
+                                    case situation
+                                    case direction
+                                    case updatedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/items`.
+                            internal typealias itemsPayload = [Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.itemsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators/items`.
+                            internal var items: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.itemsPayload
+                            /// Creates a new `elevatorsPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - status:
+                            ///   - sourceUpdatedAt:
+                            ///   - importedAt:
+                            ///   - items:
+                            internal init(
+                                status: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.statusPayload,
+                                sourceUpdatedAt: Foundation.Date? = nil,
+                                importedAt: Foundation.Date? = nil,
+                                items: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload.itemsPayload
+                            ) {
+                                self.status = status
+                                self.sourceUpdatedAt = sourceUpdatedAt
+                                self.importedAt = importedAt
+                                self.items = items
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case status
+                                case sourceUpdatedAt
+                                case importedAt
+                                case items
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/elevators`.
+                        internal var elevators: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload
                         /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload`.
                         internal struct groupsPayloadPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/departures/GET/responses/200/content/json/groupsPayload/route`.
@@ -3002,18 +3105,21 @@ internal enum Operations {
                         ///   - generatedAt:
                         ///   - fetchedAt:
                         ///   - peak:
+                        ///   - elevators:
                         ///   - groups:
                         internal init(
                             source: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.sourcePayload,
                             generatedAt: Foundation.Date,
                             fetchedAt: Foundation.Date? = nil,
                             peak: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.peakPayload? = nil,
+                            elevators: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.elevatorsPayload,
                             groups: Operations.departures_period_forStation.Output.Ok.Body.jsonPayload.groupsPayload
                         ) {
                             self.source = source
                             self.generatedAt = generatedAt
                             self.fetchedAt = fetchedAt
                             self.peak = peak
+                            self.elevators = elevators
                             self.groups = groups
                         }
                         internal enum CodingKeys: String, CodingKey {
@@ -3021,6 +3127,7 @@ internal enum Operations {
                             case generatedAt
                             case fetchedAt
                             case peak
+                            case elevators
                             case groups
                         }
                     }
@@ -3434,6 +3541,8 @@ internal enum Operations {
                 internal var preferredModes: Swift.String?
                 /// - Remark: Generated from `#/paths/journeys/GET/query/requiresAccessibleStations`.
                 internal var requiresAccessibleStations: Swift.Bool?
+                /// - Remark: Generated from `#/paths/journeys/GET/query/requiresOperationalElevators`.
+                internal var requiresOperationalElevators: Swift.Bool?
                 /// - Remark: Generated from `#/paths/journeys/GET/query/originStationId`.
                 internal var originStationId: Swift.String?
                 /// Creates a new `Query`.
@@ -3448,6 +3557,7 @@ internal enum Operations {
                 ///   - excludedModes:
                 ///   - preferredModes:
                 ///   - requiresAccessibleStations:
+                ///   - requiresOperationalElevators:
                 ///   - originStationId:
                 internal init(
                     origin: Operations.journeys_period_plan.Input.Query.originPayload,
@@ -3459,6 +3569,7 @@ internal enum Operations {
                     excludedModes: Swift.String? = nil,
                     preferredModes: Swift.String? = nil,
                     requiresAccessibleStations: Swift.Bool? = nil,
+                    requiresOperationalElevators: Swift.Bool? = nil,
                     originStationId: Swift.String? = nil
                 ) {
                     self.origin = origin
@@ -3470,6 +3581,7 @@ internal enum Operations {
                     self.excludedModes = excludedModes
                     self.preferredModes = preferredModes
                     self.requiresAccessibleStations = requiresAccessibleStations
+                    self.requiresOperationalElevators = requiresOperationalElevators
                     self.originStationId = originStationId
                 }
             }
@@ -3526,6 +3638,8 @@ internal enum Operations {
                         internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
                             case no_hyphen_accessible_hyphen_route = "no-accessible-route"
                             case accessibility_hyphen_data_hyphen_unavailable = "accessibility-data-unavailable"
+                            case no_hyphen_operational_hyphen_elevator_hyphen_route = "no-operational-elevator-route"
+                            case elevator_hyphen_data_hyphen_unavailable = "elevator-data-unavailable"
                         }
                         /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/reason`.
                         internal var reason: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.reasonPayload?
@@ -5467,6 +5581,8 @@ internal enum Operations {
                         internal var preferredModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.preferredModesPayload?
                         /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/requiresAccessibleStations`.
                         internal var requiresAccessibleStations: Swift.Bool?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy/requiresOperationalElevators`.
+                        internal var requiresOperationalElevators: Swift.Bool?
                         /// Creates a new `policyPayload`.
                         ///
                         /// - Parameters:
@@ -5474,22 +5590,26 @@ internal enum Operations {
                         ///   - excludedModes:
                         ///   - preferredModes:
                         ///   - requiresAccessibleStations:
+                        ///   - requiresOperationalElevators:
                         internal init(
                             requiredModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.requiredModesPayload? = nil,
                             excludedModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.excludedModesPayload? = nil,
                             preferredModes: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.policyPayload.preferredModesPayload? = nil,
-                            requiresAccessibleStations: Swift.Bool? = nil
+                            requiresAccessibleStations: Swift.Bool? = nil,
+                            requiresOperationalElevators: Swift.Bool? = nil
                         ) {
                             self.requiredModes = requiredModes
                             self.excludedModes = excludedModes
                             self.preferredModes = preferredModes
                             self.requiresAccessibleStations = requiresAccessibleStations
+                            self.requiresOperationalElevators = requiresOperationalElevators
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case requiredModes
                             case excludedModes
                             case preferredModes
                             case requiresAccessibleStations
+                            case requiresOperationalElevators
                         }
                     }
                     /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/policy`.
@@ -9400,6 +9520,31 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/accessibility`.
                             internal var accessibility: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload?
+                            /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/toilets`.
+                            internal struct toiletsPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/toilets/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/toilets/detail`.
+                                internal var detail: Swift.String?
+                                /// Creates a new `toiletsPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - label:
+                                ///   - detail:
+                                internal init(
+                                    label: Swift.String,
+                                    detail: Swift.String? = nil
+                                ) {
+                                    self.label = label
+                                    self.detail = detail
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case label
+                                    case detail
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/toilets`.
+                            internal var toilets: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload?
                             /// Creates a new `stationsPayloadPayload`.
                             ///
                             /// - Parameters:
@@ -9408,18 +9553,21 @@ internal enum Operations {
                             ///   - coordinate:
                             ///   - routeIds:
                             ///   - accessibility:
+                            ///   - toilets:
                             internal init(
                                 id: Swift.String,
                                 name: Swift.String,
                                 coordinate: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.coordinatePayload,
                                 routeIds: [Swift.String],
-                                accessibility: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil
+                                accessibility: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil,
+                                toilets: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload? = nil
                             ) {
                                 self.id = id
                                 self.name = name
                                 self.coordinate = coordinate
                                 self.routeIds = routeIds
                                 self.accessibility = accessibility
+                                self.toilets = toilets
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case id
@@ -9427,6 +9575,7 @@ internal enum Operations {
                                 case coordinate
                                 case routeIds
                                 case accessibility
+                                case toilets
                             }
                         }
                         /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stations`.
@@ -9669,6 +9818,31 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/accessibility`.
                             internal var accessibility: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload?
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/toilets`.
+                            internal struct toiletsPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/toilets/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/toilets/detail`.
+                                internal var detail: Swift.String?
+                                /// Creates a new `toiletsPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - label:
+                                ///   - detail:
+                                internal init(
+                                    label: Swift.String,
+                                    detail: Swift.String? = nil
+                                ) {
+                                    self.label = label
+                                    self.detail = detail
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case label
+                                    case detail
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/toilets`.
+                            internal var toilets: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload?
                             /// Creates a new `stationsPayloadPayload`.
                             ///
                             /// - Parameters:
@@ -9677,18 +9851,21 @@ internal enum Operations {
                             ///   - coordinate:
                             ///   - routeIds:
                             ///   - accessibility:
+                            ///   - toilets:
                             internal init(
                                 id: Swift.String,
                                 name: Swift.String,
                                 coordinate: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.coordinatePayload,
                                 routeIds: [Swift.String],
-                                accessibility: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil
+                                accessibility: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil,
+                                toilets: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload? = nil
                             ) {
                                 self.id = id
                                 self.name = name
                                 self.coordinate = coordinate
                                 self.routeIds = routeIds
                                 self.accessibility = accessibility
+                                self.toilets = toilets
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case id
@@ -9696,6 +9873,7 @@ internal enum Operations {
                                 case coordinate
                                 case routeIds
                                 case accessibility
+                                case toilets
                             }
                         }
                         /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stations`.
@@ -10247,21 +10425,61 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/accessibility`.
                             internal var accessibility: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.accessibilityPayload
+                            /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/elevators`.
+                            internal struct elevatorsPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/elevators/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case ok = "ok"
+                                    case unavailable = "unavailable"
+                                }
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/elevators/status`.
+                                internal var status: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.elevatorsPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/elevators/sourceUpdatedAt`.
+                                internal var sourceUpdatedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/elevators/importedAt`.
+                                internal var importedAt: Foundation.Date?
+                                /// Creates a new `elevatorsPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - status:
+                                ///   - sourceUpdatedAt:
+                                ///   - importedAt:
+                                internal init(
+                                    status: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.elevatorsPayload.statusPayload,
+                                    sourceUpdatedAt: Foundation.Date? = nil,
+                                    importedAt: Foundation.Date? = nil
+                                ) {
+                                    self.status = status
+                                    self.sourceUpdatedAt = sourceUpdatedAt
+                                    self.importedAt = importedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case status
+                                    case sourceUpdatedAt
+                                    case importedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/elevators`.
+                            internal var elevators: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.elevatorsPayload
                             /// Creates a new `sourcesPayload`.
                             ///
                             /// - Parameters:
                             ///   - ban:
                             ///   - accessibility:
+                            ///   - elevators:
                             internal init(
                                 ban: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.banPayload,
-                                accessibility: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.accessibilityPayload
+                                accessibility: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.accessibilityPayload,
+                                elevators: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.elevatorsPayload
                             ) {
                                 self.ban = ban
                                 self.accessibility = accessibility
+                                self.elevators = elevators
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case ban
                                 case accessibility
+                                case elevators
                             }
                         }
                         /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources`.

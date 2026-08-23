@@ -21,7 +21,7 @@ type CachedPayload = {
 
 /**
  * Serves a whole response — gzipped bytes, ETag and all — from memory for
- * payloads that only change when a GTFS import runs.
+ * payloads that only change when a scheduled network import runs.
  *
  * The rail map is 1.14 MB of JSON. `getRailMap` already memoizes the assembled
  * object, but the memo only saves the two database reads: oRPC still revalidates

@@ -7,12 +7,17 @@ import {
   stationFacts,
   transitStopRoutes,
   transitStops,
+  type AccessibilityStationFactCondition,
 } from '@via/db/schema';
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 
 import { drawnRouteCondition, networkRouteCondition } from '@via/db/network-scope';
 
 import type { RouteBadgeRow } from '../route-badge';
+
+const networkAccessibilityFacts = alias(stationFacts, 'network_accessibility_facts');
+const networkToiletFacts = alias(stationFacts, 'network_toilet_facts');
 
 /**
  * The métro and RER tracks, precomputed at import time (`@via/db/drawn-geometry`)
@@ -55,8 +60,10 @@ export function selectRailStationPositions() {
       routeId: transitRoutes.id,
       longitude: sql<number>`ST_X(${displayedSnappedPoint})`,
       latitude: sql<number>`ST_Y(${displayedSnappedPoint})`,
-      accessibilityCondition: stationFacts.condition,
-      accessibilityDetail: stationFacts.detail,
+      accessibilityCondition: sql<AccessibilityStationFactCondition | null>`${networkAccessibilityFacts.condition}`,
+      accessibilityDetail: networkAccessibilityFacts.detail,
+      toiletStopId: networkToiletFacts.stopId,
+      toiletDetail: networkToiletFacts.detail,
     })
     .from(transitRoutePatternStops)
     .innerJoin(
@@ -66,16 +73,25 @@ export function selectRailStationPositions() {
     .innerJoin(transitRoutes, eq(transitRoutePatterns.routeId, transitRoutes.id))
     .innerJoin(transitStops, eq(transitRoutePatternStops.stopId, transitStops.id))
     .leftJoin(
-      stationFacts,
-      and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
+      networkAccessibilityFacts,
+      and(
+        eq(networkAccessibilityFacts.stopId, transitStops.id),
+        eq(networkAccessibilityFacts.kind, 'accessibility')
+      )
+    )
+    .leftJoin(
+      networkToiletFacts,
+      and(eq(networkToiletFacts.stopId, transitStops.id), eq(networkToiletFacts.kind, 'toilets'))
     )
     .where(and(drawnRouteCondition(), isNotNull(transitRoutePatternStops.snappedLocation)))
     .groupBy(
       transitStops.id,
       transitStops.name,
       transitRoutes.id,
-      stationFacts.condition,
-      stationFacts.detail
+      networkAccessibilityFacts.condition,
+      networkAccessibilityFacts.detail,
+      networkToiletFacts.stopId,
+      networkToiletFacts.detail
     )
     .orderBy(asc(transitStops.name), asc(transitRoutes.id));
 }
@@ -92,8 +108,10 @@ export function selectStationsInArea(area: StationsInAreaInput) {
       name: transitStops.name,
       longitude: sql<number>`ST_X(${transitStops.location})`,
       latitude: sql<number>`ST_Y(${transitStops.location})`,
-      accessibilityCondition: stationFacts.condition,
-      accessibilityDetail: stationFacts.detail,
+      accessibilityCondition: sql<AccessibilityStationFactCondition | null>`${networkAccessibilityFacts.condition}`,
+      accessibilityDetail: networkAccessibilityFacts.detail,
+      toiletStopId: networkToiletFacts.stopId,
+      toiletDetail: networkToiletFacts.detail,
       routes: sql<RouteBadgeRow[]>`json_agg(DISTINCT jsonb_build_object(
         'id', ${transitRoutes.id},
         'shortName', ${transitRoutes.shortName},
@@ -106,8 +124,15 @@ export function selectStationsInArea(area: StationsInAreaInput) {
     .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
     .innerJoin(transitRoutes, eq(transitStopRoutes.routeId, transitRoutes.id))
     .leftJoin(
-      stationFacts,
-      and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
+      networkAccessibilityFacts,
+      and(
+        eq(networkAccessibilityFacts.stopId, transitStops.id),
+        eq(networkAccessibilityFacts.kind, 'accessibility')
+      )
+    )
+    .leftJoin(
+      networkToiletFacts,
+      and(eq(networkToiletFacts.stopId, transitStops.id), eq(networkToiletFacts.kind, 'toilets'))
     )
     .where(
       and(
@@ -120,8 +145,10 @@ export function selectStationsInArea(area: StationsInAreaInput) {
     .groupBy(
       transitStops.id,
       transitStops.name,
-      stationFacts.condition,
-      stationFacts.detail
+      networkAccessibilityFacts.condition,
+      networkAccessibilityFacts.detail,
+      networkToiletFacts.stopId,
+      networkToiletFacts.detail
     )
     .orderBy(asc(transitStops.name));
 }

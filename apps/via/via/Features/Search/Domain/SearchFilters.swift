@@ -2,9 +2,35 @@ import Foundation
 
 struct SearchFilters: Codable, Sendable, Hashable {
     var requiresAccessibleStations = false
+    var requiresOperationalElevators = false
 
     var activeCount: Int {
-        requiresAccessibleStations ? 1 : 0
+        (requiresAccessibleStations ? 1 : 0) + (requiresOperationalElevators ? 1 : 0)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case requiresAccessibleStations
+        case requiresOperationalElevators
+    }
+
+    init(
+        requiresAccessibleStations: Bool = false,
+        requiresOperationalElevators: Bool = false
+    ) {
+        self.requiresAccessibleStations = requiresAccessibleStations
+        self.requiresOperationalElevators = requiresOperationalElevators
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        requiresAccessibleStations = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .requiresAccessibleStations
+        ) ?? false
+        requiresOperationalElevators = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .requiresOperationalElevators
+        ) ?? false
     }
 }
 

@@ -55,6 +55,7 @@ export function journeyCacheKey(input: {
   excludedModes?: string[];
   preferredModes?: string[];
   requiresAccessibleStations?: boolean;
+  requiresOperationalElevators?: boolean;
   originStationId?: string;
   /** Explicitly partition the derived station-profile context. */
   dayType?: string;
@@ -77,6 +78,7 @@ export function journeyCacheKey(input: {
     [...(input.excludedModes ?? [])].sort().join(','),
     [...(input.preferredModes ?? [])].sort().join(','),
     input.requiresAccessibleStations ? 'accessible' : 'any',
+    input.requiresOperationalElevators ? 'operational-elevators' : 'any-elevators',
     input.originStationId ?? '',
   ].join(':');
 }

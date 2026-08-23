@@ -21,11 +21,17 @@ struct NetworkStationDTO: Decodable {
         let comment: String?
     }
 
+    struct Toilets: Decodable {
+        let label: String
+        let detail: String?
+    }
+
     let id: String
     let name: String
     let coordinate: CoordinateDTO
     let routeIds: [String]
     let accessibility: Accessibility?
+    let toilets: Toilets?
 
     func domain() -> NetworkStation {
         NetworkStation(
@@ -42,7 +48,8 @@ struct NetworkStationDTO: Decodable {
                     label: value.label,
                     comment: value.comment
                 )
-            }
+            },
+            toilets: toilets.map { StationToilets(label: $0.label, detail: $0.detail) }
         )
     }
 }

@@ -32,6 +32,7 @@ struct JourneyRequest: Sendable, Hashable {
     var excludedModes: Set<TransitMode> = []
     var preferredModes: Set<TransitMode> = []
     var requiresAccessibleStations = false
+    var requiresOperationalElevators = false
     var originStationID: StationID?
 }
 
@@ -183,6 +184,44 @@ struct JourneyPlanningPolicy: Codable, Sendable, Hashable {
     var excludedModes: Set<TransitMode> = []
     var preferredModes: Set<TransitMode> = []
     var requiresAccessibleStations = false
+    var requiresOperationalElevators = false
+
+    private enum CodingKeys: String, CodingKey {
+        case requiredModes
+        case excludedModes
+        case preferredModes
+        case requiresAccessibleStations
+        case requiresOperationalElevators
+    }
+
+    init(
+        requiredModes: Set<TransitMode> = [],
+        excludedModes: Set<TransitMode> = [],
+        preferredModes: Set<TransitMode> = [],
+        requiresAccessibleStations: Bool = false,
+        requiresOperationalElevators: Bool = false
+    ) {
+        self.requiredModes = requiredModes
+        self.excludedModes = excludedModes
+        self.preferredModes = preferredModes
+        self.requiresAccessibleStations = requiresAccessibleStations
+        self.requiresOperationalElevators = requiresOperationalElevators
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        requiredModes = try values.decodeIfPresent(Set<TransitMode>.self, forKey: .requiredModes) ?? []
+        excludedModes = try values.decodeIfPresent(Set<TransitMode>.self, forKey: .excludedModes) ?? []
+        preferredModes = try values.decodeIfPresent(Set<TransitMode>.self, forKey: .preferredModes) ?? []
+        requiresAccessibleStations = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .requiresAccessibleStations
+        ) ?? false
+        requiresOperationalElevators = try values.decodeIfPresent(
+            Bool.self,
+            forKey: .requiresOperationalElevators
+        ) ?? false
+    }
 }
 
 struct JourneyDepartureSelection: Codable, Sendable, Hashable {
@@ -326,6 +365,8 @@ struct JourneyResult: Sendable, Hashable {
     enum Reason: String, Sendable, Hashable {
         case noAccessibleRoute = "no-accessible-route"
         case accessibilityDataUnavailable = "accessibility-data-unavailable"
+        case noOperationalElevatorRoute = "no-operational-elevator-route"
+        case elevatorDataUnavailable = "elevator-data-unavailable"
     }
 
     let status: Status

@@ -2,14 +2,16 @@ import Foundation
 
 enum JourneyActivationAction: String, Sendable, Equatable {
     case go
-    case activate
+    case plan
+    case planned
     case resume
     case active
 
     var title: String {
         switch self {
         case .go: "Go"
-        case .activate: "Activer le trajet"
+        case .plan: "Prévoir"
+        case .planned: "Trajet prévu"
         case .resume: "Reprendre"
         case .active: "Trajet actif"
         }
@@ -38,7 +40,25 @@ enum ActiveJourneyRules {
     ) -> JourneyActivationAction {
         return journey.departureAt.timeIntervalSince(now) <= imminentDepartureInterval
             ? .go
-            : .activate
+            : .plan
+    }
+
+    /// Resolves the detail screen's context without letting a planned origin
+    /// accidentally start live guidance. An existing active session always
+    /// wins; opening the saved draft explicitly turns it back into Go.
+    static func detailAction(
+        activeAction: JourneyActivationAction,
+        isPlanned: Bool,
+        prefersGo: Bool,
+        prefersPlan: Bool
+    ) -> JourneyActivationAction {
+        if activeAction == .active || activeAction == .resume {
+            return activeAction
+        }
+        if prefersGo { return .go }
+        if isPlanned { return .planned }
+        if prefersPlan { return .plan }
+        return activeAction
     }
 
     static func schedule(for journey: Journey) -> [JourneySectionSchedule] {

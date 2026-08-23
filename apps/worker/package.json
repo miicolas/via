@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "bun --env-file=../../.env test",
+    "import-elevators": "bun --env-file=../../.env src/elevators/cli.ts",
     "import-station-peaks": "bun --env-file=../../.env src/station-peaks/cli.ts",
+    "import-toilets": "bun --env-file=../../.env src/toilets/cli.ts",
     "rebuild-line-schemas": "bun --env-file=../../.env src/line-schema/rebuild.ts",
     "typecheck": "tsc --noEmit"
   },

@@ -37,6 +37,10 @@ test('time direction and modal policies partition the journey cache', () => {
   const preferredBus = journeyCacheKey({ ...base, preferredModes: ['bus'] });
   const requiredBus = journeyCacheKey({ ...base, requiredModes: ['bus'] });
   const accessible = journeyCacheKey({ ...base, requiresAccessibleStations: true });
+  const operationalElevators = journeyCacheKey({
+    ...base,
+    requiresOperationalElevators: true,
+  });
   const selectedOrigin = journeyCacheKey({ ...base, originStationId: 'IDFM:71410' });
   const weekdayMorning = journeyCacheKey({ ...base, dayType: 'weekday', hour: 8 });
   const weekdayEvening = journeyCacheKey({ ...base, dayType: 'weekday', hour: 18 });
@@ -47,8 +51,9 @@ test('time direction and modal policies partition the journey cache', () => {
     preferredBus,
     requiredBus,
     accessible,
+    operationalElevators,
     selectedOrigin,
     weekdayMorning,
     weekdayEvening,
-  ]).size).toBe(8);
+  ]).size).toBe(9);
 });

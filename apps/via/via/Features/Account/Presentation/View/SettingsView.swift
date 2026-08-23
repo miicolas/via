@@ -72,6 +72,23 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("NOTIFICATIONS") {
+                    NavigationLink {
+                        NotificationSettingsView(
+                            accountModel: accountModel,
+                            coordinator: .shared,
+                            inboxRemote: notificationInboxRemote,
+                            journeyNotificationCoordinator: journeyNotificationCoordinator
+                        )
+                    } label: {
+                        SettingsRow(
+                            title: "Notifications",
+                            systemImage: "bell.badge.fill",
+                            subtitle: "Rappels et lignes suivies"
+                        )
+                    }
+                }
+
                 Section("EXTENSIONS") {
                     NavigationLink {
                         LiveActivitiesSettingsView()
@@ -84,30 +101,12 @@ struct SettingsView: View {
                     }
 
                     NavigationLink {
-                        NotificationSettingsView(
-                            accountModel: accountModel,
-                            coordinator: .shared,
-                            inboxRemote: notificationInboxRemote,
-                            journeyNotificationCoordinator: journeyNotificationCoordinator
-                        )
-                    } label: {
-                        SettingsRow(
-                            title: "Notifications",
-                            systemImage: "bell.badge.fill",
-                            subtitle: "Alertes, rappels et lignes suivies"
-                        )
-                    }
-
-                    NavigationLink {
-                        PermissionsSettingsView(
-                            locationModel: locationModel,
-                            journeyNotificationCoordinator: journeyNotificationCoordinator
-                        )
+                        PermissionsSettingsView(locationModel: locationModel)
                     } label: {
                         SettingsRow(
                             title: "Autorisations iOS",
                             systemImage: "hand.raised.fill",
-                            subtitle: "Localisation, caméra, contacts et notifications"
+                            subtitle: "Localisation, caméra et contacts"
                         )
                     }
                 }

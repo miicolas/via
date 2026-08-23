@@ -125,6 +125,30 @@ extension EmptyState {
         """,
     )
 
+    static let elevatorsUnavailable = EmptyState(
+        systemImage: "arrow.up.arrow.down.square",
+        title: "État des ascenseurs indisponible",
+        message: "Île-de-France Mobilités ne fournit aucun état exploitable pour le moment.",
+    )
+
+    static let noElevators = EmptyState(
+        systemImage: "arrow.up.arrow.down.square",
+        title: "Aucun ascenseur référencé",
+        message: "La source ne référence aucun ascenseur dans cette station.",
+    )
+
+    static let elevatorDataUnavailable = EmptyState(
+        systemImage: "arrow.up.arrow.down.square",
+        title: "Données d’ascenseurs indisponibles",
+        message: "Modifie le filtre Ascenseurs ou réessaie après la prochaine mise à jour.",
+    )
+
+    static let noOperationalElevatorRoute = EmptyState(
+        systemImage: "arrow.up.arrow.down.square",
+        title: "Aucun trajet avec ascenseurs vérifiés",
+        message: "Aucun itinéraire ne passe uniquement par des stations dont tous les ascenseurs référencés sont disponibles.",
+    )
+
     static func searching(_ label: String = "Recherche…") -> EmptyState {
         EmptyState(title: label, isBusy: true)
     }

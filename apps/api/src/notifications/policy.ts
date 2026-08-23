@@ -8,7 +8,6 @@ import { frenchHolidays, parisDay, parisDayType } from '../time/paris';
 import { categoryPreference, mergeNotificationPreferences, severityRank } from './preferences';
 
 export type DeliveryDropReason =
-  | 'disabled'
   | 'quiet-hours'
   | 'cap'
   | 'category-off'
@@ -84,7 +83,6 @@ export function evaluateDelivery(input: DeliveryPolicyInput): DeliveryPolicyResu
   const at = input.at ?? new Date();
   const category = categoryPreference(preferences, input.category);
 
-  if (!preferences.enabled) return { send: false, reason: 'disabled' };
   if (input.muted) return { send: false, reason: 'muted' };
   if (input.stale) return { send: false, reason: 'stale' };
   if (input.empty) return { send: false, reason: 'empty' };

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SearchAccessibilityInfoView: View {
     let source: SearchResponse.AccessibilitySource
+    let elevatorSource: SearchResponse.ElevatorSource
 
     @Environment(\.dismiss) private var dismiss
 
@@ -27,10 +28,16 @@ struct SearchAccessibilityInfoView: View {
                     Text("Les itinéraires nécessitant une réservation ou l’assistance d’un agent restent proposés avec un avertissement. Les données locales complètent le résultat sans supprimer un itinéraire PMR renvoyé par Île-de-France Mobilités.")
                         .foregroundStyle(.secondary)
 
+                    Label("Filtre Ascenseurs", systemImage: "arrow.up.arrow.down.square")
+                        .font(.title2.weight(.bold))
+
+                    Text("Ce filtre conserve uniquement les itinéraires dont chaque station ferroviaire utilisée possède des ascenseurs référencés et disponibles. Un ascenseur hors service, inconnu ou une station sans état vérifiable écarte le trajet.")
+                        .foregroundStyle(.secondary)
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Limites de la donnée")
                             .font(.headline)
-                        Text("La source couvre principalement les gares ferroviaires, RER et Transilien. Elle est statique et ne reflète pas les pannes d’ascenseur en temps réel.")
+                        Text("La déclaration PMR reste un référentiel stable. L’état des ascenseurs provient des rondes en gare et est publié jusqu’à trois fois par jour ; ce n’est pas une télésurveillance en temps réel.")
                             .foregroundStyle(.secondary)
                         Text(
                             source.status == .ok
@@ -43,6 +50,17 @@ struct SearchAccessibilityInfoView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        Text(
+                            elevatorSource.status == .ok
+                                ? "Le dernier état des ascenseurs disponible a été importé par Metyro."
+                                : "Aucun état d’ascenseur n’est actuellement disponible dans Metyro."
+                        )
+                            .foregroundStyle(.secondary)
+                        if let importedAt = elevatorSource.importedAt {
+                            Text("Dernière importation ascenseurs : \(importedAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
@@ -52,7 +70,11 @@ struct SearchAccessibilityInfoView: View {
                             "Accessibilité en gare — Île-de-France Mobilités",
                             destination: URL(string: "https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/accessibilite-en-gare")!
                         )
-                        Text("Licence Ouverte 2.0 — Etalab")
+                        Link(
+                            "État des ascenseurs — Île-de-France Mobilités",
+                            destination: URL(string: "https://prim.iledefrance-mobilites.fr/fr/jeux-de-donnees/etat-des-ascenseurs")!
+                        )
+                        Text("Licences des jeux de données Île-de-France Mobilités")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -64,7 +86,7 @@ struct SearchAccessibilityInfoView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Fermer") { dismiss() }
+                    Button(role: .close) { dismiss() }
                 }
             }
         }

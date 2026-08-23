@@ -8,7 +8,7 @@ struct NotificationSettingsView: View {
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
 
     @Environment(\.openURL) private var openURL
-    @State private var isNotificationAuthorizationRequested = false
+    @Environment(\.scenePhase) private var scenePhase
 
     init(
         accountModel: AccountModel,
@@ -25,63 +25,40 @@ struct NotificationSettingsView: View {
     var body: some View {
         List {
             Section {
-                Button {
-                    // Turning the master switch on is a request for notifications;
-                    // iOS still has to be asked, and only the first ask ever prompts.
-                    let willEnable = !accountModel.notificationPreferences.enabled
-                    updatePreferences { $0.enabled.toggle() }
-                    if willEnable { isNotificationAuthorizationRequested = true }
-                } label: {
-                    HStack(spacing: 12) {
-                        SettingsRow(
-                            title: "Notifications",
-                            systemImage: accountModel.notificationPreferences.enabled
-                                ? "bell.fill"
-                                : "bell.slash.fill",
-                            subtitle: accountModel.notificationPreferences.enabled
-                                ? "Les alertes importantes sont activées"
-                                : "Toutes les alertes sont désactivées",
-                            tint: accountModel.notificationPreferences.enabled ? .orange : .secondary
-                        )
-                        Image(systemName: accountModel.notificationPreferences.enabled
-                            ? "checkmark.circle.fill"
-                            : "circle")
-                            .foregroundStyle(accountModel.notificationPreferences.enabled ? .green : .secondary)
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Notifications")
-                .accessibilityValue(accountModel.notificationPreferences.enabled ? "Activées" : "Désactivées")
-                .accessibilityAddTraits(.isToggle)
-
-                authorizationRow
+                SettingsRow(
+                    title: "Notifications iOS",
+                    systemImage: "bell.fill",
+                    subtitle: "Sons et affichage gérés par iOS",
+                    tint: authorizationColor,
+                    value: authorizationTitle
+                )
 
                 if coordinator.authorizationStatus == .notDetermined {
                     NotificationAuthorizationButton {
                         await coordinator.restore()
                         await journeyNotificationCoordinator.refreshAuthorizationStatus()
                     }
-                } else if !coordinator.isAuthorized {
-                    EmptyStateView(.notificationsDenied) {
-                        Button("Ouvrir les réglages iOS", systemImage: "gearshape") {
-                            openURL.systemSettings()
-                        }
-                        .secondaryAction()
+                } else {
+                    Button("Ouvrir les réglages iOS", systemImage: "gearshape") {
+                        openURL.systemSettings()
                     }
+                    .secondaryAction()
                 }
             } header: {
-                Text("ÉTAT")
+                Text("AUTORISATION")
+            } footer: {
+                Text("L’activation, les sons et l’affichage des notifications se règlent uniquement dans Réglages iOS.")
             }
 
             Section {
                 NavigationLink {
-                    NotificationInboxView(remote: inboxRemote)
+                    JourneyNotificationsSettingsView(coordinator: journeyNotificationCoordinator)
                 } label: {
                     SettingsRow(
-                        title: "Centre de notifications",
-                        systemImage: "bell.badge",
-                        subtitle: "Historique et alertes importantes",
-                        value: inboxValue
+                        title: "Rappel de trajet",
+                        systemImage: "figure.walk.motion",
+                        subtitle: "Avant le départ d’un trajet actif",
+                        value: journeyReminderValue
                     )
                 }
 
@@ -92,20 +69,10 @@ struct NotificationSettingsView: View {
                     )
                 } label: {
                     SettingsRow(
-                        title: "Programmations",
+                        title: "Rappels récurrents",
                         systemImage: "calendar.badge.clock",
-                        subtitle: "Rappels récurrents et résumés",
+                        subtitle: "Pour vos trajets habituels",
                         value: scheduleValue
-                    )
-                }
-
-                NavigationLink {
-                    JourneyNotificationsSettingsView(coordinator: journeyNotificationCoordinator)
-                } label: {
-                    SettingsRow(
-                        title: "Trajet actif",
-                        systemImage: "figure.walk.motion",
-                        subtitle: "Départ, correspondances et arrivée"
                     )
                 }
 
@@ -120,108 +87,30 @@ struct NotificationSettingsView: View {
                     )
                 }
             } header: {
-                Text("À RECEVOIR")
-            }
-
-            Section {
-                NotificationCategoryRow(
-                    preference: preference(for: .journey),
-                    onToggle: { toggleCategory(.journey) }
-                )
-                NotificationCategoryRow(
-                    preference: preference(for: .commute),
-                    onToggle: { toggleCategory(.commute) }
-                )
-                NotificationCategoryRow(
-                    preference: preference(for: .line),
-                    onToggle: { toggleCategory(.line) }
-                )
-                NotificationCategoryRow(
-                    preference: preference(for: .station),
-                    onToggle: { toggleCategory(.station) }
-                )
-                NotificationCategoryRow(
-                    preference: preference(for: .digest),
-                    onToggle: { toggleCategory(.digest) }
-                )
-                NotificationCategoryRow(
-                    preference: preference(for: .recommendation),
-                    onToggle: { toggleCategory(.recommendation) }
-                )
-            } header: {
-                Text("CATÉGORIES")
+                Text("MES RAPPELS")
             } footer: {
-                Text("Vous pouvez désactiver une catégorie sans perdre vos programmations ni vos abonnements.")
+                Text("Metyro vous prévient seulement pour les rappels et les suivis que vous avez choisis.")
             }
 
             Section {
                 NavigationLink {
-                    NotificationQuietHoursView(
-                        preferences: accountModel.notificationPreferences,
-                        onSave: { preferences in
-                            accountModel.setNotificationPreferences(preferences)
-                        }
-                    )
+                    NotificationInboxView(remote: inboxRemote)
                 } label: {
                     SettingsRow(
-                        title: "Heures calmes",
-                        systemImage: "moon.fill",
-                        subtitle: quietHoursSubtitle
+                        title: "Historique",
+                        systemImage: "tray.full.fill",
+                        subtitle: "Notifications reçues"
                     )
                 }
-
-                Button {
-                    updatePreferences { $0.mutedOnWeekends.toggle() }
-                } label: {
-                    preferenceButtonRow(
-                        title: "Silencieux le week-end",
-                        systemImage: "calendar",
-                        enabled: accountModel.notificationPreferences.mutedOnWeekends
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Silencieux le week-end")
-                .accessibilityValue(accountModel.notificationPreferences.mutedOnWeekends ? "Activé" : "Désactivé")
-                .accessibilityAddTraits(.isToggle)
-
-                Button {
-                    updatePreferences { $0.mutedOnHolidays.toggle() }
-                } label: {
-                    preferenceButtonRow(
-                        title: "Silencieux les jours fériés",
-                        systemImage: "calendar.badge.exclamationmark",
-                        enabled: accountModel.notificationPreferences.mutedOnHolidays
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Silencieux les jours fériés")
-                .accessibilityValue(accountModel.notificationPreferences.mutedOnHolidays ? "Activé" : "Désactivé")
-                .accessibilityAddTraits(.isToggle)
-
-                Picker(
-                    "Niveau minimum",
-                    selection: Binding(
-                        get: { accountModel.notificationPreferences.minimumSeverity },
-                        set: { severity in updatePreferences { $0.minimumSeverity = severity } }
-                    )
-                ) {
-                    ForEach(NotificationSeverity.allCases) { severity in
-                        Text(severity.title).tag(severity)
-                    }
-                }
-            } header: {
-                Text("FILTRES")
-            } footer: {
-                Text("Les heures utilisent le fuseau Europe/Paris. Les perturbations suspendues restent prioritaires lorsqu’elles sont autorisées.")
             }
         }
         .navigationTitle("Notifications")
         .navigationBarTitleDisplayMode(.large)
-        .notificationAuthorization(
-            isRequested: $isNotificationAuthorizationRequested,
-            message: "Autorisez les notifications dans Réglages iOS pour recevoir les alertes de Via."
-        )
-        .task { await coordinator.restore() }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            await coordinator.restore()
+            await journeyNotificationCoordinator.refreshAuthorizationStatus()
+        }
         .task(id: reconciliationKey) {
             await coordinator.reconcile(
                 schedules: accountModel.notificationSchedules,
@@ -230,53 +119,12 @@ struct NotificationSettingsView: View {
         }
     }
 
-    private var authorizationRow: some View {
-        HStack(spacing: 14) {
-            Image(systemName: authorizationSystemImage)
-                .foregroundStyle(authorizationColor)
-                .frame(width: 26)
-            Text("Autorisation iOS")
-            Spacer()
-            Text(authorizationTitle)
-                .foregroundStyle(authorizationColor)
-        }
-        .frame(minHeight: 44)
-    }
-
-    private func preferenceButtonRow(
-        title: String,
-        systemImage: String,
-        enabled: Bool
-    ) -> some View {
-        HStack(spacing: 16) {
-            Image(systemName: systemImage)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(enabled ? .primary : .secondary)
-                .frame(width: 32)
-            Text(title)
-                .foregroundStyle(.primary)
-            Spacer(minLength: 8)
-            Image(systemName: enabled ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(enabled ? .green : .secondary)
-        }
-        .frame(minHeight: 50)
-        .contentShape(Rectangle())
-    }
-
     private var authorizationTitle: String {
         switch coordinator.authorizationStatus {
-        case .authorized, .provisional, .ephemeral: "Autorisé"
-        case .notDetermined: "Non demandé"
-        case .denied: "Refusé"
+        case .authorized, .provisional, .ephemeral: "Autorisées"
+        case .notDetermined: "À autoriser"
+        case .denied: "Refusées"
         @unknown default: "À vérifier"
-        }
-    }
-
-    private var authorizationSystemImage: String {
-        switch coordinator.authorizationStatus {
-        case .authorized, .provisional, .ephemeral: "bell.fill"
-        case .denied: "bell.slash.fill"
-        default: "bell"
         }
     }
 
@@ -298,16 +146,8 @@ struct NotificationSettingsView: View {
         return count == 0 ? nil : "\(count)"
     }
 
-    private var inboxValue: String? {
-        nil
-    }
-
-    private var quietHoursSubtitle: String {
-        guard let start = accountModel.notificationPreferences.quietHoursStartMinute,
-              let end = accountModel.notificationPreferences.quietHoursEndMinute else {
-            return "Aucune plage"
-        }
-        return "\(formatMinute(start)) – \(formatMinute(end))"
+    private var journeyReminderValue: String? {
+        journeyNotificationCoordinator.reminder == nil ? nil : "Actif"
     }
 
     private var reconciliationKey: String {
@@ -317,46 +157,6 @@ struct NotificationSettingsView: View {
                 accountModel.notificationSchedules,
             ]
         )
-    }
-
-    private func preference(for category: NotificationCategory) -> NotificationCategoryPreference {
-        accountModel.notificationPreferences.categories.first { $0.category == category }
-            ?? NotificationCategoryPreference(
-                category: category,
-                enabled: true,
-                minimumSeverity: .attention,
-                dailyCap: nil
-            )
-    }
-
-    private func toggleCategory(_ category: NotificationCategory) {
-        updatePreferences { preferences in
-            var categories = preferences.categories
-            if let index = categories.firstIndex(where: { $0.category == category }) {
-                categories[index].enabled.toggle()
-            } else {
-                categories.append(NotificationCategoryPreference(
-                    category: category,
-                    enabled: false,
-                    minimumSeverity: .attention,
-                    dailyCap: nil
-                ))
-            }
-            preferences.categories = categories
-        }
-    }
-
-    private func updatePreferences(_ update: (inout NotificationPreferences) -> Void) {
-        var preferences = accountModel.notificationPreferences
-        update(&preferences)
-        preferences.updatedAt = .now
-        accountModel.setNotificationPreferences(preferences)
-    }
-
-    private func formatMinute(_ minute: Int) -> String {
-        let hour = minute / 60
-        let value = minute % 60
-        return String(format: "%02d:%02d", hour, value)
     }
 
 }

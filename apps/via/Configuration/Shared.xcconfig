@@ -11,6 +11,15 @@ GENERATE_INFOPLIST_FILE = NO
 INFOPLIST_FILE = via/Resources/Info.plist
 VIA_URL_SLASH = /
 
+// Shared secret naming this build to the API, which refuses callers it cannot
+// name. Empty here on purpose: the real value lives in the untracked
+// Configuration/Secrets.xcconfig (copy Secrets.example.xcconfig), so a clone
+// never ships someone else's key and the key never lands in a commit.
+VIA_API_CLIENT_KEY =
+
 // Prevent malformed @filelist or stray flags from being injected into the Swift compiler
 OTHER_SWIFT_FLAGS =
 SWIFT_ACTIVE_COMPILATION_CONDITIONS =
+
+// Last, so the untracked file wins over the defaults above.
+#include? "Secrets.xcconfig"

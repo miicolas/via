@@ -21,7 +21,9 @@ export const REFERENTIAL_DATASETS = {
   accessibility: `${CATALOG}/accessibilite-en-gare`,
   accesses: `${CATALOG}/acces`,
   accessRelations: `${CATALOG}/relations-acces`,
+  quays: `${CATALOG}/arrets`,
   stopAreas: `${CATALOG}/zones-d-arrets`,
+  toilets: `${CATALOG}/sanitaires-reseau-ratp`,
   trainPositions: `${CATALOG}/positionnement-dans-la-rame`,
 } as const;
 
@@ -73,6 +75,17 @@ export function readStopAreaParents(rows: Record<string, unknown>[]) {
     const zdaid = asString(row.zdaid);
     const zdcid = asString(row.zdcid);
     if (zdaid && zdcid) parents.set(zdaid, zdcid);
+  }
+  return parents;
+}
+
+/** `{ arrid → zdaid }`, used when Navitia returns an aggregate rail stop point. */
+export function readQuayStopAreas(rows: Record<string, unknown>[]) {
+  const parents = new Map<string, string>();
+  for (const row of rows) {
+    const arrid = asString(row.arrid);
+    const zdaid = asString(row.zdaid);
+    if (arrid && zdaid) parents.set(arrid, zdaid);
   }
   return parents;
 }

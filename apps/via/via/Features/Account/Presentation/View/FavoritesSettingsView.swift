@@ -21,7 +21,7 @@ struct FavoritesSettingsView: View {
 
     var body: some View {
         List {
-            Section("Destinations") {
+            Section {
                 ForEach(SavedPlace.Role.allCases) { role in
                     let place = accountModel.place(for: role)
                     SavedDestinationSettingsRow(
@@ -60,6 +60,8 @@ struct FavoritesSettingsView: View {
                 .onMove {
                     accountModel.reorderDestinations(from: $0, to: $1)
                 }
+            } header: {
+                Text("Destinations")
             } footer: {
                 Text("Maison et Travail restent épinglés. Réorganise les autres destinations en mode édition.")
             }

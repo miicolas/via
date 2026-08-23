@@ -36,12 +36,8 @@ struct JourneyDetailActionBar: View {
             }
           }
           .primaryAction()
-          .disabled(isActivating || action == .active)
-          .accessibilityHint(
-            action == .active
-              ? "Ce trajet est déjà actif"
-              : "Active le guidage étape par étape dans Metyro"
-          )
+          .disabled(isActivating || action == .active || action == .planned)
+          .accessibilityHint(action.accessibilityHint)
 
           Button(action: onReminder) {
             Label {
@@ -75,9 +71,25 @@ extension JourneyActivationAction {
   var systemImage: String {
     switch self {
     case .go: "location.fill"
-    case .activate: "play.fill"
+    case .plan: "calendar.badge.plus"
+    case .planned: "calendar.badge.checkmark"
     case .resume: "arrow.clockwise"
     case .active: "checkmark"
+    }
+  }
+
+  var accessibilityHint: String {
+    switch self {
+    case .go:
+      "Lance le guidage étape par étape dans Metyro"
+    case .plan:
+      "Enregistre ce trajet pour pouvoir le lancer rapidement plus tard"
+    case .planned:
+      "Ce trajet est déjà prévu"
+    case .resume:
+      "Reprend le guidage de ce trajet"
+    case .active:
+      "Ce trajet est déjà actif"
     }
   }
 }

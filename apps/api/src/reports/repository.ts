@@ -5,7 +5,8 @@ import {
   stationFacts,
   transitStops,
 } from '@via/db';
-import { and, eq, gte, inArray } from 'drizzle-orm';
+import type { AccessibilityStationFactCondition } from '@via/db/schema';
+import { and, eq, gte, inArray, sql } from 'drizzle-orm';
 
 import { parisDay, parisDayType } from '../time/paris';
 import { ACCESSIBILITY_CONDITION_LABELS } from '../routers/accessibility-labels';
@@ -90,7 +91,9 @@ export function createDatabaseReportRepository(): ReportRepository {
           eq(reportCurrentVotes.stationId, stationId),
           gte(reportCurrentVotes.observedAt, activeSince(at)),
         )),
-        db.select({ condition: stationFacts.condition }).from(stationFacts).where(and(
+        db.select({
+          condition: sql<AccessibilityStationFactCondition>`${stationFacts.condition}`,
+        }).from(stationFacts).where(and(
           eq(stationFacts.stopId, stationId),
           eq(stationFacts.kind, 'accessibility'),
         )).limit(1),
