@@ -14,6 +14,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
     private let metrics: any NaturalJourneyMetricsRecording
     private let metricsNow: @Sendable () -> Date
     private let requiresAccessibleStations: @Sendable () -> Bool
+    private let requiresOperationalElevators: @Sendable () -> Bool
 
     init(
         parser: any NaturalIntentParsing,
@@ -23,6 +24,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         metrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
         metricsNow: @escaping @Sendable () -> Date = { .now },
         requiresAccessibleStations: @escaping @Sendable () -> Bool = { false },
+        requiresOperationalElevators: @escaping @Sendable () -> Bool = { false },
     ) {
         self.parser = parser
         self.places = places
@@ -31,6 +33,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         self.metrics = metrics
         self.metricsNow = metricsNow
         self.requiresAccessibleStations = requiresAccessibleStations
+        self.requiresOperationalElevators = requiresOperationalElevators
     }
 
     func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
@@ -246,6 +249,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         journeyRequest.excludedModes = draft.intent.excludedModes
         journeyRequest.preferredModes = draft.intent.preferredModes
         journeyRequest.requiresAccessibleStations = requiresAccessibleStations()
+        journeyRequest.requiresOperationalElevators = requiresOperationalElevators()
         if let origin = draft.origin, case let .station(station) = origin {
             journeyRequest.originStationID = station.id
         }
@@ -282,6 +286,10 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 "Aucun trajet PMR vérifié ne respecte cette recherche. Modifie la recherche ou désactive le filtre de trajet PMR."
             case .accessibilityDataUnavailable:
                 "Les données d’accessibilité sont indisponibles. Réessaie plus tard ou désactive le filtre de trajet PMR."
+            case .noOperationalElevatorRoute:
+                "Aucun trajet ne passe uniquement par des stations aux ascenseurs vérifiés. Modifie la recherche ou désactive le filtre Ascenseurs."
+            case .elevatorDataUnavailable:
+                "L’état des ascenseurs est indisponible. Réessaie plus tard ou désactive le filtre Ascenseurs."
             case nil:
                 "Je n’ai pas trouvé d’itinéraire vérifiable."
             }

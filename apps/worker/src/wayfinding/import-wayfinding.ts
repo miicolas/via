@@ -1,7 +1,12 @@
 import { db } from '@via/db';
 import { boardingPositions, stationExits, transitStopAliases, transitStops } from '@via/db/schema';
 
-import { datasetUpdatedAt, exportDataset, readStopAreaParents } from '../idfm/referential';
+import {
+  datasetUpdatedAt,
+  exportDataset,
+  readQuayStopAreas,
+  readStopAreaParents,
+} from '../idfm/referential';
 import { mapBoardingPositions, mapExits } from './map-wayfinding';
 
 const INSERT_BATCH = 500;
@@ -10,14 +15,15 @@ const INSERT_BATCH = 500;
  * Imports the station exits and the carriage advice that goes with them.
  *
  * Must run after a GTFS import: exits attach to `transit_stops`, and every
- * boarding position is validated against `transit_stop_aliases`, which is where
- * quay ids come from. On an empty network it throws rather than committing a
- * snapshot that silently matches nothing.
+ * exact or direction-safe aggregate boarding position is validated against
+ * `transit_stop_aliases`. On an empty network it throws rather than committing
+ * a snapshot that silently matches nothing.
  */
 export async function refreshWayfindingSnapshot() {
   const [
     accesses,
     accessRelations,
+    quays,
     stopAreas,
     trainPositions,
     exitsUpdatedAt,
@@ -25,6 +31,7 @@ export async function refreshWayfindingSnapshot() {
   ] = await Promise.all([
     exportDataset('accesses'),
     exportDataset('accessRelations'),
+    exportDataset('quays'),
     exportDataset('stopAreas'),
     exportDataset('trainPositions'),
     datasetUpdatedAt('accesses'),
@@ -48,6 +55,7 @@ export async function refreshWayfindingSnapshot() {
     trainPositions,
     exitIDs: new Set(exits.keys()),
     knownQuayIDs: new Set(aliases.map((alias) => alias.sourceId)),
+    stopAreaByQuay: readQuayStopAreas(quays),
   });
 
   const importedAt = new Date();

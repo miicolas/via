@@ -18,6 +18,7 @@ import { selectStationRoutes } from '../queries';
 import { theoreticalRowLoader } from '../theoretical/load-rows';
 import { nextTheoreticalDepartures } from '../theoretical/next-departures';
 import { stationPeaks } from '../../station-peak';
+import { elevatorSnapshotForStation } from '../../elevators';
 
 /**
  * The route is authenticated, so only the device cache may reuse the payload.
@@ -65,13 +66,14 @@ export const getStationDepartures = implementer.departures.forStation.handler(
     context.resHeaders?.set('Cache-Control', DEPARTURES_CACHE_CONTROL);
 
     const now = new Date();
-    const peak = (
-      await stationPeaks(
+    const [peak, elevators] = await Promise.all([
+      stationPeaks(
         [input.stationId],
         parisDayType(now),
         Math.floor(parisDay(now).seconds / 3600)
-      )
-    ).get(input.stationId);
+      ).then((values) => values.get(input.stationId)),
+      elevatorSnapshotForStation(input.stationId),
+    ]);
 
     if (snapshot !== null) {
       let theoreticalBaseline: Awaited<ReturnType<typeof nextTheoreticalDepartures>> = [];
@@ -106,6 +108,7 @@ export const getStationDepartures = implementer.departures.forStation.handler(
           generatedAt: now.toISOString(),
           fetchedAt: new Date(snapshot.fetchedAt * 1_000).toISOString(),
           peak,
+          elevators,
           groups,
         };
       }
@@ -122,6 +125,7 @@ export const getStationDepartures = implementer.departures.forStation.handler(
       source: scheduled.length > 0 ? ('theoretical' as const) : ('unavailable' as const),
       generatedAt: now.toISOString(),
       peak,
+      elevators,
       groups: scheduled,
     };
   }

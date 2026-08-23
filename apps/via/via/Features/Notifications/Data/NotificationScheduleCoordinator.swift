@@ -84,8 +84,7 @@ final class NotificationScheduleCoordinator {
                 : nil
             return
         }
-        guard preferences.enabled,
-              preferences.categories.first(where: { $0.category == .commute })?.enabled ?? true else {
+        guard preferences.categories.first(where: { $0.category == .commute })?.enabled ?? true else {
             return
         }
 

@@ -79,6 +79,8 @@ export const journeyInputSchema = z.object({
   preferredModes: journeyModeListParamSchema.optional(),
   /** Require every used boarding, alighting, and transfer station to be declared PMR-accessible. */
   requiresAccessibleStations: queryBooleanSchema.optional(),
+  /** Require every referenced lift at each used rail station to be currently available. */
+  requiresOperationalElevators: queryBooleanSchema.optional(),
   /** The user explicitly selected this station as origin; preserve that choice when filtering. */
   originStationId: z.string().min(1).optional(),
 });
@@ -125,8 +127,9 @@ export const boardingPositionEquipmentSchema = z.enum(['escalator', 'lift', 'sta
  * the line's nominal train length: a short trainset makes the number optimistic,
  * which is why `zone` ships alongside it and is what the app leads with.
  *
- * Only the RATP metro and RER A/B publish this, and only the realtime planner
- * resolves the quay it is keyed by — absent everywhere else.
+ * Only the RATP metro and RER A/B publish this. The realtime planner normally
+ * resolves the directional quay; when it only returns a RER stop area, Via
+ * keeps a recommendation solely if every documented direction agrees.
  */
 export const boardingPositionSchema = z.object({
   car: z.int().min(1),
@@ -196,8 +199,30 @@ export const journeySchema = z.object({
       ratio: z.number().min(0).max(1),
       /** `off` is omitted from journeys; a badge only exists for a warning. */
       level: z.enum(['moderate', 'peak']),
+      /** Canonical station id, so a live report can supersede this annotation. */
+      stationId: z.string().optional(),
       stationName: z.string(),
       label: z.string(),
+    })
+    .optional(),
+  /** A recent community observation, applied after the stable planner cache. */
+  reportedCrowding: z
+    .object({
+      level: z.enum(['low', 'moderate', 'high', 'saturated']),
+      stationName: z.string(),
+      label: z.string(),
+      reporterCount: z.number().int().positive(),
+      expiresAt: z.iso.datetime({ offset: true }),
+    })
+    .optional(),
+  /** A live PMR warning; one report warns, two distinct reports can exclude. */
+  wheelchairReport: z
+    .object({
+      stationName: z.string(),
+      label: z.string(),
+      reporterCount: z.number().int().positive(),
+      confidence: z.enum(['observed', 'confirmed']),
+      expiresAt: z.iso.datetime({ offset: true }),
     })
     .optional(),
   sections: z.array(journeySectionSchema).min(1),
@@ -207,7 +232,14 @@ export const journeysResponseSchema = z.object({
   status: z.enum(['ready', 'no-route', 'unavailable']),
   source: z.enum(['idfm-realtime', 'gtfs-theoretical']).optional(),
   generatedAt: z.iso.datetime({ offset: true }),
-  reason: z.enum(['no-accessible-route', 'accessibility-data-unavailable']).optional(),
+  reason: z
+    .enum([
+      'no-accessible-route',
+      'accessibility-data-unavailable',
+      'no-operational-elevator-route',
+      'elevator-data-unavailable',
+    ])
+    .optional(),
   journeys: z.array(journeySchema),
 });
 
@@ -216,6 +248,7 @@ export const journeyPlanningPolicySchema = z.object({
   excludedModes: z.array(journeyModeSchema).max(3).default([]),
   preferredModes: z.array(journeyModeSchema).max(3).default([]),
   requiresAccessibleStations: z.boolean().default(false),
+  requiresOperationalElevators: z.boolean().default(false),
 });
 
 export const journeyDepartureSelectionSchema = z.object({
@@ -231,6 +264,7 @@ export const journeyDepartureChoicesInputSchema = z.object({
     excludedModes: [],
     preferredModes: [],
     requiresAccessibleStations: false,
+    requiresOperationalElevators: false,
   }),
   selection: journeyDepartureSelectionSchema.optional(),
 });

@@ -30,7 +30,6 @@ import { maxAbsoluteTimetableSeconds, TIMETABLE_HORIZON_KEY } from '@via/db/time
 import { networkRouteCondition } from '@via/db/network-scope';
 import { projectStopsOntoPatterns } from '@via/db/projection';
 import { and, asc, eq, sql } from 'drizzle-orm';
-import { RedisClient as BunRedisClient } from 'bun';
 
 import { readCsv, readPositionalCsv, type CsvRow } from './csv';
 import { deriveDrawnGeometryByRoute } from './derive-drawn-geometry';
@@ -45,6 +44,8 @@ import { importShapes } from './shapes/import-shapes';
 import { refreshAccessibilitySnapshot } from './accessibility/import-accessibility';
 import { refreshStationPeakSnapshot } from './station-peaks/import-station-peaks';
 import { refreshWayfindingSnapshot } from './wayfinding/import-wayfinding';
+import { refreshToiletSnapshot } from './toilets/import-toilets';
+import { bumpTransitNetworkCacheVersion } from './network-cache-version';
 
 /**
  * A route once its required fields have actually been checked.
@@ -75,7 +76,6 @@ const INSERT_BATCH = 5_000;
 const PATTERN_INSERT_BATCH = 1_000;
 const IMPORT_TABLE_LOCK_TIMEOUT_MS = 30_000;
 const DRAWN_GEOMETRY_TIMEOUT_MS = 30_000;
-const TRANSIT_NETWORK_VERSION_KEY = 'transit:network:version';
 const GTFS_FEED_HASH_KEY = 'gtfs:feed:sha256';
 
 /**
@@ -507,22 +507,6 @@ async function maintainTransitTables(command: 'ANALYZE' | 'VACUUM', tables: stri
   await client.unsafe(`${command} ${tables}`);
 }
 
-/** Move API station metadata to a fresh Redis namespace after a successful import. */
-async function bumpTransitNetworkCacheVersion() {
-  const redisURL = process.env.REDIS_URL;
-  if (!redisURL) return;
-
-  const redis = new BunRedisClient(redisURL);
-  try {
-    await redis.incr(TRANSIT_NETWORK_VERSION_KEY);
-  } catch (cause) {
-    // A Redis outage must not turn a committed GTFS import into a failed import.
-    console.error(`[worker] could not bump transit cache version`, cause);
-  } finally {
-    redis.close();
-  }
-}
-
 const args = process.argv.slice(2);
 const force = args.includes('--force');
 const gtfsPath = args.find((arg) => !arg.startsWith('--')) ?? process.env.GTFS_PATH;
@@ -583,6 +567,26 @@ async function refreshStationPeakData() {
   });
 }
 
+async function refreshToiletData() {
+  await step('Refreshing RATP station toilets', async () => {
+    try {
+      const result = await refreshToiletSnapshot();
+      if (result.skipped) {
+        logStep(`Station toilets already current (source ${result.sourceUpdatedAt}).`);
+      } else {
+        await bumpTransitNetworkCacheVersion();
+        logStep(
+          `Imported ${formatCount(result.imported)} station toilet facts ` +
+            `(source ${result.sourceUpdatedAt ?? 'date inconnue'}).`
+        );
+      }
+    } catch (cause) {
+      // A facility enrichment must never invalidate a completed GTFS import.
+      console.error('[worker] station toilet snapshot unchanged', cause);
+    }
+  });
+}
+
 async function runImport(path: string) {
   logStep(`Importing ${path}`);
   const feedHash = await hashGtfsFeed(path);
@@ -626,6 +630,7 @@ async function runImport(path: string) {
   // import just wrote — without this pass the table stays empty and journeys
   // never carry an affluence annotation.
   await refreshStationPeakData();
+  await refreshToiletData();
 }
 
 try {

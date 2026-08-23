@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  type AnyPgColumn,
   date,
   doublePrecision,
   foreignKey,
@@ -127,10 +128,17 @@ export const transitStopAliases = pgTable(
   (table) => [index('transit_stop_aliases_stop_idx').on(table.stopId)]
 );
 
-export const STATION_FACT_CONDITIONS = [
+export const ACCESSIBILITY_STATION_FACT_CONDITIONS = [
   'autonomous',
   'staffAssistance',
   'reservationRequired',
+] as const;
+export type AccessibilityStationFactCondition =
+  (typeof ACCESSIBILITY_STATION_FACT_CONDITIONS)[number];
+
+export const STATION_FACT_CONDITIONS = [
+  ...ACCESSIBILITY_STATION_FACT_CONDITIONS,
+  'available',
 ] as const;
 export type StationFactCondition = (typeof STATION_FACT_CONDITIONS)[number];
 
@@ -147,7 +155,7 @@ export const stationFacts = pgTable(
     stopId: text('stop_id')
       .notNull()
       .references(() => transitStops.id, { onDelete: 'cascade' }),
-    kind: text('kind', { enum: ['accessibility'] }).notNull(),
+    kind: text('kind', { enum: ['accessibility', 'toilets'] }).notNull(),
     condition: text('condition', { enum: STATION_FACT_CONDITIONS }).notNull(),
     /** Displayable free text from the source, e.g. the IDFM agent-hours note. */
     detail: text('detail'),
@@ -164,7 +172,63 @@ export const stationFacts = pgTable(
     uniqueIndex('station_facts_kind_source_ref_uidx').on(table.kind, table.sourceRef),
     check(
       'station_facts_condition_check',
-      sql`${table.condition} IN ('autonomous', 'staffAssistance', 'reservationRequired')`
+      sql`(
+        ${table.kind} = 'accessibility'
+        AND ${table.condition} IN ('autonomous', 'staffAssistance', 'reservationRequired')
+      ) OR (
+        ${table.kind} = 'toilets'
+        AND ${table.condition} = 'available'
+      )`
+    ),
+  ]
+);
+
+export const STATION_ELEVATOR_STATUSES = [
+  'available',
+  'notavailable',
+  'unknown',
+] as const;
+export type StationElevatorStatus = (typeof STATION_ELEVATOR_STATUSES)[number];
+
+export const STATION_ELEVATOR_REASONS = [
+  'liftFailure',
+  'closedForMaintenance',
+  'undefinedEquipmentProblem',
+] as const;
+export type StationElevatorReason = (typeof STATION_ELEVATOR_REASONS)[number];
+
+/**
+ * The current PRIM snapshot, one row per physical lift. A station owns several
+ * lifts, so this cannot be a `station_facts` kind (that table deliberately owns
+ * one verdict per station and kind). The import replaces the whole collection
+ * atomically and keeps both the equipment timestamp and Via's import timestamp.
+ */
+export const stationElevators = pgTable(
+  'station_elevators',
+  {
+    id: text('id').primaryKey(),
+    stopId: text('stop_id')
+      .notNull()
+      .references(() => transitStops.id, { onDelete: 'cascade' }),
+    privateId: text('private_id'),
+    situation: text('situation'),
+    direction: text('direction'),
+    status: text('status', { enum: STATION_ELEVATOR_STATUSES }).notNull(),
+    reason: text('reason', { enum: STATION_ELEVATOR_REASONS }),
+    stateUpdatedAt: timestamp('state_updated_at', { withTimezone: true }),
+    source: text('source').notNull(),
+    importedAt: timestamp('imported_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('station_elevators_stop_idx').on(table.stopId),
+    index('station_elevators_status_idx').on(table.status),
+    check(
+      'station_elevators_status_check',
+      sql`${table.status} IN ('available', 'notavailable', 'unknown')`
+    ),
+    check(
+      'station_elevators_reason_check',
+      sql`${table.reason} IS NULL OR ${table.reason} IN ('liftFailure', 'closedForMaintenance', 'undefinedEquipmentProblem')`
     ),
   ]
 );
@@ -240,19 +304,19 @@ export type BoardingPositionEquipment = (typeof BOARDING_POSITION_EQUIPMENTS)[nu
  * Which carriage to ride in so the doors open in front of a given exit or
  * connecting platform.
  *
- * Keyed by *quay*, not by station: a quay is direction-specific, and the advice
- * flips with the direction — Châtelet line 7 is carriage 5 of 5 from one quay
- * and carriage 1 of 5 from the other, because carriages count from the head of
- * the train. Collapsing the two into a station would silently send half the
- * riders to the wrong end of the platform. That is also why `fromQuayId` and
- * `targetId` carry no foreign key: `transit_stops` holds canonical stations, and
- * these are one level finer. The importer validates them against
- * `transit_stop_aliases` instead.
+ * Normally keyed by *quay*, not by station: a quay is direction-specific, and
+ * the advice flips with the direction — Châtelet line 7 is carriage 5 of 5 from
+ * one quay and carriage 1 of 5 from the other, because carriages count from the
+ * head of the train. The only aggregate rows are synthesized when every
+ * documented quay agrees on the same car for the same exit. That is also why
+ * `fromQuayId` and `targetId` carry no foreign key: `transit_stops` holds
+ * canonical stations, and these are one level finer. The importer validates
+ * them against `transit_stop_aliases` instead.
  */
 export const boardingPositions = pgTable(
   'boarding_positions',
   {
-    /** The quay the traveller arrives on, e.g. 'IDFM:463060'. */
+    /** The quay, or a direction-safe monomodal stop area, where the traveller arrives. */
     fromQuayId: text('from_quay_id').notNull(),
     /** A `station_exits.id` or, for a connection, the next line's quay id. */
     targetId: text('target_id').notNull(),
@@ -525,6 +589,102 @@ export const users = pgTable('users', {
   preferencesUpdatedAt: timestamp('preferences_updated_at', { withTimezone: true }),
 });
 
+export const REPORT_CATEGORIES = [
+  'pickpocket',
+  'crowding',
+  'restroomsClosed',
+  'ticketMachinesUnavailable',
+  'wheelchairAccessUnavailable',
+  'elevatorsUnavailable',
+  'escalatorUnavailable',
+  'validatorsUnavailable',
+  'entranceOrExitClosed',
+  'stopRelocated',
+  'stopNotServed',
+  'passengerInformationUnavailable',
+  'passageObstructed',
+] as const;
+export const REPORT_VALUES = [
+  'occurrence',
+  'resolved',
+  'low',
+  'moderate',
+  'high',
+  'saturated',
+] as const;
+export const REPORT_SCOPE_KINDS = ['station', 'line', 'vehicle'] as const;
+
+/**
+ * The CHECK mirrors the column enum, built from the same list so a new
+ * category can never be accepted by one and rejected by the other.
+ */
+function oneOf(column: AnyPgColumn, values: readonly string[]) {
+  // Raw, not bound: a CHECK is stored as text, and these come from our own lists.
+  return sql`${column} IN (${sql.raw(values.map((value) => `'${value}'`).join(', '))})`;
+}
+
+/**
+ * One current voice per person and report subject. `stationId` deliberately
+ * has no foreign key: the GTFS importer replaces `transit_stops`, and a
+ * network refresh must never cascade into community observations.
+ */
+export const reportCurrentVotes = pgTable(
+  'report_current_votes',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    stationId: text('station_id').notNull(),
+    category: text('category', { enum: REPORT_CATEGORIES }).notNull(),
+    scopeKind: text('scope_kind', { enum: REPORT_SCOPE_KINDS }).notNull(),
+    scopeId: text('scope_id').notNull(),
+    value: text('value', { enum: REPORT_VALUES }).notNull(),
+    observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.userId, table.stationId, table.category, table.scopeKind, table.scopeId],
+    }),
+    index('report_current_votes_station_observed_idx').on(
+      table.stationId,
+      table.observedAt
+    ),
+    check('report_current_votes_category_check', oneOf(table.category, REPORT_CATEGORIES)),
+    check('report_current_votes_scope_kind_check', oneOf(table.scopeKind, REPORT_SCOPE_KINDS)),
+    check('report_current_votes_value_check', oneOf(table.value, REPORT_VALUES)),
+  ]
+);
+
+/** Accepted idempotent submissions retained for seven days for abuse review. */
+export const reportEvents = pgTable(
+  'report_events',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    stationId: text('station_id').notNull(),
+    category: text('category', { enum: REPORT_CATEGORIES }).notNull(),
+    scopeKind: text('scope_kind', { enum: REPORT_SCOPE_KINDS }).notNull(),
+    scopeId: text('scope_id').notNull(),
+    value: text('value', { enum: REPORT_VALUES }).notNull(),
+    lineId: text('line_id'),
+    journeyId: text('journey_id'),
+    vehicleId: text('vehicle_id'),
+    observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('report_events_station_observed_idx').on(table.stationId, table.observedAt),
+    index('report_events_created_idx').on(table.createdAt),
+    index('report_events_user_created_idx').on(table.userId, table.createdAt),
+    check('report_events_category_check', oneOf(table.category, REPORT_CATEGORIES)),
+    check('report_events_scope_kind_check', oneOf(table.scopeKind, REPORT_SCOPE_KINDS)),
+    check('report_events_value_check', oneOf(table.value, REPORT_VALUES)),
+  ]
+);
+
 export const sessions = pgTable(
   'sessions',
   {
@@ -626,6 +786,7 @@ export const accountPlaces = pgTable(
     context: text('context'),
     latitude: doublePrecision('latitude').notNull(),
     longitude: doublePrecision('longitude').notNull(),
+    systemImage: text('system_image').notNull(),
     savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
@@ -633,6 +794,36 @@ export const accountPlaces = pgTable(
     primaryKey({ columns: [table.userId, table.id] }),
     index('account_places_user_role_idx').on(table.userId, table.role),
     check('account_places_role_check', sql`${table.role} IN ('home', 'work')`),
+  ]
+);
+
+export const accountSavedDestinations = pgTable(
+  'account_saved_destinations',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    id: text('id').notNull(),
+    destinationId: text('destination_id').notNull(),
+    kind: text('kind', { enum: ['station', 'address'] }).notNull(),
+    name: text('name').notNull(),
+    context: text('context'),
+    latitude: doublePrecision('latitude').notNull(),
+    longitude: doublePrecision('longitude').notNull(),
+    label: text('label').notNull(),
+    systemImage: text('system_image').notNull(),
+    position: integer('position').notNull(),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.id] }),
+    uniqueIndex('account_saved_destinations_user_destination_idx').on(
+      table.userId,
+      table.destinationId
+    ),
+    index('account_saved_destinations_user_position_idx').on(table.userId, table.position),
+    check('account_saved_destinations_position_check', sql`${table.position} >= 0`),
   ]
 );
 
@@ -960,11 +1151,33 @@ export const notificationJourneySubscriptions = pgTable(
   ]
 );
 
+/**
+ * One demand signal per visitor and city, collected on the marketing site.
+ *
+ * No foreign key to `users`: the voter has no account — they are a visitor,
+ * reduced to an HMAC of their address by the same helper the report quotas use,
+ * so the raw IP is never stored. The composite primary key is the ballot box:
+ * a visitor can back several cities, but only once each.
+ */
+export const cityDemandVotes = pgTable(
+  'city_demand_votes',
+  {
+    citySlug: text('city_slug').notNull(),
+    voterHash: text('voter_hash').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.citySlug, table.voterHash] }),
+    index('city_demand_votes_created_idx').on(table.createdAt),
+  ]
+);
+
 export type TransitRoute = typeof transitRoutes.$inferSelect;
 export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
 export type TransitStopAlias = typeof transitStopAliases.$inferSelect;
 export type StationFact = typeof stationFacts.$inferSelect;
+export type StationElevator = typeof stationElevators.$inferSelect;
 export type StationHourProfile = typeof stationHourProfiles.$inferSelect;
 export type TransitTrip = typeof transitTrips.$inferSelect;
 export type TransitLineSchemaStop = typeof transitLineSchemaStops.$inferSelect;
@@ -974,3 +1187,6 @@ export type NotificationAlertSubscription = typeof notificationAlertSubscription
 export type NotificationOccurrence = typeof notificationOccurrences.$inferSelect;
 export type NotificationInboxItem = typeof notificationInbox.$inferSelect;
 export type NotificationMute = typeof notificationMutes.$inferSelect;
+export type ReportCurrentVote = typeof reportCurrentVotes.$inferSelect;
+export type ReportEvent = typeof reportEvents.$inferSelect;
+export type CityDemandVote = typeof cityDemandVotes.$inferSelect;

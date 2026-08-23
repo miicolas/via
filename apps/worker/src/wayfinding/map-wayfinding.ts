@@ -153,14 +153,25 @@ export type MapBoardingPositionsOptions = {
   exitIDs: ReadonlySet<string>;
   /** Quay ids the GTFS import registered, i.e. `transit_stop_aliases`. */
   knownQuayIDs: ReadonlySet<string>;
+  /** Referential `arrid → zdaid`, for planners that collapse rail quays to a stop area. */
+  stopAreaByQuay?: ReadonlyMap<string, string>;
+};
+
+type BoardingCandidate = MappedBoardingPosition & {
+  sourceQuayId: string;
+  stopAreaId: string;
 };
 
 export function mapBoardingPositions({
   trainPositions,
   exitIDs,
   knownQuayIDs,
+  stopAreaByQuay = new Map(),
 }: MapBoardingPositionsOptions) {
   const positions = new Map<string, MappedBoardingPosition>();
+  const aggregateCandidates: BoardingCandidate[] = [];
+  const platformsByStopAreaAndRoute = new Map<string, Set<string>>();
+
   for (const row of trainPositions as TrainPositionRow[]) {
     const fromID = asString(row.from_id);
     const toID = asString(row.to_id);
@@ -173,24 +184,134 @@ export function mapBoardingPositions({
     if (car < 1 || car > carCount) continue;
 
     const fromQuayId = viaId(fromID);
-    if (asString(row.from_type) !== 'stop_point' || !knownQuayIDs.has(fromQuayId)) continue;
+    if (asString(row.from_type) !== 'stop_point') continue;
+
+    const routeId = viaId(lineID);
+    const stopAreaId = stopAreaByQuay.get(fromID);
+    if (stopAreaId) {
+      const groupKey = stopAreaRouteKey(stopAreaId, routeId);
+      const platforms = platformsByStopAreaAndRoute.get(groupKey);
+      if (platforms) platforms.add(fromID);
+      else platformsByStopAreaAndRoute.set(groupKey, new Set([fromID]));
+    }
 
     const targetId = viaId(toID);
     const targetKind = asString(row.to_type) === 'access_point' ? 'exit' : 'transfer';
     const reachable = targetKind === 'exit' ? exitIDs.has(targetId) : knownQuayIDs.has(targetId);
     if (!reachable) continue;
 
-    positions.set(`${fromQuayId}\u0000${targetId}`, {
+    const position: MappedBoardingPosition = {
       fromQuayId,
       targetId,
       targetKind,
-      routeId: viaId(lineID),
+      routeId,
       car,
       carCount,
       zone: zoneOf(asString(row.position_average), car, carCount),
       equipment: EQUIPMENT_BY_LABEL.get(asString(row.equipment_type) ?? '') ?? null,
       source: BOARDING_POSITION_SOURCE,
-    });
+    };
+
+    if (knownQuayIDs.has(fromQuayId)) positions.set(positionKey(position), position);
+    if (stopAreaId && targetKind === 'exit') {
+      aggregateCandidates.push({ ...position, sourceQuayId: fromID, stopAreaId });
+    }
   }
+
+  addDirectionSafeStopAreaPositions({
+    positions,
+    candidates: aggregateCandidates,
+    platformsByStopAreaAndRoute,
+    knownQuayIDs,
+  });
+
   return [...positions.values()];
+}
+
+type AddStopAreaPositionsOptions = {
+  positions: Map<string, MappedBoardingPosition>;
+  candidates: BoardingCandidate[];
+  platformsByStopAreaAndRoute: ReadonlyMap<string, ReadonlySet<string>>;
+  knownQuayIDs: ReadonlySet<string>;
+};
+
+/**
+ * RER sections can carry `monomodalStopPlace:<zdaid>` instead of a directional
+ * quay. A station-level fallback is safe only when every source quay publishes
+ * the same single car for the target; otherwise the direction must stay unknown.
+ */
+function addDirectionSafeStopAreaPositions({
+  positions,
+  candidates,
+  platformsByStopAreaAndRoute,
+  knownQuayIDs,
+}: AddStopAreaPositionsOptions) {
+  const candidatesByTarget = new Map<string, BoardingCandidate[]>();
+  for (const candidate of candidates) {
+    const key = `${stopAreaRouteKey(candidate.stopAreaId, candidate.routeId)}\u0000${candidate.targetId}`;
+    const bucket = candidatesByTarget.get(key);
+    if (bucket) bucket.push(candidate);
+    else candidatesByTarget.set(key, [candidate]);
+  }
+
+  for (const targetCandidates of candidatesByTarget.values()) {
+    const first = targetCandidates[0]!;
+    const platforms = platformsByStopAreaAndRoute.get(
+      stopAreaRouteKey(first.stopAreaId, first.routeId)
+    );
+    if (!platforms) continue;
+
+    const choicesByPlatform = new Map<string, Set<string>>();
+    for (const candidate of targetCandidates) {
+      const choices = choicesByPlatform.get(candidate.sourceQuayId);
+      if (choices) choices.add(choiceKey(candidate));
+      else choicesByPlatform.set(candidate.sourceQuayId, new Set([choiceKey(candidate)]));
+    }
+    if (choicesByPlatform.size !== platforms.size) continue;
+
+    const [firstChoices, ...otherChoices] = [...choicesByPlatform.values()];
+    const commonChoices = [...firstChoices!].filter((choice) =>
+      otherChoices.every((choices) => choices.has(choice))
+    );
+    if (commonChoices.length !== 1) continue;
+
+    const commonChoice = commonChoices[0]!;
+    const representative = targetCandidates.find(
+      (candidate) => choiceKey(candidate) === commonChoice
+    )!;
+    const equipments = new Set(
+      targetCandidates
+        .filter((candidate) => choiceKey(candidate) === commonChoice)
+        .map((candidate) => candidate.equipment)
+    );
+    const fromQuayId = viaId(`monomodalStopPlace:${first.stopAreaId}`);
+    if (!knownQuayIDs.has(fromQuayId)) continue;
+
+    const position: MappedBoardingPosition = {
+      fromQuayId,
+      targetId: representative.targetId,
+      targetKind: representative.targetKind,
+      routeId: representative.routeId,
+      car: representative.car,
+      carCount: representative.carCount,
+      zone: representative.zone,
+      equipment: equipments.size === 1 ? [...equipments][0]! : null,
+      source: representative.source,
+    };
+    if (!positions.has(positionKey(position))) positions.set(positionKey(position), position);
+  }
+}
+
+function stopAreaRouteKey(stopAreaId: string, routeId: string) {
+  return `${stopAreaId}\u0000${routeId}`;
+}
+
+function positionKey(position: Pick<MappedBoardingPosition, 'fromQuayId' | 'targetId'>) {
+  return `${position.fromQuayId}\u0000${position.targetId}`;
+}
+
+function choiceKey(
+  position: Pick<MappedBoardingPosition, 'car' | 'carCount' | 'zone'>
+) {
+  return `${position.car}\u0000${position.carCount}\u0000${position.zone}`;
 }

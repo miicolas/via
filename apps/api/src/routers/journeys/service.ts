@@ -1,4 +1,4 @@
-import type { Journey, JourneyInput, JourneyMode, JourneysResponse } from '@via/contract';
+import { crowdingSeverity, type Journey, type JourneyInput, type JourneyMode, type JourneysResponse } from '@via/contract';
 
 import type { RedisClient } from '../../redis';
 import { parisDay, parisDayType } from '../../time/paris';
@@ -12,11 +12,12 @@ import {
 } from './accessibility';
 import { annotatePeakJourneys } from './peak';
 import { annotateWayfinding } from './wayfinding';
+import { applyOperationalElevatorConstraint } from './elevators';
 
 type PlannedJourneys = {
   status: 'ready' | 'no-route' | 'unavailable';
   journeys: Journey[];
-  reason?: 'no-accessible-route' | 'accessibility-data-unavailable';
+  reason?: JourneysResponse['reason'];
 };
 
 export type IdfmJourneyPlanner = {
@@ -50,6 +51,12 @@ type JourneyPlannerDependencies = {
   gtfs: GtfsJourneyPlanner;
   clock: { now: () => Date };
   config: JourneyPlanningConfig;
+  /** Volatile community state is deliberately applied after the planner cache. */
+  reports?: JourneyReportOverlay;
+};
+
+export type JourneyReportOverlay = {
+  apply(response: JourneysResponse, input: JourneyInput, at: Date): Promise<JourneysResponse>;
 };
 
 type PlanContext = {
@@ -72,6 +79,7 @@ export function createJourneyPlanner({
   gtfs,
   clock,
   config,
+  reports,
 }: JourneyPlannerDependencies): JourneyPlanner {
   return {
     plan: async (input, { identity, signal }) => {
@@ -87,6 +95,7 @@ export function createJourneyPlanner({
         excludedModes: input.excludedModes,
         preferredModes: input.preferredModes,
         requiresAccessibleStations: input.requiresAccessibleStations,
+        requiresOperationalElevators: input.requiresOperationalElevators,
         originStationId: input.originStationId,
         dayType: parisDayType(requestedAt),
         hour: Math.floor(parisDay(requestedAt).seconds / 3600),
@@ -178,16 +187,27 @@ export function createJourneyPlanner({
 
       const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
         const { value, ttlSeconds } = await planned();
+        const constrained = await applyOperationalElevatorConstraint(value, input);
         return {
           value: {
-            ...value,
-            journeys: await annotateWayfinding(value.journeys, input.destination.coordinate),
+            ...constrained,
+            journeys: await annotateWayfinding(
+              constrained.journeys,
+              input.destination.coordinate
+            ),
           },
           ttlSeconds,
         };
       });
 
-      return response ?? unavailable(now);
+      const stable = response ?? unavailable(now);
+      if (!reports) return stable;
+      try {
+        return await reports.apply(stable, input, now);
+      } catch (cause) {
+        console.error('[journeys] signalements communautaires indisponibles', cause);
+        return stable;
+      }
     },
   };
 }
@@ -260,12 +280,7 @@ async function planWithGtfsConstraint(
     if (!input.requiresAccessibleStations) return response;
     if (response.status === 'unavailable') return response;
     const journeys = await filterAndAnnotateAccessibleJourneys(response.journeys);
-    return {
-      ...response,
-      status: journeys.length > 0 ? 'ready' as const : 'no-route' as const,
-      reason: journeys.length > 0 ? undefined : 'no-accessible-route' as const,
-      journeys,
-    };
+    return finalizePlan(response, journeys, input);
   });
 }
 
@@ -283,11 +298,30 @@ async function qualify(
   const annotated = await annotatePeakJourneys(filtered);
   const journeys = rankPreferredJourney(annotated, input.preferredModes ?? []);
   return {
-    ...response,
-    status: journeys.length > 0 ? 'ready' : response.status === 'unavailable' ? 'unavailable' : 'no-route',
-    journeys,
+    ...finalizePlan(response, journeys, input),
     source,
     generatedAt: now.toISOString(),
+  };
+}
+
+/**
+ * The single place a plan's status and reason follow from the journeys that
+ * survived filtering — accessibility, mode policy or a community report.
+ */
+export function finalizePlan<T extends PlannedJourneys>(
+  base: T,
+  journeys: Journey[],
+  input: JourneyInput,
+): T {
+  return {
+    ...base,
+    status: journeys.length > 0
+      ? 'ready'
+      : base.status === 'unavailable' ? 'unavailable' : 'no-route',
+    reason: journeys.length === 0 && input.requiresAccessibleStations
+      ? 'no-accessible-route'
+      : base.reason,
+    journeys,
   };
 }
 
@@ -356,8 +390,14 @@ function compareJourneyPreference(
   return durationDifference || preferredShare(b, preferredModes) - preferredShare(a, preferredModes);
 }
 
+/** Weight per crowding severity, in the scale's own order. */
+const CROWDING_PENALTIES = [0, 0.5, 1, 2];
+
 function peakPenalty(journey: Journey) {
-  return journey.peak?.level === 'peak' ? 1 : 0;
+  const automatic = journey.peak?.level === 'peak' ? 1 : 0;
+  const reported = journey.reportedCrowding?.level;
+  const community = reported ? CROWDING_PENALTIES[crowdingSeverity(reported)] ?? 0 : 0;
+  return Math.max(automatic, community);
 }
 
 export function preferredShare(journey: Journey, preferredModes: ReadonlySet<JourneyMode>) {

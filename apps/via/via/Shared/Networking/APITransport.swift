@@ -9,6 +9,7 @@ struct APITransport: Sendable {
     init(
         baseURL: URL,
         authSessionVault: any AuthSessionVault,
+        clientKey: String? = nil,
         onUnauthorized: @escaping @Sendable (String) async -> Void = { _ in }
     ) {
         let configuration = URLSessionConfiguration.apiSessionConfiguration(base: .default)
@@ -20,7 +21,11 @@ struct APITransport: Sendable {
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 60
         configuration.waitsForConnectivity = true
-        configuration.httpAdditionalHeaders = ["Accept": "application/json"]
+        // Set on the session rather than per operation: the API refuses an
+        // unnamed caller on every route, so no request may forget the header.
+        var headers: [String: String] = ["Accept": "application/json"]
+        if let clientKey { headers[APIClientKey.header] = clientKey }
+        configuration.httpAdditionalHeaders = headers
         let session = URLSession(configuration: configuration)
         let transport = URLSessionTransport(configuration: .init(session: session))
         client = Client(

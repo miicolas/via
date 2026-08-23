@@ -7,6 +7,24 @@ Jphj6OCZr4c52j0/TTC7d2GG4EShRANCAAQSuz3cNXv84QDkzqfD0BAWxo/4d7YY
 CQZjpwTJEWwrBcZdi52FIKJJhA4XZ1+WdkMoxeatICRWdr4Ng/BMWRCQ
 -----END PRIVATE KEY-----`;
 
+const splitList = (raw: string) =>
+  raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+/** A shared secret short enough to guess is not one, hence the floor. */
+const secretList = () =>
+  z.string().default("").transform(splitList).pipe(z.array(z.string().min(16)));
+
+/** Origins compare as `scheme://host[:port]`, which is what a browser sends. */
+const originList = () =>
+  z
+    .string()
+    .default("")
+    .transform((raw) => splitList(raw).map((value) => value.replace(/\/+$/, "")))
+    .pipe(z.array(z.url()));
+
 /**
  * Only the variables the API itself reads. `DATABASE_URL` is deliberately absent:
  * `packages/db` already validates and owns it, and two owners of one variable is
@@ -46,6 +64,23 @@ const envSchema = z.object({
     .string()
     .min(1)
     .default(process.env.APPLE_APP_BUNDLE_IDENTIFIER ?? "dev.via.app"),
+  /**
+   * Who is allowed to call this API, as secrets and as origins.
+   *
+   * `VIA_APP_CLIENT_KEYS` is what the iOS build presents in `x-via-client-key`
+   * on `/api` and `/rpc`; a list so a key can be rotated while the previous
+   * build is still on devices. `VIA_SITE_CLIENT_KEYS` is the same for the
+   * marketing site's server-rendered reads. `VIA_ALLOWED_ORIGINS` is that same
+   * site running in a browser, where no secret can be kept and the origin is the
+   * only thing it can prove.
+   *
+   * All three default to empty, which leaves the API as open as it was: a
+   * deployment closes itself by setting them, and the boot log names every
+   * surface still open. See `http/client-gate.ts`.
+   */
+  VIA_APP_CLIENT_KEYS: secretList(),
+  VIA_SITE_CLIENT_KEYS: secretList(),
+  VIA_ALLOWED_ORIGINS: originList(),
   /** The Géoplateforme (BAN) geocoder. Overridable to point tests at a fake. */
   BAN_SEARCH_URL: z.url().default("https://data.geopf.fr/geocodage/search"),
   /** Local or hosted Redis used for the PRIM cache and daily quota counter. */

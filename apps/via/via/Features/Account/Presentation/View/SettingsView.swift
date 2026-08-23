@@ -72,6 +72,23 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("NOTIFICATIONS") {
+                    NavigationLink {
+                        NotificationSettingsView(
+                            accountModel: accountModel,
+                            coordinator: .shared,
+                            inboxRemote: notificationInboxRemote,
+                            journeyNotificationCoordinator: journeyNotificationCoordinator
+                        )
+                    } label: {
+                        SettingsRow(
+                            title: "Notifications",
+                            systemImage: "bell.badge.fill",
+                            subtitle: "Rappels et lignes suivies"
+                        )
+                    }
+                }
+
                 Section("EXTENSIONS") {
                     NavigationLink {
                         LiveActivitiesSettingsView()
@@ -84,30 +101,12 @@ struct SettingsView: View {
                     }
 
                     NavigationLink {
-                        NotificationSettingsView(
-                            accountModel: accountModel,
-                            coordinator: .shared,
-                            inboxRemote: notificationInboxRemote,
-                            journeyNotificationCoordinator: journeyNotificationCoordinator
-                        )
-                    } label: {
-                        SettingsRow(
-                            title: "Notifications",
-                            systemImage: "bell.badge.fill",
-                            subtitle: "Alertes, rappels et lignes suivies"
-                        )
-                    }
-
-                    NavigationLink {
-                        PermissionsSettingsView(
-                            locationModel: locationModel,
-                            journeyNotificationCoordinator: journeyNotificationCoordinator
-                        )
+                        PermissionsSettingsView(locationModel: locationModel)
                     } label: {
                         SettingsRow(
                             title: "Autorisations iOS",
                             systemImage: "hand.raised.fill",
-                            subtitle: "Localisation, caméra, contacts et notifications"
+                            subtitle: "Localisation, caméra et contacts"
                         )
                     }
                 }
@@ -120,9 +119,9 @@ struct SettingsView: View {
                         )
                     } label: {
                         SettingsRow(
-                            title: "Stations favorites",
+                            title: "Favoris",
                             systemImage: "star.fill",
-                            subtitle: "Consulter et supprimer",
+                            subtitle: "Destinations et stations",
                             tint: .orange,
                             value: favoritesCount
                         )
@@ -200,6 +199,8 @@ struct SettingsView: View {
 
     private var favoritesCount: String? {
         let count = accountModel.favorites.count
+            + accountModel.places.count
+            + accountModel.destinations.count
         return count > 0 ? "\(count)" : nil
     }
 

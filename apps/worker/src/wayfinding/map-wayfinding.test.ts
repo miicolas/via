@@ -134,6 +134,63 @@ describe('mapBoardingPositions', () => {
 
     expect(positions).toEqual([]);
   });
+
+  test('falls back to a direction-safe station advice when Navitia aggregates RER quays', () => {
+    const positions = mapBoardingPositions({
+      trainPositions: [
+        positionRow({
+          from_id: 473964,
+          from_name: 'Chatou - Croissy',
+          line_id: 'C01742',
+          line_name: 'A',
+          to_id: 50148532,
+          position: 4,
+          position_max: 10,
+          position_average: 'Avant',
+        }),
+        positionRow({
+          from_id: 473965,
+          from_name: 'Chatou - Croissy',
+          line_id: 'C01742',
+          line_name: 'A',
+          to_id: 50148532,
+          position: 4,
+          position_max: 10,
+          position_average: 'Avant',
+        }),
+        // This exit is only documented from one of the two directional quays,
+        // so collapsing it to the station would risk advising the wrong car.
+        positionRow({
+          from_id: 473965,
+          from_name: 'Chatou - Croissy',
+          line_id: 'C01742',
+          line_name: 'A',
+          to_id: 50148533,
+          position: 1,
+          position_max: 10,
+          position_average: 'Avant',
+        }),
+      ],
+      exitIDs: new Set(['IDFM:50148532', 'IDFM:50148533']),
+      // Navitia currently returns this aggregate stop point for RER A journeys.
+      knownQuayIDs: new Set(['IDFM:monomodalStopPlace:53783']),
+      stopAreaByQuay: new Map([
+        ['473964', '53783'],
+        ['473965', '53783'],
+      ]),
+    });
+
+    expect(positions).toEqual([
+      expect.objectContaining({
+        fromQuayId: 'IDFM:monomodalStopPlace:53783',
+        targetId: 'IDFM:50148532',
+        routeId: 'IDFM:C01742',
+        car: 4,
+        carCount: 10,
+        zone: 'front',
+      }),
+    ]);
+  });
 });
 
 describe('zoneOf', () => {

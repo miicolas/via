@@ -61,22 +61,47 @@ struct SavedPlace: Codable, Sendable, Hashable, Identifiable {
     let context: String?
     let coordinate: GeoCoordinate
     let role: Role
+    let systemImage: String
     let savedAt: Date
     let updatedAt: Date
 
-    init(result: SearchResult, role: Role, savedAt: Date = .now) {
-        self.init(recent: RecentSearch(result: result, savedAt: savedAt), role: role)
+    init(
+        result: SearchResult,
+        role: Role,
+        systemImage: String? = nil,
+        savedAt: Date = .now
+    ) {
+        self.init(
+            recent: RecentSearch(result: result, savedAt: savedAt),
+            role: role,
+            systemImage: systemImage
+        )
     }
 
-    init(recent: RecentSearch, role: Role) {
+    init(recent: RecentSearch, role: Role, systemImage: String? = nil) {
         id = recent.id
         kind = recent.kind
         name = recent.name
         context = recent.context
         coordinate = recent.coordinate
         self.role = role
+        self.systemImage = systemImage ?? role.systemImage
         savedAt = recent.savedAt
         updatedAt = recent.savedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        kind = try container.decode(RecentSearch.Kind.self, forKey: .kind)
+        name = try container.decode(String.self, forKey: .name)
+        context = try container.decodeIfPresent(String.self, forKey: .context)
+        coordinate = try container.decode(GeoCoordinate.self, forKey: .coordinate)
+        role = try container.decode(Role.self, forKey: .role)
+        systemImage = try container.decodeIfPresent(String.self, forKey: .systemImage)
+            ?? role.systemImage
+        savedAt = try container.decode(Date.self, forKey: .savedAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
 
     /// The `SearchResult` ↔ persistence codec lives on `RecentSearch`; a
@@ -90,6 +115,85 @@ struct SavedPlace: Codable, Sendable, Hashable, Identifiable {
             coordinate: coordinate,
             savedAt: savedAt
         ).searchResult
+    }
+
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, name, context, coordinate, role, systemImage, savedAt, updatedAt
+    }
+}
+
+struct SavedDestination: Codable, Sendable, Hashable, Identifiable {
+    let id: UUID
+    let destinationID: String
+    let kind: RecentSearch.Kind
+    let name: String
+    let context: String?
+    let coordinate: GeoCoordinate
+    var label: String
+    var systemImage: String
+    var position: Int
+    let savedAt: Date
+    var updatedAt: Date
+
+    init(
+        id: UUID = UUID(),
+        result: SearchResult,
+        label: String,
+        systemImage: String,
+        position: Int,
+        savedAt: Date = .now
+    ) {
+        let recent = RecentSearch(result: result, savedAt: savedAt)
+        self.id = id
+        destinationID = recent.id
+        kind = recent.kind
+        name = recent.name
+        context = recent.context
+        coordinate = recent.coordinate
+        self.label = label
+        self.systemImage = systemImage
+        self.position = position
+        self.savedAt = savedAt
+        updatedAt = savedAt
+    }
+
+    init(
+        replacing destination: SavedDestination,
+        result: SearchResult,
+        label: String,
+        systemImage: String,
+        updatedAt: Date
+    ) {
+        let recent = RecentSearch(result: result, savedAt: destination.savedAt)
+        id = destination.id
+        destinationID = recent.id
+        kind = recent.kind
+        name = recent.name
+        context = recent.context
+        coordinate = recent.coordinate
+        self.label = label
+        self.systemImage = systemImage
+        position = destination.position
+        savedAt = destination.savedAt
+        self.updatedAt = updatedAt
+    }
+
+    var searchResult: SearchResult {
+        RecentSearch(
+            id: destinationID,
+            kind: kind,
+            name: name,
+            context: context,
+            coordinate: coordinate,
+            savedAt: savedAt
+        ).searchResult
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case destinationID = "destinationId"
+        case kind, name, context, coordinate, label, systemImage, position, savedAt, updatedAt
     }
 }
 
@@ -266,6 +370,8 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         case preferencesSet = "preferences.set"
         case placeUpsert = "place.upsert"
         case placeRemove = "place.remove"
+        case destinationUpsert = "destination.upsert"
+        case destinationRemove = "destination.remove"
         case notificationPreferencesSet = "notifications.preferences.set"
         case notificationScheduleUpsert = "notifications.schedule.upsert"
         case notificationScheduleRemove = "notifications.schedule.remove"
@@ -283,6 +389,8 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
     let preferences: TransportPreferences?
     let place: SavedPlace?
     let placeID: String?
+    let destination: SavedDestination?
+    let destinationID: UUID?
     let notificationPreferences: NotificationPreferences?
     let schedule: NotificationSchedule?
     let scheduleID: String?
@@ -300,6 +408,8 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         preferences: TransportPreferences? = nil,
         place: SavedPlace? = nil,
         placeID: String? = nil,
+        destination: SavedDestination? = nil,
+        destinationID: UUID? = nil,
         notificationPreferences: NotificationPreferences? = nil,
         schedule: NotificationSchedule? = nil,
         scheduleID: String? = nil,
@@ -316,6 +426,8 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         self.preferences = preferences
         self.place = place
         self.placeID = placeID
+        self.destination = destination
+        self.destinationID = destinationID
         self.notificationPreferences = notificationPreferences
         self.schedule = schedule
         self.scheduleID = scheduleID
@@ -336,6 +448,8 @@ struct AccountSyncOperation: Codable, Sendable, Hashable, Identifiable {
         case preferences
         case place
         case placeID = "placeId"
+        case destination
+        case destinationID = "destinationId"
         case notificationPreferences
         case schedule
         case scheduleID = "scheduleId"
@@ -349,6 +463,7 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
     let favorites: [FavoriteStation]
     let recents: [RecentSearch]
     let places: [SavedPlace]
+    let destinations: [SavedDestination]
     let preferences: TransportPreferences
     let notificationPreferences: NotificationPreferences
     let notificationSchedules: [NotificationSchedule]
@@ -360,6 +475,7 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
         favorites: [FavoriteStation],
         recents: [RecentSearch],
         places: [SavedPlace] = [],
+        destinations: [SavedDestination] = [],
         preferences: TransportPreferences,
         notificationPreferences: NotificationPreferences = .default,
         notificationSchedules: [NotificationSchedule] = [],
@@ -370,6 +486,7 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
         self.favorites = favorites
         self.recents = recents
         self.places = places
+        self.destinations = destinations
         self.preferences = preferences
         self.notificationPreferences = notificationPreferences
         self.notificationSchedules = notificationSchedules
@@ -384,6 +501,7 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
         recents = try container.decode([RecentSearch].self, forKey: .recents)
         // Tolerates a server that predates saved places.
         places = try container.decodeIfPresent([SavedPlace].self, forKey: .places) ?? []
+        destinations = try container.decodeIfPresent([SavedDestination].self, forKey: .destinations) ?? []
         preferences = try container.decode(TransportPreferences.self, forKey: .preferences)
         notificationPreferences = try container.decodeIfPresent(NotificationPreferences.self, forKey: .notificationPreferences) ?? .default
         notificationSchedules = try container.decodeIfPresent([NotificationSchedule].self, forKey: .notificationSchedules) ?? []
@@ -396,6 +514,7 @@ struct AccountSyncResult: Codable, Sendable, Hashable {
         case favorites
         case recents
         case places
+        case destinations
         case preferences
         case notificationPreferences
         case notificationSchedules
@@ -413,6 +532,7 @@ struct AccountDeletionProof: Sendable, Hashable {
 struct AccountSnapshot: Sendable, Equatable {
     var favorites: [FavoriteStation]
     var places: [SavedPlace]
+    var destinations: [SavedDestination] = []
     var transportPreferences: TransportPreferences
     var notificationPreferences: NotificationPreferences
     var notificationSchedules: [NotificationSchedule]
@@ -421,6 +541,7 @@ struct AccountSnapshot: Sendable, Equatable {
     static let empty = AccountSnapshot(
         favorites: [],
         places: [],
+        destinations: [],
         transportPreferences: .empty,
         notificationPreferences: .default,
         notificationSchedules: [],
@@ -445,8 +566,10 @@ enum AccountState: Sendable, Equatable {
 struct AccountLocalSnapshot: Codable, Sendable, Hashable {
     /// Mirrors the server's `ACCOUNT_FAVORITE_LIMIT`; both sides trim to it.
     static let favoriteLimit = 50
+    static let destinationLimit = 50
     var favorites: [FavoriteStation] = []
     var places: [SavedPlace] = []
+    var destinations: [SavedDestination] = []
     var preferences: TransportPreferences = .empty
     var notificationPreferences: NotificationPreferences = .default
     var notificationSchedules: [NotificationSchedule] = []

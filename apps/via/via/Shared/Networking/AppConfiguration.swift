@@ -9,6 +9,13 @@ struct AppConfiguration: Sendable, Hashable {
     let apiBaseURL: URL
     let bundleIdentifier: String
     let apnsEnvironment: APNsEnvironment
+    /// Shared secret naming this build as a first-party caller. The API refuses
+    /// anyone who cannot present it, which is what keeps the transit contract
+    /// and its upstream quotas from being a public service. It ships inside the
+    /// binary and is therefore extractable — it raises the cost of cloning the
+    /// client, it never stands in for a session. `nil` when the build has no
+    /// `Configuration/Secrets.xcconfig`, which is the local-API case.
+    let apiClientKey: String?
 
     static func bundled(bundle: Bundle = .main) throws -> AppConfiguration {
         guard
@@ -25,6 +32,9 @@ struct AppConfiguration: Sendable, Hashable {
         }
         #endif
 
+        let apiClientKey = (bundle.object(forInfoDictionaryKey: "VIA_API_CLIENT_KEY") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
         let rawEnvironment =
             bundle.object(forInfoDictionaryKey: "VIA_APNS_ENVIRONMENT") as? String ?? "sandbox"
         guard let apnsEnvironment = APNsEnvironment(rawValue: rawEnvironment) else {
@@ -34,7 +44,8 @@ struct AppConfiguration: Sendable, Hashable {
         return AppConfiguration(
             apiBaseURL: url,
             bundleIdentifier: bundle.bundleIdentifier ?? "dev.via.app",
-            apnsEnvironment: apnsEnvironment
+            apnsEnvironment: apnsEnvironment,
+            apiClientKey: apiClientKey?.isEmpty == false ? apiClientKey : nil
         )
     }
 }

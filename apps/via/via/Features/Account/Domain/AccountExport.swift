@@ -9,13 +9,15 @@ struct AccountExport: Codable, Hashable, Sendable, Transferable {
     let exportedAt: Date
     let favorites: [FavoriteStation]
     let places: [SavedPlace]
+    let destinations: [SavedDestination]
     let preferences: TransportPreferences
 
     init(snapshot: AccountSnapshot, exportedAt: Date) {
-        schemaVersion = 2
+        schemaVersion = 3
         self.exportedAt = exportedAt
         favorites = snapshot.favorites
         places = snapshot.places
+        destinations = snapshot.destinations
         preferences = snapshot.transportPreferences
     }
 

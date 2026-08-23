@@ -5,12 +5,14 @@ struct JourneyDetailView: View {
   let destination: JourneyDestination
   let source: JourneyResult.Source?
   let activeJourneyModel: ActiveJourneyModel
+  let plannedJourneyDraftModel: PlannedJourneyDraftModel
   var journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
   let planningPolicy: JourneyPlanningPolicy
   let departureChoicesModel: JourneyDepartureChoicesModel
   let onSelectDeparture: (JourneyDepartureChoice, String) -> Void
   let onRetryDepartures: () async -> Void
   var prefersGoAction: Bool = false
+  var prefersPlanAction: Bool = false
   let onHighlightSection: (String?) -> Void
   let onExpandMap: () -> Void
 
@@ -19,6 +21,7 @@ struct JourneyDetailView: View {
   @State private var isActivationExplanationPresented = false
   @State private var isActivating = false
   @State private var isReminderSheetPresented = false
+  @State private var isDraftErrorPresented = false
 
   @Environment(\.dismiss) private var dismiss
 
@@ -94,6 +97,14 @@ struct JourneyDetailView: View {
       .presentationCornerRadius(36)
       .presentationDragIndicator(.visible)
     }
+    .alert("Trajet non prévu", isPresented: $isDraftErrorPresented) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text(
+        plannedJourneyDraftModel.lastError
+          ?? "Le trajet n’a pas pu être enregistré sur cet appareil."
+      )
+    }
     .onAppear {
       onHighlightSection(highlightedSectionID)
     }
@@ -103,10 +114,12 @@ struct JourneyDetailView: View {
   }
 
   private func action(at date: Date) -> JourneyActivationAction {
-    if prefersGoAction, activeJourneyModel.session?.journey.id != journey.id {
-      return .go
-    }
-    return activeJourneyModel.activationAction(for: journey, at: date)
+    ActiveJourneyRules.detailAction(
+      activeAction: activeJourneyModel.activationAction(for: journey, at: date),
+      isPlanned: plannedJourneyDraftModel.draft?.journey.id == journey.id,
+      prefersGo: prefersGoAction,
+      prefersPlan: prefersPlanAction
+    )
   }
 
   private func selectSection(_ sectionID: String) {
@@ -123,18 +136,19 @@ struct JourneyDetailView: View {
     switch action {
     case .go:
       isActivationExplanationPresented = true
-    case .activate:
+    case .plan:
       perform {
-        await activeJourneyModel.activate(
+        let didPlan = await plannedJourneyDraftModel.plan(
           journey: journey,
           destination: destination,
           source: source,
           planningPolicy: planningPolicy
         )
+        isDraftErrorPresented = !didPlan
       }
     case .resume:
       perform { await activeJourneyModel.resume() }
-    case .active:
+    case .planned, .active:
       break
     }
   }
@@ -172,6 +186,13 @@ struct JourneyDetailView: View {
 
   private func go(allowsBackgroundTracking: Bool) {
     perform {
+      if plannedJourneyDraftModel.draft?.journey.id == journey.id {
+        await plannedJourneyDraftModel.launch(
+          using: activeJourneyModel,
+          allowsBackgroundTracking: allowsBackgroundTracking
+        )
+        return
+      }
       await activeJourneyModel.go(
         journey: journey,
         destination: destination,

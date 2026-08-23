@@ -143,7 +143,8 @@ final class PushNotificationTests: XCTestCase {
             configuration: AppConfiguration(
                 apiBaseURL: URL(string: "https://api.example.com")!,
                 bundleIdentifier: "dev.via.app",
-                apnsEnvironment: .sandbox
+                apnsEnvironment: .sandbox,
+                apiClientKey: nil
             ),
             remote: remote
         )

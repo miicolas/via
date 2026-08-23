@@ -8,6 +8,7 @@ import { toAddressResults, toMunicipalityResults } from './ban-mappers';
 import { toStationResults } from './mappers';
 import { mergeSearchResults } from './merge';
 import { selectMatchingStations } from './queries';
+import { readElevatorSourceStatus } from '../elevators';
 
 /** Per-source fetch sizes, before the merge truncates to `limit`. */
 const STATION_LIMIT = 5;
@@ -20,6 +21,7 @@ export type PlaceSearch = {
   /** False when the BAN geocoder was unreachable, so addresses are missing. */
   banAvailable: boolean;
   accessibility: AccessibilitySourceStatus;
+  elevators: Awaited<ReturnType<typeof readElevatorSourceStatus>>;
 };
 
 export type AccessibilitySourceStatus = {
@@ -66,10 +68,11 @@ export async function searchPlaces(
     signal?: AbortSignal;
   }
 ): Promise<PlaceSearch> {
-  const [stationRows, banFeatures, accessibility] = await Promise.all([
+  const [stationRows, banFeatures, accessibility, elevators] = await Promise.all([
     selectMatchingStations(q, STATION_LIMIT, origin),
     searchBan(q, { limit: ADDRESS_LIMIT, origin, signal }),
     readAccessibilitySourceStatus(),
+    readElevatorSourceStatus(),
   ]);
   const addresses = toAddressResults(banFeatures ?? []);
   return {
@@ -81,5 +84,6 @@ export async function searchPlaces(
     municipalities: toMunicipalityResults(banFeatures ?? []),
     banAvailable: banFeatures !== null,
     accessibility,
+    elevators,
   };
 }

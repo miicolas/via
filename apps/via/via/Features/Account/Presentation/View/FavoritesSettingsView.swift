@@ -9,13 +9,63 @@ struct FavoritesSettingsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmClearAll = false
     @State private var editMode: EditMode = .inactive
+    @State private var destinationPendingRemoval: SavedDestination?
 
     private var favorites: [FavoriteStation] {
         accountModel.favorites
     }
 
+    private var destinations: [SavedDestination] {
+        accountModel.destinations.sorted { $0.position < $1.position }
+    }
+
     var body: some View {
         List {
+            Section {
+                ForEach(SavedPlace.Role.allCases) { role in
+                    let place = accountModel.place(for: role)
+                    SavedDestinationSettingsRow(
+                        title: role.displayTitle,
+                        subtitle: place?.name ?? "À configurer",
+                        systemImage: SavedDestinationSymbols.resolved(
+                            place?.systemImage ?? role.systemImage,
+                            fallback: role.systemImage
+                        ),
+                        isConfigured: place != nil
+                    )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        if place != nil {
+                            Button("Effacer l’adresse", systemImage: "eraser", role: .destructive) {
+                                accountModel.removePlace(for: role)
+                            }
+                            .labelStyle(.iconOnly)
+                        }
+                    }
+                }
+
+                ForEach(destinations) { destination in
+                    SavedDestinationSettingsRow(
+                        title: destination.label,
+                        subtitle: destination.name,
+                        systemImage: SavedDestinationSymbols.resolved(destination.systemImage),
+                        isConfigured: true
+                    )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button("Supprimer", systemImage: "trash", role: .destructive) {
+                            destinationPendingRemoval = destination
+                        }
+                        .labelStyle(.iconOnly)
+                    }
+                }
+                .onMove {
+                    accountModel.reorderDestinations(from: $0, to: $1)
+                }
+            } header: {
+                Text("Destinations")
+            } footer: {
+                Text("Maison et Travail restent épinglés. Réorganise les autres destinations en mode édition.")
+            }
+
             if favorites.isEmpty {
                 Section {
                     EmptyStateView(.noFavorites) {
@@ -64,7 +114,7 @@ struct FavoritesSettingsView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
         .environment(\.editMode, $editMode)
         .toolbar {
-            if !favorites.isEmpty {
+            if !favorites.isEmpty || !destinations.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         withAnimation {
@@ -102,6 +152,20 @@ struct FavoritesSettingsView: View {
         } message: {
             Text("Toutes les stations enregistrées seront retirées de tes favoris.")
         }
+        .confirmationDialog(
+            "Supprimer \(destinationPendingRemoval?.label ?? "ce favori") ?",
+            isPresented: destinationRemovalPresentation,
+            titleVisibility: .visible
+        ) {
+            Button("Supprimer", role: .destructive) {
+                guard let id = destinationPendingRemoval?.id else { return }
+                accountModel.removeDestination(id: id)
+                destinationPendingRemoval = nil
+            }
+            Button("Annuler", role: .cancel) {
+                destinationPendingRemoval = nil
+            }
+        }
     }
 
     private func remove(_ favorite: FavoriteStation) {
@@ -118,6 +182,13 @@ struct FavoritesSettingsView: View {
         for favorite in favorites {
             accountModel.removeFavorite(stationID: favorite.stationID)
         }
+    }
+
+    private var destinationRemovalPresentation: Binding<Bool> {
+        Binding(
+            get: { destinationPendingRemoval != nil },
+            set: { if !$0 { destinationPendingRemoval = nil } }
+        )
     }
 }
 

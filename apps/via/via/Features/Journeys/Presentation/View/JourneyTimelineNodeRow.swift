@@ -24,6 +24,8 @@ struct JourneyTimelineNodeRow: View {
 
     private static let timeColumnWidth: CGFloat = 54
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         if case .ride(let intermediate) = node.kind {
             VStack(spacing: 0) {
@@ -192,6 +194,8 @@ struct JourneyTimelineNodeRow: View {
         case .origin, .destination, .board, .alight:
             Text(JourneyFormatting.time(node.startsAt))
                 .font(.subheadline.weight(.semibold).monospacedDigit())
+                .contentTransition(reduceMotion ? .identity : .numericText())
+                .animation(reduceMotion ? nil : .default, value: node.startsAt)
                 .frame(width: Self.timeColumnWidth, alignment: .trailing)
         case .walk, .wait, .transfer, .ride:
             Text(JourneyFormatting.duration(node.durationSeconds))

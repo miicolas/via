@@ -97,15 +97,65 @@ final class SelectedStationModelTests: XCTestCase {
     XCTAssertFalse(account.isFavorite(stationID: item.id))
   }
 
+  func testVisibleDetailLoadsLiveStatusImmediatelyAndStopsWhenCancelled() async {
+    let route = makeRoute(id: "metro-1", shortName: "1")
+    let item = makeItem(id: "live", route: route)
+    let reports = SelectedStationReportRepository(statuses: [
+      item.id: .empty(stationID: item.id)
+    ])
+    let model = makeModel(
+      departures: InMemoryDeparturesRepository(),
+      reports: reports,
+      now: .now
+    )
+    model.select(item)
+
+    let polling = Task { await model.observeLiveStatusWhileVisible() }
+    await waitUntil { model.liveStatus?.stationId == item.id.rawValue }
+    polling.cancel()
+    await polling.value
+
+    let requestedStations = await reports.requestedStations()
+    XCTAssertEqual(requestedStations, [item.id])
+  }
+
+  func testObsoleteLiveStatusCannotReplaceANewerStation() async {
+    let route = makeRoute(id: "metro-1", shortName: "1")
+    let slow = makeItem(id: "slow-live", route: route)
+    let current = makeItem(id: "current-live", route: route)
+    let reports = SelectedStationReportRepository(
+      statuses: [slow.id: .empty(stationID: slow.id), current.id: .empty(stationID: current.id)],
+      slowStationID: slow.id
+    )
+    let model = makeModel(
+      departures: InMemoryDeparturesRepository(),
+      reports: reports,
+      now: .now
+    )
+
+    model.select(slow)
+    let oldPolling = Task { await model.observeLiveStatusWhileVisible() }
+    model.select(current)
+    let currentPolling = Task { await model.observeLiveStatusWhileVisible() }
+    await waitUntil { model.liveStatus?.stationId == current.id.rawValue }
+    try? await Task.sleep(for: .milliseconds(70))
+    oldPolling.cancel()
+    currentPolling.cancel()
+
+    XCTAssertEqual(model.liveStatus?.stationId, current.id.rawValue)
+  }
+
   private func makeModel(
     departures: any DeparturesRepository,
+    reports: any ReportRepository = InMemoryReportRepository(),
     now: Date
   ) -> SelectedStationModel {
-    makeModelAndAccount(departures: departures, now: now).0
+    makeModelAndAccount(departures: departures, reports: reports, now: now).0
   }
 
   private func makeModelAndAccount(
     departures: any DeparturesRepository,
+    reports: any ReportRepository = InMemoryReportRepository(),
     now: Date = .now
   ) -> (SelectedStationModel, AccountModel) {
     let defaults = UserDefaults(suiteName: UUID().uuidString)!
@@ -124,6 +174,7 @@ final class SelectedStationModelTests: XCTestCase {
     return (
       SelectedStationModel(
         departuresRepository: departures,
+        reportRepository: reports,
         account: account,
         locationModel: location,
         now: { now }
@@ -165,6 +216,33 @@ final class SelectedStationModelTests: XCTestCase {
     }
     XCTFail("Timed out waiting for selected station state")
   }
+}
+
+private actor SelectedStationReportRepository: ReportRepository {
+  let statuses: [StationID: StationLiveStatus]
+  let slowStationID: StationID?
+  private var requests: [StationID] = []
+
+  init(statuses: [StationID: StationLiveStatus], slowStationID: StationID? = nil) {
+    self.statuses = statuses
+    self.slowStationID = slowStationID
+  }
+
+  func submit(_ submission: ReportSubmission) async throws -> StationLiveStatus {
+    statuses[submission.context.station.id] ?? .empty(stationID: submission.context.station.id)
+  }
+
+  func stationStatus(
+    stationID: StationID,
+    lineID: RouteID?,
+    vehicleID: String?
+  ) async throws -> StationLiveStatus {
+    requests.append(stationID)
+    try await Task.sleep(for: stationID == slowStationID ? .milliseconds(50) : .milliseconds(2))
+    return statuses[stationID] ?? .empty(stationID: stationID)
+  }
+
+  func requestedStations() -> [StationID] { requests }
 }
 
 private actor DelayedSelectedDeparturesRepository: DeparturesRepository {

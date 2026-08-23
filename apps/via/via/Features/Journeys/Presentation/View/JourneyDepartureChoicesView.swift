@@ -24,6 +24,9 @@ struct JourneyDepartureChoicesView: View {
     /// The last choice handed upward, so the end of a drag cannot submit it
     /// twice after the value has already been sent to the model.
     @State private var committedID: String?
+    /// Only a direct drag earns a network commit. Scroll-position corrections
+    /// caused by a refreshed data set must remain purely visual.
+    @State private var hasPendingDragCommit = false
     @State private var hapticTick = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -53,10 +56,6 @@ struct JourneyDepartureChoicesView: View {
         }
         .onAppear { focusedID = selectedID }
         .onChange(of: group) { _, _ in resynchronise() }
-        .onChange(of: focusedID) { _, id in
-            guard let id else { return }
-            commit(id)
-        }
     }
 
     // MARK: - Three-time selector
@@ -76,6 +75,15 @@ struct JourneyDepartureChoicesView: View {
             .scrollIndicators(.hidden)
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $focusedID, anchor: .center)
+            .onScrollPhaseChange { oldPhase, newPhase in
+                if newPhase == .interacting {
+                    hasPendingDragCommit = true
+                }
+                if newPhase == .idle, oldPhase != .idle, hasPendingDragCommit {
+                    hasPendingDragCommit = false
+                    if let focusedID { commit(focusedID) }
+                }
+            }
             .contentMargins(.horizontal, proxy.size.width / 3, for: .scrollContent)
             .scrollDisabled(choices.count < 2)
             .mask {
@@ -126,6 +134,7 @@ struct JourneyDepartureChoicesView: View {
             .monospacedDigit()
             .lineLimit(1)
             .contentTransition(reduceMotion ? .identity : .numericText())
+            .animation(reduceMotion ? nil : .default, value: choice.displayAt)
             .frame(maxWidth: .infinity, minHeight: 44)
     }
 

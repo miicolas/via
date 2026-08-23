@@ -16,6 +16,7 @@ struct ApplicationEntry: App {
     @State private var selectedStationModel: SelectedStationModel
     @State private var searchViewModel: SearchViewModel
     @State private var activeJourneyModel: ActiveJourneyModel
+    @State private var plannedJourneyDraftModel: PlannedJourneyDraftModel
     @State private var reportViewModel: ReportViewModel
     @State private var authSessionViewModel: AuthSessionViewModel
     @State private var onboardingModel: OnboardingModel
@@ -49,6 +50,7 @@ struct ApplicationEntry: App {
         _selectedStationModel = State(
             initialValue: SelectedStationModel(
                 departuresRepository: dependencies.departuresRepository,
+                reportRepository: dependencies.reportRepository,
                 account: dependencies.accountModel,
                 locationModel: dependencies.locationModel,
             ),
@@ -73,6 +75,9 @@ struct ApplicationEntry: App {
             connectivity: dependencies.connectivityMonitor,
         )
         _activeJourneyModel = State(initialValue: activeJourneyModel)
+        _plannedJourneyDraftModel = State(
+            initialValue: PlannedJourneyDraftModel(store: dependencies.plannedJourneyDraftStore)
+        )
         _reportViewModel = State(
             initialValue: ReportViewModel(
                 contextResolver: ReportContextResolver(
@@ -123,6 +128,9 @@ struct ApplicationEntry: App {
             }
             .task {
                 await activeJourneyModel.restore()
+            }
+            .task {
+                await plannedJourneyDraftModel.restore()
             }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
@@ -201,6 +209,7 @@ struct ApplicationEntry: App {
                     selectedStationModel: selectedStationModel,
                     searchViewModel: searchViewModel,
                     activeJourneyModel: activeJourneyModel,
+                    plannedJourneyDraftModel: plannedJourneyDraftModel,
                     reportViewModel: reportViewModel,
                     locationModel: locationModel,
                     accountModel: accountModel,
@@ -283,6 +292,7 @@ struct ApplicationEntry: App {
                 searchRepository: InMemorySearchRepository.preview,
                 reportRepository: InMemoryReportRepository(),
                 activeJourneyStore: InMemoryActiveJourneyStore(),
+                plannedJourneyDraftStore: InMemoryPlannedJourneyDraftStore(),
                 activityManager: NoOpJourneyActivityManager(),
                 connectivityMonitor: InMemoryConnectivityMonitor(),
                 journeyRepository: PreferenceAwareJourneyRepository(
@@ -320,6 +330,7 @@ struct ApplicationEntry: App {
         let transport = APITransport(
             baseURL: configuration.apiBaseURL,
             authSessionVault: authSessionVault,
+            clientKey: configuration.apiClientKey,
             onUnauthorized: { rejectedBearerToken in
                 unauthorizedContinuation.yield(rejectedBearerToken)
             },
@@ -350,6 +361,9 @@ struct ApplicationEntry: App {
             requiresAccessibleStations: {
                 UserDefaultsSearchFilterStore().load().requiresAccessibleStations
             },
+            requiresOperationalElevators: {
+                UserDefaultsSearchFilterStore().load().requiresOperationalElevators
+            },
         )
 
         return Dependencies(
@@ -357,8 +371,9 @@ struct ApplicationEntry: App {
             networkRepository: LiveNetworkRepository(transport: transport),
             departuresRepository: LiveDeparturesRepository(transport: transport),
             searchRepository: searchRepository,
-            reportRepository: InMemoryReportRepository(),
+            reportRepository: LiveReportRepository(transport: transport),
             activeJourneyStore: UserDefaultsActiveJourneyStore(),
+            plannedJourneyDraftStore: UserDefaultsPlannedJourneyDraftStore(),
             activityManager: JourneyActivityManager(),
             connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
@@ -371,7 +386,10 @@ struct ApplicationEntry: App {
             lineStatusRepository: LiveLineStatusRepository(transport: transport),
             accountModel: accountModel,
             authSessionViewModel: AuthSessionViewModel(
-                client: BetterAuthClient(baseURL: configuration.apiBaseURL),
+                client: BetterAuthClient(
+                    baseURL: configuration.apiBaseURL,
+                    clientKey: configuration.apiClientKey
+                ),
                 vault: authSessionVault,
                 account: accountModel,
                 unauthorizedEvents: unauthorizedEvents,
@@ -397,6 +415,7 @@ struct ApplicationEntry: App {
         let searchRepository: any SearchRepository
         let reportRepository: any ReportRepository
         let activeJourneyStore: any ActiveJourneyStore
+        let plannedJourneyDraftStore: any PlannedJourneyDraftStoring
         let activityManager: any JourneyActivityManaging
         let connectivityMonitor: any ConnectivityMonitoring
         let journeyRepository: any JourneyRepository

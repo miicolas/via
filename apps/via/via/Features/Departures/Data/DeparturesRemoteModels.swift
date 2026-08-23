@@ -20,12 +20,62 @@ struct DepartureBoardDTO: Decodable {
     let generatedAt: Date
     let fetchedAt: Date?
     let peak: PeakDTO?
+    let elevators: ElevatorSnapshotDTO?
     let groups: [Group]
 
     struct PeakDTO: Decodable {
         let ratio: Double
         let level: String
         let label: String
+    }
+
+    struct ElevatorSnapshotDTO: Decodable {
+        struct Item: Decodable {
+            let id: String
+            let status: String
+            let reason: String?
+            let situation: String?
+            let direction: String?
+            let updatedAt: Date?
+        }
+
+        let status: String
+        let sourceUpdatedAt: Date?
+        let importedAt: Date?
+        let items: [Item]
+
+        func domain() throws -> StationElevatorSnapshot {
+            guard let sourceStatus = StationElevatorSnapshot.SourceStatus(rawValue: status) else {
+                throw ViaError.decoding
+            }
+            return StationElevatorSnapshot(
+                status: sourceStatus,
+                sourceUpdatedAt: sourceUpdatedAt,
+                importedAt: importedAt,
+                items: try items.map { item in
+                    guard let itemStatus = StationElevator.Status(rawValue: item.status) else {
+                        throw ViaError.decoding
+                    }
+                    let reason: StationElevator.Reason?
+                    if let rawReason = item.reason {
+                        guard let parsedReason = StationElevator.Reason(rawValue: rawReason) else {
+                            throw ViaError.decoding
+                        }
+                        reason = parsedReason
+                    } else {
+                        reason = nil
+                    }
+                    return StationElevator(
+                        id: item.id,
+                        status: itemStatus,
+                        reason: reason,
+                        situation: item.situation,
+                        direction: item.direction,
+                        updatedAt: item.updatedAt
+                    )
+                }
+            )
+        }
     }
 
     func domain() throws -> DepartureBoard {
@@ -40,6 +90,7 @@ struct DepartureBoardDTO: Decodable {
                 guard let level = PeakLevel(rawValue: value.level) else { return nil }
                 return StationPeak(ratio: value.ratio, level: level, label: value.label)
             },
+            elevators: try elevators?.domain() ?? .unavailable,
             groups: try groups.map {
                 let route = try $0.route.domain()
                 if let departureItems = $0.departureItems {

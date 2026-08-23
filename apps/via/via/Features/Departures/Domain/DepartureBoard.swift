@@ -69,6 +69,7 @@ struct DepartureBoard: Sendable, Hashable {
     let generatedAt: Date
     let fetchedAt: Date?
     let peak: StationPeak?
+    let elevators: StationElevatorSnapshot
     let groups: [DepartureGroup]
 
     init(
@@ -76,12 +77,14 @@ struct DepartureBoard: Sendable, Hashable {
         generatedAt: Date,
         fetchedAt: Date? = nil,
         peak: StationPeak? = nil,
+        elevators: StationElevatorSnapshot = .unavailable,
         groups: [DepartureGroup]
     ) {
         self.source = source
         self.generatedAt = generatedAt
         self.fetchedAt = fetchedAt
         self.peak = peak
+        self.elevators = elevators
         self.groups = groups
     }
 }

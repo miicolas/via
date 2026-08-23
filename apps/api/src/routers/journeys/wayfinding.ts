@@ -16,10 +16,11 @@ import { canonicalStationIDs } from './accessibility';
  * carriage numbers count from the head of the train, so the same exit is
  * carriage 1 in one direction and carriage 5 in the other.
  *
- * Quay ids only come back from the realtime planner: Navitia reports
- * `stop_point:IDFM:463060` on each call, while the GTFS fallback resolves stops
- * to canonical stations. A station id simply matches no boarding position, so
- * the fallback degrades to exits alone with no special case.
+ * Navitia usually reports a directional quay such as
+ * `stop_point:IDFM:463060`. On RER sections it can instead report a monomodal
+ * stop area; the importer only stores advice under that aggregate id when every
+ * documented directional quay agrees. The GTFS fallback resolves all the way
+ * to canonical stations and therefore still degrades to exits alone.
  */
 
 type ExitRow = {

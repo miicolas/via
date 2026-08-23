@@ -1,5 +1,4 @@
 import { type Context, Hono, type Next } from 'hono';
-import { cors } from 'hono/cors';
 import { compress } from 'hono/compress';
 import { etag } from 'hono/etag';
 import { logger } from 'hono/logger';
@@ -18,6 +17,10 @@ import { requireAuth } from './auth/session';
 import { redis } from './redis';
 import { transitNetworkCacheVersion } from './routers/departures/network-version';
 import { versionedPayloadCache } from './http/versioned-payload-cache';
+import { requestIPHash } from './http/ip-identity';
+import { clientCors, createClientGate } from './http/client-gate';
+import { cityDemandRouter } from './public/city-demand/router';
+import { env } from './env';
 
 const app = new Hono<AppEnv>();
 
@@ -25,21 +28,66 @@ app.use(requestId());
 app.use(logger());
 app.use('/api/*', compress());
 app.use('/rpc/*', compress());
-app.use('/api/*', cors());
-app.use('/rpc/*', cors());
+
+/**
+ * Two callers exist, and they prove themselves differently.
+ *
+ * The app ships a shared client key: extractable from any binary by anyone who
+ * wants it badly enough, which is exactly why it sits in front of authentication
+ * rather than in place of it. What it buys is that the contract, the PRIM quota
+ * and the OpenAI budget stop being a public utility for scrapers and cloned
+ * clients. The site runs in a browser and can keep no secret at all, so it is
+ * recognised by its origin for what it does from the page, and by a server-side
+ * key for what it renders.
+ *
+ * Both gates sit above every router — including Better Auth — so a route added
+ * later is private without anyone remembering to make it so.
+ */
+const clientOrigins = env.VIA_ALLOWED_ORIGINS;
+const appCors = clientCors(clientOrigins);
+const appGate = createClientGate({
+  label: 'app',
+  keys: env.VIA_APP_CLIENT_KEYS,
+  // The platform health probe carries no key and learns nothing from the answer.
+  exempt: ['/api/health'],
+});
+
+app.use('/api/*', appCors);
+app.use('/rpc/*', appCors);
+app.use('/api/*', appGate);
+app.use('/rpc/*', appGate);
+
 /** Better Auth keeps its native ID-token flow outside the oRPC contract. */
 app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+
+/**
+ * The marketing site's coverage poll. Mounted above `requireAuth` because its
+ * caller is a browser with no account and no app: everything under `/public` is
+ * readable and writable without a session, and says so in its prefix. It is the
+ * site's surface, though, not everyone's — the gate below asks for the site's
+ * origin, or for its server-side key when Next renders the counts.
+ */
+app.use('/public/*', clientCors(clientOrigins));
+app.use(
+  '/public/*',
+  createClientGate({
+    label: 'site',
+    keys: env.VIA_SITE_CLIENT_KEYS,
+    origins: clientOrigins,
+  })
+);
+app.route('/public/city-demand', cityDemandRouter);
 
 app.use('/api/*', requireAuth);
 app.use('/rpc/*', requireAuth);
 
 /**
  * The rail map is the one payload big enough for re-encoding it per request to
- * show up: 1.14 MB that only changes when a GTFS import bumps the network
- * version. Mounted here — inside `compress()`, outside `etag()` — so the miss
- * path still produces hono's own ETag while hits skip the handler, the zod
- * revalidation, the digest and the gzip entirely. Both transports serve the
- * same procedure, so both get their own entry.
+ * show up: 1.14 MB that only changes when a scheduled network import bumps the
+ * network version. Mounted here — inside `compress()`, outside `etag()` — so
+ * the miss path still produces hono's own ETag while hits skip the handler,
+ * the zod revalidation, the digest and the gzip entirely. Both transports
+ * serve the same procedure, so both get their own entry.
  */
 const railMapCache = versionedPayloadCache(() => transitNetworkCacheVersion(redis));
 app.use('/api/network/rail-map', railMapCache);
@@ -48,7 +96,11 @@ app.use('/rpc/network/railMap', railMapCache);
 app.use('/api/*', etag());
 app.use('/rpc/*', etag());
 
-/** The contract, as a document. Handy for clients that are not this repo's app. */
+/**
+ * The contract, as a document — behind the app gate like the routes it
+ * describes, because handing a stranger the map is most of the work of cloning
+ * the client. `bun run generate:openapi` reads it from the module, not over HTTP.
+ */
 app.get('/api/openapi.json', async (c) => c.json(await getOpenApiDocument()));
 
 /**
@@ -67,6 +119,8 @@ function mount(handler: FetchHandler<ApiContext>, prefix: '/api' | '/rpc') {
       context: {
         userId: authSession?.user.id,
         isAnonymous: authSession?.user.isAnonymous ?? undefined,
+        // Lazy: only a procedure that needs to tell callers apart pays the HMAC.
+        requestIPHash: () => requestIPHash(c.req.raw, env.BETTER_AUTH_SECRET),
       },
     });
 

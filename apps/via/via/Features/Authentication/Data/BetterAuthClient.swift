@@ -14,9 +14,11 @@ protocol AuthenticationClient: Sendable {
 final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
     private let baseURL: URL
     private let session: URLSession
+    private let clientKey: String?
 
-    init(baseURL: URL, session: URLSession? = nil) {
+    init(baseURL: URL, clientKey: String? = nil, session: URLSession? = nil) {
         self.baseURL = baseURL
+        self.clientKey = clientKey
         if let session {
             self.session = session
         } else {
@@ -172,6 +174,11 @@ final class BetterAuthClient: AuthenticationClient, @unchecked Sendable {
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Sign-in is behind the same client gate as the rest of the API: an
+        // unnamed caller is refused before Better Auth ever sees the id token.
+        if let clientKey {
+            request.setValue(clientKey, forHTTPHeaderField: APIClientKey.header)
+        }
         if let bearerToken {
             request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
         }

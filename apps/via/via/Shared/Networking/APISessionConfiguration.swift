@@ -1,5 +1,12 @@
 import Foundation
 
+/// The header naming this build to the API. Spelled once so the two clients —
+/// the generated OpenAPI transport and Better Auth's own URLSession — cannot
+/// disagree about it.
+enum APIClientKey {
+    static let header = "x-via-client-key"
+}
+
 extension URLSessionConfiguration {
     /// Applies the cookie policy shared by every session that talks to the
     /// Via API. Auth is bearer-only: replaying the Better Auth session cookie

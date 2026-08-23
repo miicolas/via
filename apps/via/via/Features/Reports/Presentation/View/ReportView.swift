@@ -83,7 +83,7 @@ struct ReportView: View {
                     }
                 }
 
-                Text("Les signalements sont anonymes et conservés uniquement pendant cette session.")
+                Text("Via connaît votre compte pour prévenir les abus, mais votre identité n’est jamais affichée aux voyageurs.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.bottom, 24)

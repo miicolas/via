@@ -6,6 +6,7 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
     let coordinate: GeoCoordinate
     let routes: [RouteBadge]
     let accessibility: StationAccessibility?
+    let toilets: StationToilets?
     /// Stored rather than derived: annotation bodies read it on every render.
     let modes: [TransitMode]
 
@@ -14,13 +15,15 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
         name: String,
         coordinate: GeoCoordinate,
         routes: [RouteBadge],
-        accessibility: StationAccessibility? = nil
+        accessibility: StationAccessibility? = nil,
+        toilets: StationToilets? = nil
     ) {
         self.id = id
         self.name = name
         self.coordinate = coordinate
         self.routes = routes
         self.accessibility = accessibility
+        self.toilets = toilets
         self.modes = routes.modes
     }
 }
@@ -35,7 +38,8 @@ extension StationsArea {
                 name: station.name,
                 coordinate: station.coordinate,
                 routes: routeCatalog.routes(for: station.routeIDs),
-                accessibility: station.accessibility
+                accessibility: station.accessibility,
+                toilets: station.toilets
             )
         }
     }

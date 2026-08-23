@@ -20,6 +20,11 @@ export const networkRouteSchema = routeBadgeSchema.extend({
   segments: z.array(networkSegmentSchema),
 });
 
+export const stationToiletsSchema = z.object({
+  label: z.string(),
+  detail: z.string().optional(),
+});
+
 export const networkStationSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -39,6 +44,7 @@ export const networkStationSchema = z.object({
       comment: z.string().optional(),
     })
     .optional(),
+  toilets: stationToiletsSchema.optional(),
 });
 
 /**

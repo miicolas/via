@@ -46,6 +46,7 @@ function input(selection?: JourneyDepartureChoicesInput['selection']): JourneyDe
       excludedModes: [],
       preferredModes: [],
       requiresAccessibleStations: false,
+      requiresOperationalElevators: false,
     },
     selection,
   };

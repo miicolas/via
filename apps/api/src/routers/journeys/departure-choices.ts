@@ -346,6 +346,7 @@ async function materialise(
       excludedModes: input.policy.excludedModes,
       preferredModes: input.policy.preferredModes,
       requiresAccessibleStations: input.policy.requiresAccessibleStations,
+      requiresOperationalElevators: input.policy.requiresOperationalElevators,
       originStationId: section.stops[0]?.stationId ?? section.stops[0]?.id,
     },
     context
@@ -449,6 +450,7 @@ async function scheduledCandidateWithReplannedDownstream(
       excludedModes: input.policy.excludedModes,
       preferredModes: input.policy.preferredModes,
       requiresAccessibleStations: input.policy.requiresAccessibleStations,
+      requiresOperationalElevators: input.policy.requiresOperationalElevators,
       originStationId: alighting.stationId ?? alighting.id,
     },
     context
@@ -633,6 +635,7 @@ async function plannedCandidates(
         excludedModes: input.policy.excludedModes,
         preferredModes: input.policy.preferredModes,
         requiresAccessibleStations: input.policy.requiresAccessibleStations,
+        requiresOperationalElevators: input.policy.requiresOperationalElevators,
         originStationId: firstStop?.stationId ?? firstStop?.id,
       },
       context

@@ -17,7 +17,14 @@ if (!bearerToken) {
  * fails here loudly instead of being measured as if it were fine.
  */
 const response = await fetch(`${apiUrl}/api/network/rail-map`, {
-  headers: { authorization: `Bearer ${bearerToken}` },
+  headers: {
+    authorization: `Bearer ${bearerToken}`,
+    // The API answers first-party callers only; this script is one of them when
+    // it runs against an environment that has the gate configured.
+    ...(process.env.VIA_APP_CLIENT_KEY
+      ? { 'x-via-client-key': process.env.VIA_APP_CLIENT_KEY }
+      : {}),
+  },
 });
 if (!response.ok) throw new Error(`Rail map API returned ${response.status}`);
 

@@ -66,6 +66,33 @@ extension ReportCategory {
     }
 }
 
+/// How Via attributes a live datum to the people behind it. The same sentence
+/// was being written in five places, three of which dropped the noun and
+/// printed "Signalé par 3"; the plural rule lives here now so they cannot
+/// disagree again.
+enum ReportAttribution {
+    /// "3 personnes" / "1 personne"
+    static func reporters(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "personne" : "personnes")"
+    }
+
+    static func source(_ source: ReportDataSource, reporterCount: Int?) -> String {
+        guard source == .reported, let reporterCount else { return "Donnée habituelle" }
+        return "Signalé par \(reporters(reporterCount))"
+    }
+
+    static func recovered(reporterCount: Int) -> String {
+        "Rétabli selon \(reporters(reporterCount))"
+    }
+
+    /// The one sentence that says who a live row comes from, whichever it is.
+    static func attribution(for incident: LiveReportIncident) -> String {
+        incident.state == .recovered
+            ? recovered(reporterCount: incident.reporterCount)
+            : source(.reported, reporterCount: incident.reporterCount)
+    }
+}
+
 extension CrowdingLevel {
     var systemImage: String {
         switch self {

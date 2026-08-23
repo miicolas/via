@@ -12,6 +12,8 @@ export type ApiContext = ResponseHeadersPluginContext & {
   userId?: string;
   /** Anonymous Better Auth sessions may use public product routes, never account sync. */
   isAnonymous?: boolean;
+  /** Request address reduced to an HMAC on demand; the raw IP never reaches a handler. */
+  requestIPHash?: () => string;
 };
 
 /**

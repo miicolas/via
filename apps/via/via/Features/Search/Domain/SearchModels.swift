@@ -96,9 +96,16 @@ struct SearchResponse: Sendable, Hashable {
         let importedAt: Date?
     }
 
+    struct ElevatorSource: Sendable, Hashable {
+        let status: AccessibilitySourceStatus
+        let sourceUpdatedAt: Date?
+        let importedAt: Date?
+    }
+
     let results: [SearchResult]
     let addressSource: AddressSource
     let accessibilitySource: AccessibilitySource
+    let elevatorSource: ElevatorSource
 
     init(
         results: [SearchResult],
@@ -107,11 +114,17 @@ struct SearchResponse: Sendable, Hashable {
             status: .unavailable,
             sourceUpdatedAt: nil,
             importedAt: nil
+        ),
+        elevatorSource: ElevatorSource = .init(
+            status: .unavailable,
+            sourceUpdatedAt: nil,
+            importedAt: nil
         )
     ) {
         self.results = results
         self.addressSource = addressSource
         self.accessibilitySource = accessibilitySource
+        self.elevatorSource = elevatorSource
     }
 }
 
