@@ -93,6 +93,8 @@ private struct JourneyDepartureChoicesRequestDTO: Encodable {
         let warnings: [String]
         let accessibility: Journey.Accessibility?
         let peak: PeakDTO?
+        let reportedCrowding: Journey.ReportedCrowding?
+        let wheelchairReport: Journey.WheelchairReport?
         let sections: [SectionDTO]
 
         init(_ journey: Journey) {
@@ -107,6 +109,8 @@ private struct JourneyDepartureChoicesRequestDTO: Encodable {
             warnings = journey.warnings
             accessibility = journey.accessibility
             peak = journey.peak.map(PeakDTO.init)
+            reportedCrowding = journey.reportedCrowding
+            wheelchairReport = journey.wheelchairReport
             sections = journey.sections.map(SectionDTO.init)
         }
     }

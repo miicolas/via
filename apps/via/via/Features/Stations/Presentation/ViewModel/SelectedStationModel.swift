@@ -9,8 +9,12 @@ import Observation
 final class SelectedStationModel {
   private(set) var overview: StationOverview?
   private(set) var loadingState: SelectedStationLoadingState = .idle
+  private(set) var liveStatus: StationLiveStatus?
+  private(set) var liveStatusError: ViaError?
+  private(set) var pendingRecoveryCategory: ReportCategory?
 
   @ObservationIgnored private let departuresRepository: any DeparturesRepository
+  @ObservationIgnored private let reportRepository: any ReportRepository
   @ObservationIgnored private let account: AccountModel
   @ObservationIgnored private let locationModel: LocationModel
   @ObservationIgnored private let now: @Sendable () -> Date
@@ -19,11 +23,13 @@ final class SelectedStationModel {
 
   init(
     departuresRepository: any DeparturesRepository,
+    reportRepository: any ReportRepository,
     account: AccountModel,
     locationModel: LocationModel,
     now: @escaping @Sendable () -> Date = { .now }
   ) {
     self.departuresRepository = departuresRepository
+    self.reportRepository = reportRepository
     self.account = account
     self.locationModel = locationModel
     self.now = now
@@ -69,11 +75,83 @@ final class SelectedStationModel {
     loadTask = nil
     overview = nil
     loadingState = .idle
+    liveStatus = nil
+    liveStatusError = nil
+    pendingRecoveryCategory = nil
   }
 
   func retry() {
     guard let overview else { return }
     beginSelection(with: overview, refreshDepartures: true)
+  }
+
+  /// Called from the visible detail sheet task. SwiftUI cancellation on dismiss,
+  /// station change, or inactive scene is the only lifetime this loop has.
+  func observeLiveStatusWhileVisible() async {
+    guard let stationID = overview?.id else { return }
+    var retrySeconds = 30
+    while !Task.isCancelled, overview?.id == stationID {
+      do {
+        let status = try await reportRepository.stationStatus(
+          stationID: stationID,
+          lineID: nil,
+          vehicleID: nil
+        )
+        try Task.checkCancellation()
+        guard overview?.id == stationID else { return }
+        liveStatus = status
+        liveStatusError = nil
+        retrySeconds = 30
+      } catch is CancellationError {
+        return
+      } catch {
+        guard overview?.id == stationID else { return }
+        discardExpiredLiveStatus()
+        liveStatusError = error.via
+        retrySeconds = min(max(30, retrySeconds * 2), 300)
+      }
+
+      do {
+        try await Task.sleep(for: .seconds(retrySeconds))
+      } catch {
+        return
+      }
+    }
+  }
+
+  func reportRecovery(for category: ReportCategory) {
+    guard pendingRecoveryCategory == nil, let overview else { return }
+    pendingRecoveryCategory = category
+    let stationID = overview.id
+    let submission = ReportSubmission(
+      category: category,
+      value: .resolved,
+      context: ReportContext(
+        coordinate: overview.coordinate,
+        station: ReportStation(
+          id: overview.id,
+          name: overview.name,
+          coordinate: overview.coordinate,
+          routes: overview.routes
+        )
+      ),
+      submittedAt: now()
+    )
+    let repository = reportRepository
+    Task { [weak self, repository] in
+      do {
+        let status = try await repository.submit(submission)
+        guard let self, self.overview?.id == stationID else { return }
+        self.liveStatus = status
+        self.liveStatusError = nil
+        self.pendingRecoveryCategory = nil
+      } catch is CancellationError {
+      } catch {
+        guard let self, self.overview?.id == stationID else { return }
+        self.pendingRecoveryCategory = nil
+        self.liveStatusError = error.via
+      }
+    }
   }
 
   @discardableResult
@@ -104,6 +182,9 @@ final class SelectedStationModel {
     let generation = selectionGeneration
     loadTask?.cancel()
     overview = initialOverview
+    liveStatus = nil
+    liveStatusError = nil
+    pendingRecoveryCategory = nil
     loadingState = refreshDepartures ? .loading : .loaded
 
     guard refreshDepartures else {
@@ -152,5 +233,10 @@ final class SelectedStationModel {
         loadingState = .failed(error.via)
       }
     }
+  }
+
+  private func discardExpiredLiveStatus() {
+    guard let liveStatus, !liveStatus.hasActiveContent(at: now()) else { return }
+    self.liveStatus = nil
   }
 }

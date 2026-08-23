@@ -3,7 +3,7 @@ import SwiftUI
 extension EnvironmentValues {
     /// 0 when the sheet sits at its collapsed detent, 1 once it is tall enough to show tab content.
     @Entry var sheetTabVisibilityProgress: CGFloat = 1
-    /// True while the collapsed sheet is given over to its compact content.
+    /// True while compact content or a shell-owned control occupies the bottom slot.
     @Entry var sheetHidesTabBar: Bool = false
 }
 
@@ -89,6 +89,9 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
     @Binding var activeDetent: PresentationDetent
     var isLargeScreen: Bool
     var isAnotherSheetPresenting: Bool = false
+    /// Lets a shell-owned control temporarily occupy the tab bar's safe-area
+    /// slot without drawing on top of the tab items.
+    var hidesTabBar: Bool = false
     /// Keeps room for the compact content in the collapsed detent. Stays true
     /// for the whole journey so the detent set does not change under the sheet.
     var reservesCompactSpace: Bool = false
@@ -111,7 +114,7 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
             )
         )
         // Read inside each tab by `sheetTabBarVisibility()`.
-        .environment(\.sheetHidesTabBar, showsCompactContent)
+        .environment(\.sheetHidesTabBar, showsCompactContent || hidesTabBar)
         .overlay(alignment: .top) { compactOverlay }
         .presentationDetents(detents, selection: .init(get: {
             // A detail sheet cannot stack above a .large parent; pin just below full height.

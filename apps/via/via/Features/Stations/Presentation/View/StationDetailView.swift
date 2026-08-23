@@ -7,6 +7,7 @@ struct StationDetailView: View {
   @Binding var detailDetent: PresentationDetent
 
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.scenePhase) private var scenePhase
   @State private var isNotificationAuthorizationRequested = false
 
   /// The sheet's collapsed detent only shows the navigation title, so the
@@ -31,6 +32,14 @@ struct StationDetailView: View {
                 ? currentStation.sourceText : nil,
               sourceSystemImage: currentStation.sourceSystemImage
             )
+
+            if let liveStatus = selection.liveStatus {
+              StationLiveStatusSection(
+                status: liveStatus,
+                pendingRecoveryCategory: selection.pendingRecoveryCategory,
+                onRecovery: selection.reportRecovery
+              )
+            }
 
             StationDeparturesSection(
               routes: currentStation.routes,
@@ -95,8 +104,20 @@ struct StationDetailView: View {
       isRequested: $isNotificationAuthorizationRequested,
       message: "Autorisez les notifications dans Réglages iOS pour être prévenu des perturbations de cette station."
     )
+    .task(id: LiveStatusPollingIdentity(
+      stationID: selection.overview?.id,
+      isActive: scenePhase == .active
+    )) {
+      guard scenePhase == .active else { return }
+      await selection.observeLiveStatusWhileVisible()
+    }
     .detailSheetPresentation(isLargeScreen: isLargeScreen, selection: $detailDetent)
   }
+}
+
+private struct LiveStatusPollingIdentity: Hashable {
+  let stationID: StationID?
+  let isActive: Bool
 }
 
 #Preview {
@@ -113,6 +134,7 @@ struct StationDetailView: View {
   let selection: SelectedStationModel = {
     let model = SelectedStationModel(
       departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+      reportRepository: InMemoryReportRepository(),
       account: accountModel,
       locationModel: locationModel
     )

@@ -119,6 +119,8 @@
                             "preferences.set",
                             "place.upsert",
                             "place.remove",
+                            "destination.upsert",
+                            "destination.remove",
                             "notifications.preferences.set",
                             "notifications.schedule.upsert",
                             "notifications.schedule.remove",
@@ -325,6 +327,11 @@
                               ],
                               "type": "string"
                             },
+                            "systemImage": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            },
                             "savedAt": {
                               "type": "string",
                               "format": "date-time"
@@ -348,6 +355,90 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 500
+                        },
+                        "destination": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "destinationId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            },
+                            "kind": {
+                              "enum": [
+                                "station",
+                                "address"
+                              ],
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 300
+                            },
+                            "context": {
+                              "type": "string",
+                              "maxLength": 500
+                            },
+                            "coordinate": {
+                              "type": "object",
+                              "properties": {
+                                "latitude": {
+                                  "type": "number"
+                                },
+                                "longitude": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "latitude",
+                                "longitude"
+                              ]
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "systemImage": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            },
+                            "position": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 49
+                            },
+                            "savedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "updatedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "destinationId",
+                            "kind",
+                            "name",
+                            "coordinate",
+                            "label",
+                            "systemImage",
+                            "position",
+                            "savedAt",
+                            "updatedAt"
+                          ]
+                        },
+                        "destinationId": {
+                          "type": "string",
+                          "format": "uuid"
                         },
                         "notificationPreferences": {
                           "type": "object",
@@ -912,6 +1003,11 @@
                             ],
                             "type": "string"
                           },
+                          "systemImage": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
                           "savedAt": {
                             "type": "string",
                             "format": "date-time"
@@ -927,6 +1023,90 @@
                           "name",
                           "coordinate",
                           "role",
+                          "savedAt",
+                          "updatedAt"
+                        ]
+                      }
+                    },
+                    "destinations": {
+                      "type": "array",
+                      "maxItems": 50,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "destinationId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "kind": {
+                            "enum": [
+                              "station",
+                              "address"
+                            ],
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "context": {
+                            "type": "string",
+                            "maxLength": 500
+                          },
+                          "coordinate": {
+                            "type": "object",
+                            "properties": {
+                              "latitude": {
+                                "type": "number"
+                              },
+                              "longitude": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "latitude",
+                              "longitude"
+                            ]
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "systemImage": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 100
+                          },
+                          "position": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 49
+                          },
+                          "savedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updatedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "destinationId",
+                          "kind",
+                          "name",
+                          "coordinate",
+                          "label",
+                          "systemImage",
+                          "position",
                           "savedAt",
                           "updatedAt"
                         ]
@@ -1926,6 +2106,9 @@
                                 ],
                                 "type": "string"
                               },
+                              "stationId": {
+                                "type": "string"
+                              },
                               "stationName": {
                                 "type": "string"
                               },
@@ -1938,6 +2121,78 @@
                               "level",
                               "stationName",
                               "label"
+                            ]
+                          },
+                          "reportedCrowding": {
+                            "type": "object",
+                            "properties": {
+                              "level": {
+                                "enum": [
+                                  "low",
+                                  "moderate",
+                                  "high",
+                                  "saturated"
+                                ],
+                                "type": "string"
+                              },
+                              "stationName": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "reporterCount": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991,
+                                "exclusiveMinimum": 0
+                              },
+                              "expiresAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "level",
+                              "stationName",
+                              "label",
+                              "reporterCount",
+                              "expiresAt"
+                            ]
+                          },
+                          "wheelchairReport": {
+                            "type": "object",
+                            "properties": {
+                              "stationName": {
+                                "type": "string"
+                              },
+                              "label": {
+                                "type": "string"
+                              },
+                              "reporterCount": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991,
+                                "exclusiveMinimum": 0
+                              },
+                              "confidence": {
+                                "enum": [
+                                  "observed",
+                                  "confirmed"
+                                ],
+                                "type": "string"
+                              },
+                              "expiresAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "stationName",
+                              "label",
+                              "reporterCount",
+                              "confidence",
+                              "expiresAt"
                             ]
                           },
                           "sections": {
@@ -2391,6 +2646,9 @@
                             ],
                             "type": "string"
                           },
+                          "stationId": {
+                            "type": "string"
+                          },
                           "stationName": {
                             "type": "string"
                           },
@@ -2403,6 +2661,78 @@
                           "level",
                           "stationName",
                           "label"
+                        ]
+                      },
+                      "reportedCrowding": {
+                        "type": "object",
+                        "properties": {
+                          "level": {
+                            "enum": [
+                              "low",
+                              "moderate",
+                              "high",
+                              "saturated"
+                            ],
+                            "type": "string"
+                          },
+                          "stationName": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "reporterCount": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "exclusiveMinimum": 0
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "level",
+                          "stationName",
+                          "label",
+                          "reporterCount",
+                          "expiresAt"
+                        ]
+                      },
+                      "wheelchairReport": {
+                        "type": "object",
+                        "properties": {
+                          "stationName": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "reporterCount": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "exclusiveMinimum": 0
+                          },
+                          "confidence": {
+                            "enum": [
+                              "observed",
+                              "confirmed"
+                            ],
+                            "type": "string"
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "stationName",
+                          "label",
+                          "reporterCount",
+                          "confidence",
+                          "expiresAt"
                         ]
                       },
                       "sections": {
@@ -3002,6 +3332,9 @@
                               ],
                               "type": "string"
                             },
+                            "stationId": {
+                              "type": "string"
+                            },
                             "stationName": {
                               "type": "string"
                             },
@@ -3014,6 +3347,78 @@
                             "level",
                             "stationName",
                             "label"
+                          ]
+                        },
+                        "reportedCrowding": {
+                          "type": "object",
+                          "properties": {
+                            "level": {
+                              "enum": [
+                                "low",
+                                "moderate",
+                                "high",
+                                "saturated"
+                              ],
+                              "type": "string"
+                            },
+                            "stationName": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "reporterCount": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "exclusiveMinimum": 0
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "level",
+                            "stationName",
+                            "label",
+                            "reporterCount",
+                            "expiresAt"
+                          ]
+                        },
+                        "wheelchairReport": {
+                          "type": "object",
+                          "properties": {
+                            "stationName": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "reporterCount": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "exclusiveMinimum": 0
+                            },
+                            "confidence": {
+                              "enum": [
+                                "observed",
+                                "confirmed"
+                              ],
+                              "type": "string"
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "stationName",
+                            "label",
+                            "reporterCount",
+                            "confidence",
+                            "expiresAt"
                           ]
                         },
                         "sections": {
@@ -4064,6 +4469,9 @@
                                         ],
                                         "type": "string"
                                       },
+                                      "stationId": {
+                                        "type": "string"
+                                      },
                                       "stationName": {
                                         "type": "string"
                                       },
@@ -4076,6 +4484,78 @@
                                       "level",
                                       "stationName",
                                       "label"
+                                    ]
+                                  },
+                                  "reportedCrowding": {
+                                    "type": "object",
+                                    "properties": {
+                                      "level": {
+                                        "enum": [
+                                          "low",
+                                          "moderate",
+                                          "high",
+                                          "saturated"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "stationName": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "reporterCount": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991,
+                                        "exclusiveMinimum": 0
+                                      },
+                                      "expiresAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "level",
+                                      "stationName",
+                                      "label",
+                                      "reporterCount",
+                                      "expiresAt"
+                                    ]
+                                  },
+                                  "wheelchairReport": {
+                                    "type": "object",
+                                    "properties": {
+                                      "stationName": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "reporterCount": {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991,
+                                        "exclusiveMinimum": 0
+                                      },
+                                      "confidence": {
+                                        "enum": [
+                                          "observed",
+                                          "confirmed"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "expiresAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                      }
+                                    },
+                                    "required": [
+                                      "stationName",
+                                      "label",
+                                      "reporterCount",
+                                      "confidence",
+                                      "expiresAt"
                                     ]
                                   },
                                   "sections": {
@@ -6475,6 +6955,573 @@
                   "required": [
                     "results",
                     "sources"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports": {
+      "post": {
+        "operationId": "reports.submit",
+        "summary": "Envoyer un signalement",
+        "description": "Enregistre une observation idempotente et renvoie l’état vivant agrégé de la station.",
+        "tags": [
+          "reports"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "stationId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "category": {
+                    "enum": [
+                      "pickpocket",
+                      "crowding",
+                      "restroomsClosed",
+                      "ticketMachinesUnavailable",
+                      "wheelchairAccessUnavailable",
+                      "elevatorsUnavailable",
+                      "escalatorUnavailable",
+                      "validatorsUnavailable",
+                      "entranceOrExitClosed",
+                      "stopRelocated",
+                      "stopNotServed",
+                      "passengerInformationUnavailable",
+                      "passageObstructed"
+                    ],
+                    "type": "string"
+                  },
+                  "value": {
+                    "enum": [
+                      "occurrence",
+                      "resolved",
+                      "low",
+                      "moderate",
+                      "high",
+                      "saturated"
+                    ],
+                    "type": "string"
+                  },
+                  "lineId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "journeyId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "vehicleId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "id",
+                  "stationId",
+                  "category",
+                  "value"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "stationId": {
+                      "type": "string"
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "accessibility": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "const": "available"
+                            },
+                            "source": {
+                              "const": "automatic"
+                            },
+                            "condition": {
+                              "enum": [
+                                "reservationRequired",
+                                "staffAssistance",
+                                "autonomous"
+                              ],
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "source",
+                            "condition",
+                            "label"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "const": "unavailable"
+                            },
+                            "source": {
+                              "const": "reported"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "reporterCount": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "exclusiveMinimum": 0
+                            },
+                            "observedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "confidence": {
+                              "enum": [
+                                "observed",
+                                "confirmed"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "source",
+                            "label",
+                            "reporterCount",
+                            "observedAt",
+                            "expiresAt",
+                            "confidence"
+                          ]
+                        }
+                      ]
+                    },
+                    "crowding": {
+                      "type": "object",
+                      "properties": {
+                        "level": {
+                          "enum": [
+                            "low",
+                            "moderate",
+                            "high",
+                            "saturated"
+                          ],
+                          "type": "string"
+                        },
+                        "source": {
+                          "enum": [
+                            "automatic",
+                            "reported"
+                          ],
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "reporterCount": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "exclusiveMinimum": 0
+                        },
+                        "observedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "level",
+                        "source",
+                        "label"
+                      ]
+                    },
+                    "incidents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "category": {
+                            "enum": [
+                              "pickpocket",
+                              "restroomsClosed",
+                              "ticketMachinesUnavailable",
+                              "wheelchairAccessUnavailable",
+                              "elevatorsUnavailable",
+                              "escalatorUnavailable",
+                              "validatorsUnavailable",
+                              "entranceOrExitClosed",
+                              "stopRelocated",
+                              "stopNotServed",
+                              "passengerInformationUnavailable",
+                              "passageObstructed"
+                            ],
+                            "type": "string"
+                          },
+                          "scopeKind": {
+                            "enum": [
+                              "station",
+                              "line",
+                              "vehicle"
+                            ],
+                            "type": "string"
+                          },
+                          "scopeId": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "enum": [
+                              "active",
+                              "recovered"
+                            ],
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "reporterCount": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "exclusiveMinimum": 0
+                          },
+                          "observedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "category",
+                          "scopeKind",
+                          "scopeId",
+                          "state",
+                          "label",
+                          "reporterCount",
+                          "observedAt",
+                          "expiresAt"
+                        ]
+                      }
+                    },
+                    "wheelchairRouteExcluded": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "stationId",
+                    "generatedAt",
+                    "incidents",
+                    "wheelchairRouteExcluded"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/station-status": {
+      "get": {
+        "operationId": "reports.stationStatus",
+        "summary": "État vivant d’une station",
+        "description": "Fusionne les données automatiques et les observations communautaires encore actives.",
+        "tags": [
+          "reports"
+        ],
+        "parameters": [
+          {
+            "name": "stationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "lineId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "vehicleId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "stationId": {
+                      "type": "string"
+                    },
+                    "generatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "accessibility": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "const": "available"
+                            },
+                            "source": {
+                              "const": "automatic"
+                            },
+                            "condition": {
+                              "enum": [
+                                "reservationRequired",
+                                "staffAssistance",
+                                "autonomous"
+                              ],
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "source",
+                            "condition",
+                            "label"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "state": {
+                              "const": "unavailable"
+                            },
+                            "source": {
+                              "const": "reported"
+                            },
+                            "label": {
+                              "type": "string"
+                            },
+                            "reporterCount": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "exclusiveMinimum": 0
+                            },
+                            "observedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "expiresAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "confidence": {
+                              "enum": [
+                                "observed",
+                                "confirmed"
+                              ],
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "state",
+                            "source",
+                            "label",
+                            "reporterCount",
+                            "observedAt",
+                            "expiresAt",
+                            "confidence"
+                          ]
+                        }
+                      ]
+                    },
+                    "crowding": {
+                      "type": "object",
+                      "properties": {
+                        "level": {
+                          "enum": [
+                            "low",
+                            "moderate",
+                            "high",
+                            "saturated"
+                          ],
+                          "type": "string"
+                        },
+                        "source": {
+                          "enum": [
+                            "automatic",
+                            "reported"
+                          ],
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "reporterCount": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "exclusiveMinimum": 0
+                        },
+                        "observedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "expiresAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "level",
+                        "source",
+                        "label"
+                      ]
+                    },
+                    "incidents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "category": {
+                            "enum": [
+                              "pickpocket",
+                              "restroomsClosed",
+                              "ticketMachinesUnavailable",
+                              "wheelchairAccessUnavailable",
+                              "elevatorsUnavailable",
+                              "escalatorUnavailable",
+                              "validatorsUnavailable",
+                              "entranceOrExitClosed",
+                              "stopRelocated",
+                              "stopNotServed",
+                              "passengerInformationUnavailable",
+                              "passageObstructed"
+                            ],
+                            "type": "string"
+                          },
+                          "scopeKind": {
+                            "enum": [
+                              "station",
+                              "line",
+                              "vehicle"
+                            ],
+                            "type": "string"
+                          },
+                          "scopeId": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "enum": [
+                              "active",
+                              "recovered"
+                            ],
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "reporterCount": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991,
+                            "exclusiveMinimum": 0
+                          },
+                          "observedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "category",
+                          "scopeKind",
+                          "scopeId",
+                          "state",
+                          "label",
+                          "reporterCount",
+                          "observedAt",
+                          "expiresAt"
+                        ]
+                      }
+                    },
+                    "wheelchairRouteExcluded": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "stationId",
+                    "generatedAt",
+                    "incidents",
+                    "wheelchairRouteExcluded"
                   ]
                 }
               }

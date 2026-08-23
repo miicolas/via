@@ -66,6 +66,7 @@ final class AccountLocalStore: @unchecked Sendable {
             let merged = merge(user: user, anonymous: anonymous)
             user.favorites = merged.favorites
             user.places = merged.places
+            user.destinations = merged.destinations
             user.preferences = merged.preferences
             user.notificationPreferences = merged.notificationPreferences
             user.notificationSchedules = merged.notificationSchedules
@@ -89,6 +90,7 @@ final class AccountLocalStore: @unchecked Sendable {
             return AccountSnapshot(
                 favorites: snapshot.favorites.sorted { $0.savedAt > $1.savedAt },
                 places: snapshot.places.sorted { $0.savedAt > $1.savedAt },
+                destinations: snapshot.destinations.sorted { $0.position < $1.position },
                 transportPreferences: snapshot.preferences,
                 notificationPreferences: snapshot.notificationPreferences,
                 notificationSchedules: snapshot.notificationSchedules,
@@ -129,6 +131,18 @@ final class AccountLocalStore: @unchecked Sendable {
     func removePlace(id: String, now: Date = .now) {
         locked {
             _ = mutate(.removePlace(id: id, at: now))
+        }
+    }
+
+    func saveDestination(_ destination: SavedDestination) {
+        locked {
+            _ = mutate(.saveDestination(destination))
+        }
+    }
+
+    func removeDestination(id: UUID, now: Date = .now) {
+        locked {
+            _ = mutate(.removeDestination(id: id, at: now))
         }
     }
 
@@ -185,6 +199,7 @@ final class AccountLocalStore: @unchecked Sendable {
             var snapshot = AccountLocalSnapshot(
                 favorites: result.favorites,
                 places: result.places,
+                destinations: result.destinations,
                 preferences: result.preferences,
                 notificationPreferences: result.notificationPreferences,
                 notificationSchedules: result.notificationSchedules,
@@ -194,6 +209,7 @@ final class AccountLocalStore: @unchecked Sendable {
             for operation in remaining {
                 AccountOperationReducer.replay(operation, into: &snapshot)
             }
+            AccountOperationReducer.normalize(&snapshot)
             save(snapshot, for: .user(userID))
         }
     }
@@ -288,9 +304,16 @@ final class AccountLocalStore: @unchecked Sendable {
                 places.removeAll { $0.role == role && $0.id != newest.id }
             }
         }
+        var destinationsByID = Dictionary(uniqueKeysWithValues: user.destinations.map { ($0.id, $0) })
+        for destination in anonymous.destinations {
+            if destination.updatedAt >= (destinationsByID[destination.id]?.updatedAt ?? .distantPast) {
+                destinationsByID[destination.id] = destination
+            }
+        }
         var merged = AccountLocalSnapshot(
             favorites: Array(favoritesByID.values.sorted { $0.savedAt > $1.savedAt }.prefix(AccountLocalSnapshot.favoriteLimit)),
             places: places,
+            destinations: Array(destinationsByID.values),
             preferences: anonymous.preferences.updatedAt >= user.preferences.updatedAt
                 ? anonymous.preferences
                 : user.preferences,
@@ -315,6 +338,10 @@ final class AccountLocalStore: @unchecked Sendable {
                 merged.places.removeAll {
                     $0.id == operation.placeID && $0.updatedAt <= operation.occurredAt
                 }
+            case .destinationRemove:
+                merged.destinations.removeAll {
+                    $0.id == operation.destinationID && $0.updatedAt <= operation.occurredAt
+                }
             case .notificationScheduleRemove:
                 merged.notificationSchedules.removeAll {
                     $0.id == operation.scheduleID && $0.updatedAt <= operation.occurredAt
@@ -337,6 +364,13 @@ final class AccountLocalStore: @unchecked Sendable {
         }
         operations.append(contentsOf: snapshot.places.map {
             AccountSyncOperation(kind: .placeUpsert, occurredAt: $0.updatedAt, place: $0)
+        })
+        operations.append(contentsOf: snapshot.destinations.map {
+            AccountSyncOperation(
+                kind: .destinationUpsert,
+                occurredAt: $0.updatedAt,
+                destination: $0
+            )
         })
         if snapshot.preferences.updatedAt > .distantPast {
             operations.append(AccountSyncOperation(
@@ -376,6 +410,7 @@ private extension AccountLocalSnapshot {
     var isEmpty: Bool {
         favorites.isEmpty
             && places.isEmpty
+            && destinations.isEmpty
             && preferences == .empty
             && notificationPreferences == .default
             && notificationSchedules.isEmpty

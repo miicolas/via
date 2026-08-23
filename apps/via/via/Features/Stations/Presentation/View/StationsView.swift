@@ -3,6 +3,7 @@ import SwiftUI
 struct StationsView: View {
     let viewModel: StationsViewModel
     let selectedStation: SelectedStationModel
+    let accountModel: AccountModel
 
     @Binding var isLargeScreen: Bool
     @Binding var detailDetent: PresentationDetent
@@ -14,11 +15,15 @@ struct StationsView: View {
     let onOpenNaturalSearch: () -> Void
     let onOpenProfile: () -> Void
     let onOpenSettings: () -> Void
+    let onOpenSavedDestination: (SearchResult) -> Void
+    let onConfigurePlace: (SavedPlace.Role) -> Void
+    let onAddSavedDestination: () -> Void
+    let onEditPlace: (SavedPlace) -> Void
+    let onEditSavedDestination: (SavedDestination) -> Void
+    let onManageSavedDestinations: () -> Void
 
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
     @Environment(\.scenePhase) private var scenePhase
-
-    @State private var selectedPlaceShortcut: StationPlaceShortcut?
 
     var body: some View {
         NavigationStack {
@@ -128,7 +133,18 @@ struct StationsView: View {
         refreshError: ViaError? = nil,
     ) -> some View {
         List {
-            StationPlacePicker(selection: $selectedPlaceShortcut)
+            StationPlacePicker(
+                places: accountModel.places,
+                destinations: accountModel.destinations,
+                onOpen: onOpenSavedDestination,
+                onConfigure: onConfigurePlace,
+                onAdd: onAddSavedDestination,
+                onEditPlace: onEditPlace,
+                onEditDestination: onEditSavedDestination,
+                onClearPlace: { accountModel.removePlace(for: $0) },
+                onRemoveDestination: { accountModel.removeDestination(id: $0) },
+                onManage: onManageSavedDestinations
+            )
                 .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
@@ -280,9 +296,11 @@ struct StationsView: View {
         ),
         selectedStation: SelectedStationModel(
             departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+            reportRepository: InMemoryReportRepository(),
             account: accountModel,
             locationModel: locationModel,
         ),
+        accountModel: accountModel,
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
         profileModel: ProfileModel(store: InMemoryProfileStore()),
@@ -291,6 +309,12 @@ struct StationsView: View {
         showsNaturalSearchDiscovery: true,
         onOpenNaturalSearch: {},
         onOpenProfile: {},
-        onOpenSettings: {}
+        onOpenSettings: {},
+        onOpenSavedDestination: { _ in },
+        onConfigurePlace: { _ in },
+        onAddSavedDestination: {},
+        onEditPlace: { _ in },
+        onEditSavedDestination: { _ in },
+        onManageSavedDestinations: {}
     )
 }

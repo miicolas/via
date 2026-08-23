@@ -199,6 +199,24 @@ struct JourneySummaryCard: View {
       Label(peak.label, systemImage: "person.2.fill")
         .lineLimit(1)
     }
+
+    if let crowding = journey.reportedCrowding {
+      Label(
+        "\(crowding.label) · \(ReportAttribution.source(.reported, reporterCount: crowding.reporterCount))",
+        systemImage: crowding.level.systemImage
+      )
+      .foregroundStyle(.orange)
+      .lineLimit(2)
+    }
+
+    if let wheelchair = journey.wheelchairReport {
+      Label(
+        "\(wheelchair.label) · \(ReportAttribution.source(.reported, reporterCount: wheelchair.reporterCount))",
+        systemImage: ReportCategory.wheelchairAccessUnavailable.systemImage
+      )
+      .foregroundStyle(.orange)
+      .lineLimit(2)
+    }
   }
 
   private func warningBanner(_ warning: String) -> some View {

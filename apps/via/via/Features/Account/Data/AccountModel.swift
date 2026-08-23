@@ -46,6 +46,7 @@ final class AccountModel {
     var isAnonymous: Bool { activeScope == .anonymous }
     var favorites: [FavoriteStation] { snapshot.favorites }
     var places: [SavedPlace] { snapshot.places }
+    var destinations: [SavedDestination] { snapshot.destinations }
     var transportPreferences: TransportPreferences { snapshot.transportPreferences }
     var notificationPreferences: NotificationPreferences { snapshot.notificationPreferences }
     var notificationSchedules: [NotificationSchedule] { snapshot.notificationSchedules }
@@ -118,14 +119,111 @@ final class AccountModel {
         snapshot.places.first { $0.role == role }
     }
 
-    func setPlace(_ result: SearchResult, role: SavedPlace.Role) {
-        store.savePlace(SavedPlace(result: result, role: role, savedAt: now()))
+    func setPlace(
+        _ result: SearchResult,
+        role: SavedPlace.Role,
+        systemImage: String? = nil
+    ) {
+        store.savePlace(SavedPlace(
+            result: result,
+            role: role,
+            systemImage: systemImage,
+            savedAt: now()
+        ))
         refresh(syncState: syncState)
         scheduleSynchronization()
     }
 
+    func removePlace(for role: SavedPlace.Role) {
+        guard let place = place(for: role) else { return }
+        removePlace(id: place.id)
+    }
+
     func removePlace(id: String) {
         store.removePlace(id: id, now: now())
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func savedDestination(for result: SearchResult) -> SavedDestination? {
+        let destinationID = RecentSearch(result: result).id
+        return destinations.first { $0.destinationID == destinationID }
+    }
+
+    func savedPlace(for result: SearchResult) -> SavedPlace? {
+        let destinationID = RecentSearch(result: result).id
+        return places.first { $0.id == destinationID }
+    }
+
+    func saveDestination(
+        _ result: SearchResult,
+        label: String,
+        systemImage: String,
+        editing existing: SavedDestination? = nil
+    ) {
+        guard existing != nil || destinations.count < AccountLocalSnapshot.destinationLimit else {
+            return
+        }
+        let normalizedLabel = String(
+            label.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80)
+        )
+        guard !normalizedLabel.isEmpty else { return }
+        let timestamp = now()
+        let destination = if let existing {
+            SavedDestination(
+                replacing: existing,
+                result: result,
+                label: normalizedLabel,
+                systemImage: systemImage,
+                updatedAt: timestamp
+            )
+        } else {
+            SavedDestination(
+                result: result,
+                label: normalizedLabel,
+                systemImage: systemImage,
+                position: destinations.count,
+                savedAt: timestamp
+            )
+        }
+        store.saveDestination(destination)
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func removeDestination(id: UUID) {
+        store.removeDestination(id: id, now: now())
+        refresh(syncState: syncState)
+        let timestamp = now()
+        for (position, value) in destinations.enumerated() where value.position != position {
+            var updated = value
+            updated.position = position
+            updated.updatedAt = timestamp
+            store.saveDestination(updated)
+        }
+        refresh(syncState: syncState)
+        scheduleSynchronization()
+    }
+
+    func reorderDestinations(from offsets: IndexSet, to destination: Int) {
+        var reordered = destinations.sorted { $0.position < $1.position }
+        let moving = offsets.sorted().map { reordered[$0] }
+        for index in offsets.sorted(by: >) {
+            reordered.remove(at: index)
+        }
+        let removedBeforeDestination = offsets.filter { $0 < destination }.count
+        let insertionIndex = min(
+            max(0, destination - removedBeforeDestination),
+            reordered.count
+        )
+        reordered.insert(contentsOf: moving, at: insertionIndex)
+        let timestamp = now()
+        for (position, value) in reordered.enumerated() where value.position != position {
+            var updated = value
+            updated.position = position
+            updated.updatedAt = timestamp
+            store.saveDestination(updated)
+        }
         refresh(syncState: syncState)
         scheduleSynchronization()
     }

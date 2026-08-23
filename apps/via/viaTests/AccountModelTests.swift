@@ -161,6 +161,75 @@ final class AccountModelTests: XCTestCase {
         XCTAssertEqual(relaunched.place(for: .work)?.id, "address:work")
     }
 
+    func testLegacySavedPlaceDecodesWithItsDefaultSymbol() throws {
+        let place = SavedPlace(result: addressResult(id: "legacy-home"), role: .home)
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder.via.encode(place)) as? [String: Any]
+        )
+        object.removeValue(forKey: "systemImage")
+
+        let decoded = try JSONDecoder.via.decode(
+            SavedPlace.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+
+        XCTAssertEqual(decoded.systemImage, "house.fill")
+    }
+
+    @MainActor
+    func testSavedDestinationsPersistAndReorder() {
+        let clock = LockedTestDate(Date(timeIntervalSince1970: 100))
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false,
+            now: clock.read
+        )
+        model.activate(userID: "user")
+
+        model.saveDestination(
+            addressResult(id: "gym"),
+            label: "Sport",
+            systemImage: "dumbbell.fill"
+        )
+        clock.set(Date(timeIntervalSince1970: 101))
+        model.saveDestination(
+            addressResult(id: "school"),
+            label: "École",
+            systemImage: "graduationcap.fill"
+        )
+        model.reorderDestinations(from: IndexSet(integer: 1), to: 0)
+
+        XCTAssertEqual(model.destinations.map(\.label), ["École", "Sport"])
+
+        let relaunched = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        relaunched.activate(userID: "user")
+        XCTAssertEqual(relaunched.destinations.map(\.label), ["École", "Sport"])
+    }
+
+    @MainActor
+    func testPinnedPlaceEvictsDuplicateSavedDestination() {
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        model.activate(userID: "user")
+        let result = addressResult(id: "shared")
+
+        model.saveDestination(result, label: "Partagé", systemImage: "mappin")
+        XCTAssertEqual(model.destinations.count, 1)
+
+        model.setPlace(result, role: .home)
+
+        XCTAssertTrue(model.destinations.isEmpty)
+        XCTAssertEqual(model.place(for: .home)?.id, "address:shared")
+    }
+
     @MainActor
     func testSavedPlaceMutationDuringSynchronizationSurvivesCanonicalMerge() async throws {
         let remote = AccountRemoteStub()
@@ -412,9 +481,9 @@ final class AccountModelTests: XCTestCase {
 
         XCTAssertEqual(
             Set(object.keys),
-            ["schemaVersion", "exportedAt", "favorites", "places", "preferences"]
+            ["schemaVersion", "exportedAt", "favorites", "places", "destinations", "preferences"]
         )
-        XCTAssertEqual(object["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(object["schemaVersion"] as? Int, 3)
         XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("bearerToken"))
         XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("appleUserIdentifier"))
     }
@@ -518,6 +587,7 @@ private actor AccountRemoteStub: AccountRemote {
             favorites: snapshot.favorites,
             recents: [],
             places: snapshot.places,
+            destinations: snapshot.destinations,
             preferences: snapshot.preferences,
             syncedAt: .now
         )

@@ -20,6 +20,7 @@ const POST_PROCEDURES = new Set([
   'notifications.markInboxRead',
   'notifications.snooze',
   'notifications.mute',
+  'reports.submit',
 ]);
 
 export function rpcMethod(path: readonly string[]): 'GET' | 'POST' {

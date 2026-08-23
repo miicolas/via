@@ -26,3 +26,5 @@ filter:
     - network.railMap
     - network.stationsInArea
     - search.query
+    - reports.submit
+    - reports.stationStatus

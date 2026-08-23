@@ -1537,4 +1537,158 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// Envoyer un signalement
+    ///
+    /// Enregistre une observation idempotente et renvoie l’état vivant agrégé de la station.
+    ///
+    /// - Remark: HTTP `POST /reports`.
+    /// - Remark: Generated from `#/paths//reports/post(reports.submit)`.
+    internal func reports_period_submit(_ input: Operations.reports_period_submit.Input) async throws -> Operations.reports_period_submit.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.reports_period_submit.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/reports",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.reports_period_submit.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.reports_period_submit.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// État vivant d’une station
+    ///
+    /// Fusionne les données automatiques et les observations communautaires encore actives.
+    ///
+    /// - Remark: HTTP `GET /reports/station-status`.
+    /// - Remark: Generated from `#/paths//reports/station-status/get(reports.stationStatus)`.
+    internal func reports_period_stationStatus(_ input: Operations.reports_period_stationStatus.Input) async throws -> Operations.reports_period_stationStatus.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.reports_period_stationStatus.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/reports/station-status",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "stationId",
+                    value: input.query.stationId
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "lineId",
+                    value: input.query.lineId
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "vehicleId",
+                    value: input.query.vehicleId
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.reports_period_stationStatus.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
 }

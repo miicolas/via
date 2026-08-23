@@ -5,6 +5,8 @@ enum AccountMutation: Sendable {
     case removeFavorite(stationID: String, at: Date)
     case savePlace(SavedPlace)
     case removePlace(id: String, at: Date)
+    case saveDestination(SavedDestination)
+    case removeDestination(id: UUID, at: Date)
     case setPreferences(TransportPreferences)
     case setNotificationPreferences(NotificationPreferences)
     case saveNotificationSchedule(NotificationSchedule)
@@ -88,6 +90,22 @@ enum AccountOperationReducer {
                 kind: .placeRemove,
                 occurredAt: date,
                 placeID: id
+            )]
+            favoriteIsSaved = nil
+
+        case .saveDestination(let destination):
+            operations = [AccountSyncOperation(
+                kind: .destinationUpsert,
+                occurredAt: destination.updatedAt,
+                destination: destination
+            )]
+            favoriteIsSaved = nil
+
+        case .removeDestination(let id, let date):
+            operations = [AccountSyncOperation(
+                kind: .destinationRemove,
+                occurredAt: date,
+                destinationID: id
             )]
             favoriteIsSaved = nil
 
@@ -182,9 +200,32 @@ enum AccountOperationReducer {
             }
             snapshot.places.removeAll { $0.role == place.role }
             snapshot.places.insert(place, at: 0)
+            snapshot.destinations.removeAll { $0.destinationID == place.id }
             normalize(&snapshot)
         case .placeRemove:
             snapshot.places.removeAll { $0.id == operation.placeID }
+        case .destinationUpsert:
+            guard let destination = operation.destination else { return }
+            guard !snapshot.places.contains(where: { $0.id == destination.destinationID }) else {
+                snapshot.destinations.removeAll { $0.destinationID == destination.destinationID }
+                return
+            }
+            if let existing = snapshot.destinations.first(where: { $0.id == destination.id }),
+               existing.updatedAt > destination.updatedAt {
+                return
+            }
+            if let duplicate = snapshot.destinations.first(where: {
+                $0.destinationID == destination.destinationID && $0.id != destination.id
+            }), duplicate.updatedAt > destination.updatedAt {
+                return
+            }
+            snapshot.destinations.removeAll {
+                $0.id == destination.id || $0.destinationID == destination.destinationID
+            }
+            snapshot.destinations.append(destination)
+            normalize(&snapshot)
+        case .destinationRemove:
+            snapshot.destinations.removeAll { $0.id == operation.destinationID }
         case .notificationPreferencesSet:
             if let preferences = operation.notificationPreferences,
                preferences.updatedAt >= snapshot.notificationPreferences.updatedAt {
@@ -233,5 +274,15 @@ enum AccountOperationReducer {
             guard let newest = matching.first else { continue }
             snapshot.places.removeAll { $0.role == role && $0.id != newest.id }
         }
+        let pinnedIDs = Set(snapshot.places.map(\.id))
+        snapshot.destinations.removeAll { pinnedIDs.contains($0.destinationID) }
+        snapshot.destinations = Array(
+            snapshot.destinations
+                .sorted {
+                    if $0.position != $1.position { return $0.position < $1.position }
+                    return $0.id.uuidString < $1.id.uuidString
+                }
+                .prefix(AccountLocalSnapshot.destinationLimit)
+        )
     }
 }

@@ -191,7 +191,7 @@ final class ReportViewModel {
 
         submissionTask = Task { [weak self] in
             do {
-                try await repository.submit(submission)
+                _ = try await repository.submit(submission)
                 try Task.checkCancellation()
                 self?.submissionState = .confirmed(submission)
             } catch is CancellationError {

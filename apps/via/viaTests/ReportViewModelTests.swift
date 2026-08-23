@@ -365,9 +365,18 @@ private final class MutableActiveJourneyProvider: ActiveJourneyProvider {
 private actor SlowReportRepository: ReportRepository {
     private var stored: [ReportSubmission] = []
 
-    func submit(_ submission: ReportSubmission) async throws {
+    func submit(_ submission: ReportSubmission) async throws -> StationLiveStatus {
         stored.append(submission)
         try await Task.sleep(for: .milliseconds(50))
+        return .empty(stationID: submission.context.station.id)
+    }
+
+    func stationStatus(
+        stationID: StationID,
+        lineID: RouteID?,
+        vehicleID: String?
+    ) async throws -> StationLiveStatus {
+        .empty(stationID: stationID)
     }
 
     func submissions() -> [ReportSubmission] { stored }
@@ -381,12 +390,21 @@ private actor ScriptedReportRepository: ReportRepository {
         remainingFailures = failuresBeforeSuccess
     }
 
-    func submit(_ submission: ReportSubmission) async throws {
+    func submit(_ submission: ReportSubmission) async throws -> StationLiveStatus {
         recordedAttempts.append(submission)
         if remainingFailures > 0 {
             remainingFailures -= 1
             throw ViaError.unavailable
         }
+        return .empty(stationID: submission.context.station.id)
+    }
+
+    func stationStatus(
+        stationID: StationID,
+        lineID: RouteID?,
+        vehicleID: String?
+    ) async throws -> StationLiveStatus {
+        .empty(stationID: stationID)
     }
 
     func attempts() -> [ReportSubmission] { recordedAttempts }

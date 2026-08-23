@@ -77,7 +77,114 @@ enum CrowdingLevel: String, CaseIterable, Codable, Sendable, Hashable {
 
 enum ReportValue: Codable, Sendable, Hashable {
     case occurrence
+    case resolved
     case crowding(CrowdingLevel)
+}
+
+enum ReportDataSource: String, Codable, Sendable, Hashable {
+    case automatic
+    case reported
+}
+
+enum ReportIncidentState: String, Codable, Sendable, Hashable {
+    case active
+    case recovered
+}
+
+/// Both closed sets come from the wire contract; decoding one keeps them closed here.
+enum LiveAvailability: String, Codable, Sendable, Hashable {
+    case available
+    case unavailable
+}
+
+enum ReportConfidence: String, Codable, Sendable, Hashable {
+    case observed
+    case confirmed
+}
+
+enum ReportScopeKind: String, Codable, Sendable, Hashable {
+    case station
+    case line
+    case vehicle
+}
+
+struct LiveAccessibilityStatus: Codable, Sendable, Hashable {
+    let state: LiveAvailability
+    let source: ReportDataSource
+    let condition: AccessibilityCondition?
+    let label: String
+    let reporterCount: Int?
+    let observedAt: Date?
+    let expiresAt: Date?
+    let confidence: ReportConfidence?
+}
+
+struct LiveCrowdingStatus: Codable, Sendable, Hashable {
+    let level: CrowdingLevel
+    let source: ReportDataSource
+    let label: String
+    let reporterCount: Int?
+    let observedAt: Date?
+    let expiresAt: Date?
+}
+
+struct LiveReportIncident: Codable, Sendable, Hashable, Identifiable {
+    let category: ReportCategory
+    let scopeKind: ReportScopeKind
+    let scopeId: String
+    let state: ReportIncidentState
+    let label: String
+    let reporterCount: Int
+    let observedAt: Date
+    let expiresAt: Date
+
+    var id: String { "\(category.rawValue):\(scopeKind.rawValue):\(scopeId):\(state.rawValue)" }
+    var canReportRecovery: Bool { category != .pickpocket && state == .active }
+}
+
+struct StationLiveStatus: Codable, Sendable, Hashable {
+    let stationId: String
+    let generatedAt: Date
+    let accessibility: LiveAccessibilityStatus?
+    let crowding: LiveCrowdingStatus?
+    let incidents: [LiveReportIncident]
+    let wheelchairRouteExcluded: Bool
+
+    static func empty(stationID: StationID, at: Date = .now) -> Self {
+        .init(
+            stationId: stationID.rawValue,
+            generatedAt: at,
+            accessibility: nil,
+            crowding: nil,
+            incidents: [],
+            wheelchairRouteExcluded: false
+        )
+    }
+
+    /// Whether anything here is still worth showing at `date`. Freshness is the
+    /// data's own rule, not a screen's: an automatic datum is the station's
+    /// usual state and never goes stale, a reported one lives until it expires.
+    func hasActiveContent(at date: Date) -> Bool {
+        accessibility?.isActive(at: date) == true
+            || crowding?.isActive(at: date) == true
+            || incidents.contains { $0.isActive(at: date) }
+    }
+}
+
+extension LiveAccessibilityStatus {
+    func isActive(at date: Date) -> Bool {
+        source == .automatic || (expiresAt.map { $0 > date } ?? false)
+    }
+}
+
+extension LiveCrowdingStatus {
+    func isActive(at date: Date) -> Bool {
+        source == .automatic || (expiresAt.map { $0 > date } ?? false)
+    }
+}
+
+extension LiveReportIncident {
+    func isActive(at date: Date) -> Bool { expiresAt > date }
 }
 
 struct ReportStation: Codable, Sendable, Hashable, Identifiable {

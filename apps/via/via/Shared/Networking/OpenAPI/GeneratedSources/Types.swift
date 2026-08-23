@@ -152,6 +152,20 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.
     func search_period_query(_ input: Operations.search_period_query.Input) async throws -> Operations.search_period_query.Output
+    /// Envoyer un signalement
+    ///
+    /// Enregistre une observation idempotente et renvoie l’état vivant agrégé de la station.
+    ///
+    /// - Remark: HTTP `POST /reports`.
+    /// - Remark: Generated from `#/paths//reports/post(reports.submit)`.
+    func reports_period_submit(_ input: Operations.reports_period_submit.Input) async throws -> Operations.reports_period_submit.Output
+    /// État vivant d’une station
+    ///
+    /// Fusionne les données automatiques et les observations communautaires encore actives.
+    ///
+    /// - Remark: HTTP `GET /reports/station-status`.
+    /// - Remark: Generated from `#/paths//reports/station-status/get(reports.stationStatus)`.
+    func reports_period_stationStatus(_ input: Operations.reports_period_stationStatus.Input) async throws -> Operations.reports_period_stationStatus.Output
 }
 
 /// Convenience overloads for operation inputs.
@@ -438,6 +452,36 @@ extension APIProtocol {
             headers: headers
         ))
     }
+    /// Envoyer un signalement
+    ///
+    /// Enregistre une observation idempotente et renvoie l’état vivant agrégé de la station.
+    ///
+    /// - Remark: HTTP `POST /reports`.
+    /// - Remark: Generated from `#/paths//reports/post(reports.submit)`.
+    internal func reports_period_submit(
+        headers: Operations.reports_period_submit.Input.Headers = .init(),
+        body: Operations.reports_period_submit.Input.Body
+    ) async throws -> Operations.reports_period_submit.Output {
+        try await reports_period_submit(Operations.reports_period_submit.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// État vivant d’une station
+    ///
+    /// Fusionne les données automatiques et les observations communautaires encore actives.
+    ///
+    /// - Remark: HTTP `GET /reports/station-status`.
+    /// - Remark: Generated from `#/paths//reports/station-status/get(reports.stationStatus)`.
+    internal func reports_period_stationStatus(
+        query: Operations.reports_period_stationStatus.Input.Query,
+        headers: Operations.reports_period_stationStatus.Input.Headers = .init()
+    ) async throws -> Operations.reports_period_stationStatus.Output {
+        try await reports_period_stationStatus(Operations.reports_period_stationStatus.Input(
+            query: query,
+            headers: headers
+        ))
+    }
 }
 
 /// Server URLs defined in the OpenAPI document.
@@ -681,6 +725,8 @@ internal enum Operations {
                             case preferences_period_set = "preferences.set"
                             case place_period_upsert = "place.upsert"
                             case place_period_remove = "place.remove"
+                            case destination_period_upsert = "destination.upsert"
+                            case destination_period_remove = "destination.remove"
                             case notifications_period_preferences_period_set = "notifications.preferences.set"
                             case notifications_period_schedule_period_upsert = "notifications.schedule.upsert"
                             case notifications_period_schedule_period_remove = "notifications.schedule.remove"
@@ -936,6 +982,8 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/role`.
                             internal var role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.rolePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/systemImage`.
+                            internal var systemImage: Swift.String?
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/savedAt`.
                             internal var savedAt: Foundation.Date
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/updatedAt`.
@@ -949,6 +997,7 @@ internal enum Operations {
                             ///   - context:
                             ///   - coordinate:
                             ///   - role:
+                            ///   - systemImage:
                             ///   - savedAt:
                             ///   - updatedAt:
                             internal init(
@@ -958,6 +1007,7 @@ internal enum Operations {
                                 context: Swift.String? = nil,
                                 coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.coordinatePayload,
                                 role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.rolePayload,
+                                systemImage: Swift.String? = nil,
                                 savedAt: Foundation.Date,
                                 updatedAt: Foundation.Date
                             ) {
@@ -967,6 +1017,7 @@ internal enum Operations {
                                 self.context = context
                                 self.coordinate = coordinate
                                 self.role = role
+                                self.systemImage = systemImage
                                 self.savedAt = savedAt
                                 self.updatedAt = updatedAt
                             }
@@ -977,6 +1028,7 @@ internal enum Operations {
                                 case context
                                 case coordinate
                                 case role
+                                case systemImage
                                 case savedAt
                                 case updatedAt
                             }
@@ -985,6 +1037,115 @@ internal enum Operations {
                         internal var place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload?
                         /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/placeId`.
                         internal var placeId: Swift.String?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination`.
+                        internal struct destinationPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/destinationId`.
+                            internal var destinationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case station = "station"
+                                case address = "address"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/kind`.
+                            internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload.kindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/context`.
+                            internal var context: Swift.String?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/coordinate`.
+                            internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload.coordinatePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/systemImage`.
+                            internal var systemImage: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/position`.
+                            internal var position: Swift.Int
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `destinationPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - destinationId:
+                            ///   - kind:
+                            ///   - name:
+                            ///   - context:
+                            ///   - coordinate:
+                            ///   - label:
+                            ///   - systemImage:
+                            ///   - position:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            internal init(
+                                id: Swift.String,
+                                destinationId: Swift.String,
+                                kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload.kindPayload,
+                                name: Swift.String,
+                                context: Swift.String? = nil,
+                                coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload.coordinatePayload,
+                                label: Swift.String,
+                                systemImage: Swift.String,
+                                position: Swift.Int,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.id = id
+                                self.destinationId = destinationId
+                                self.kind = kind
+                                self.name = name
+                                self.context = context
+                                self.coordinate = coordinate
+                                self.label = label
+                                self.systemImage = systemImage
+                                self.position = position
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case destinationId
+                                case kind
+                                case name
+                                case context
+                                case coordinate
+                                case label
+                                case systemImage
+                                case position
+                                case savedAt
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination`.
+                        internal var destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destinationId`.
+                        internal var destinationId: Swift.String?
                         /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences`.
                         internal struct notificationPreferencesPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/enabled`.
@@ -1472,6 +1633,8 @@ internal enum Operations {
                         ///   - preferences:
                         ///   - place:
                         ///   - placeId:
+                        ///   - destination:
+                        ///   - destinationId:
                         ///   - notificationPreferences:
                         ///   - schedule:
                         ///   - scheduleId:
@@ -1488,6 +1651,8 @@ internal enum Operations {
                             preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload? = nil,
                             place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload? = nil,
                             placeId: Swift.String? = nil,
+                            destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload? = nil,
+                            destinationId: Swift.String? = nil,
                             notificationPreferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload? = nil,
                             schedule: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload? = nil,
                             scheduleId: Swift.String? = nil,
@@ -1504,6 +1669,8 @@ internal enum Operations {
                             self.preferences = preferences
                             self.place = place
                             self.placeId = placeId
+                            self.destination = destination
+                            self.destinationId = destinationId
                             self.notificationPreferences = notificationPreferences
                             self.schedule = schedule
                             self.scheduleId = scheduleId
@@ -1521,6 +1688,8 @@ internal enum Operations {
                             case preferences
                             case place
                             case placeId
+                            case destination
+                            case destinationId
                             case notificationPreferences
                             case schedule
                             case scheduleId
@@ -1762,6 +1931,8 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/role`.
                             internal var role: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.rolePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/systemImage`.
+                            internal var systemImage: Swift.String?
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/savedAt`.
                             internal var savedAt: Foundation.Date
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/placesPayload/updatedAt`.
@@ -1775,6 +1946,7 @@ internal enum Operations {
                             ///   - context:
                             ///   - coordinate:
                             ///   - role:
+                            ///   - systemImage:
                             ///   - savedAt:
                             ///   - updatedAt:
                             internal init(
@@ -1784,6 +1956,7 @@ internal enum Operations {
                                 context: Swift.String? = nil,
                                 coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.coordinatePayload,
                                 role: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload.rolePayload,
+                                systemImage: Swift.String? = nil,
                                 savedAt: Foundation.Date,
                                 updatedAt: Foundation.Date
                             ) {
@@ -1793,6 +1966,7 @@ internal enum Operations {
                                 self.context = context
                                 self.coordinate = coordinate
                                 self.role = role
+                                self.systemImage = systemImage
                                 self.savedAt = savedAt
                                 self.updatedAt = updatedAt
                             }
@@ -1803,6 +1977,7 @@ internal enum Operations {
                                 case context
                                 case coordinate
                                 case role
+                                case systemImage
                                 case savedAt
                                 case updatedAt
                             }
@@ -1811,6 +1986,115 @@ internal enum Operations {
                         internal typealias placesPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayloadPayload]
                         /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/places`.
                         internal var places: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayload
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload`.
+                        internal struct destinationsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/destinationId`.
+                            internal var destinationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case station = "station"
+                                case address = "address"
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/kind`.
+                            internal var kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.destinationsPayloadPayload.kindPayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/context`.
+                            internal var context: Swift.String?
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/coordinate`.
+                            internal var coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.destinationsPayloadPayload.coordinatePayload
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/systemImage`.
+                            internal var systemImage: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/position`.
+                            internal var position: Swift.Int
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/savedAt`.
+                            internal var savedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinationsPayload/updatedAt`.
+                            internal var updatedAt: Foundation.Date
+                            /// Creates a new `destinationsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - destinationId:
+                            ///   - kind:
+                            ///   - name:
+                            ///   - context:
+                            ///   - coordinate:
+                            ///   - label:
+                            ///   - systemImage:
+                            ///   - position:
+                            ///   - savedAt:
+                            ///   - updatedAt:
+                            internal init(
+                                id: Swift.String,
+                                destinationId: Swift.String,
+                                kind: Operations.account_period_sync.Output.Ok.Body.jsonPayload.destinationsPayloadPayload.kindPayload,
+                                name: Swift.String,
+                                context: Swift.String? = nil,
+                                coordinate: Operations.account_period_sync.Output.Ok.Body.jsonPayload.destinationsPayloadPayload.coordinatePayload,
+                                label: Swift.String,
+                                systemImage: Swift.String,
+                                position: Swift.Int,
+                                savedAt: Foundation.Date,
+                                updatedAt: Foundation.Date
+                            ) {
+                                self.id = id
+                                self.destinationId = destinationId
+                                self.kind = kind
+                                self.name = name
+                                self.context = context
+                                self.coordinate = coordinate
+                                self.label = label
+                                self.systemImage = systemImage
+                                self.position = position
+                                self.savedAt = savedAt
+                                self.updatedAt = updatedAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case destinationId
+                                case kind
+                                case name
+                                case context
+                                case coordinate
+                                case label
+                                case systemImage
+                                case position
+                                case savedAt
+                                case updatedAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinations`.
+                        internal typealias destinationsPayload = [Operations.account_period_sync.Output.Ok.Body.jsonPayload.destinationsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/destinations`.
+                        internal var destinations: Operations.account_period_sync.Output.Ok.Body.jsonPayload.destinationsPayload?
                         /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences`.
                         internal struct preferencesPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/account/sync/POST/responses/200/content/json/preferences/preferredModesPayload`.
@@ -2345,6 +2629,7 @@ internal enum Operations {
                         ///   - favorites:
                         ///   - recents:
                         ///   - places:
+                        ///   - destinations:
                         ///   - preferences:
                         ///   - notificationPreferences:
                         ///   - notificationSchedules:
@@ -2355,6 +2640,7 @@ internal enum Operations {
                             favorites: Operations.account_period_sync.Output.Ok.Body.jsonPayload.favoritesPayload,
                             recents: Operations.account_period_sync.Output.Ok.Body.jsonPayload.recentsPayload,
                             places: Operations.account_period_sync.Output.Ok.Body.jsonPayload.placesPayload,
+                            destinations: Operations.account_period_sync.Output.Ok.Body.jsonPayload.destinationsPayload? = nil,
                             preferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.preferencesPayload,
                             notificationPreferences: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationPreferencesPayload,
                             notificationSchedules: Operations.account_period_sync.Output.Ok.Body.jsonPayload.notificationSchedulesPayload,
@@ -2365,6 +2651,7 @@ internal enum Operations {
                             self.favorites = favorites
                             self.recents = recents
                             self.places = places
+                            self.destinations = destinations
                             self.preferences = preferences
                             self.notificationPreferences = notificationPreferences
                             self.notificationSchedules = notificationSchedules
@@ -2376,6 +2663,7 @@ internal enum Operations {
                             case favorites
                             case recents
                             case places
+                            case destinations
                             case preferences
                             case notificationPreferences
                             case notificationSchedules
@@ -3317,6 +3605,8 @@ internal enum Operations {
                                 }
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/level`.
                                 internal var level: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload.levelPayload
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/stationId`.
+                                internal var stationId: Swift.String?
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/stationName`.
                                 internal var stationName: Swift.String
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak/label`.
@@ -3326,28 +3616,130 @@ internal enum Operations {
                                 /// - Parameters:
                                 ///   - ratio:
                                 ///   - level:
+                                ///   - stationId:
                                 ///   - stationName:
                                 ///   - label:
                                 internal init(
                                     ratio: Swift.Double,
                                     level: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload.levelPayload,
+                                    stationId: Swift.String? = nil,
                                     stationName: Swift.String,
                                     label: Swift.String
                                 ) {
                                     self.ratio = ratio
                                     self.level = level
+                                    self.stationId = stationId
                                     self.stationName = stationName
                                     self.label = label
                                 }
                                 internal enum CodingKeys: String, CodingKey {
                                     case ratio
                                     case level
+                                    case stationId
                                     case stationName
                                     case label
                                 }
                             }
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/peak`.
                             internal var peak: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload?
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/reportedCrowding`.
+                            internal struct reportedCrowdingPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/reportedCrowding/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case low = "low"
+                                    case moderate = "moderate"
+                                    case high = "high"
+                                    case saturated = "saturated"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/reportedCrowding/level`.
+                                internal var level: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.reportedCrowdingPayload.levelPayload
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/reportedCrowding/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/reportedCrowding/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/reportedCrowding/reporterCount`.
+                                internal var reporterCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/reportedCrowding/expiresAt`.
+                                internal var expiresAt: Foundation.Date
+                                /// Creates a new `reportedCrowdingPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - level:
+                                ///   - stationName:
+                                ///   - label:
+                                ///   - reporterCount:
+                                ///   - expiresAt:
+                                internal init(
+                                    level: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.reportedCrowdingPayload.levelPayload,
+                                    stationName: Swift.String,
+                                    label: Swift.String,
+                                    reporterCount: Swift.Int,
+                                    expiresAt: Foundation.Date
+                                ) {
+                                    self.level = level
+                                    self.stationName = stationName
+                                    self.label = label
+                                    self.reporterCount = reporterCount
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case level
+                                    case stationName
+                                    case label
+                                    case reporterCount
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/reportedCrowding`.
+                            internal var reportedCrowding: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.reportedCrowdingPayload?
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/wheelchairReport`.
+                            internal struct wheelchairReportPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/wheelchairReport/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/wheelchairReport/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/wheelchairReport/reporterCount`.
+                                internal var reporterCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/wheelchairReport/confidence`.
+                                internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case observed = "observed"
+                                    case confirmed = "confirmed"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/wheelchairReport/confidence`.
+                                internal var confidence: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.wheelchairReportPayload.confidencePayload
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/wheelchairReport/expiresAt`.
+                                internal var expiresAt: Foundation.Date
+                                /// Creates a new `wheelchairReportPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - stationName:
+                                ///   - label:
+                                ///   - reporterCount:
+                                ///   - confidence:
+                                ///   - expiresAt:
+                                internal init(
+                                    stationName: Swift.String,
+                                    label: Swift.String,
+                                    reporterCount: Swift.Int,
+                                    confidence: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.wheelchairReportPayload.confidencePayload,
+                                    expiresAt: Foundation.Date
+                                ) {
+                                    self.stationName = stationName
+                                    self.label = label
+                                    self.reporterCount = reporterCount
+                                    self.confidence = confidence
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case stationName
+                                    case label
+                                    case reporterCount
+                                    case confidence
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/wheelchairReport`.
+                            internal var wheelchairReport: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.wheelchairReportPayload?
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload`.
                             internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/id`.
@@ -3881,6 +4273,8 @@ internal enum Operations {
                             ///   - warnings:
                             ///   - accessibility:
                             ///   - peak:
+                            ///   - reportedCrowding:
+                            ///   - wheelchairReport:
                             ///   - sections:
                             internal init(
                                 id: Swift.String,
@@ -3894,6 +4288,8 @@ internal enum Operations {
                                 warnings: [Swift.String],
                                 accessibility: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.accessibilityPayload? = nil,
                                 peak: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload? = nil,
+                                reportedCrowding: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.reportedCrowdingPayload? = nil,
+                                wheelchairReport: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.wheelchairReportPayload? = nil,
                                 sections: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.sectionsPayload
                             ) {
                                 self.id = id
@@ -3907,6 +4303,8 @@ internal enum Operations {
                                 self.warnings = warnings
                                 self.accessibility = accessibility
                                 self.peak = peak
+                                self.reportedCrowding = reportedCrowding
+                                self.wheelchairReport = wheelchairReport
                                 self.sections = sections
                             }
                             internal enum CodingKeys: String, CodingKey {
@@ -3921,6 +4319,8 @@ internal enum Operations {
                                 case warnings
                                 case accessibility
                                 case peak
+                                case reportedCrowding
+                                case wheelchairReport
                                 case sections
                             }
                         }
@@ -4137,6 +4537,8 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/level`.
                             internal var level: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload.levelPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/stationId`.
+                            internal var stationId: Swift.String?
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/stationName`.
                             internal var stationName: Swift.String
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak/label`.
@@ -4146,28 +4548,130 @@ internal enum Operations {
                             /// - Parameters:
                             ///   - ratio:
                             ///   - level:
+                            ///   - stationId:
                             ///   - stationName:
                             ///   - label:
                             internal init(
                                 ratio: Swift.Double,
                                 level: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload.levelPayload,
+                                stationId: Swift.String? = nil,
                                 stationName: Swift.String,
                                 label: Swift.String
                             ) {
                                 self.ratio = ratio
                                 self.level = level
+                                self.stationId = stationId
                                 self.stationName = stationName
                                 self.label = label
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case ratio
                                 case level
+                                case stationId
                                 case stationName
                                 case label
                             }
                         }
                         /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/peak`.
                         internal var peak: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/reportedCrowding`.
+                        internal struct reportedCrowdingPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/reportedCrowding/level`.
+                            internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case low = "low"
+                                case moderate = "moderate"
+                                case high = "high"
+                                case saturated = "saturated"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/reportedCrowding/level`.
+                            internal var level: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.reportedCrowdingPayload.levelPayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/reportedCrowding/stationName`.
+                            internal var stationName: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/reportedCrowding/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/reportedCrowding/reporterCount`.
+                            internal var reporterCount: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/reportedCrowding/expiresAt`.
+                            internal var expiresAt: Foundation.Date
+                            /// Creates a new `reportedCrowdingPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - level:
+                            ///   - stationName:
+                            ///   - label:
+                            ///   - reporterCount:
+                            ///   - expiresAt:
+                            internal init(
+                                level: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.reportedCrowdingPayload.levelPayload,
+                                stationName: Swift.String,
+                                label: Swift.String,
+                                reporterCount: Swift.Int,
+                                expiresAt: Foundation.Date
+                            ) {
+                                self.level = level
+                                self.stationName = stationName
+                                self.label = label
+                                self.reporterCount = reporterCount
+                                self.expiresAt = expiresAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case level
+                                case stationName
+                                case label
+                                case reporterCount
+                                case expiresAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/reportedCrowding`.
+                        internal var reportedCrowding: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.reportedCrowdingPayload?
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/wheelchairReport`.
+                        internal struct wheelchairReportPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/wheelchairReport/stationName`.
+                            internal var stationName: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/wheelchairReport/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/wheelchairReport/reporterCount`.
+                            internal var reporterCount: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/wheelchairReport/confidence`.
+                            internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case observed = "observed"
+                                case confirmed = "confirmed"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/wheelchairReport/confidence`.
+                            internal var confidence: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.wheelchairReportPayload.confidencePayload
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/wheelchairReport/expiresAt`.
+                            internal var expiresAt: Foundation.Date
+                            /// Creates a new `wheelchairReportPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - stationName:
+                            ///   - label:
+                            ///   - reporterCount:
+                            ///   - confidence:
+                            ///   - expiresAt:
+                            internal init(
+                                stationName: Swift.String,
+                                label: Swift.String,
+                                reporterCount: Swift.Int,
+                                confidence: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.wheelchairReportPayload.confidencePayload,
+                                expiresAt: Foundation.Date
+                            ) {
+                                self.stationName = stationName
+                                self.label = label
+                                self.reporterCount = reporterCount
+                                self.confidence = confidence
+                                self.expiresAt = expiresAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case stationName
+                                case label
+                                case reporterCount
+                                case confidence
+                                case expiresAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/wheelchairReport`.
+                        internal var wheelchairReport: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.wheelchairReportPayload?
                         /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload`.
                         internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/id`.
@@ -4701,6 +5205,8 @@ internal enum Operations {
                         ///   - warnings:
                         ///   - accessibility:
                         ///   - peak:
+                        ///   - reportedCrowding:
+                        ///   - wheelchairReport:
                         ///   - sections:
                         internal init(
                             id: Swift.String,
@@ -4714,6 +5220,8 @@ internal enum Operations {
                             warnings: [Swift.String],
                             accessibility: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.accessibilityPayload? = nil,
                             peak: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload? = nil,
+                            reportedCrowding: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.reportedCrowdingPayload? = nil,
+                            wheelchairReport: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.wheelchairReportPayload? = nil,
                             sections: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.sectionsPayload
                         ) {
                             self.id = id
@@ -4727,6 +5235,8 @@ internal enum Operations {
                             self.warnings = warnings
                             self.accessibility = accessibility
                             self.peak = peak
+                            self.reportedCrowding = reportedCrowding
+                            self.wheelchairReport = wheelchairReport
                             self.sections = sections
                         }
                         internal enum CodingKeys: String, CodingKey {
@@ -4741,6 +5251,8 @@ internal enum Operations {
                             case warnings
                             case accessibility
                             case peak
+                            case reportedCrowding
+                            case wheelchairReport
                             case sections
                         }
                     }
@@ -5131,6 +5643,8 @@ internal enum Operations {
                                 }
                                 /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/level`.
                                 internal var level: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload.levelPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/stationId`.
+                                internal var stationId: Swift.String?
                                 /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/stationName`.
                                 internal var stationName: Swift.String
                                 /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak/label`.
@@ -5140,28 +5654,130 @@ internal enum Operations {
                                 /// - Parameters:
                                 ///   - ratio:
                                 ///   - level:
+                                ///   - stationId:
                                 ///   - stationName:
                                 ///   - label:
                                 internal init(
                                     ratio: Swift.Double,
                                     level: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload.levelPayload,
+                                    stationId: Swift.String? = nil,
                                     stationName: Swift.String,
                                     label: Swift.String
                                 ) {
                                     self.ratio = ratio
                                     self.level = level
+                                    self.stationId = stationId
                                     self.stationName = stationName
                                     self.label = label
                                 }
                                 internal enum CodingKeys: String, CodingKey {
                                     case ratio
                                     case level
+                                    case stationId
                                     case stationName
                                     case label
                                 }
                             }
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/peak`.
                             internal var peak: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/reportedCrowding`.
+                            internal struct reportedCrowdingPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/reportedCrowding/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case low = "low"
+                                    case moderate = "moderate"
+                                    case high = "high"
+                                    case saturated = "saturated"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/reportedCrowding/level`.
+                                internal var level: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.reportedCrowdingPayload.levelPayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/reportedCrowding/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/reportedCrowding/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/reportedCrowding/reporterCount`.
+                                internal var reporterCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/reportedCrowding/expiresAt`.
+                                internal var expiresAt: Foundation.Date
+                                /// Creates a new `reportedCrowdingPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - level:
+                                ///   - stationName:
+                                ///   - label:
+                                ///   - reporterCount:
+                                ///   - expiresAt:
+                                internal init(
+                                    level: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.reportedCrowdingPayload.levelPayload,
+                                    stationName: Swift.String,
+                                    label: Swift.String,
+                                    reporterCount: Swift.Int,
+                                    expiresAt: Foundation.Date
+                                ) {
+                                    self.level = level
+                                    self.stationName = stationName
+                                    self.label = label
+                                    self.reporterCount = reporterCount
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case level
+                                    case stationName
+                                    case label
+                                    case reporterCount
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/reportedCrowding`.
+                            internal var reportedCrowding: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.reportedCrowdingPayload?
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/wheelchairReport`.
+                            internal struct wheelchairReportPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/wheelchairReport/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/wheelchairReport/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/wheelchairReport/reporterCount`.
+                                internal var reporterCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/wheelchairReport/confidence`.
+                                internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case observed = "observed"
+                                    case confirmed = "confirmed"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/wheelchairReport/confidence`.
+                                internal var confidence: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.wheelchairReportPayload.confidencePayload
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/wheelchairReport/expiresAt`.
+                                internal var expiresAt: Foundation.Date
+                                /// Creates a new `wheelchairReportPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - stationName:
+                                ///   - label:
+                                ///   - reporterCount:
+                                ///   - confidence:
+                                ///   - expiresAt:
+                                internal init(
+                                    stationName: Swift.String,
+                                    label: Swift.String,
+                                    reporterCount: Swift.Int,
+                                    confidence: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.wheelchairReportPayload.confidencePayload,
+                                    expiresAt: Foundation.Date
+                                ) {
+                                    self.stationName = stationName
+                                    self.label = label
+                                    self.reporterCount = reporterCount
+                                    self.confidence = confidence
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case stationName
+                                    case label
+                                    case reporterCount
+                                    case confidence
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/wheelchairReport`.
+                            internal var wheelchairReport: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.wheelchairReportPayload?
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload`.
                             internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/id`.
@@ -5695,6 +6311,8 @@ internal enum Operations {
                             ///   - warnings:
                             ///   - accessibility:
                             ///   - peak:
+                            ///   - reportedCrowding:
+                            ///   - wheelchairReport:
                             ///   - sections:
                             internal init(
                                 id: Swift.String,
@@ -5708,6 +6326,8 @@ internal enum Operations {
                                 warnings: [Swift.String],
                                 accessibility: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.accessibilityPayload? = nil,
                                 peak: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload? = nil,
+                                reportedCrowding: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.reportedCrowdingPayload? = nil,
+                                wheelchairReport: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.wheelchairReportPayload? = nil,
                                 sections: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.sectionsPayload
                             ) {
                                 self.id = id
@@ -5721,6 +6341,8 @@ internal enum Operations {
                                 self.warnings = warnings
                                 self.accessibility = accessibility
                                 self.peak = peak
+                                self.reportedCrowding = reportedCrowding
+                                self.wheelchairReport = wheelchairReport
                                 self.sections = sections
                             }
                             internal enum CodingKeys: String, CodingKey {
@@ -5735,6 +6357,8 @@ internal enum Operations {
                                 case warnings
                                 case accessibility
                                 case peak
+                                case reportedCrowding
+                                case wheelchairReport
                                 case sections
                             }
                         }
@@ -9695,6 +10319,1023 @@ internal enum Operations {
             /// - Throws: An error if `self` is not `.ok`.
             /// - SeeAlso: `.ok`.
             internal var ok: Operations.search_period_query.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Envoyer un signalement
+    ///
+    /// Enregistre une observation idempotente et renvoie l’état vivant agrégé de la station.
+    ///
+    /// - Remark: HTTP `POST /reports`.
+    /// - Remark: Generated from `#/paths//reports/post(reports.submit)`.
+    internal enum reports_period_submit {
+        internal static let id: Swift.String = "reports.submit"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/reports/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.reports_period_submit.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.reports_period_submit.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.reports_period_submit.Input.Headers
+            /// - Remark: Generated from `#/paths/reports/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/reports/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/id`.
+                    internal var id: Swift.String
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/stationId`.
+                    internal var stationId: Swift.String
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/category`.
+                    internal enum categoryPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case pickpocket = "pickpocket"
+                        case crowding = "crowding"
+                        case restroomsClosed = "restroomsClosed"
+                        case ticketMachinesUnavailable = "ticketMachinesUnavailable"
+                        case wheelchairAccessUnavailable = "wheelchairAccessUnavailable"
+                        case elevatorsUnavailable = "elevatorsUnavailable"
+                        case escalatorUnavailable = "escalatorUnavailable"
+                        case validatorsUnavailable = "validatorsUnavailable"
+                        case entranceOrExitClosed = "entranceOrExitClosed"
+                        case stopRelocated = "stopRelocated"
+                        case stopNotServed = "stopNotServed"
+                        case passengerInformationUnavailable = "passengerInformationUnavailable"
+                        case passageObstructed = "passageObstructed"
+                    }
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/category`.
+                    internal var category: Operations.reports_period_submit.Input.Body.jsonPayload.categoryPayload
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/value`.
+                    internal enum valuePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case occurrence = "occurrence"
+                        case resolved = "resolved"
+                        case low = "low"
+                        case moderate = "moderate"
+                        case high = "high"
+                        case saturated = "saturated"
+                    }
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/value`.
+                    internal var value: Operations.reports_period_submit.Input.Body.jsonPayload.valuePayload
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/lineId`.
+                    internal var lineId: Swift.String?
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/journeyId`.
+                    internal var journeyId: Swift.String?
+                    /// - Remark: Generated from `#/paths/reports/POST/requestBody/json/vehicleId`.
+                    internal var vehicleId: Swift.String?
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - id:
+                    ///   - stationId:
+                    ///   - category:
+                    ///   - value:
+                    ///   - lineId:
+                    ///   - journeyId:
+                    ///   - vehicleId:
+                    internal init(
+                        id: Swift.String,
+                        stationId: Swift.String,
+                        category: Operations.reports_period_submit.Input.Body.jsonPayload.categoryPayload,
+                        value: Operations.reports_period_submit.Input.Body.jsonPayload.valuePayload,
+                        lineId: Swift.String? = nil,
+                        journeyId: Swift.String? = nil,
+                        vehicleId: Swift.String? = nil
+                    ) {
+                        self.id = id
+                        self.stationId = stationId
+                        self.category = category
+                        self.value = value
+                        self.lineId = lineId
+                        self.journeyId = journeyId
+                        self.vehicleId = vehicleId
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case id
+                        case stationId
+                        case category
+                        case value
+                        case lineId
+                        case journeyId
+                        case vehicleId
+                    }
+                }
+                /// - Remark: Generated from `#/paths/reports/POST/requestBody/content/application\/json`.
+                case json(Operations.reports_period_submit.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.reports_period_submit.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.reports_period_submit.Input.Headers = .init(),
+                body: Operations.reports_period_submit.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/stationId`.
+                        internal var stationId: Swift.String
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/generatedAt`.
+                        internal var generatedAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility`.
+                        internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value1`.
+                            internal struct Value1Payload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value1/state`.
+                                internal var state: OpenAPIRuntime.OpenAPIValueContainer
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value1/source`.
+                                internal var source: OpenAPIRuntime.OpenAPIValueContainer
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value1/condition`.
+                                internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case reservationRequired = "reservationRequired"
+                                    case staffAssistance = "staffAssistance"
+                                    case autonomous = "autonomous"
+                                }
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value1/condition`.
+                                internal var condition: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload.Value1Payload.conditionPayload
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value1/label`.
+                                internal var label: Swift.String
+                                /// Creates a new `Value1Payload`.
+                                ///
+                                /// - Parameters:
+                                ///   - state:
+                                ///   - source:
+                                ///   - condition:
+                                ///   - label:
+                                internal init(
+                                    state: OpenAPIRuntime.OpenAPIValueContainer,
+                                    source: OpenAPIRuntime.OpenAPIValueContainer,
+                                    condition: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload.Value1Payload.conditionPayload,
+                                    label: Swift.String
+                                ) {
+                                    self.state = state
+                                    self.source = source
+                                    self.condition = condition
+                                    self.label = label
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case state
+                                    case source
+                                    case condition
+                                    case label
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value1`.
+                            internal var value1: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload.Value1Payload?
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2`.
+                            internal struct Value2Payload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2/state`.
+                                internal var state: OpenAPIRuntime.OpenAPIValueContainer
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2/source`.
+                                internal var source: OpenAPIRuntime.OpenAPIValueContainer
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2/reporterCount`.
+                                internal var reporterCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2/observedAt`.
+                                internal var observedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2/expiresAt`.
+                                internal var expiresAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2/confidence`.
+                                internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case observed = "observed"
+                                    case confirmed = "confirmed"
+                                }
+                                /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2/confidence`.
+                                internal var confidence: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload.Value2Payload.confidencePayload
+                                /// Creates a new `Value2Payload`.
+                                ///
+                                /// - Parameters:
+                                ///   - state:
+                                ///   - source:
+                                ///   - label:
+                                ///   - reporterCount:
+                                ///   - observedAt:
+                                ///   - expiresAt:
+                                ///   - confidence:
+                                internal init(
+                                    state: OpenAPIRuntime.OpenAPIValueContainer,
+                                    source: OpenAPIRuntime.OpenAPIValueContainer,
+                                    label: Swift.String,
+                                    reporterCount: Swift.Int,
+                                    observedAt: Foundation.Date,
+                                    expiresAt: Foundation.Date,
+                                    confidence: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload.Value2Payload.confidencePayload
+                                ) {
+                                    self.state = state
+                                    self.source = source
+                                    self.label = label
+                                    self.reporterCount = reporterCount
+                                    self.observedAt = observedAt
+                                    self.expiresAt = expiresAt
+                                    self.confidence = confidence
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case state
+                                    case source
+                                    case label
+                                    case reporterCount
+                                    case observedAt
+                                    case expiresAt
+                                    case confidence
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility/value2`.
+                            internal var value2: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload.Value2Payload?
+                            /// Creates a new `accessibilityPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - value1:
+                            ///   - value2:
+                            internal init(
+                                value1: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload.Value1Payload? = nil,
+                                value2: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload.Value2Payload? = nil
+                            ) {
+                                self.value1 = value1
+                                self.value2 = value2
+                            }
+                            internal init(from decoder: any Swift.Decoder) throws {
+                                var errors: [any Swift.Error] = []
+                                do {
+                                    self.value1 = try .init(from: decoder)
+                                } catch {
+                                    errors.append(error)
+                                }
+                                do {
+                                    self.value2 = try .init(from: decoder)
+                                } catch {
+                                    errors.append(error)
+                                }
+                                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                                    [
+                                        self.value1,
+                                        self.value2
+                                    ],
+                                    type: Self.self,
+                                    codingPath: decoder.codingPath,
+                                    errors: errors
+                                )
+                            }
+                            internal func encode(to encoder: any Swift.Encoder) throws {
+                                try self.value1?.encode(to: encoder)
+                                try self.value2?.encode(to: encoder)
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/accessibility`.
+                        internal var accessibility: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload?
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding`.
+                        internal struct crowdingPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding/level`.
+                            internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case low = "low"
+                                case moderate = "moderate"
+                                case high = "high"
+                                case saturated = "saturated"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding/level`.
+                            internal var level: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.crowdingPayload.levelPayload
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding/source`.
+                            internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case automatic = "automatic"
+                                case reported = "reported"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding/source`.
+                            internal var source: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.crowdingPayload.sourcePayload
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding/reporterCount`.
+                            internal var reporterCount: Swift.Int?
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding/observedAt`.
+                            internal var observedAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding/expiresAt`.
+                            internal var expiresAt: Foundation.Date?
+                            /// Creates a new `crowdingPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - level:
+                            ///   - source:
+                            ///   - label:
+                            ///   - reporterCount:
+                            ///   - observedAt:
+                            ///   - expiresAt:
+                            internal init(
+                                level: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.crowdingPayload.levelPayload,
+                                source: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.crowdingPayload.sourcePayload,
+                                label: Swift.String,
+                                reporterCount: Swift.Int? = nil,
+                                observedAt: Foundation.Date? = nil,
+                                expiresAt: Foundation.Date? = nil
+                            ) {
+                                self.level = level
+                                self.source = source
+                                self.label = label
+                                self.reporterCount = reporterCount
+                                self.observedAt = observedAt
+                                self.expiresAt = expiresAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case level
+                                case source
+                                case label
+                                case reporterCount
+                                case observedAt
+                                case expiresAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/crowding`.
+                        internal var crowding: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.crowdingPayload?
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload`.
+                        internal struct incidentsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/category`.
+                            internal enum categoryPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case pickpocket = "pickpocket"
+                                case restroomsClosed = "restroomsClosed"
+                                case ticketMachinesUnavailable = "ticketMachinesUnavailable"
+                                case wheelchairAccessUnavailable = "wheelchairAccessUnavailable"
+                                case elevatorsUnavailable = "elevatorsUnavailable"
+                                case escalatorUnavailable = "escalatorUnavailable"
+                                case validatorsUnavailable = "validatorsUnavailable"
+                                case entranceOrExitClosed = "entranceOrExitClosed"
+                                case stopRelocated = "stopRelocated"
+                                case stopNotServed = "stopNotServed"
+                                case passengerInformationUnavailable = "passengerInformationUnavailable"
+                                case passageObstructed = "passageObstructed"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/category`.
+                            internal var category: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.categoryPayload
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/scopeKind`.
+                            internal enum scopeKindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case station = "station"
+                                case line = "line"
+                                case vehicle = "vehicle"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/scopeKind`.
+                            internal var scopeKind: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.scopeKindPayload
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/scopeId`.
+                            internal var scopeId: Swift.String
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/state`.
+                            internal enum statePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case active = "active"
+                                case recovered = "recovered"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/state`.
+                            internal var state: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.statePayload
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/reporterCount`.
+                            internal var reporterCount: Swift.Int
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/observedAt`.
+                            internal var observedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidentsPayload/expiresAt`.
+                            internal var expiresAt: Foundation.Date
+                            /// Creates a new `incidentsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - category:
+                            ///   - scopeKind:
+                            ///   - scopeId:
+                            ///   - state:
+                            ///   - label:
+                            ///   - reporterCount:
+                            ///   - observedAt:
+                            ///   - expiresAt:
+                            internal init(
+                                category: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.categoryPayload,
+                                scopeKind: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.scopeKindPayload,
+                                scopeId: Swift.String,
+                                state: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.statePayload,
+                                label: Swift.String,
+                                reporterCount: Swift.Int,
+                                observedAt: Foundation.Date,
+                                expiresAt: Foundation.Date
+                            ) {
+                                self.category = category
+                                self.scopeKind = scopeKind
+                                self.scopeId = scopeId
+                                self.state = state
+                                self.label = label
+                                self.reporterCount = reporterCount
+                                self.observedAt = observedAt
+                                self.expiresAt = expiresAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case category
+                                case scopeKind
+                                case scopeId
+                                case state
+                                case label
+                                case reporterCount
+                                case observedAt
+                                case expiresAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidents`.
+                        internal typealias incidentsPayload = [Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/incidents`.
+                        internal var incidents: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayload
+                        /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/json/wheelchairRouteExcluded`.
+                        internal var wheelchairRouteExcluded: Swift.Bool
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - stationId:
+                        ///   - generatedAt:
+                        ///   - accessibility:
+                        ///   - crowding:
+                        ///   - incidents:
+                        ///   - wheelchairRouteExcluded:
+                        internal init(
+                            stationId: Swift.String,
+                            generatedAt: Foundation.Date,
+                            accessibility: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.accessibilityPayload? = nil,
+                            crowding: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.crowdingPayload? = nil,
+                            incidents: Operations.reports_period_submit.Output.Ok.Body.jsonPayload.incidentsPayload,
+                            wheelchairRouteExcluded: Swift.Bool
+                        ) {
+                            self.stationId = stationId
+                            self.generatedAt = generatedAt
+                            self.accessibility = accessibility
+                            self.crowding = crowding
+                            self.incidents = incidents
+                            self.wheelchairRouteExcluded = wheelchairRouteExcluded
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case stationId
+                            case generatedAt
+                            case accessibility
+                            case crowding
+                            case incidents
+                            case wheelchairRouteExcluded
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/reports/POST/responses/200/content/application\/json`.
+                    case json(Operations.reports_period_submit.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.reports_period_submit.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.reports_period_submit.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.reports_period_submit.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//reports/post(reports.submit)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.reports_period_submit.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.reports_period_submit.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// État vivant d’une station
+    ///
+    /// Fusionne les données automatiques et les observations communautaires encore actives.
+    ///
+    /// - Remark: HTTP `GET /reports/station-status`.
+    /// - Remark: Generated from `#/paths//reports/station-status/get(reports.stationStatus)`.
+    internal enum reports_period_stationStatus {
+        internal static let id: Swift.String = "reports.stationStatus"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/reports/station-status/GET/query`.
+            internal struct Query: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/reports/station-status/GET/query/stationId`.
+                internal var stationId: Swift.String
+                /// - Remark: Generated from `#/paths/reports/station-status/GET/query/lineId`.
+                internal var lineId: Swift.String?
+                /// - Remark: Generated from `#/paths/reports/station-status/GET/query/vehicleId`.
+                internal var vehicleId: Swift.String?
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - stationId:
+                ///   - lineId:
+                ///   - vehicleId:
+                internal init(
+                    stationId: Swift.String,
+                    lineId: Swift.String? = nil,
+                    vehicleId: Swift.String? = nil
+                ) {
+                    self.stationId = stationId
+                    self.lineId = lineId
+                    self.vehicleId = vehicleId
+                }
+            }
+            internal var query: Operations.reports_period_stationStatus.Input.Query
+            /// - Remark: Generated from `#/paths/reports/station-status/GET/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.reports_period_stationStatus.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.reports_period_stationStatus.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.reports_period_stationStatus.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            internal init(
+                query: Operations.reports_period_stationStatus.Input.Query,
+                headers: Operations.reports_period_stationStatus.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/stationId`.
+                        internal var stationId: Swift.String
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/generatedAt`.
+                        internal var generatedAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility`.
+                        internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value1`.
+                            internal struct Value1Payload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value1/state`.
+                                internal var state: OpenAPIRuntime.OpenAPIValueContainer
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value1/source`.
+                                internal var source: OpenAPIRuntime.OpenAPIValueContainer
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value1/condition`.
+                                internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case reservationRequired = "reservationRequired"
+                                    case staffAssistance = "staffAssistance"
+                                    case autonomous = "autonomous"
+                                }
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value1/condition`.
+                                internal var condition: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload.Value1Payload.conditionPayload
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value1/label`.
+                                internal var label: Swift.String
+                                /// Creates a new `Value1Payload`.
+                                ///
+                                /// - Parameters:
+                                ///   - state:
+                                ///   - source:
+                                ///   - condition:
+                                ///   - label:
+                                internal init(
+                                    state: OpenAPIRuntime.OpenAPIValueContainer,
+                                    source: OpenAPIRuntime.OpenAPIValueContainer,
+                                    condition: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload.Value1Payload.conditionPayload,
+                                    label: Swift.String
+                                ) {
+                                    self.state = state
+                                    self.source = source
+                                    self.condition = condition
+                                    self.label = label
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case state
+                                    case source
+                                    case condition
+                                    case label
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value1`.
+                            internal var value1: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload.Value1Payload?
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2`.
+                            internal struct Value2Payload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2/state`.
+                                internal var state: OpenAPIRuntime.OpenAPIValueContainer
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2/source`.
+                                internal var source: OpenAPIRuntime.OpenAPIValueContainer
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2/reporterCount`.
+                                internal var reporterCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2/observedAt`.
+                                internal var observedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2/expiresAt`.
+                                internal var expiresAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2/confidence`.
+                                internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case observed = "observed"
+                                    case confirmed = "confirmed"
+                                }
+                                /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2/confidence`.
+                                internal var confidence: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload.Value2Payload.confidencePayload
+                                /// Creates a new `Value2Payload`.
+                                ///
+                                /// - Parameters:
+                                ///   - state:
+                                ///   - source:
+                                ///   - label:
+                                ///   - reporterCount:
+                                ///   - observedAt:
+                                ///   - expiresAt:
+                                ///   - confidence:
+                                internal init(
+                                    state: OpenAPIRuntime.OpenAPIValueContainer,
+                                    source: OpenAPIRuntime.OpenAPIValueContainer,
+                                    label: Swift.String,
+                                    reporterCount: Swift.Int,
+                                    observedAt: Foundation.Date,
+                                    expiresAt: Foundation.Date,
+                                    confidence: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload.Value2Payload.confidencePayload
+                                ) {
+                                    self.state = state
+                                    self.source = source
+                                    self.label = label
+                                    self.reporterCount = reporterCount
+                                    self.observedAt = observedAt
+                                    self.expiresAt = expiresAt
+                                    self.confidence = confidence
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case state
+                                    case source
+                                    case label
+                                    case reporterCount
+                                    case observedAt
+                                    case expiresAt
+                                    case confidence
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility/value2`.
+                            internal var value2: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload.Value2Payload?
+                            /// Creates a new `accessibilityPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - value1:
+                            ///   - value2:
+                            internal init(
+                                value1: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload.Value1Payload? = nil,
+                                value2: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload.Value2Payload? = nil
+                            ) {
+                                self.value1 = value1
+                                self.value2 = value2
+                            }
+                            internal init(from decoder: any Swift.Decoder) throws {
+                                var errors: [any Swift.Error] = []
+                                do {
+                                    self.value1 = try .init(from: decoder)
+                                } catch {
+                                    errors.append(error)
+                                }
+                                do {
+                                    self.value2 = try .init(from: decoder)
+                                } catch {
+                                    errors.append(error)
+                                }
+                                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                                    [
+                                        self.value1,
+                                        self.value2
+                                    ],
+                                    type: Self.self,
+                                    codingPath: decoder.codingPath,
+                                    errors: errors
+                                )
+                            }
+                            internal func encode(to encoder: any Swift.Encoder) throws {
+                                try self.value1?.encode(to: encoder)
+                                try self.value2?.encode(to: encoder)
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/accessibility`.
+                        internal var accessibility: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload?
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding`.
+                        internal struct crowdingPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding/level`.
+                            internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case low = "low"
+                                case moderate = "moderate"
+                                case high = "high"
+                                case saturated = "saturated"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding/level`.
+                            internal var level: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.crowdingPayload.levelPayload
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding/source`.
+                            internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case automatic = "automatic"
+                                case reported = "reported"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding/source`.
+                            internal var source: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.crowdingPayload.sourcePayload
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding/reporterCount`.
+                            internal var reporterCount: Swift.Int?
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding/observedAt`.
+                            internal var observedAt: Foundation.Date?
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding/expiresAt`.
+                            internal var expiresAt: Foundation.Date?
+                            /// Creates a new `crowdingPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - level:
+                            ///   - source:
+                            ///   - label:
+                            ///   - reporterCount:
+                            ///   - observedAt:
+                            ///   - expiresAt:
+                            internal init(
+                                level: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.crowdingPayload.levelPayload,
+                                source: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.crowdingPayload.sourcePayload,
+                                label: Swift.String,
+                                reporterCount: Swift.Int? = nil,
+                                observedAt: Foundation.Date? = nil,
+                                expiresAt: Foundation.Date? = nil
+                            ) {
+                                self.level = level
+                                self.source = source
+                                self.label = label
+                                self.reporterCount = reporterCount
+                                self.observedAt = observedAt
+                                self.expiresAt = expiresAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case level
+                                case source
+                                case label
+                                case reporterCount
+                                case observedAt
+                                case expiresAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/crowding`.
+                        internal var crowding: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.crowdingPayload?
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload`.
+                        internal struct incidentsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/category`.
+                            internal enum categoryPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case pickpocket = "pickpocket"
+                                case restroomsClosed = "restroomsClosed"
+                                case ticketMachinesUnavailable = "ticketMachinesUnavailable"
+                                case wheelchairAccessUnavailable = "wheelchairAccessUnavailable"
+                                case elevatorsUnavailable = "elevatorsUnavailable"
+                                case escalatorUnavailable = "escalatorUnavailable"
+                                case validatorsUnavailable = "validatorsUnavailable"
+                                case entranceOrExitClosed = "entranceOrExitClosed"
+                                case stopRelocated = "stopRelocated"
+                                case stopNotServed = "stopNotServed"
+                                case passengerInformationUnavailable = "passengerInformationUnavailable"
+                                case passageObstructed = "passageObstructed"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/category`.
+                            internal var category: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.categoryPayload
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/scopeKind`.
+                            internal enum scopeKindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case station = "station"
+                                case line = "line"
+                                case vehicle = "vehicle"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/scopeKind`.
+                            internal var scopeKind: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.scopeKindPayload
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/scopeId`.
+                            internal var scopeId: Swift.String
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/state`.
+                            internal enum statePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case active = "active"
+                                case recovered = "recovered"
+                            }
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/state`.
+                            internal var state: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.statePayload
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/label`.
+                            internal var label: Swift.String
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/reporterCount`.
+                            internal var reporterCount: Swift.Int
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/observedAt`.
+                            internal var observedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidentsPayload/expiresAt`.
+                            internal var expiresAt: Foundation.Date
+                            /// Creates a new `incidentsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - category:
+                            ///   - scopeKind:
+                            ///   - scopeId:
+                            ///   - state:
+                            ///   - label:
+                            ///   - reporterCount:
+                            ///   - observedAt:
+                            ///   - expiresAt:
+                            internal init(
+                                category: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.categoryPayload,
+                                scopeKind: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.scopeKindPayload,
+                                scopeId: Swift.String,
+                                state: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayloadPayload.statePayload,
+                                label: Swift.String,
+                                reporterCount: Swift.Int,
+                                observedAt: Foundation.Date,
+                                expiresAt: Foundation.Date
+                            ) {
+                                self.category = category
+                                self.scopeKind = scopeKind
+                                self.scopeId = scopeId
+                                self.state = state
+                                self.label = label
+                                self.reporterCount = reporterCount
+                                self.observedAt = observedAt
+                                self.expiresAt = expiresAt
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case category
+                                case scopeKind
+                                case scopeId
+                                case state
+                                case label
+                                case reporterCount
+                                case observedAt
+                                case expiresAt
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidents`.
+                        internal typealias incidentsPayload = [Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/incidents`.
+                        internal var incidents: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayload
+                        /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/json/wheelchairRouteExcluded`.
+                        internal var wheelchairRouteExcluded: Swift.Bool
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - stationId:
+                        ///   - generatedAt:
+                        ///   - accessibility:
+                        ///   - crowding:
+                        ///   - incidents:
+                        ///   - wheelchairRouteExcluded:
+                        internal init(
+                            stationId: Swift.String,
+                            generatedAt: Foundation.Date,
+                            accessibility: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.accessibilityPayload? = nil,
+                            crowding: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.crowdingPayload? = nil,
+                            incidents: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload.incidentsPayload,
+                            wheelchairRouteExcluded: Swift.Bool
+                        ) {
+                            self.stationId = stationId
+                            self.generatedAt = generatedAt
+                            self.accessibility = accessibility
+                            self.crowding = crowding
+                            self.incidents = incidents
+                            self.wheelchairRouteExcluded = wheelchairRouteExcluded
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case stationId
+                            case generatedAt
+                            case accessibility
+                            case crowding
+                            case incidents
+                            case wheelchairRouteExcluded
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/reports/station-status/GET/responses/200/content/application\/json`.
+                    case json(Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.reports_period_stationStatus.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.reports_period_stationStatus.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.reports_period_stationStatus.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//reports/station-status/get(reports.stationStatus)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.reports_period_stationStatus.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.reports_period_stationStatus.Output.Ok {
                 get throws {
                     switch self {
                     case let .ok(response):
