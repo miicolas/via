@@ -49,6 +49,7 @@ struct ApplicationEntry: App {
         _selectedStationModel = State(
             initialValue: SelectedStationModel(
                 departuresRepository: dependencies.departuresRepository,
+                reportRepository: dependencies.reportRepository,
                 account: dependencies.accountModel,
                 locationModel: dependencies.locationModel,
             ),
@@ -357,7 +358,7 @@ struct ApplicationEntry: App {
             networkRepository: LiveNetworkRepository(transport: transport),
             departuresRepository: LiveDeparturesRepository(transport: transport),
             searchRepository: searchRepository,
-            reportRepository: InMemoryReportRepository(),
+            reportRepository: LiveReportRepository(transport: transport),
             activeJourneyStore: UserDefaultsActiveJourneyStore(),
             activityManager: JourneyActivityManager(),
             connectivityMonitor: NetworkConnectivityMonitor(),

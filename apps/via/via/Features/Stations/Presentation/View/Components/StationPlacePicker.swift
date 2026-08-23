@@ -1,29 +1,31 @@
 import SwiftUI
 
 struct StationPlacePicker: View {
-    @Binding private var selection: StationPlaceShortcut?
+    let places: [SavedPlace]
+    let destinations: [SavedDestination]
+    let onOpen: (SearchResult) -> Void
+    let onConfigure: (SavedPlace.Role) -> Void
+    let onAdd: () -> Void
+    let onEditPlace: (SavedPlace) -> Void
+    let onEditDestination: (SavedDestination) -> Void
+    let onClearPlace: (SavedPlace.Role) -> Void
+    let onRemoveDestination: (UUID) -> Void
+    let onManage: () -> Void
 
-    private let shortcuts: [StationPlaceShortcut]
-    private let onAddPlace: () -> Void
-
-    init(
-        selection: Binding<StationPlaceShortcut?>,
-        shortcuts: [StationPlaceShortcut] = [.home, .work],
-        onAddPlace: @escaping () -> Void = {}
-    ) {
-        _selection = selection
-        self.shortcuts = shortcuts
-        self.onAddPlace = onAddPlace
-    }
+    @State private var destinationPendingRemoval: SavedDestination?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(shortcuts) { shortcut in
-                    shortcutButton(for: shortcut)
+                ForEach(SavedPlace.Role.allCases) { role in
+                    placeButton(for: role)
                 }
 
-                Button(action: onAddPlace) {
+                ForEach(destinations.sorted { $0.position < $1.position }) { destination in
+                    destinationButton(destination)
+                }
+
+                Button(action: onAdd) {
                     Image(systemName: "plus")
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(.white)
@@ -31,51 +33,135 @@ struct StationPlacePicker: View {
                         .background(Color.accentColor, in: Circle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Ajouter un lieu")
-                .accessibilityHint("Ajoute un nouveau bouton de lieu")
+                .disabled(destinations.count >= AccountLocalSnapshot.destinationLimit)
+                .accessibilityLabel("Ajouter un lieu favori")
+                .accessibilityHint(
+                    destinations.count >= AccountLocalSnapshot.destinationLimit
+                        ? "La limite de favoris est atteinte"
+                        : "Recherche une destination à enregistrer"
+                )
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
         }
         .scrollClipDisabled()
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Lieux enregistrés")
+        .accessibilityLabel("Destinations enregistrées")
+        .confirmationDialog(
+            "Supprimer \(destinationPendingRemoval?.label ?? "ce favori") ?",
+            isPresented: removalPresentation,
+            titleVisibility: .visible
+        ) {
+            Button("Supprimer", role: .destructive) {
+                guard let id = destinationPendingRemoval?.id else { return }
+                onRemoveDestination(id)
+                destinationPendingRemoval = nil
+            }
+            Button("Annuler", role: .cancel) {
+                destinationPendingRemoval = nil
+            }
+        }
     }
 
-    private func shortcutButton(for shortcut: StationPlaceShortcut) -> some View {
-        let isSelected = selection == shortcut
-
+    private func placeButton(for role: SavedPlace.Role) -> some View {
+        let place = places.first { $0.role == role }
         return Button {
-            selection = shortcut
+            if let place {
+                onOpen(place.searchResult)
+            } else {
+                onConfigure(role)
+            }
         } label: {
-            Label(shortcut.title, systemImage: shortcut.systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                .padding(.horizontal, 16)
-                .frame(minHeight: 44)
-                .background(
-                    isSelected
-                        ? Color.accentColor.opacity(0.14)
-                        : Color.secondary.opacity(0.12),
-                    in: Capsule()
-                )
-                .overlay {
-                    Capsule()
-                        .stroke(
-                            isSelected ? Color.accentColor.opacity(0.35) : .clear,
-                            lineWidth: 1
-                        )
-                }
+            capsuleLabel(
+                title: role.displayTitle,
+                systemImage: SavedDestinationSymbols.resolved(
+                    place?.systemImage ?? role.systemImage,
+                    fallback: role.systemImage
+                ),
+                isConfigured: place != nil
+            )
         }
         .buttonStyle(.plain)
-        .accessibilityValue(isSelected ? "Sélectionné" : "Non sélectionné")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityValue(place == nil ? "À configurer" : "Configuré")
+        .accessibilityHint(
+            place == nil
+                ? "Recherche l’adresse de \(role.displayTitle)"
+                : "Calcule un trajet depuis votre position"
+        )
+        .contextMenu {
+            if let place {
+                Button("Modifier", systemImage: "pencil") {
+                    onEditPlace(place)
+                }
+                Button("Effacer l’adresse", systemImage: "eraser", role: .destructive) {
+                    onClearPlace(role)
+                }
+            }
+            Button("Gérer les favoris", systemImage: "list.bullet") {
+                onManage()
+            }
+        }
+    }
+
+    private func destinationButton(_ destination: SavedDestination) -> some View {
+        Button {
+            onOpen(destination.searchResult)
+        } label: {
+            capsuleLabel(
+                title: destination.label,
+                systemImage: SavedDestinationSymbols.resolved(destination.systemImage),
+                isConfigured: true
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Calcule un trajet depuis votre position")
+        .contextMenu {
+            Button("Modifier", systemImage: "pencil") {
+                onEditDestination(destination)
+            }
+            Button("Supprimer", systemImage: "trash", role: .destructive) {
+                destinationPendingRemoval = destination
+            }
+            Button("Gérer les favoris", systemImage: "list.bullet") {
+                onManage()
+            }
+        }
+    }
+
+    private func capsuleLabel(
+        title: String,
+        systemImage: String,
+        isConfigured: Bool
+    ) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(isConfigured ? Color.primary : Color.secondary)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .background(Color.secondary.opacity(isConfigured ? 0.12 : 0.07), in: Capsule())
+            .opacity(isConfigured ? 1 : 0.72)
+    }
+
+    private var removalPresentation: Binding<Bool> {
+        Binding(
+            get: { destinationPendingRemoval != nil },
+            set: { if !$0 { destinationPendingRemoval = nil } }
+        )
     }
 }
 
 #Preview {
-    @Previewable @State var selection: StationPlaceShortcut? = .home
-
-    StationPlacePicker(selection: $selection)
-        .padding(.vertical)
+    StationPlacePicker(
+        places: [],
+        destinations: [],
+        onOpen: { _ in },
+        onConfigure: { _ in },
+        onAdd: {},
+        onEditPlace: { _ in },
+        onEditDestination: { _ in },
+        onClearPlace: { _ in },
+        onRemoveDestination: { _ in },
+        onManage: {}
+    )
+    .padding(.vertical)
 }

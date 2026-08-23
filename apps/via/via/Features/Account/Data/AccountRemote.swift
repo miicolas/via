@@ -57,6 +57,7 @@ actor InMemoryAccountRemote: AccountRemote {
             favorites: [],
             recents: [],
             places: [],
+            destinations: [],
             preferences: .empty,
             syncedAt: .now
         )

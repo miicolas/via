@@ -71,6 +71,8 @@ struct JourneyResultDTO: Decodable {
         let warnings: [String]
         let accessibility: AccessibilityDTO?
         let peak: PeakDTO?
+        let reportedCrowding: ReportedCrowdingDTO?
+        let wheelchairReport: WheelchairReportDTO?
         let sections: [SectionDTO]
 
         struct AccessibilityDTO: Decodable {
@@ -83,6 +85,22 @@ struct JourneyResultDTO: Decodable {
             let level: String
             let stationName: String
             let label: String
+        }
+
+        struct ReportedCrowdingDTO: Decodable {
+            let level: CrowdingLevel
+            let stationName: String
+            let label: String
+            let reporterCount: Int
+            let expiresAt: Date
+        }
+
+        struct WheelchairReportDTO: Decodable {
+            let stationName: String
+            let label: String
+            let reporterCount: Int
+            let confidence: ReportConfidence
+            let expiresAt: Date
         }
 
         func domain() throws -> Journey {
@@ -115,6 +133,24 @@ struct JourneyResultDTO: Decodable {
                         level: level,
                         label: value.label,
                         stationName: value.stationName
+                    )
+                },
+                reportedCrowding: reportedCrowding.map {
+                    Journey.ReportedCrowding(
+                        level: $0.level,
+                        stationName: $0.stationName,
+                        label: $0.label,
+                        reporterCount: $0.reporterCount,
+                        expiresAt: $0.expiresAt
+                    )
+                },
+                wheelchairReport: wheelchairReport.map {
+                    Journey.WheelchairReport(
+                        stationName: $0.stationName,
+                        label: $0.label,
+                        reporterCount: $0.reporterCount,
+                        confidence: $0.confidence,
+                        expiresAt: $0.expiresAt
                     )
                 },
                 sections: try sections.enumerated().map { index, section in

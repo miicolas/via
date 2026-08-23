@@ -64,6 +64,15 @@ struct JourneyDetailSummaryView: View {
           .foregroundStyle(.red)
       }
 
+      if let crowding = journey.reportedCrowding {
+        Label(
+          ReportAttribution.source(.reported, reporterCount: crowding.reporterCount),
+          systemImage: crowding.level.systemImage
+        )
+          .font(.caption.weight(.bold))
+          .foregroundStyle(.orange)
+      }
+
     }
   }
 

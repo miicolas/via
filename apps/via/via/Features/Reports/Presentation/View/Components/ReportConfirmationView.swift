@@ -21,12 +21,12 @@ struct ReportConfirmationView: View {
                     Text("Merci")
                         .font(.largeTitle.weight(.bold))
 
-                    Text("Votre signalement aidera à améliorer Metyro à l’avenir.")
+                    Text("Votre signalement met immédiatement à jour l’information partagée dans Via.")
                         .font(.title3)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
 
-                    Text("Pour respecter votre vie privée, aucune adresse e-mail n’est jointe au signalement. Nous ne pouvons donc pas vous répondre.")
+                    Text("Votre identité est connue de Via pour prévenir les abus, mais elle n’est jamais affichée aux voyageurs.")
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -36,7 +36,7 @@ struct ReportConfirmationView: View {
                 .frame(minHeight: proxy.size.height, alignment: .center)
                 .padding(24)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Signalement envoyé. Merci. Votre signalement aidera à améliorer Metyro à l’avenir.")
+                .accessibilityLabel("Signalement envoyé. Merci. L’information partagée dans Via est mise à jour. Votre identité n’est jamais affichée aux voyageurs.")
             }
         }
         .safeAreaInset(edge: .bottom) {

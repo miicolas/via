@@ -37,6 +37,12 @@ struct ReportCardView: View {
                         .foregroundStyle(.primary)
                         .multilineTextAlignment(.leading)
 
+                    if isLoading {
+                        Text("Envoi…")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(tint)
+                    }
+
                     if let subtitle {
                         Text(subtitle)
                             .font(.caption)
@@ -61,7 +67,7 @@ struct ReportCardView: View {
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
-        .accessibilityLabel(title)
+        .accessibilityLabel(isLoading ? "\(title), envoi en cours" : title)
         .accessibilityHint(accessibilityHint)
     }
 
