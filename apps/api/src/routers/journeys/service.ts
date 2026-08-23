@@ -5,6 +5,7 @@ import { parisDay, parisDayType } from '../../time/paris';
 import { tryConsumeDailyIdfmBudget } from '../idfm/daily-budget';
 import { journeyCacheKey, valueThroughCache } from './cache';
 import { tryConsumePersonalJourneyBudget } from './rate-limit';
+import { createAsyncGate } from './gtfs/concurrency';
 import {
   annotateAccessibleJourneys,
   filterAndAnnotateAccessibleJourneys,
@@ -33,6 +34,8 @@ export type GtfsJourneyPlanner = {
 /** GTFS answers change with the timetable minute; IDFM ones track realtime a bit longer. */
 const GTFS_TTL_SECONDS = 30;
 const IDFM_TTL_SECONDS = 45;
+/** Keep Postgres dynamic shared-memory use bounded during the GTFS fallback. */
+const gtfsPlanGate = createAsyncGate(1);
 
 export type JourneyPlanningConfig = {
   personalLimit: number;
@@ -252,16 +255,18 @@ async function planWithGtfsConstraint(
   now: Date,
   signal?: AbortSignal
 ) {
-  const response = await planWithGtfs(gtfs, input, requestedAt, now, signal);
-  if (!input.requiresAccessibleStations) return response;
-  if (response.status === 'unavailable') return response;
-  const journeys = await filterAndAnnotateAccessibleJourneys(response.journeys);
-  return {
-    ...response,
-    status: journeys.length > 0 ? 'ready' as const : 'no-route' as const,
-    reason: journeys.length > 0 ? undefined : 'no-accessible-route' as const,
-    journeys,
-  };
+  return gtfsPlanGate.run(async () => {
+    const response = await planWithGtfs(gtfs, input, requestedAt, now, signal);
+    if (!input.requiresAccessibleStations) return response;
+    if (response.status === 'unavailable') return response;
+    const journeys = await filterAndAnnotateAccessibleJourneys(response.journeys);
+    return {
+      ...response,
+      status: journeys.length > 0 ? 'ready' as const : 'no-route' as const,
+      reason: journeys.length > 0 ? undefined : 'no-accessible-route' as const,
+      journeys,
+    };
+  });
 }
 
 async function qualify(

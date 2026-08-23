@@ -26,6 +26,7 @@ import {
   type NetworkMode,
 } from '@via/db/schema';
 import { computeDrawnGeometry, drawnGeometryRouteCondition } from '@via/db/drawn-geometry';
+import { maxAbsoluteTimetableSeconds, TIMETABLE_HORIZON_KEY } from '@via/db/timetable';
 import { networkRouteCondition } from '@via/db/network-scope';
 import { projectStopsOntoPatterns } from '@via/db/projection';
 import { and, asc, eq, sql } from 'drizzle-orm';
@@ -440,6 +441,42 @@ async function deriveNetworkData() {
 
   logStep('Building line schemas');
   await importLineSchemasFromDatabase();
+
+  await step('Measuring the timetable horizon', recordTimetableHorizon);
+}
+
+/**
+ * Records how far past midnight this feed's service days actually run, so the
+ * journey planner can tell when yesterday's services are still relevant and
+ * skip the query when they cannot be. See `TIMETABLE_HORIZON_KEY`.
+ *
+ * Written after the schedules are in place and re-measured on every import: a
+ * value left over from a feed with later night service would make the planner
+ * skip a query that had rows.
+ */
+async function recordTimetableHorizon() {
+  const [row] = await db.execute<{ seconds: number | string | null }>(
+    maxAbsoluteTimetableSeconds()
+  );
+  const seconds = row?.seconds === null || row?.seconds === undefined ? null : Number(row.seconds);
+
+  if (seconds === null || !Number.isFinite(seconds)) {
+    // An empty timetable has no horizon. Drop the key rather than store a
+    // bound: absent reads as "unknown", which makes the planner search both
+    // service days, and searching too much is the safe direction to err in.
+    await db.delete(importMeta).where(eq(importMeta.key, TIMETABLE_HORIZON_KEY));
+    logStep('Timetable horizon: no schedules, key cleared');
+    return;
+  }
+
+  await db
+    .insert(importMeta)
+    .values({ key: TIMETABLE_HORIZON_KEY, value: String(seconds) })
+    .onConflictDoUpdate({
+      target: importMeta.key,
+      set: { value: String(seconds), updatedAt: new Date() },
+    });
+  logStep(`Timetable horizon: ${(seconds / 3600).toFixed(1)} h past service-day start`);
 }
 
 /** Every table the reload rewrites, in one list both maintenance steps share. */

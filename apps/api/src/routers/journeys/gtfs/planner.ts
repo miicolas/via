@@ -9,6 +9,8 @@ import type {
 import { parisDay, previousDate, toInstant } from '../../../time/paris';
 
 const WALKING_METERS_PER_SECOND = 1.25;
+/** A conservative upper bound used only for pruning impossible alternatives. */
+const MAX_TRANSIT_SPEED_METERS_PER_SECOND = 120_000 / 3_600;
 const MAX_ROUNDS = 2;
 const MAX_ACCESS_STOPS = 8;
 const MAX_FRONTIER_LABELS = 512;
@@ -158,14 +160,12 @@ async function planDepartureWithGtfs(
   requiresAccessibleStations: boolean,
   originStationId?: string
 ): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; source: 'gtfs-theoretical'; journeys: Journey[] }> {
-  const [originStops, destinationStops] = await Promise.all([
-    loader.accessStops(origin, MAX_ACCESS_STOPS, originStationId),
-    loader.accessStops(
-      destination.coordinate,
-      MAX_ACCESS_STOPS,
-      destination.kind === 'station' ? destination.id : undefined
-    ),
-  ]);
+  const originStops = await loader.accessStops(origin, MAX_ACCESS_STOPS, originStationId);
+  const destinationStops = await loader.accessStops(
+    destination.coordinate,
+    MAX_ACCESS_STOPS,
+    destination.kind === 'station' ? destination.id : undefined
+  );
   if (originStops.length === 0 || destinationStops.length === 0) {
     return { status: 'unavailable', source: 'gtfs-theoretical', journeys: [] };
   }
@@ -294,6 +294,7 @@ async function planDepartureWithGtfs(
     frontier = [...expanded.values()]
       .flat()
       .filter((label) => label.arrivalSeconds <= bestArrivalSeconds + ALTERNATIVE_SLACK_SECONDS)
+      .filter((label) => canStillReachDestination(label, destination, bestArrivalSeconds))
       .sort(
         (a, b) =>
           a.arrivalSeconds - b.arrivalSeconds ||
@@ -321,14 +322,12 @@ async function planArrivalWithGtfs(
   requiresAccessibleStations: boolean,
   originStationId?: string
 ): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; source: 'gtfs-theoretical'; journeys: Journey[] }> {
-  const [originStops, destinationStops] = await Promise.all([
-    loader.accessStops(origin, MAX_ACCESS_STOPS, originStationId),
-    loader.accessStops(
-      destination.coordinate,
-      MAX_ACCESS_STOPS,
-      destination.kind === 'station' ? destination.id : undefined
-    ),
-  ]);
+  const originStops = await loader.accessStops(origin, MAX_ACCESS_STOPS, originStationId);
+  const destinationStops = await loader.accessStops(
+    destination.coordinate,
+    MAX_ACCESS_STOPS,
+    destination.kind === 'station' ? destination.id : undefined
+  );
   if (originStops.length === 0 || destinationStops.length === 0) {
     return { status: 'unavailable', source: 'gtfs-theoretical', journeys: [] };
   }
@@ -457,6 +456,7 @@ async function planArrivalWithGtfs(
     frontier = [...expanded.values()]
       .flat()
       .filter((label) => label.departureSeconds >= bestDepartureSeconds - ALTERNATIVE_SLACK_SECONDS)
+      .filter((label) => canStillReachOrigin(label, origin, bestDepartureSeconds))
       .sort(
         (a, b) =>
           b.departureSeconds - a.departureSeconds ||
@@ -473,6 +473,40 @@ async function planArrivalWithGtfs(
     source: 'gtfs-theoretical',
     journeys,
   };
+}
+
+/**
+ * Keeps the existing alternative window while dropping a label whose target
+ * lower bound is already outside it. The speed is deliberately an upper
+ * bound: underestimating the remaining travel time is safe, while
+ * overestimating it could remove a valid alternative.
+ */
+function canStillReachDestination(
+  label: Label,
+  destination: JourneyDestination,
+  bestArrivalSeconds: number
+) {
+  if (!Number.isFinite(bestArrivalSeconds)) return true;
+  const minimumRemainingSeconds = Math.ceil(
+    haversineMeters(label.stop.coordinate, destination.coordinate)
+      / MAX_TRANSIT_SPEED_METERS_PER_SECOND
+  );
+  return label.arrivalSeconds + minimumRemainingSeconds
+    <= bestArrivalSeconds + ALTERNATIVE_SLACK_SECONDS;
+}
+
+/** Reverse-search equivalent of `canStillReachDestination`. */
+function canStillReachOrigin(
+  label: ReverseLabel,
+  origin: Coordinate,
+  bestDepartureSeconds: number
+) {
+  if (!Number.isFinite(bestDepartureSeconds)) return true;
+  const minimumRemainingSeconds = Math.ceil(
+    haversineMeters(origin, label.stop.coordinate) / MAX_TRANSIT_SPEED_METERS_PER_SECOND
+  );
+  return label.departureSeconds - minimumRemainingSeconds
+    >= bestDepartureSeconds - ALTERNATIVE_SLACK_SECONDS;
 }
 
 function toReverseJourney(

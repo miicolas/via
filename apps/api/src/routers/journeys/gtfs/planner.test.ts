@@ -94,3 +94,67 @@ test('returns no-route when no departure can board from the access stops', async
   expect(response.status).toBe('no-route');
   expect(response.journeys).toEqual([]);
 });
+
+test('does not query a frontier stop that cannot reach the target in the alternative window', async () => {
+  const far = {
+    id: 'far',
+    name: 'Arrêt lointain',
+    coordinate: { latitude: 51.5, longitude: 2.35 },
+  } satisfies PlannerStop;
+  const calls: PlannerCall[] = [
+    { stop: from, stopSequence: 1, arrivalSeconds: 45_000, departureSeconds: 45_000, serviceDate: date },
+    { stop: to, stopSequence: 2, arrivalSeconds: 45_600, departureSeconds: 45_600, serviceDate: date },
+    { stop: far, stopSequence: 3, arrivalSeconds: 45_700, departureSeconds: 45_700, serviceDate: date },
+  ];
+  const requestedStops: string[][] = [];
+  const response = await planWithGtfs(origin, destination, now, 4, {
+    ...loaderFor(calls),
+    accessStops: async (coordinate) =>
+      coordinate === origin ? [from] : [to],
+    boardings: async (stopIds, earliestByStop) => {
+      requestedStops.push(stopIds);
+      return stopIds.includes(from.id) && (earliestByStop.get(from.id) ?? Infinity) <= 45_000
+        ? [{ tripId: trip.id, stopId: from.id, departureSeconds: 45_000, serviceDate: date }]
+        : []
+    },
+  });
+  expect(response.status).toBe('ready');
+  expect(requestedStops[0]).toEqual([from.id]);
+  expect(requestedStops.slice(1).flat()).not.toContain(far.id);
+});
+
+test('does not query a reverse frontier stop that cannot reach the origin in the alternative window', async () => {
+  const far = {
+    id: 'far',
+    name: 'Arrêt lointain',
+    coordinate: { latitude: 51.5, longitude: 2.35 },
+  } satisfies PlannerStop;
+  const calls: PlannerCall[] = [
+    { stop: far, stopSequence: 1, arrivalSeconds: 44_000, departureSeconds: 44_000, serviceDate: date },
+    { stop: from, stopSequence: 2, arrivalSeconds: 45_000, departureSeconds: 45_000, serviceDate: date },
+    { stop: to, stopSequence: 3, arrivalSeconds: 45_600, departureSeconds: 45_600, serviceDate: date },
+  ];
+  const requestedStops: string[][] = [];
+  const response = await planWithGtfs(
+    origin,
+    destination,
+    new Date('2026-08-12T11:45:00Z'),
+    4,
+    {
+      ...loaderFor(calls),
+      accessStops: async (coordinate) =>
+        coordinate === origin ? [from] : [to],
+      alightings: async (stopIds, latestByStop) => {
+        requestedStops.push(stopIds);
+        return stopIds.includes(to.id) && (latestByStop.get(to.id) ?? -Infinity) >= 45_600
+          ? [{ tripId: trip.id, stopId: to.id, arrivalSeconds: 45_600, serviceDate: date }]
+          : [];
+      },
+    },
+    'arrival'
+  );
+
+  expect(response.status).toBe('ready');
+  expect(requestedStops[0]).toEqual([to.id]);
+  expect(requestedStops.slice(1).flat()).not.toContain(far.id);
+});

@@ -2,11 +2,13 @@ import SwiftUI
 
 struct NaturalJourneySheet: View {
     let viewModel: SearchViewModel
+    let isLargeScreen: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isInputFocused: Bool
     @State private var isAccessibilityInfoPresented = false
     @State private var viewportHeight: CGFloat = 0
+    @State private var selectedDetent: PresentationDetent = .height(210)
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -20,7 +22,7 @@ struct NaturalJourneySheet: View {
                 // something stable to transition.
                 content(viewModel: $viewModel)
                     .padding(.horizontal, 20)
-                    .padding(.vertical, 24)
+                    .padding(.vertical, 14)
                     .frame(maxWidth: 560)
                     .frame(maxWidth: .infinity)
                     .transition(stateTransition)
@@ -37,7 +39,7 @@ struct NaturalJourneySheet: View {
                 viewportHeight = max(0, height)
             }
             .animation(stateAnimation, value: viewModel.naturalSearchState)
-            .navigationTitle("Recherche intelligente")
+            .navigationTitle("Trajet express")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -54,14 +56,21 @@ struct NaturalJourneySheet: View {
                 }
             }
         }
+        .presentationDetents(availableDetents, selection: $selectedDetent)
+        .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+        .presentationContentInteraction(.scrolls)
+        .presentationDragIndicator(.visible)
+        .adaptiveSheet(380, isActive: isLargeScreen)
         .sheet(isPresented: $isAccessibilityInfoPresented) {
             SearchAccessibilityInfoView(source: viewModel.accessibilitySource)
         }
         .onChange(of: viewModel.naturalSearchState, initial: true) { _, state in
             if NaturalJourneyPresentationPolicy.expandsForInput(state) {
+                selectedDetent = .height(210)
                 Task { @MainActor in isInputFocused = true }
             } else {
                 isInputFocused = false
+                selectedDetent = preferredDetent(for: state)
             }
         }
         .onDisappear {
@@ -70,6 +79,21 @@ struct NaturalJourneySheet: View {
             if viewModel.isNaturalSearchPresented {
                 viewModel.dismissNaturalSearch()
             }
+        }
+    }
+
+    private var availableDetents: Set<PresentationDetent> {
+        [.height(180), .height(210), .medium, .large]
+    }
+
+    private func preferredDetent(for state: NaturalSearchState) -> PresentationDetent {
+        switch state {
+        case .loading:
+            .height(180)
+        case .input:
+            .height(210)
+        case .dismissed, .onboarding, .clarification, .decision, .unsupported, .availability, .failed:
+            .medium
         }
     }
 

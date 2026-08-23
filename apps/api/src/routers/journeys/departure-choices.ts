@@ -33,6 +33,8 @@ type SectionCandidate = {
 type Alternative = {
   id: string;
   departureAt: string;
+  arrivalAt?: string;
+  serviceId?: string;
   scheduledAt?: string;
   expectedAt?: string;
   status: DepartureStatus;
@@ -67,8 +69,6 @@ export class DepartureChoiceUnavailableError extends Error {}
 const CHOICES_PER_SIDE = 3;
 /** How far the timetable is scanned around the held departure. */
 const TIMETABLE_WINDOW_MS = 90 * 60_000;
-/** A planned itinerary this far from the run it was asked for is another train. */
-const MATERIALISATION_TOLERANCE_MS = 20 * 60_000;
 
 /**
  * Keeps live passage discovery and journey splicing behind one interface. The
@@ -306,8 +306,10 @@ async function timetableAlternatives(
   });
 
   return runs.map((run) => ({
-    id: `departure:${id}:${run.tripId}`,
+    id: `departure:${id}:${canonicalServiceId(run.tripId)}`,
     departureAt: run.departureAt,
+    arrivalAt: run.arrivalAt,
+    serviceId: canonicalServiceId(run.tripId),
     scheduledAt: run.departureAt,
     status: 'scheduled' as const,
     source: 'theoretical' as const,
@@ -320,9 +322,9 @@ function stopIdentifiers(stop: { id: string; stationId?: string }) {
 
 /**
  * Plans the one run the traveller picked. Anchored a minute before it leaves
- * with the boarding station pinned, the planner's earliest answer on that line
- * is that very run — matched on the trip id where both sides name it, on the
- * clock otherwise.
+ * with the boarding station pinned, an exact trip-id match wins. If the planner
+ * prunes that run, the schedule holds it fixed and only the downstream is
+ * preserved or replanned.
  */
 async function materialise(
   input: JourneyDepartureChoicesInput,
@@ -349,7 +351,6 @@ async function materialise(
     context
   );
 
-  let best: { candidate: SectionCandidate; distance: number } | undefined;
   for (const journey of result.journeys) {
     const candidate = journey.sections.find((value) => value.type === 'transit');
     if (!candidate?.departureAt || !sameTransit(section, candidate)) continue;
@@ -360,12 +361,249 @@ async function materialise(
       source: result.source,
     };
     if (resolved.id === alternative.id) return resolved;
-    const distance = Math.abs(Date.parse(candidate.departureAt) - target);
-    if (distance <= MATERIALISATION_TOLERANCE_MS && (!best || distance < best.distance)) {
-      best = { candidate: resolved, distance };
-    }
   }
-  return best?.candidate;
+  return scheduledCandidateFromCurrent(input.journey, section, id, alternative)
+    ?? (await scheduledCandidateWithReplannedDownstream(
+      input,
+      section,
+      id,
+      alternative,
+      planner,
+      context
+    ));
+}
+
+/**
+ * A timetable run can be valid even when a Pareto planner omits it. If it still
+ * reaches the already-held connection, keep that coherent suffix and retime the
+ * selected leg from the schedule instead of silently substituting another run.
+ */
+function scheduledCandidateFromCurrent(
+  journey: Journey,
+  section: JourneySection,
+  id: string,
+  alternative: Alternative
+): SectionCandidate | undefined {
+  if (!alternative.arrivalAt || !alternative.serviceId) return undefined;
+  const targetIndex = journey.sections.findIndex(
+    (candidate, index) => sectionId(journey, candidate, index) === id
+  );
+  if (targetIndex < 0) return undefined;
+
+  const selected = retimeScheduledSection(section, alternative);
+  const suffix = preservedDownstream(
+    journey.sections.slice(targetIndex + 1),
+    selected.arrivalAt!
+  );
+  if (!suffix) return undefined;
+
+  const sections = [selected, ...suffix];
+  const arrivalAt = sections.at(-1)?.arrivalAt ?? selected.arrivalAt!;
+  const transitCount = sections.filter((candidate) => candidate.type === 'transit').length;
+  return {
+    id: departureId(id, selected),
+    section: selected,
+    source: 'gtfs-theoretical',
+    journey: {
+      ...journey,
+      departureAt: selected.departureAt!,
+      arrivalAt,
+      durationSeconds: Math.max(
+        0,
+        Math.round((Date.parse(arrivalAt) - Date.parse(selected.departureAt!)) / 1_000)
+      ),
+      walkingDurationSeconds: sections
+        .filter((candidate) => candidate.type === 'walk')
+        .reduce((sum, candidate) => sum + candidate.durationSeconds, 0),
+      transferCount: Math.max(0, transitCount - 1),
+      sections,
+    },
+  };
+}
+
+/**
+ * When the chosen run misses the old connection, start a new plan at its
+ * alighting stop. The selected run stays fixed; only the journey after it is
+ * delegated back to the planner.
+ */
+async function scheduledCandidateWithReplannedDownstream(
+  input: JourneyDepartureChoicesInput,
+  section: JourneySection,
+  id: string,
+  alternative: Alternative,
+  planner: JourneyPlanner,
+  context: ResolveContext
+): Promise<SectionCandidate | undefined> {
+  if (!alternative.arrivalAt || !alternative.serviceId) return undefined;
+  const alighting = section.stops.at(-1);
+  if (!alighting) return undefined;
+
+  const result = await planner.plan(
+    {
+      origin: alighting.coordinate,
+      destination: input.destination,
+      limit: 6,
+      requestedAt: alternative.arrivalAt,
+      datetimeRepresents: 'departure',
+      requiredModes: input.policy.requiredModes,
+      excludedModes: input.policy.excludedModes,
+      preferredModes: input.policy.preferredModes,
+      requiresAccessibleStations: input.policy.requiresAccessibleStations,
+      originStationId: alighting.stationId ?? alighting.id,
+    },
+    context
+  );
+  const arrival = Date.parse(alternative.arrivalAt);
+  const downstream = result.journeys.find(
+    (journey) => Date.parse(journey.departureAt) >= arrival
+  );
+  if (!downstream) return undefined;
+
+  const selected = retimeScheduledSection(section, alternative);
+  const sections: JourneySection[] = [selected];
+  const downstreamDeparture = Date.parse(downstream.departureAt);
+  if (downstreamDeparture > arrival) {
+    const interchange = { name: alighting.name, coordinate: alighting.coordinate };
+    sections.push({
+      id: `${id}:downstream-wait`,
+      type: 'wait',
+      durationSeconds: Math.round((downstreamDeparture - arrival) / 1_000),
+      from: interchange,
+      to: interchange,
+      departureAt: alternative.arrivalAt,
+      arrivalAt: downstream.departureAt,
+      geometry: [],
+      stops: [],
+    });
+  }
+  sections.push(...downstream.sections.map((candidate, index) => ({
+    ...candidate,
+    id: `${id}:downstream:${index}`,
+  })));
+  const arrivalAt = downstream.arrivalAt;
+  const transitCount = sections.filter((candidate) => candidate.type === 'transit').length;
+  return {
+    id: departureId(id, selected),
+    section: selected,
+    source: 'gtfs-theoretical',
+    journey: {
+      ...downstream,
+      departureAt: selected.departureAt!,
+      durationSeconds: Math.max(
+        0,
+        Math.round((Date.parse(arrivalAt) - Date.parse(selected.departureAt!)) / 1_000)
+      ),
+      walkingDurationSeconds: sections
+        .filter((candidate) => candidate.type === 'walk')
+        .reduce((sum, candidate) => sum + candidate.durationSeconds, 0),
+      transferCount: Math.max(0, transitCount - 1),
+      sections,
+    },
+  };
+}
+
+function retimeScheduledSection(section: JourneySection, alternative: Alternative): JourneySection {
+  const departureAt = alternative.departureAt;
+  const arrivalAt = alternative.arrivalAt!;
+  const stops = section.stops.map((stop, index) => ({
+    ...stop,
+    arrivalAt: retimeInstant(stop.arrivalAt, section, departureAt, arrivalAt),
+    departureAt: retimeInstant(stop.departureAt, section, departureAt, arrivalAt),
+    ...(index === 0 ? { departureAt } : {}),
+    ...(index === section.stops.length - 1 ? { arrivalAt } : {}),
+  }));
+  return {
+    ...section,
+    durationSeconds: Math.max(
+      0,
+      Math.round((Date.parse(arrivalAt) - Date.parse(departureAt)) / 1_000)
+    ),
+    departureAt,
+    arrivalAt,
+    scheduledDepartureAt: departureAt,
+    scheduledArrivalAt: arrivalAt,
+    serviceId: alternative.serviceId,
+    timingSource: 'theoretical',
+    departureStatus: 'scheduled',
+    stops,
+  };
+}
+
+function retimeInstant(
+  instant: string | undefined,
+  section: JourneySection,
+  departureAt: string,
+  arrivalAt: string
+) {
+  if (!instant || !section.departureAt || !section.arrivalAt) return instant;
+  const originalStart = Date.parse(section.departureAt);
+  const originalDuration = Date.parse(section.arrivalAt) - originalStart;
+  const ratio = originalDuration > 0
+    ? Math.min(1, Math.max(0, (Date.parse(instant) - originalStart) / originalDuration))
+    : 0;
+  const targetStart = Date.parse(departureAt);
+  const targetDuration = Date.parse(arrivalAt) - targetStart;
+  return new Date(targetStart + targetDuration * ratio).toISOString();
+}
+
+function preservedDownstream(
+  sections: JourneySection[],
+  selectedArrivalAt: string
+): JourneySection[] | undefined {
+  const nextTransitIndex = sections.findIndex((section) => section.type === 'transit');
+  if (nextTransitIndex < 0) return retimeTrailingSections(sections, selectedArrivalAt);
+
+  const nextTransit = sections[nextTransitIndex]!;
+  if (!nextTransit.departureAt) return undefined;
+  const connectors = sections.slice(0, nextTransitIndex);
+  const movement = connectors.filter((section) => section.type !== 'wait');
+  let cursor = Date.parse(selectedArrivalAt);
+  const nextDeparture = Date.parse(nextTransit.departureAt);
+  const movementDuration = movement.reduce(
+    (sum, section) => sum + section.durationSeconds * 1_000,
+    0
+  );
+  if (cursor + movementDuration > nextDeparture) return undefined;
+
+  const rebuilt = movement.map((section) => {
+    const departureAt = new Date(cursor).toISOString();
+    cursor += section.durationSeconds * 1_000;
+    return {
+      ...section,
+      departureAt,
+      arrivalAt: new Date(cursor).toISOString(),
+    };
+  });
+  if (cursor < nextDeparture) {
+    const previousWait = connectors.find((section) => section.type === 'wait');
+    rebuilt.push({
+      ...(previousWait ?? {
+        id: `${nextTransit.id ?? 'connection'}:wait`,
+        type: 'wait' as const,
+        from: nextTransit.from,
+        to: nextTransit.from,
+        geometry: [],
+        stops: [],
+      }),
+      durationSeconds: Math.round((nextDeparture - cursor) / 1_000),
+      departureAt: new Date(cursor).toISOString(),
+      arrivalAt: nextTransit.departureAt,
+    });
+  }
+  return [...rebuilt, ...sections.slice(nextTransitIndex)];
+}
+
+function retimeTrailingSections(sections: JourneySection[], startsAt: string) {
+  let cursor = Date.parse(startsAt);
+  return sections.map((section) => {
+    const departureAt = new Date(cursor).toISOString();
+    cursor += section.durationSeconds * 1_000;
+    return {
+      ...section,
+      departureAt,
+      arrivalAt: new Date(cursor).toISOString(),
+    };
+  });
 }
 
 async function plannedCandidates(
@@ -413,7 +651,11 @@ async function plannedCandidates(
         section: candidate,
         source: result.source,
       };
-      if (section.serviceId && candidate.serviceId === section.serviceId) {
+      if (
+        section.serviceId
+        && candidate.serviceId
+        && canonicalServiceId(candidate.serviceId) === canonicalServiceId(section.serviceId)
+      ) {
         if (hasTimingRevision(section, candidate)) currentRevision = resolved;
         continue;
       }
@@ -632,7 +874,15 @@ function sectionId(journey: Journey, section: JourneySection, index: number) {
 }
 
 function departureId(sectionId: string, section: JourneySection) {
-  return `departure:${sectionId}:${section.serviceId ?? section.scheduledDepartureAt ?? section.departureAt ?? 'unknown'}`;
+  const identity = section.serviceId
+    ? canonicalServiceId(section.serviceId)
+    : section.scheduledDepartureAt ?? section.departureAt ?? 'unknown';
+  return `departure:${sectionId}:${identity}`;
+}
+
+/** Navitia namespaces the same GTFS trip id as a vehicle journey. */
+function canonicalServiceId(serviceId: string) {
+  return serviceId.replace(/^(?:vehicle_journey|trip):/, '');
 }
 
 /**

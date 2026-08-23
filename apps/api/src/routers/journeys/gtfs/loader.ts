@@ -16,6 +16,7 @@ import { absoluteTimetableSeconds } from '@via/db/timetable';
 import { and, asc, desc, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
 
 import { parisDay, previousDate } from '../../../time/paris';
+import { readTimetableHorizon } from './timetable-horizon';
 import type { GtfsJourneyPlanner } from '../service';
 import { plannerTripKey, planWithGtfs } from './planner';
 import type {
@@ -33,7 +34,7 @@ const MAX_BOARDINGS_PER_STOP = 32;
 const MAX_BOARDING_CANDIDATES = 1_500;
 
 /** 'board' walks departures forward in time; 'alight' walks arrivals backward. */
-type StopTimeDirection = 'board' | 'alight';
+export type StopTimeDirection = 'board' | 'alight';
 
 type StopTimeCandidate = {
   tripId: string;
@@ -41,6 +42,39 @@ type StopTimeCandidate = {
   seconds: number;
   serviceDate: string;
 };
+
+/**
+ * Whether yesterday's service day can still contain a boarding this search
+ * would accept — asked before spending a query to find out.
+ *
+ * A GTFS service day runs past midnight, so yesterday's late trips are read in
+ * yesterday's frame: a departure at or after `bound` today is at or after
+ * `bound + 86 400` there. The feed's own horizon (measured at import) is the
+ * latest second any call reaches, so once `bound + 86 400` passes it the
+ * query's WHERE clause is unsatisfiable — it scans ~114 000 rows across the
+ * frontier's stops to return nothing, 183 ms at a time, three times per plan.
+ * With the current IDFM feed topping out at 32:00 that is every search after
+ * 08:00, which is most of the traffic.
+ *
+ * Only the forward direction is decided here. `alight` walks arrivals backward
+ * with `secs <= bound + 86 400`, which stays satisfiable — yesterday returns
+ * rows that are merely useless rather than absent, and dropping them would
+ * change which labels the planner explores rather than just how fast it gets
+ * there. An unknown horizon keeps both days, the behaviour that predates this.
+ */
+export function yesterdayIsSearchable(
+  direction: StopTimeDirection,
+  bound: number,
+  horizonSeconds: number
+) {
+  if (direction !== 'board') return true;
+  return bound + 86_400 <= horizonSeconds;
+}
+
+async function yesterdayCanStillBeRunning(direction: StopTimeDirection, bound: number) {
+  if (direction !== 'board') return true;
+  return yesterdayIsSearchable(direction, bound, await readTimetableHorizon());
+}
 
 export function createGtfsLoader(now: Date, requiresAccessibleStations = false): GtfsPlannerLoader {
   const { date } = parisDay(now);
@@ -82,20 +116,25 @@ export function createGtfsLoader(now: Date, requiresAccessibleStations = false):
     const bound =
       direction === 'board' ? Math.min(...boundByStop.values()) : Math.max(...boundByStop.values());
     const services = await activeServices(serviceDates);
-    const rows = (
-      await Promise.all([
-        loadStopTimeCandidates(direction, stopKeys, services.get(date) ?? [], bound, date, 0),
-        loadStopTimeCandidates(
+    const todayRows = await loadStopTimeCandidates(
+      direction,
+      stopKeys,
+      services.get(date) ?? [],
+      bound,
+      date,
+      0
+    );
+    const yesterdayRows = (await yesterdayCanStillBeRunning(direction, bound))
+      ? await loadStopTimeCandidates(
           direction,
           stopKeys,
           services.get(yesterday) ?? [],
           bound + 86_400,
           yesterday,
           -86_400
-        ),
-      ])
-    )
-      .flat()
+        )
+      : [];
+    const rows = [...todayRows, ...yesterdayRows]
       .sort((a, b) => (direction === 'board' ? a.seconds - b.seconds : b.seconds - a.seconds))
       .slice(0, MAX_BOARDING_CANDIDATES);
 

@@ -63,22 +63,12 @@ struct JourneyDepartureChoicesView: View {
 
     private var selector: some View {
         GeometryReader { proxy in
+            let itemWidth = proxy.size.width / 3
+
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 0) {
                     ForEach(choices) { choice in
-                        departureTime(choice)
-                            .frame(width: proxy.size.width / 3)
-                            .scrollTransition(.interactive, axis: .horizontal) { content, phase in
-                                content
-                                    .scaleEffect(phase.isIdentity ? 1 : 0.82)
-                                    .opacity(phase.isIdentity ? 1 : 0.62)
-                                    .foregroundStyle(
-                                        phase.isIdentity
-                                            ? Color.primary
-                                            : Color.secondary
-                                    )
-                            }
-                            .id(choice.id)
+                        departureChoice(choice, width: itemWidth)
                     }
                 }
                 .scrollTargetLayout()
@@ -88,6 +78,18 @@ struct JourneyDepartureChoicesView: View {
             .scrollPosition(id: $focusedID, anchor: .center)
             .contentMargins(.horizontal, proxy.size.width / 3, for: .scrollContent)
             .scrollDisabled(choices.count < 2)
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black, location: 0.13),
+                        .init(color: .black, location: 0.87),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            }
         }
         .frame(height: 48)
         .sensoryFeedback(.selection, trigger: hapticTick)
@@ -102,6 +104,20 @@ struct JourneyDepartureChoicesView: View {
         .accessibilityAdjustableAction { direction in
             adjustSelection(direction)
         }
+    }
+
+    private func departureChoice(
+        _ choice: JourneyDepartureChoice,
+        width: CGFloat
+    ) -> some View {
+        departureTime(choice)
+            .frame(width: width)
+            .scrollTransition(.interactive, axis: .horizontal) { content, phase in
+                content
+                    .scaleEffect(phase.isIdentity ? 1 : 0.82)
+                    .opacity(phase.isIdentity ? 1 : 0.62)
+            }
+            .id(choice.id)
     }
 
     private func departureTime(_ choice: JourneyDepartureChoice) -> some View {

@@ -189,9 +189,10 @@ final class SearchViewModel {
         case let .explanation(guidance):
             naturalSearchState = .availability(guidance)
         case .active:
-            naturalSearchState = naturalJourneyOnboardingStore.hasSeenOnboarding
-                ? .input
-                : .onboarding
+            // This is an express entry point: opening it must always put the
+            // keyboard and the actual task one tap away, including on first use.
+            naturalJourneyOnboardingStore.markOnboardingSeen()
+            naturalSearchState = .input
         }
     }
 
