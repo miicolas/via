@@ -4,6 +4,8 @@ struct StationDetailHeaderView: View {
   var stationName: String
   var routes: [RouteBadge]
   var accessibility: StationAccessibility?
+  var elevators: StationElevatorSnapshot = .unavailable
+  var toilets: StationToilets?
   var peak: StationPeak?
   var distanceText: String?
   var sourceText: String?
@@ -21,6 +23,12 @@ struct StationDetailHeaderView: View {
             comment: accessibility.comment,
             size: 24
           )
+        }
+
+        StationElevatorsBadge(snapshot: elevators, size: 24)
+
+        if let toilets {
+          StationToiletsBadge(toilets: toilets, size: 24)
         }
 
         if let peak {

@@ -125,18 +125,6 @@ extension EmptyState {
         """,
     )
 
-    static let elevatorsUnavailable = EmptyState(
-        systemImage: "arrow.up.arrow.down.square",
-        title: "État des ascenseurs indisponible",
-        message: "Île-de-France Mobilités ne fournit aucun état exploitable pour le moment.",
-    )
-
-    static let noElevators = EmptyState(
-        systemImage: "arrow.up.arrow.down.square",
-        title: "Aucun ascenseur référencé",
-        message: "La source ne référence aucun ascenseur dans cette station.",
-    )
-
     static let elevatorDataUnavailable = EmptyState(
         systemImage: "arrow.up.arrow.down.square",
         title: "Données d’ascenseurs indisponibles",
