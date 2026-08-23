@@ -256,6 +256,22 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         let label: String
     }
 
+    struct ReportedCrowding: Codable, Sendable, Hashable {
+        let level: CrowdingLevel
+        let stationName: String
+        let label: String
+        let reporterCount: Int
+        let expiresAt: Date
+    }
+
+    struct WheelchairReport: Codable, Sendable, Hashable {
+        let stationName: String
+        let label: String
+        let reporterCount: Int
+        let confidence: ReportConfidence
+        let expiresAt: Date
+    }
+
     let id: JourneyID
     let qualifier: Qualifier
     let durationSeconds: Int
@@ -267,6 +283,8 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
     let warnings: [String]
     let accessibility: Accessibility?
     let peak: StationPeak?
+    let reportedCrowding: ReportedCrowding?
+    let wheelchairReport: WheelchairReport?
     let sections: [JourneySection]
 
     init(
@@ -281,6 +299,8 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         warnings: [String],
         accessibility: Accessibility? = nil,
         peak: StationPeak? = nil,
+        reportedCrowding: ReportedCrowding? = nil,
+        wheelchairReport: WheelchairReport? = nil,
         sections: [JourneySection]
     ) {
         self.id = id
@@ -294,6 +314,8 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         self.warnings = warnings
         self.accessibility = accessibility
         self.peak = peak
+        self.reportedCrowding = reportedCrowding
+        self.wheelchairReport = wheelchairReport
         self.sections = sections
     }
 }

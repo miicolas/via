@@ -120,9 +120,9 @@ struct SettingsView: View {
                         )
                     } label: {
                         SettingsRow(
-                            title: "Stations favorites",
+                            title: "Favoris",
                             systemImage: "star.fill",
-                            subtitle: "Consulter et supprimer",
+                            subtitle: "Destinations et stations",
                             tint: .orange,
                             value: favoritesCount
                         )
@@ -200,6 +200,8 @@ struct SettingsView: View {
 
     private var favoritesCount: String? {
         let count = accountModel.favorites.count
+            + accountModel.places.count
+            + accountModel.destinations.count
         return count > 0 ? "\(count)" : nil
     }
 
