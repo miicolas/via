@@ -187,7 +187,8 @@ export default defineRailway(() => {
     },
     start: "bun apps/worker/src/elevators/cli.ts",
     deploy: {
-      cronSchedule: "0 */3 * * *",
+      // 09:00, 14:00 and 18:00 Paris summer time; Railway cron is UTC-only.
+      cronSchedule: "0 7,12,16 * * *",
       preDeployCommand: ["bun --cwd packages/db ./node_modules/.bin/drizzle-kit migrate"],
       restartPolicyType: "NEVER",
     },

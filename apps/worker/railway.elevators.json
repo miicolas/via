@@ -19,7 +19,7 @@
     "preDeployCommand": [
       "bun --cwd packages/db ./node_modules/.bin/drizzle-kit migrate"
     ],
-    "cronSchedule": "0 */3 * * *",
+    "cronSchedule": "0 7,12,16 * * *",
     "restartPolicyType": "NEVER"
   }
 }
