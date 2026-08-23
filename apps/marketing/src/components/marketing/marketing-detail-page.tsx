@@ -1,4 +1,3 @@
-import { AnalyticsEvidence } from "@/components/marketing/analytics-evidence";
 import { MarketingPageVisual } from "@/components/marketing/marketing-page-visual";
 import { ActionLink } from "@/components/ui/action-link";
 import { MarketingIcon } from "@/components/ui/marketing-icon";
@@ -10,7 +9,7 @@ import type {
   MarketingPageSlug,
   MarketingSection,
 } from "@/constants/marketing-pages";
-import { ArrowDownRight, ArrowRight, Quote } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 
 function slugify(value: string): string {
@@ -36,23 +35,6 @@ const pageStatements: Record<
     label: "De l’événement à l’action",
     title: "Une perturbation utile n’attend pas dans un nouvel onglet.",
     body: "Elle apparaît sur l’écran du hall, dans le canal de l’équipe ou dans le produit du voyageur — déjà traduite, filtrée et prête à déclencher la bonne décision.",
-  },
-  analytics: {
-    label: "Sous la moyenne",
-    title:
-      "98,9 % de disponibilité peut encore cacher l’ascenseur dont dépend votre trajet.",
-    body: "Nous relions les indicateurs aux moments vécus. Parce qu’un réseau performant sur un tableau peut rester impossible à traverser pour une personne, dans une station, à une heure précise.",
-  },
-  blog: {
-    label: "Carnet de terrain",
-    title: "Nous écrivons sur ce que les tableaux de départ ne disent pas.",
-    body: "L’attente perçue. Les habitudes qui déplacent une ville. Les détails d’interface qui rendent une mauvaise nouvelle supportable. Et le travail invisible derrière une réponse simple.",
-  },
-  community: {
-    label: "Signal humain",
-    title:
-      "Le meilleur capteur du réseau tient parfois dans la main d’un voyageur.",
-    body: "Une sortie mal indiquée, un ascenseur hors service, une information incompréhensible : le terrain voit toujours quelque chose avant les systèmes. Nous voulons lui donner une voix utile.",
   },
   security: {
     label: "Notre ligne rouge",
@@ -93,27 +75,6 @@ const closingCopy: Record<
       "Partez d’un usage réel et construisez le flux qui lui manque.",
     label: "Explorer l’API",
     href: "/api",
-  },
-  analytics: {
-    title: "Ne comptez plus seulement les trains. Comptez les minutes rendues.",
-    description:
-      "Reliez performance opérationnelle et expérience vécue dans une même lecture.",
-    label: "Voir les intégrations",
-    href: "/integrations",
-  },
-  blog: {
-    title: "La ville bouge. Nos questions aussi.",
-    description:
-      "Rejoignez celles et ceux qui veulent comprendre la mobilité au-delà des horaires.",
-    label: "Rejoindre la communauté",
-    href: "/community",
-  },
-  community: {
-    title: "Ce que vous voyez aujourd’hui peut améliorer le trajet de demain.",
-    description:
-      "Un détail précis vaut mieux qu’un grand discours. Racontez-nous le vôtre.",
-    label: "Trouver le bon contact",
-    href: "/help",
   },
   security: {
     title: "La confiance ne se demande pas. Elle se démontre.",
@@ -312,77 +273,6 @@ function NarrativeSection({
   );
 }
 
-function BlogSection({
-  section,
-}: {
-  readonly section: MarketingSection;
-}): ReactNode {
-  const [lead, ...articles] = section.cards;
-  if (!lead) return null;
-
-  return (
-    <section
-      id={slugify(section.eyebrow)}
-      className="scroll-mt-32 px-6 py-24 sm:py-32"
-    >
-      <div className="mx-auto max-w-6xl">
-        <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr] lg:gap-20">
-          <div>
-            <span className="font-mono text-xs font-semibold tracking-[0.12em] text-accent uppercase">
-              {section.eyebrow}
-            </span>
-            <h2 className="mt-5 text-4xl leading-[1.04] font-semibold tracking-[-0.045em] text-balance sm:text-5xl">
-              {section.title}
-            </h2>
-            <p className="mt-6 text-lg leading-8 text-muted-foreground">
-              {section.description}
-            </p>
-          </div>
-          <article className="rounded-[2.5rem] bg-accent p-8 text-white sm:p-12">
-            <div className="flex items-center justify-between text-xs font-medium tracking-[0.1em] text-white/60 uppercase">
-              <span>{lead.meta}</span>
-              <Quote className="h-5 w-5" aria-hidden="true" />
-            </div>
-            <h3 className="mt-20 max-w-xl text-4xl leading-[1.03] font-semibold tracking-[-0.04em] text-balance sm:text-5xl">
-              {lead.title}
-            </h3>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-white/70">
-              {lead.description}
-            </p>
-          </article>
-        </div>
-        <div className="mt-20 border-t border-foreground/10">
-          {articles.map((article, index) => (
-            <article
-              key={article.title}
-              className="group grid gap-5 border-b border-foreground/10 py-9 sm:grid-cols-[5rem_1fr_auto] sm:items-center"
-            >
-              <span className="font-mono text-xs text-muted-foreground">
-                0{index + 2}
-              </span>
-              <div>
-                <p className="text-xs font-semibold tracking-[0.1em] text-accent uppercase">
-                  {article.meta}
-                </p>
-                <h3 className="mt-2 text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
-                  {article.title}
-                </h3>
-                <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-                  {article.description}
-                </p>
-              </div>
-              <ArrowDownRight
-                className="hidden h-6 w-6 text-muted-foreground transition-transform duration-150 group-hover:-rotate-45 sm:block"
-                aria-hidden="true"
-              />
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function LegalNavigation({
   sections,
 }: {
@@ -480,13 +370,8 @@ export function MarketingDetailPage({
       <PageHero page={page} />
       <SignalStrip page={page} />
       <StatementSection page={page} />
-      {page.slug === "analytics" ? <AnalyticsEvidence /> : null}
       {page.kind === "legal" ? (
         <LegalContent page={page} />
-      ) : page.kind === "editorial" ? (
-        page.sections?.map((section) => (
-          <BlogSection key={section.title} section={section} />
-        ))
       ) : (
         page.sections?.map((section, index) => (
           <NarrativeSection

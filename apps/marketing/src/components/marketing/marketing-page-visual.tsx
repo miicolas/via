@@ -1,13 +1,10 @@
-import { gareDuNordHourlyProfile } from "@/constants/analytics-data";
 import type { MarketingPageDefinition } from "@/constants/marketing-pages";
 import {
   Activity,
   BarChart3,
-  BookOpen,
   Braces,
   Check,
   ChevronRight,
-  CircleUserRound,
   FileText,
   Link2,
   LockKeyhole,
@@ -17,8 +14,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
-
-const compactHourlyProfile = gareDuNordHourlyProfile.slice(5, 21);
 
 function ApiVisual(): ReactNode {
   return (
@@ -68,82 +63,6 @@ function IntegrationsVisual(): ReactNode {
         >
           <Icon className="h-6 w-6" aria-hidden="true" />
           <span className="text-sm font-semibold">{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AnalyticsVisual(): ReactNode {
-  return (
-    <div className="rounded-3xl bg-frame p-5 shadow-2xl/10 sm:p-7">
-      <div className="flex items-start justify-between">
-        <div>
-          <span className="text-xs text-muted-foreground">
-            Gare du Nord · 8 h–9 h
-          </span>
-          <p className="mt-1 text-3xl font-semibold tracking-tight">12,84 %</p>
-        </div>
-        <div className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
-          T4 2024
-        </div>
-      </div>
-      <div className="mt-10 flex h-36 items-end gap-2 sm:gap-3">
-        {compactHourlyProfile.map((point) => (
-          <div
-            key={point.hour}
-            className={`flex-1 rounded-t-sm ${point.hour === "08h" ? "bg-accent" : "bg-accent/20"}`}
-            style={{ height: `${Math.max((point.share / 12.84) * 100, 2)}%` }}
-          />
-        ))}
-      </div>
-      <div className="mt-3 flex justify-between text-[10px] text-muted-foreground">
-        <span>05 h</span>
-        <span>12 h</span>
-        <span>20 h</span>
-      </div>
-    </div>
-  );
-}
-
-function EditorialVisual(): ReactNode {
-  return (
-    <div className="relative min-h-80 overflow-hidden rounded-3xl bg-[#102a45] p-7 text-white sm:p-9">
-      <div className="absolute -top-10 -right-6 h-52 w-52 rounded-full bg-accent blur-3xl" />
-      <BookOpen className="relative h-7 w-7" aria-hidden="true" />
-      <div className="relative mt-24 max-w-sm">
-        <span className="text-xs font-medium text-white/60">
-          LE JOURNAL · Nº 01
-        </span>
-        <p className="mt-3 text-3xl font-semibold tracking-tight">
-          La ville se lit aussi entre deux stations.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function CommunityVisual(): ReactNode {
-  const positions = [
-    "top-5 left-8",
-    "top-12 right-9",
-    "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-    "bottom-8 left-14",
-    "right-16 bottom-5",
-  ];
-  return (
-    <div className="relative min-h-80 overflow-hidden rounded-3xl bg-[#dceaff] dark:bg-[#102a45]">
-      <div className="absolute inset-12 rounded-full border border-accent/20" />
-      <div className="absolute inset-24 rounded-full border border-accent/30" />
-      {positions.map((position, index) => (
-        <div
-          key={position}
-          className={`absolute ${position} flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-accent text-white shadow-xl dark:border-[#102a45] ${index === 2 ? "h-20 w-20" : ""}`}
-        >
-          <CircleUserRound
-            className={index === 2 ? "h-9 w-9" : "h-6 w-6"}
-            aria-hidden="true"
-          />
         </div>
       ))}
     </div>
@@ -248,15 +167,6 @@ export function MarketingPageVisual({
       break;
     case "integrations":
       visual = <IntegrationsVisual />;
-      break;
-    case "analytics":
-      visual = <AnalyticsVisual />;
-      break;
-    case "blog":
-      visual = <EditorialVisual />;
-      break;
-    case "community":
-      visual = <CommunityVisual />;
       break;
     case "security":
       visual = <SecurityVisual />;

@@ -3,9 +3,6 @@ import type { CallToAction } from "./types";
 export const marketingPageSlugs = [
   "api",
   "integrations",
-  "analytics",
-  "blog",
-  "community",
   "security",
   "terms",
   "help",
@@ -13,8 +10,7 @@ export const marketingPageSlugs = [
 
 export type MarketingPageSlug = (typeof marketingPageSlugs)[number];
 
-export type MarketingPageKind =
-  "product" | "editorial" | "community" | "security" | "legal" | "help";
+export type MarketingPageKind = "product" | "security" | "legal" | "help";
 
 export type MarketingIconName =
   | "activity"
@@ -226,199 +222,6 @@ export const marketingPages = {
             title: "Commencez par un moment qui compte.",
             description:
               "Une ligne, un écran, une alerte. La première intégration prouve sa valeur avant que la suivante ne commence.",
-          },
-        ],
-      },
-    ],
-  },
-  analytics: {
-    slug: "analytics",
-    kind: "product",
-    eyebrow: "Analytics",
-    title: "Une moyenne cache toujours quelqu’un qui attend.",
-    description:
-      "Metyro relie les chiffres du réseau aux moments qu’ils produisent : la pointe qui surgit, l’ascenseur qui manque, la station où cinq minutes ne ressemblent pas aux cinq minutes d’ailleurs.",
-    primaryAction: { label: "Découvrir les analyses", href: "#indicateurs" },
-    secondaryAction: { label: "Voir les intégrations", href: "/integrations" },
-    signal: "analytics",
-    metrics: [
-      {
-        value: "12,84 %",
-        label: "des validations entre 8 h et 9 h à Gare du Nord",
-      },
-      { value: "30,19 %", label: "des validations entre 7 h et 10 h" },
-      {
-        value: "98,9 %",
-        label: "de disponibilité des ascenseurs du métro automatique",
-      },
-    ],
-    sections: [
-      {
-        eyebrow: "Indicateurs",
-        title: "Les moyennes rassurent. Les écarts racontent la vérité.",
-        description:
-          "Une bonne analyse ne cherche pas seulement la valeur centrale. Elle trouve l’heure, le lieu et les personnes pour qui le réseau cesse de tenir sa promesse.",
-        cards: [
-          {
-            icon: "chart",
-            title: "Voir la pointe comme une forme, pas comme un chiffre.",
-            description:
-              "À Gare du Nord, 30,19 % des validations d’un jour ouvré hors vacances se concentrent entre 7 h et 10 h. Le pic est net ; sa retombée ne l’est pas.",
-          },
-          {
-            icon: "users",
-            title: "Comparer ce qui est comparable — et rien d’autre.",
-            description:
-              "Jour ouvré, vacances, station, réseau, trimestre : chaque chiffre garde son périmètre pour éviter les conclusions élégantes et fausses.",
-          },
-          {
-            icon: "route",
-            title: "Un point de pourcentage peut être un trajet impossible.",
-            description:
-              "La disponibilité moyenne des ascenseurs devient utile quand on la confronte aux objectifs et aux chemins qui n’ont aucune alternative accessible.",
-          },
-        ],
-      },
-      {
-        eyebrow: "Collaboration",
-        title: "Le graphique s’arrête là où la décision commence.",
-        description:
-          "Chaque vue doit mener à une question suivante : où regarder, qui prévenir, quelle expérience protéger et comment vérifier que l’action a changé quelque chose.",
-        cards: [
-          {
-            icon: "sparkles",
-            title: "L’anomalie vient à vous avec son contexte.",
-            description:
-              "Pas de mur de courbes : le signal inhabituel arrive accompagné de sa période de référence et des stations concernées.",
-          },
-          {
-            icon: "clock",
-            title: "L’avant et l’après utilisent la même règle.",
-            description:
-              "Une amélioration n’existe que si les périodes, les catégories de jours et les définitions restent comparables.",
-          },
-          {
-            icon: "link",
-            title: "Le lien partagé emporte la preuve avec lui.",
-            description:
-              "Filtres, source, période et méthode restent attachés au graphique. Personne ne reçoit une capture orpheline de son contexte.",
-          },
-        ],
-      },
-    ],
-  },
-  blog: {
-    slug: "blog",
-    kind: "editorial",
-    eyebrow: "Le journal Metyro",
-    title: "Les transports ont des horaires. La ville, elle, a des habitudes.",
-    description:
-      "Nous enquêtons sur les minutes que l’on ressent, les signaux que l’on croit et les décisions minuscules qui transforment un déplacement en trajet maîtrisé.",
-    primaryAction: { label: "Lire les articles", href: "#a-la-une" },
-    signal: "blog",
-    sections: [
-      {
-        eyebrow: "À la une",
-        title: "Lire entre les lignes.",
-        description:
-          "Des récits de terrain, des données replacées dans leur contexte et les choix de produit que nous sommes prêts à expliquer.",
-        cards: [
-          {
-            icon: "route",
-            title: "Une minute annoncée n’est pas une minute vécue",
-            description:
-              "Sur un quai sans information, soixante secondes s’étirent. Avec une estimation crédible et une alternative visible, elles redeviennent du temps que l’on peut décider.",
-            meta: "Produit · 6 min",
-            href: "/help",
-          },
-          {
-            icon: "activity",
-            title: "« Trafic perturbé » ne dit presque rien",
-            description:
-              "Une mauvaise nouvelle devient utile seulement lorsqu’elle nomme la portion, la durée, l’impact et le prochain choix possible.",
-            meta: "Design · 8 min",
-            href: "/help",
-          },
-          {
-            icon: "database",
-            title: "Le travail invisible derrière « 3 min »",
-            description:
-              "Sources contradictoires, fraîcheur, repli théorique : l’interface la plus simple repose souvent sur la décision technique la plus exigeante.",
-            meta: "Ingénierie · 10 min",
-            href: "/api",
-          },
-          {
-            icon: "compass",
-            title: "République n’est pas un point. C’est un petit territoire.",
-            description:
-              "Accès, couloirs, quais, correspondances et habitudes locales : une station possède sa propre géographie vécue.",
-            meta: "Ville · 5 min",
-            href: "/community",
-          },
-          {
-            icon: "heart",
-            title: "L’itinéraire le plus court n’est pas toujours possible",
-            description:
-              "Concevoir pour l’accessibilité oblige à quitter la ligne droite et à regarder les équipements, les pentes et les interruptions réelles.",
-            meta: "Accessibilité · 7 min",
-            href: "/community",
-          },
-          {
-            icon: "shield",
-            title:
-              "La confiance est une fonctionnalité que l’on ne peut pas maquettiser",
-            description:
-              "Elle se construit dans les données que l’on refuse de collecter, les accès que l’on limite et les promesses que l’on peut vérifier.",
-            meta: "Sécurité · 4 min",
-            href: "/security",
-          },
-        ],
-      },
-    ],
-  },
-  community: {
-    slug: "community",
-    kind: "community",
-    eyebrow: "Communauté",
-    title: "Le réseau parle en données. Le terrain répond en détails.",
-    description:
-      "Les systèmes savent qu’un train est en retard. Un voyageur sait que la sortie est mal indiquée, que l’ascenseur est condamné ou que le message ne répond pas à la vraie question.",
-    primaryAction: { label: "Rejoindre la communauté", href: "#participer" },
-    secondaryAction: { label: "Lire le journal", href: "/blog" },
-    signal: "community",
-    metrics: [
-      { value: "VOIR", label: "un détail que le système manque" },
-      { value: "DÉCRIRE", label: "le moment, le lieu, l’impact" },
-      { value: "AMÉLIORER", label: "transformer le signal en produit" },
-    ],
-    sections: [
-      {
-        eyebrow: "Participer",
-        title:
-          "Pas besoin d’être expert du métro. Il suffit d’avoir vécu le trajet.",
-        description:
-          "La communauté n’est pas un forum de plus. C’est un endroit où une observation précise peut devenir une meilleure information pour des milliers de déplacements.",
-        cards: [
-          {
-            icon: "message",
-            title: "Racontez le moment, pas seulement le problème.",
-            description:
-              "Où étiez-vous ? Qu’essayiez-vous de faire ? Quelle information manquait ? Le contexte transforme une frustration en piste d’amélioration.",
-            href: "/help",
-          },
-          {
-            icon: "users",
-            title: "Confrontez l’écran à la vraie station.",
-            description:
-              "Les plans, libellés et alertes sont relus avec celles et ceux qui les utilisent dans le bruit, la foule et parfois l’urgence.",
-          },
-          {
-            icon: "code",
-            title:
-              "Détournez l’API vers un usage que nous n’avions pas imaginé.",
-            description:
-              "Une installation, un outil d’accessibilité, une expérience locale : montrez-nous ce que les mêmes données peuvent devenir ailleurs.",
-            href: "/api",
           },
         ],
       },

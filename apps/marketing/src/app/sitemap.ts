@@ -2,8 +2,12 @@ import { project } from "@/constants/project";
 import { marketingPageSlugs } from "@/constants/marketing-pages";
 import type { MetadataRoute } from "next";
 
+/** Les pages sur mesure vivent hors du gabarit `[slug]` mais restent indexables. */
+const standalonePageSlugs = ["analytics", "blog", "community"] as const;
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const staticPages: MetadataRoute.Sitemap = marketingPageSlugs.map((slug) => ({
+  const pageSlugs = [...standalonePageSlugs, ...marketingPageSlugs];
+  const staticPages: MetadataRoute.Sitemap = pageSlugs.map((slug) => ({
     url: `${project.metadata.url}/${slug}`,
     lastModified: new Date(),
     changeFrequency: slug === "terms" ? "yearly" : "monthly",

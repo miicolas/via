@@ -1,4 +1,4 @@
-import type { CallToAction, LogoAsset } from "./types";
+import type { CallToAction } from "./types";
 import { screenshots } from "./screenshots";
 
 const appStoreAction = {
@@ -51,16 +51,5 @@ export const pageContent = {
     copyright: "All rights reserved.",
   },
 } as const;
-
-export const heroLogos = [
-  { name: "Acme Corp", src: "/mock-logos/acmecorp.svg" },
-  { name: "Altshift", src: "/mock-logos/altshift.svg" },
-  { name: "Biosynthesis", src: "/mock-logos/biosynthesis.svg" },
-  { name: "Boltshift", src: "/mock-logos/boltshift.svg" },
-  { name: "Capsule", src: "/mock-logos/capsule.svg" },
-  { name: "Catalog", src: "/mock-logos/catalog.svg" },
-  { name: "Cloudwatch", src: "/mock-logos/cloudwatch.svg" },
-  { name: "Commandr", src: "/mock-logos/commandr.svg" },
-] as const satisfies readonly LogoAsset[];
 
 export type PageContent = typeof pageContent;
