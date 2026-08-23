@@ -77,11 +77,16 @@ final class JourneyDepartureChoicesModel {
         policy: JourneyPlanningPolicy,
         apply: @escaping @MainActor (Journey) async -> Void
     ) async {
+        // A scroll can settle just as a refresh replaces the choices. Never
+        // send an identifier that no longer belongs to the journey snapshot
+        // currently on screen: the API correctly rejects that stale pair.
+        guard let currentChoice = groupsBySectionID[sectionID]?.choices.first(where: {
+            $0.id == choice.id
+        }), !currentChoice.isSelected else { return }
         // A swipe that lands while an earlier one is still in flight supersedes
         // it rather than being dropped: the generation guard in `resolve` makes
         // the abandoned answer harmless, and the traveller's last gesture is
         // always the one that wins.
-        guard !choice.isSelected else { return }
         selectingSectionID = sectionID
         await resolve(
             selection: JourneyDepartureSelection(sectionID: sectionID, departureID: choice.id),

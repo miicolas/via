@@ -50,15 +50,21 @@ struct JourneyStopListView: View {
 private struct JourneyTimelineTimeLabel: View {
     let stop: JourneyStop
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var time: Date? { stop.arrivalAt ?? stop.departureAt }
+
     var body: some View {
         Group {
-            if let time = stop.arrivalAt ?? stop.departureAt {
+            if let time {
                 Text(JourneyFormatting.time(time))
             } else {
                 Text(verbatim: "")
             }
         }
         .font(.caption.monospacedDigit())
+        .contentTransition(reduceMotion ? .identity : .numericText())
+        .animation(reduceMotion ? nil : .default, value: time)
         .foregroundStyle(.secondary)
         .frame(width: 54, alignment: .trailing)
     }
