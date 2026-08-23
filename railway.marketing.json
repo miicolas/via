@@ -1,0 +1,25 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "bun run --filter=@via/marketing build",
+    "watchPatterns": [
+      "/apps/marketing/**",
+      "/package.json",
+      "/bun.lock",
+      "/turbo.json",
+      "/patches/**",
+      "/railway.marketing.json"
+    ],
+    "buildEnvironment": "V3"
+  },
+  "deploy": {
+    "runtime": "V2",
+    "numReplicas": 1,
+    "startCommand": "bun run --filter=@via/marketing start",
+    "healthcheckPath": "/",
+    "sleepApplication": false,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}

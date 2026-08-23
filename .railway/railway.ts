@@ -82,8 +82,36 @@ export default defineRailway(() => {
       PRIM_JOURNEY_PLANNER_URL: preserve(),
       REDIS_PORT: preserve(),
       REDIS_URL: preserve(),
+      VIA_ALLOWED_ORIGINS: preserve(),
       VIA_APP_CLIENT_KEYS: preserve(),
       VIA_SITE_CLIENT_KEYS: preserve(),
+    },
+  });
+
+  const viaMarketing = service("@via/marketing", {
+    source: via,
+    replicas: 1,
+    configFile: "/railway.marketing.json",
+    build: {
+      buildCommand: "bun run --filter=@via/marketing build",
+      buildEnvironment: "V3",
+      builder: "RAILPACK",
+      watchPatterns: [
+        "/apps/marketing/**",
+        "/package.json",
+        "/bun.lock",
+        "/turbo.json",
+        "/patches/**",
+        "/railway.marketing.json",
+      ],
+    },
+    start: "bun run --filter=@via/marketing start",
+    healthcheck: "/",
+    domains: ["metyro.app", "www.metyro.app"],
+    env: {
+      NEXT_PUBLIC_API_URL: preserve(),
+      NEXT_PUBLIC_SITE_URL: preserve(),
+      VIA_SITE_CLIENT_KEY: preserve(),
     },
   });
 
@@ -173,6 +201,7 @@ export default defineRailway(() => {
   return project("satisfied-strength", {
     resources: [
       viaApi,
+      viaMarketing,
       viaToiletsCron,
       viaElevatorsCron,
       PostGIS,
