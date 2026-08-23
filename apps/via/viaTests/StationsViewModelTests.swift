@@ -84,7 +84,11 @@ final class StationsViewModelTests: XCTestCase {
 
         let overview = StationOverviewBuilder.makeOverview(
             from: candidate,
-            board: DepartureBoard(source: .unavailable, generatedAt: nil, groups: []),
+            board: DepartureBoard(
+                source: .unavailable,
+                generatedAt: Date(timeIntervalSince1970: 1_000_000),
+                groups: []
+            ),
             now: Date(timeIntervalSince1970: 1_000_000)
         )
 
