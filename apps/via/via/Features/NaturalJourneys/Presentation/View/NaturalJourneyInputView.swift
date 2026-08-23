@@ -11,6 +11,10 @@ struct NaturalJourneyInputView: View {
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+  // Valeur écrite par l'interception du "\n" : son onChange ré-entrant ne doit
+  // pas repasser par onEdit, qui sortirait l'écran de l'état .loading.
+  @State private var newlineStrippedQuery: String?
+
   var body: some View {
     field
       .frame(maxWidth: .infinity)
@@ -35,8 +39,26 @@ struct NaturalJourneyInputView: View {
         .submitLabel(.search)
         .onSubmit(onSubmit)
         .accessibilityLabel("Description du trajet")
-        .onChange(of: query) { _, _ in
-          onEdit()
+        .onChange(of: query) { _, newValue in
+          if newValue == newlineStrippedQuery {
+            newlineStrippedQuery = nil
+            return
+          }
+          newlineStrippedQuery = nil
+          // Avec axis: .vertical, la touche retour insère "\n" au lieu de
+          // déclencher onSubmit : on l'intercepte ici pour lancer la recherche.
+          guard newValue.contains("\n") else {
+            onEdit()
+            return
+          }
+          let cleaned = newValue
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+          newlineStrippedQuery = cleaned
+          query = cleaned
+          if !cleaned.isEmpty {
+            onSubmit()
+          }
         }
 
         if !query.isEmpty || onDismiss != nil {
