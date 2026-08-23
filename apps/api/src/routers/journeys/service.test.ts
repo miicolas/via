@@ -7,6 +7,7 @@ import {
   rankPreferredJourney,
   type GtfsJourneyPlanner,
   type IdfmJourneyPlanner,
+  type JourneyReportOverlay,
 } from './service';
 
 const now = new Date('2026-08-12T10:00:00Z');
@@ -32,6 +33,7 @@ function setup(options: {
   gtfsDelayMs?: number;
   personalLimit?: number;
   dailyBudget?: number;
+  reports?: JourneyReportOverlay;
 } = {}) {
   const { client, store, expiries } = fakeRedis();
   let currentNow = now;
@@ -73,6 +75,7 @@ function setup(options: {
       personalWindowSeconds: 900,
       dailyBudget: options.dailyBudget ?? 1_000,
     },
+    reports: options.reports,
   });
 
   return {
@@ -114,6 +117,38 @@ describe('journey planning module', () => {
 
     expect(second).toEqual(first);
     expect(calls).toEqual({ idfm: 1, gtfs: 0 });
+  });
+
+  test('reapplies live reports to the same stable cached plan', async () => {
+    let people = 1;
+    const journey = modalJourney('metro', 1_800);
+    const reports: JourneyReportOverlay = {
+      apply: async (response) => ({
+        ...response,
+        journeys: response.journeys.map((value) => ({
+          ...value,
+          wheelchairReport: {
+            stationName: 'Châtelet',
+            label: 'Accès PMR signalé indisponible',
+            reporterCount: people,
+            confidence: people >= 2 ? 'confirmed' : 'observed',
+            expiresAt: '2026-08-12T11:00:00Z',
+          },
+        })),
+      }),
+    };
+    const { planner, calls } = setup({
+      idfmResult: { status: 'ready', journeys: [journey] },
+      reports,
+    });
+
+    const first = await plan(planner);
+    people = 2;
+    const second = await plan(planner);
+
+    expect(first.journeys[0]?.wheelchairReport?.reporterCount).toBe(1);
+    expect(second.journeys[0]?.wheelchairReport?.reporterCount).toBe(2);
+    expect(calls.idfm).toBe(1);
   });
 
   test('uses GTFS with the short TTL when no IDFM key is configured', async () => {
@@ -293,6 +328,19 @@ describe('journey planning module', () => {
     const calm = modalJourney('rer', 1_560);
 
     expect(rankPreferredJourney([fastPeak, calm], []).map((journey) => journey.id)).toEqual(['metro', 'rer']);
+  });
+
+  test('reported crowding participates in alternative ranking', () => {
+    const crowded = { ...modalJourney('metro', 1_800), reportedCrowding: {
+      level: 'high' as const,
+      stationName: 'Châtelet',
+      label: 'Affluence forte signalée',
+      reporterCount: 2,
+      expiresAt: '2026-08-12T11:00:00Z',
+    } };
+    const calm = modalJourney('rer', 1_920);
+    expect(rankPreferredJourney([crowded, calm], []).map((journey) => journey.id))
+      .toEqual(['rer', 'metro']);
   });
 });
 

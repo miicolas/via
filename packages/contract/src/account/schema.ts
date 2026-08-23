@@ -12,6 +12,7 @@ import {
 export const ACCOUNT_FAVORITE_LIMIT = 50;
 export const ACCOUNT_RECENT_LIMIT = 5;
 export const ACCOUNT_PLACE_LIMIT = 50;
+export const ACCOUNT_SAVED_DESTINATION_LIMIT = 50;
 
 export const favoriteStationSchema = z.object({
   stationId: z.string().min(1).max(300),
@@ -31,6 +32,21 @@ export const accountPlaceSchema = z.object({
   context: z.string().max(500).optional(),
   coordinate: coordinateSchema,
   role: accountPlaceRoleSchema,
+  systemImage: z.string().min(1).max(100).optional(),
+  savedAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+
+export const savedDestinationSchema = z.object({
+  id: z.uuid(),
+  destinationId: z.string().min(1).max(500),
+  kind: z.enum(['station', 'address']),
+  name: z.string().min(1).max(300),
+  context: z.string().max(500).optional(),
+  coordinate: coordinateSchema,
+  label: z.string().trim().min(1).max(80),
+  systemImage: z.string().min(1).max(100),
+  position: z.number().int().min(0).max(ACCOUNT_SAVED_DESTINATION_LIMIT - 1),
   savedAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
 });
@@ -62,6 +78,8 @@ export const accountSyncOperationSchema = z
       'preferences.set',
       'place.upsert',
       'place.remove',
+      'destination.upsert',
+      'destination.remove',
       'notifications.preferences.set',
       'notifications.schedule.upsert',
       'notifications.schedule.remove',
@@ -76,6 +94,8 @@ export const accountSyncOperationSchema = z
     preferences: transportPreferencesSchema.optional(),
     place: accountPlaceSchema.optional(),
     placeId: z.string().min(1).max(500).optional(),
+    destination: savedDestinationSchema.optional(),
+    destinationId: z.uuid().optional(),
     notificationPreferences: notificationPreferencesSchema.optional(),
     schedule: notificationScheduleSchema.optional(),
     scheduleId: z.string().min(1).max(128).optional(),
@@ -92,6 +112,8 @@ export const accountSyncOperationSchema = z
       (operation.kind === 'preferences.set' && operation.preferences !== undefined) ||
       (operation.kind === 'place.upsert' && operation.place !== undefined) ||
       (operation.kind === 'place.remove' && operation.placeId !== undefined) ||
+      (operation.kind === 'destination.upsert' && operation.destination !== undefined) ||
+      (operation.kind === 'destination.remove' && operation.destinationId !== undefined) ||
       (operation.kind === 'notifications.preferences.set' &&
         operation.notificationPreferences !== undefined) ||
       (operation.kind === 'notifications.schedule.upsert' &&
@@ -120,6 +142,7 @@ export const accountSyncResponseSchema = z.object({
   favorites: z.array(favoriteStationSchema).max(ACCOUNT_FAVORITE_LIMIT),
   recents: z.array(accountRecentSearchSchema).max(ACCOUNT_RECENT_LIMIT),
   places: z.array(accountPlaceSchema).max(ACCOUNT_PLACE_LIMIT),
+  destinations: z.array(savedDestinationSchema).max(ACCOUNT_SAVED_DESTINATION_LIMIT).optional(),
   preferences: transportPreferencesSchema,
   notificationPreferences: notificationPreferencesSchema,
   notificationSchedules: z.array(notificationScheduleSchema).max(NOTIFICATION_SCHEDULE_LIMIT),

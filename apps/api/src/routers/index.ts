@@ -18,6 +18,8 @@ import { networkRouter } from './network/router';
 import { notificationsRouter } from './notifications/router';
 import { searchRouter } from './search/router';
 import { searchPlaces } from './search/search-places';
+import { reportsRouter } from './reports/router';
+import { createDatabaseJourneyReportOverlay } from './journeys/community-reports';
 
 const journeyPlanner = createJourneyPlanner({
   redis,
@@ -35,6 +37,7 @@ const journeyPlanner = createJourneyPlanner({
     personalWindowSeconds: env.PRIM_JOURNEYS_PERSONAL_WINDOW_SECONDS,
     dailyBudget: env.PRIM_JOURNEYS_DAILY_BUDGET,
   },
+  reports: createDatabaseJourneyReportOverlay(),
 });
 
 const naturalJourneyService = createNaturalJourneyService({
@@ -91,4 +94,5 @@ export const apiRouter = implementer.router({
   lines: linesRouter,
   network: networkRouter,
   search: searchRouter,
+  reports: reportsRouter,
 });

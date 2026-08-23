@@ -64,10 +64,15 @@ export async function annotatePeakJourneys(journeys: Journey[]): Promise<Journey
           return [{
             ...peak,
             level: peak.level as 'moderate' | 'peak',
+            stationId: resolution.stationID,
             stationName: candidate.stationName,
           }];
         })
-        .filter((value): value is StationPeak & { level: 'moderate' | 'peak'; stationName: string } => value !== undefined)
+        .filter((value): value is StationPeak & {
+          level: 'moderate' | 'peak';
+          stationId: string;
+          stationName: string;
+        } => value !== undefined)
         .sort((a, b) => b.ratio - a.ratio)[0];
       return best ? { ...journey, peak: best } : journey;
     });

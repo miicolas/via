@@ -10,12 +10,14 @@ import {
   accountSyncOperationSchema,
   accountSyncResponseSchema,
   favoriteStationSchema,
+  savedDestinationSchema,
   transportPreferencesSchema,
 } from './schema';
 
 export type FavoriteStation = z.infer<typeof favoriteStationSchema>;
 export type AccountPlace = z.infer<typeof accountPlaceSchema>;
 export type AccountPlaceRole = z.infer<typeof accountPlaceRoleSchema>;
+export type SavedDestination = z.infer<typeof savedDestinationSchema>;
 export type AccountRecentSearch = z.infer<typeof accountRecentSearchSchema>;
 export type TransportPreferences = z.infer<typeof transportPreferencesSchema>;
 export type AccountSyncOperation = z.infer<typeof accountSyncOperationSchema>;
