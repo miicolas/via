@@ -38,6 +38,7 @@ struct SearchResponseDTO: Decodable {
 enum SearchResultDTO: Codable {
     case station(Station)
     case address(Address)
+    case bikeStation(BikeStation)
 
     struct Station: Codable {
         let id: String
@@ -60,7 +61,15 @@ enum SearchResultDTO: Codable {
         let context: String
         let coordinate: CoordinateDTO
         let distanceMeters: Double?
-        let bikeStation: BikeStationAvailability?
+    }
+
+    struct BikeStation: Codable {
+        let id: String
+        let name: String
+        let coordinate: CoordinateDTO
+        let distanceMeters: Double?
+        let capacity: Int
+        let availability: BikeStationAvailability?
     }
 
     private enum CodingKeys: String, CodingKey { case kind }
@@ -91,8 +100,16 @@ enum SearchResultDTO: Codable {
                 name: address.name,
                 context: address.context,
                 coordinate: .init(address.coordinate),
-                distanceMeters: address.distanceMeters,
-                bikeStation: address.bikeStation
+                distanceMeters: address.distanceMeters
+            ))
+        case .bikeStation(let bike):
+            self = .bikeStation(.init(
+                id: bike.id,
+                name: bike.name,
+                coordinate: .init(bike.coordinate),
+                distanceMeters: bike.distanceMeters,
+                capacity: bike.capacity,
+                availability: bike.availability
             ))
         }
     }
@@ -106,6 +123,7 @@ enum SearchResultDTO: Codable {
         switch kind {
         case "station": self = .station(try container.decode(Station.self))
         case "address": self = .address(try container.decode(Address.self))
+        case "bikeStation": self = .bikeStation(try container.decode(BikeStation.self))
         default:
             throw DecodingError.dataCorruptedError(
                 in: container,
@@ -122,6 +140,9 @@ enum SearchResultDTO: Codable {
             try value.encode(to: encoder)
         case .address(let value):
             kind = "address"
+            try value.encode(to: encoder)
+        case .bikeStation(let value):
+            kind = "bikeStation"
             try value.encode(to: encoder)
         }
         var container = encoder.container(keyedBy: CodingKeys.self)
@@ -154,8 +175,16 @@ enum SearchResultDTO: Codable {
                 name: value.name,
                 context: value.context,
                 coordinate: value.coordinate.domain,
+                distanceMeters: value.distanceMeters
+            ))
+        case .bikeStation(let value):
+            .bikeStation(BikeStationSearchResult(
+                id: value.id,
+                name: value.name,
+                coordinate: value.coordinate.domain,
                 distanceMeters: value.distanceMeters,
-                bikeStation: value.bikeStation
+                capacity: value.capacity,
+                availability: value.availability
             ))
         }
     }

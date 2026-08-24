@@ -1,6 +1,7 @@
 export { searchQueryRelation } from './relation';
 export {
   addressSearchResultSchema,
+  bikeStationSearchResultSchema,
   searchInputSchema,
   searchResponseSchema,
   searchResultSchema,
@@ -8,6 +9,7 @@ export {
 } from './schema';
 export type {
   AddressSearchResult,
+  BikeStationSearchResult,
   SearchInput,
   SearchResponse,
   SearchResult,

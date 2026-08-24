@@ -33,9 +33,14 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
         self.modes = routes.modes
     }
 
+    /// Docks and transit stops share one annotation id space, so a dock's GBFS
+    /// id is namespaced before it becomes a `StationID`. Local to the map: the
+    /// wire format tells the two apart by kind, not by prefix.
+    static let bikeStationIDPrefix = "velib:"
+
     init(bikeStation: BikeStation) {
         self.init(
-            id: StationID(rawValue: "\(BikeStation.resultIDPrefix)\(bikeStation.id)"),
+            id: StationID(rawValue: "\(Self.bikeStationIDPrefix)\(bikeStation.id)"),
             name: bikeStation.name,
             coordinate: bikeStation.coordinate,
             routes: [],
@@ -63,7 +68,10 @@ extension StationsArea {
         }
     }
 
-    var bikeMapItems: [StationMapItem] {
-        bikeStations.map(StationMapItem.init(bikeStation:))
+}
+
+extension BikeStationsArea {
+    var mapItems: [StationMapItem] {
+        stations.map(StationMapItem.init(bikeStation:))
     }
 }

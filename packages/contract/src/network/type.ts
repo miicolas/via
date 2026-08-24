@@ -3,6 +3,7 @@ import * as z from 'zod';
 import {
   bikeStationAvailabilitySchema,
   bikeStationSchema,
+  bikeStationsInAreaSchema,
   networkRouteSchema,
   networkSegmentSchema,
   networkStationSchema,
@@ -14,6 +15,7 @@ import {
 
 export type BikeStationAvailability = z.infer<typeof bikeStationAvailabilitySchema>;
 export type BikeStation = z.infer<typeof bikeStationSchema>;
+export type BikeStationsInArea = z.infer<typeof bikeStationsInAreaSchema>;
 export type NetworkSegment = z.infer<typeof networkSegmentSchema>;
 export type NetworkRoute = z.infer<typeof networkRouteSchema>;
 export type NetworkStation = z.infer<typeof networkStationSchema>;

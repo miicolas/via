@@ -1,13 +1,11 @@
 import type {
-  AddressSearchResult,
   BikeStation,
+  BikeStationSearchResult,
   Coordinate,
   StationsInAreaInput,
 } from '@via/contract';
 
 import { haversineMeters } from '../../geo/distance';
-
-const VELIB_RESULT_PREFIX = 'velib:';
 
 export function selectBikeStationsInArea(
   stations: BikeStation[],
@@ -43,7 +41,7 @@ export function selectMatchingBikeStations(
   query: string,
   limit: number,
   origin?: Coordinate
-): AddressSearchResult[] {
+): BikeStationSearchResult[] {
   const needle = normalized(query);
   return searchIndex(stations)
     .filter(({ name }) => name.includes(needle))
@@ -61,12 +59,12 @@ export function selectMatchingBikeStations(
     })
     .slice(0, limit)
     .map(({ station }) => ({
-      kind: 'address' as const,
-      id: `${VELIB_RESULT_PREFIX}${station.id}`,
+      kind: 'bikeStation' as const,
+      id: station.id,
       name: station.name,
-      context: 'Station Vélib’',
       coordinate: station.coordinate,
-      ...(station.availability ? { bikeStation: station.availability } : {}),
+      capacity: station.capacity,
+      ...(station.availability ? { availability: station.availability } : {}),
     }));
 }
 

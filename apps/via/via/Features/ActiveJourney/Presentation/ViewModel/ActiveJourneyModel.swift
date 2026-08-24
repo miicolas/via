@@ -24,6 +24,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     @ObservationIgnored private var recalculationTask: Task<Void, Never>?
     @ObservationIgnored private var recalculationID: UUID?
     @ObservationIgnored private var lastAutomaticRecalculationSectionID: String?
+    /// Keyed on every input the projection reads: the instant, the session
+    /// value, and the connectivity that decides whether a fix counts as live.
+    @ObservationIgnored private var progressCache: (
+        date: Date,
+        session: ActiveJourneySession,
+        isConnected: Bool,
+        value: JourneyProgress?
+    )?
     @ObservationIgnored private var isRestoring = false
     @ObservationIgnored private var restoreWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -87,25 +95,36 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     /// header, the tab bar accessory and the Live Activity.
     var guidanceHeadline: JourneyGuidanceHeadline? { guidanceHeadline(at: referenceDate) }
 
+    /// One projection per set of inputs. `highlightedSectionID`, `progress`,
+    /// `nextInstruction`, `isPositionEstimated` and `guidanceHeadline` all ask
+    /// at the same instant, and a projection builds a polyline per section and
+    /// scans it once per stop — running it five times a frame was the cost.
     func progress(at date: Date) -> JourneyProgress? {
         guard let session else { return nil }
         let effectiveDate = requiresResume ? referenceDate : date
+        if let cached = progressCache,
+           cached.date == effectiveDate,
+           cached.isConnected == isConnected,
+           cached.session == session {
+            return cached.value
+        }
+
         let schedule = ActiveJourneyRules.schedule(for: session.journey)
         let useLiveLocation = isLocationUsable(at: effectiveDate)
-        // A manual override and a live fix both mean the session already knows
-        // where we are; only a clock-driven estimate has to re-derive it.
-        let isOverridden = session.manualOverrideUntil.map { effectiveDate < $0 } ?? false
-        let sectionIndex =
-            isOverridden || useLiveLocation
-            ? session.currentSectionIndex
-            : ActiveJourneyRules.sectionIndex(in: schedule, at: effectiveDate)
-        return JourneyProgressProjector.progress(
+        let value = JourneyProgressProjector.progress(
             schedule: schedule,
-            sectionIndex: sectionIndex,
+            sectionIndex: ActiveJourneyRules.resolvedSectionIndex(
+                in: session,
+                schedule: schedule,
+                isLive: useLiveLocation,
+                at: effectiveDate
+            ),
             at: effectiveDate,
             coordinate: useLiveLocation ? session.lastCoordinate : nil,
             horizontalAccuracy: useLiveLocation ? session.horizontalAccuracy : nil
         )
+        progressCache = (effectiveDate, session, isConnected, value)
+        return value
     }
 
     func guidanceHeadline(at date: Date) -> JourneyGuidanceHeadline? {
@@ -577,34 +596,12 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         if let override = session.manualOverrideUntil, date < override { return }
         session.manualOverrideUntil = nil
 
-        let schedules = ActiveJourneyRules.schedule(for: session.journey)
-        let isLive = isLocationUsable(at: date)
-        let timeIndex = ActiveJourneyRules.sectionIndex(in: session.journey, at: date)
-        var nextIndex = max(session.currentSectionIndex, timeIndex)
-
-        if isLive, let coordinate = session.lastCoordinate {
-            // A timetable can advance while the train is underground. Once a
-            // real fix comes back, let the geometry correct the section in
-            // either direction instead of keeping the stale scheduled index.
-            nextIndex = JourneyProgressProjector.nearestSectionIndex(
-                schedule: schedules,
-                to: coordinate,
-                horizontalAccuracy: session.horizontalAccuracy
-            ) ?? nextIndex
-        } else if let coordinate = session.lastCoordinate,
-                  let current = session.currentSection,
-                  let currentSchedule = schedules.first(where: { $0.id == current.id }),
-                  date >= currentSchedule.startsAt,
-                  ActiveJourneyRules.distance(from: coordinate, to: current.to.coordinate)
-                    <= ActiveJourneyRules.arrivalRadius(horizontalAccuracy: session.horizontalAccuracy) {
-            // A stale point can still confirm that a section was reached, but
-            // it must never drive a live correction or a recalculation.
-            nextIndex = min(
-                session.journey.sections.count - 1,
-                max(nextIndex, session.currentSectionIndex + 1)
-            )
-        }
-        session.currentSectionIndex = max(0, nextIndex)
+        session.currentSectionIndex = ActiveJourneyRules.resolvedSectionIndex(
+            in: session,
+            schedule: ActiveJourneyRules.schedule(for: session.journey),
+            isLive: isLocationUsable(at: date),
+            at: date
+        )
         self.session = session
     }
 

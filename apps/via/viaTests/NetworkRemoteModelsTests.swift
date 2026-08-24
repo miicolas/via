@@ -15,11 +15,9 @@ final class NetworkRemoteModelsTests: XCTestCase {
     XCTAssertFalse(station.domain().hasElevators)
   }
 
-  func testAreaDecodesVelibAvailabilitySeparatelyFromTransitStations() throws {
+  func testBikeAreaDecodesLiveAvailability() throws {
     let json = #"""
     {
-      "stations": [],
-      "routes": [],
       "bikeStations": [{
         "id": "1",
         "stationCode": "04001",
@@ -35,17 +33,29 @@ final class NetworkRemoteModelsTests: XCTestCase {
           "isReturning": true,
           "lastReportedAt": "2026-08-24T09:32:14Z"
         }
-      }]
+      }],
+      "sources": { "velib": "ok" }
     }
     """#
 
     let area = try JSONDecoder.via
-      .decode(StationsAreaDTO.self, from: Data(json.utf8))
-      .domain()
+      .decode(BikeStationsAreaDTO.self, from: Data(json.utf8))
+      .domain
 
+    XCTAssertTrue(area.sourceAvailable)
+    XCTAssertEqual(area.stations.first?.availability?.totalBikes, 7)
+    XCTAssertEqual(area.stations.first?.availability?.docks, 28)
+  }
+
+  func testBikeAreaWithoutSourcesReadsAsUnavailable() throws {
+    let json = #"{ "bikeStations": [] }"#
+
+    let area = try JSONDecoder.via
+      .decode(BikeStationsAreaDTO.self, from: Data(json.utf8))
+      .domain
+
+    XCTAssertFalse(area.sourceAvailable)
     XCTAssertTrue(area.stations.isEmpty)
-    XCTAssertEqual(area.bikeStations.first?.availability?.totalBikes, 7)
-    XCTAssertEqual(area.bikeStations.first?.availability?.docks, 28)
   }
 
   private func decodeStation(extraJSON: String = "") throws -> NetworkStationDTO {

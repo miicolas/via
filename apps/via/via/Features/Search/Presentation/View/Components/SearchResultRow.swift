@@ -54,21 +54,11 @@ struct SearchResultRow: View {
         .accessibilityHint(accessibilityHint)
     }
 
-    @ViewBuilder
     private var resultIcon: some View {
-        switch result {
-        case .station(let station):
-            Image(systemName: station.routes.first?.mode.chipSystemImage ?? "tram.fill")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 32)
-
-        case .address(let address):
-            Image(systemName: address.isBikeStation ? "bicycle" : "mappin.and.ellipse")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 32)
-        }
+        Image(systemName: result.systemImage)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(width: 32)
     }
 
     @ViewBuilder
@@ -89,8 +79,8 @@ struct SearchResultRow: View {
                 }
             }
 
-        case .address(let address):
-            Text(addressDetail(address))
+        case .address, .bikeStation:
+            Text(result.subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -104,19 +94,13 @@ struct SearchResultRow: View {
             let base = routes.isEmpty ? "Station \(station.name)" : "Station \(station.name), lignes \(routes)"
             return base
         case .address(let address):
-            if address.isBikeStation {
-                let detail = address.bikeStation?.accessibilityDetail ?? "disponibilité inconnue"
-                return "Station Vélib \(address.name), \(detail)"
-            }
             return address.context.isEmpty
                 ? "Adresse \(address.name)"
                 : "Adresse \(address.name), \(address.context)"
+        case .bikeStation(let bike):
+            let detail = bike.availability?.accessibilityDetail ?? "disponibilité inconnue"
+            return "Station Vélib \(bike.name), \(detail)"
         }
-    }
-
-    private func addressDetail(_ address: AddressSearchResult) -> String {
-        guard let availability = address.bikeStation else { return address.subtitle }
-        return "\(availability.totalBikes) vélo\(availability.totalBikes > 1 ? "s" : "") · \(availability.docks) bornette\(availability.docks > 1 ? "s" : "")"
     }
 }
 

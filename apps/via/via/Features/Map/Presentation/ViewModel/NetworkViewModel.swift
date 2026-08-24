@@ -118,12 +118,21 @@ final class NetworkViewModel {
       publishSnapshot(for: viewport, loading: .loading)
 
       if viewport.showsStations {
-        let fetchedArea = try await repository.viewport(in: viewport.bounds)
+        // The two payloads are independent routes with independent caches, so
+        // they travel together; the docks are skipped entirely with the layer
+        // off, which is the default.
+        async let stationsArea = repository.viewport(in: viewport.bounds)
+        async let bikeArea: BikeStationsArea? =
+          stationFilter.contains(.bikeStations)
+          ? try await repository.bikeStations(in: viewport.bounds)
+          : nil
+
+        let (fetchedStations, fetchedBikes) = try await (stationsArea, bikeArea)
         try Task.checkCancellation()
         guard revision == viewportRevision else { return }
-        loadedStations = fetchedArea.transitMapItems
-        loadedBikeStations = fetchedArea.bikeMapItems
-        bikeSourceAvailable = fetchedArea.bikeSourceAvailable
+        loadedStations = fetchedStations.transitMapItems
+        loadedBikeStations = fetchedBikes?.mapItems ?? []
+        bikeSourceAvailable = fetchedBikes?.sourceAvailable ?? true
       }
       publishSnapshot(for: viewport, loading: .loaded)
       AppLog.network.debug(
@@ -146,11 +155,19 @@ final class NetworkViewModel {
 
   /// Dock counts move by the minute while the rest of a tile is reference
   /// data, so the layer being on is what decides the refresh — not the view
-  /// that happens to be drawing it.
+  /// that happens to be drawing it. Only the docks are refetched: the stations
+  /// and their badges have not changed since the tile was first loaded.
   private func scheduleBikeRefresh() {
     bikeRefreshTask?.cancel()
-    guard stationFilter.contains(.bikeStations) else { return }
+    guard stationFilter.contains(.bikeStations) else {
+      loadedBikeStations = []
+      bikeSourceAvailable = true
+      return
+    }
     bikeRefreshTask = Task { [weak self] in
+      // Turning the layer on is itself a request for counts; the loop below
+      // only keeps them from going stale afterwards.
+      await self?.refreshBikeStations()
       while !Task.isCancelled {
         do {
           try await Task.sleep(for: BikeStation.freshness)
@@ -158,8 +175,27 @@ final class NetworkViewModel {
           return
         }
         guard let self else { return }
-        retry()
+        await refreshBikeStations()
       }
+    }
+  }
+
+  private func refreshBikeStations() async {
+    guard let viewport = lastViewport,
+          viewport.showsStations,
+          stationFilter.contains(.bikeStations) else { return }
+    let revision = viewportRevision
+    do {
+      let area = try await repository.bikeStations(in: viewport.bounds)
+      guard revision == viewportRevision, stationFilter.contains(.bikeStations) else { return }
+      loadedBikeStations = area.mapItems
+      bikeSourceAvailable = area.sourceAvailable
+      publishSnapshot(for: viewport, loading: state.loading)
+    } catch is CancellationError {
+    } catch {
+      AppLog.network.error(
+        "Bike refresh failed: \(String(describing: error), privacy: .private(mask: .hash))"
+      )
     }
   }
 

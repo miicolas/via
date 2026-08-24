@@ -92,6 +92,55 @@ enum ActiveJourneyRules {
         return sections.lastIndex(where: { now >= $0.startsAt }) ?? 0
     }
 
+    /// Which section the traveller is actually on, from the timetable, the last
+    /// fix and how much the session already knows.
+    ///
+    /// One rule, because there were two: the monitor persisted
+    /// `max(currentSectionIndex, timeIndex)` corrected by geometry, while the
+    /// panel re-derived a bare timetable index for display. They disagreed by a
+    /// section whenever a leg ran late, which is exactly when someone looks.
+    ///
+    /// `isLive` is the caller's verdict on the fix — freshness and connectivity
+    /// are the model's business, not this rule's.
+    static func resolvedSectionIndex(
+        in session: ActiveJourneySession,
+        schedule: [JourneySectionSchedule],
+        isLive: Bool,
+        at date: Date
+    ) -> Int {
+        if let override = session.manualOverrideUntil, date < override {
+            return session.currentSectionIndex
+        }
+
+        // The traveller does not un-ride a section: the timetable may only push
+        // the index forward from where the session already stands.
+        var index = max(session.currentSectionIndex, sectionIndex(in: schedule, at: date))
+        guard let coordinate = session.lastCoordinate else { return max(0, index) }
+
+        if isLive {
+            // A timetable can advance while the train is underground. Once a
+            // real fix comes back, let the geometry correct the section in
+            // either direction instead of keeping the stale scheduled index.
+            index = JourneyProgressProjector.nearestSectionIndex(
+                schedule: schedule,
+                to: coordinate,
+                horizontalAccuracy: session.horizontalAccuracy
+            ) ?? index
+        } else if let current = session.currentSection,
+                  let currentSchedule = schedule.first(where: { $0.id == current.id }),
+                  date >= currentSchedule.startsAt,
+                  distance(from: coordinate, to: current.to.coordinate)
+                    <= arrivalRadius(horizontalAccuracy: session.horizontalAccuracy) {
+            // A stale point can still confirm that a section was reached, but
+            // it must never drive a live correction or a recalculation.
+            index = min(
+                session.journey.sections.count - 1,
+                max(index, session.currentSectionIndex + 1)
+            )
+        }
+        return max(0, index)
+    }
+
     /// The sections whose departure the traveller may still re-pick.
     ///
     /// One rule, because three surfaces asked the same question and answered it

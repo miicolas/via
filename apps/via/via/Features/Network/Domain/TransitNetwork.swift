@@ -53,19 +53,23 @@ struct TransitNetwork: Sendable, Hashable {
 struct StationsArea: Sendable, Hashable {
     let stations: [NetworkStation]
     let routes: [RouteBadge]
-    let bikeStations: [BikeStation]
-    let bikeSourceAvailable: Bool
 
-    init(
-        stations: [NetworkStation],
-        routes: [RouteBadge],
-        bikeStations: [BikeStation] = [],
-        bikeSourceAvailable: Bool = true
-    ) {
+    init(stations: [NetworkStation], routes: [RouteBadge]) {
         self.stations = stations
         self.routes = routes
-        self.bikeStations = bikeStations
-        self.bikeSourceAvailable = bikeSourceAvailable
+    }
+}
+
+/// The Vélib' docks of the same viewport. A separate payload because it ages
+/// in a minute while `StationsArea` stands until the next reference import —
+/// one tile carrying both dragged the stations down to the docks' cadence.
+struct BikeStationsArea: Sendable, Hashable {
+    let stations: [BikeStation]
+    let sourceAvailable: Bool
+
+    init(stations: [BikeStation] = [], sourceAvailable: Bool = true) {
+        self.stations = stations
+        self.sourceAvailable = sourceAvailable
     }
 }
 

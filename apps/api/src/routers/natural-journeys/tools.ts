@@ -268,19 +268,39 @@ function describePlace(handle: string, result: SearchResult) {
     handle,
     kind: result.kind,
     label: result.name,
-    context: result.kind === 'address' ? result.context : undefined,
+    context: placeContext(result),
   };
+}
+
+/**
+ * A dock carries no `context` on the wire — the client words it. The model
+ * still needs something to read back, so the wording lives here.
+ */
+const VELIB_CONTEXT = 'Station Vélib’';
+
+/** The line under the name, in the wording the model reads back to the user. */
+function placeContext(result: SearchResult): string | undefined {
+  switch (result.kind) {
+    case 'station':
+      return undefined;
+    case 'address':
+      return result.context;
+    case 'bikeStation':
+      return VELIB_CONTEXT;
+  }
 }
 
 function toJourneyDestination(result: SearchResult): JourneyDestination {
   if (result.kind === 'station') {
     return { kind: 'station', id: result.id, name: result.name, coordinate: result.coordinate };
   }
+  // A dock is somewhere you walk to, so it travels as an address; its own
+  // result kind exists for rendering, not for routing.
   return {
     kind: 'address',
     id: result.id,
     name: result.name,
-    context: result.context,
+    context: placeContext(result) ?? '',
     coordinate: result.coordinate,
   };
 }

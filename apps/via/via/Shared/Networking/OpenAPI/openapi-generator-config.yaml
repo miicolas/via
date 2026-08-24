@@ -25,6 +25,7 @@ filter:
     - lines.statuses
     - network.railMap
     - network.stationsInArea
+    - network.bikeStationsInArea
     - search.query
     - reports.submit
     - reports.stationStatus
