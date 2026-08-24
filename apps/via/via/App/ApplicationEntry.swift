@@ -130,27 +130,7 @@ struct ApplicationEntry: App {
 
     var body: some Scene {
         WindowGroup {
-            if ProcessInfo.processInfo.arguments.contains("-viaTrainOrderVisualCheck") {
-                JourneyBoardingPositionView(
-                    route: JourneyRoute(
-                        id: RouteID(rawValue: "visual-check:A"),
-                        shortName: "A",
-                        longName: "RER A",
-                        mode: .rer,
-                        colorHex: "#007AFF",
-                        textColorHex: "#FFFFFF"
-                    ),
-                    position: JourneyBoardingPosition(
-                        car: 8,
-                        carCount: 8,
-                        zone: .rear,
-                        reason: .transfer,
-                        equipment: nil
-                    )
-                )
-                .padding(24)
-            } else {
-                applicationRoot
+            applicationRoot
             .task(id: onboardingModel.isCompleted) {
                 guard onboardingModel.isCompleted else { return }
                 await preloadInitialData()
@@ -191,7 +171,6 @@ struct ApplicationEntry: App {
                 await pushNotificationManager.setNotificationsAuthorized(
                     journeyNotificationCoordinator.isAuthorized
                 )
-            }
             }
         }
     }
