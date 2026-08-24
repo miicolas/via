@@ -1456,7 +1456,7 @@ internal struct Client: APIProtocol {
     }
     /// Recherche unifiée
     ///
-    /// Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
+    /// Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
     ///
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.
@@ -1501,6 +1501,13 @@ internal struct Client: APIProtocol {
                     explode: true,
                     name: "limit",
                     value: input.query.limit
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "bikeStationsOnly",
+                    value: input.query.bikeStationsOnly
                 )
                 converter.setAcceptHeader(
                     in: &request.headerFields,

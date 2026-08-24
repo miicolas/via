@@ -5,9 +5,12 @@ struct SearchOptionsBar: View {
     let datetimeRepresents: JourneyDatetimeRepresents
     let requiresAccessibleStations: Bool
     let requiresOperationalElevators: Bool
+    let bikeStationsOnly: Bool
     let onEditTime: () -> Void
     let onToggleAccessibleStations: () -> Void
     let onToggleOperationalElevators: () -> Void
+    /// The Vélib' chip is destination-only: no handler, no chip.
+    var onToggleBikeStationsOnly: (() -> Void)?
     let onShowAccessibilityInfo: () -> Void
 
     var body: some View {
@@ -20,6 +23,17 @@ struct SearchOptionsBar: View {
                         isActive: requestedAt != nil,
                         action: onEditTime,
                     )
+
+                    if let onToggleBikeStationsOnly {
+                        OptionChip(
+                            title: "Vélib’",
+                            systemImage: "bicycle",
+                            isActive: bikeStationsOnly,
+                            action: onToggleBikeStationsOnly,
+                        )
+                        .accessibilityValue(bikeStationsOnly ? "Activé" : "Désactivé")
+                        .accessibilityHint("Limite les résultats aux stations Vélib")
+                    }
 
                     OptionChip(
                         title: "PMR",
@@ -66,9 +80,11 @@ struct SearchOptionsBar: View {
             datetimeRepresents: .departure,
             requiresAccessibleStations: false,
             requiresOperationalElevators: false,
+            bikeStationsOnly: false,
             onEditTime: {},
             onToggleAccessibleStations: {},
             onToggleOperationalElevators: {},
+            onToggleBikeStationsOnly: {},
             onShowAccessibilityInfo: {},
         )
 
@@ -77,9 +93,11 @@ struct SearchOptionsBar: View {
             datetimeRepresents: .arrival,
             requiresAccessibleStations: true,
             requiresOperationalElevators: true,
+            bikeStationsOnly: true,
             onEditTime: {},
             onToggleAccessibleStations: {},
             onToggleOperationalElevators: {},
+            onToggleBikeStationsOnly: {},
             onShowAccessibilityInfo: {},
         )
     }

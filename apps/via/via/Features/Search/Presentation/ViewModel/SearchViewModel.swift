@@ -593,7 +593,15 @@ final class SearchViewModel {
     step == .destination
       && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       && loadState == .idle
-      && !recentSearches.isEmpty
+      && !visibleRecentSearches.isEmpty
+  }
+
+  var visibleRecentSearches: [RecentSearch] {
+    guard filters.bikeStationsOnly else { return recentSearches }
+    return recentSearches.filter { recent in
+      guard case .address(let address) = recent.searchResult else { return false }
+      return address.isBikeStation
+    }
   }
 
   func updateQuery(_ value: String) {
@@ -680,10 +688,17 @@ final class SearchViewModel {
       : lastSearchedQuery
 
     guard retryQuery.count >= 2, step == .destination else { return }
+    startSearch(retryQuery)
+  }
+
+  /// Replaces whatever destination search is in flight with an immediate one.
+  /// `updateQuery` is the debounced door; this is the one every other trigger
+  /// (retry, a filter change) goes through.
+  private func startSearch(_ normalizedQuery: String) {
     searchTask?.cancel()
     searchTask = Task { [weak self] in
       guard !Task.isCancelled, let self else { return }
-      await performSearch(retryQuery)
+      await performSearch(normalizedQuery)
     }
   }
 
@@ -760,17 +775,34 @@ final class SearchViewModel {
     updateFilters { $0.requiresOperationalElevators = enabled }
   }
 
-  private func updateFilters(_ update: (inout SearchFilters) -> Void) {
+  func setBikeStationsOnly(_ enabled: Bool) {
+    guard updateFilters({ $0.bikeStationsOnly = enabled }), step == .destination else { return }
+    // Which places the query can even match just changed, so the list on
+    // screen is stale — re-run it, or clear it when there is nothing to run.
+    let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard normalized.count >= 2 else {
+      searchTask?.cancel()
+      results = []
+      loadState = .idle
+      return
+    }
+    startSearch(normalized)
+  }
+
+  /// Persists a filter change and re-plans when one is on screen.
+  /// Returns whether anything actually changed.
+  @discardableResult
+  private func updateFilters(_ update: (inout SearchFilters) -> Void) -> Bool {
     var next = filters
     update(&next)
-    guard next != filters else { return }
+    guard next != filters else { return false }
     filters = next
     filterStore.save(next)
 
     if selectedDestination != nil, step != .destination {
       planJourney()
-      return
     }
+    return true
   }
 
   func selectDestination(_ result: SearchResult) {
@@ -985,13 +1017,17 @@ final class SearchViewModel {
       let response = try await repository.search(
         query: normalizedQuery,
         near: locationModel.coordinate,
+        bikeStationsOnly: filters.bikeStationsOnly,
       )
       guard !Task.isCancelled else { return }
 
       results = response.results
       accessibilitySource = response.accessibilitySource
       elevatorSource = response.elevatorSource
-      loadState = response.results.isEmpty ? .empty : .loaded
+      loadState = response.results.isEmpty && filters.bikeStationsOnly
+        && response.bikeSource == .unavailable
+        ? .failed(.unavailable)
+        : (response.results.isEmpty ? .empty : .loaded)
     } catch is CancellationError {
     } catch {
       guard !Task.isCancelled else { return }
@@ -1029,7 +1065,7 @@ extension SearchResult {
         .map(\.shortName)
         .joined(separator: " · ")
     case .address(let address):
-      return address.context.isEmpty ? "Adresse" : address.context
+      return address.subtitle
     }
   }
 }

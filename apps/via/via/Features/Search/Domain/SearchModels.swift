@@ -31,6 +31,34 @@ struct AddressSearchResult: Sendable, Hashable, Identifiable {
     let context: String
     let coordinate: GeoCoordinate
     let distanceMeters: Double?
+    let bikeStation: BikeStationAvailability?
+
+    init(
+        id: String,
+        name: String,
+        context: String,
+        coordinate: GeoCoordinate,
+        distanceMeters: Double?,
+        bikeStation: BikeStationAvailability? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.context = context
+        self.coordinate = coordinate
+        self.distanceMeters = distanceMeters
+        self.bikeStation = bikeStation
+    }
+
+    var isBikeStation: Bool {
+        id.hasPrefix(BikeStation.resultIDPrefix)
+    }
+
+    /// The one line under the name. The producer already words it — the API
+    /// and `BikeStation.searchResult` both send "Station Vélib’" — so no
+    /// caller re-derives it from `isBikeStation`.
+    var subtitle: String {
+        context.isEmpty ? "Adresse" : context
+    }
 }
 
 /// Single owner of the `"kind:rawID"` composite identifier persisted in
@@ -106,6 +134,7 @@ struct SearchResponse: Sendable, Hashable {
     let addressSource: AddressSource
     let accessibilitySource: AccessibilitySource
     let elevatorSource: ElevatorSource
+    let bikeSource: AddressSource
 
     init(
         results: [SearchResult],
@@ -119,12 +148,14 @@ struct SearchResponse: Sendable, Hashable {
             status: .unavailable,
             sourceUpdatedAt: nil,
             importedAt: nil
-        )
+        ),
+        bikeSource: AddressSource = .unavailable
     ) {
         self.results = results
         self.addressSource = addressSource
         self.accessibilitySource = accessibilitySource
         self.elevatorSource = elevatorSource
+        self.bikeSource = bikeSource
     }
 }
 

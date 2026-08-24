@@ -147,7 +147,7 @@ internal protocol APIProtocol: Sendable {
     func network_period_stationsInArea(_ input: Operations.network_period_stationsInArea.Input) async throws -> Operations.network_period_stationsInArea.Output
     /// Recherche unifiée
     ///
-    /// Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
+    /// Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
     ///
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.
@@ -439,7 +439,7 @@ extension APIProtocol {
     }
     /// Recherche unifiée
     ///
-    /// Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
+    /// Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
     ///
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.
@@ -9520,6 +9520,8 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/accessibility`.
                             internal var accessibility: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload?
+                            /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/hasElevators`.
+                            internal var hasElevators: Swift.Bool?
                             /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/toilets`.
                             internal struct toiletsPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/toilets/label`.
@@ -9553,6 +9555,7 @@ internal enum Operations {
                             ///   - coordinate:
                             ///   - routeIds:
                             ///   - accessibility:
+                            ///   - hasElevators:
                             ///   - toilets:
                             internal init(
                                 id: Swift.String,
@@ -9560,6 +9563,7 @@ internal enum Operations {
                                 coordinate: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.coordinatePayload,
                                 routeIds: [Swift.String],
                                 accessibility: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil,
+                                hasElevators: Swift.Bool? = nil,
                                 toilets: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload? = nil
                             ) {
                                 self.id = id
@@ -9567,6 +9571,7 @@ internal enum Operations {
                                 self.coordinate = coordinate
                                 self.routeIds = routeIds
                                 self.accessibility = accessibility
+                                self.hasElevators = hasElevators
                                 self.toilets = toilets
                             }
                             internal enum CodingKeys: String, CodingKey {
@@ -9575,6 +9580,7 @@ internal enum Operations {
                                 case coordinate
                                 case routeIds
                                 case accessibility
+                                case hasElevators
                                 case toilets
                             }
                         }
@@ -9818,6 +9824,8 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/accessibility`.
                             internal var accessibility: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload?
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/hasElevators`.
+                            internal var hasElevators: Swift.Bool?
                             /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/toilets`.
                             internal struct toiletsPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/toilets/label`.
@@ -9851,6 +9859,7 @@ internal enum Operations {
                             ///   - coordinate:
                             ///   - routeIds:
                             ///   - accessibility:
+                            ///   - hasElevators:
                             ///   - toilets:
                             internal init(
                                 id: Swift.String,
@@ -9858,6 +9867,7 @@ internal enum Operations {
                                 coordinate: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.coordinatePayload,
                                 routeIds: [Swift.String],
                                 accessibility: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil,
+                                hasElevators: Swift.Bool? = nil,
                                 toilets: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload? = nil
                             ) {
                                 self.id = id
@@ -9865,6 +9875,7 @@ internal enum Operations {
                                 self.coordinate = coordinate
                                 self.routeIds = routeIds
                                 self.accessibility = accessibility
+                                self.hasElevators = hasElevators
                                 self.toilets = toilets
                             }
                             internal enum CodingKeys: String, CodingKey {
@@ -9873,6 +9884,7 @@ internal enum Operations {
                                 case coordinate
                                 case routeIds
                                 case accessibility
+                                case hasElevators
                                 case toilets
                             }
                         }
@@ -9933,21 +9945,178 @@ internal enum Operations {
                         internal typealias routesPayload = [Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.routesPayloadPayload]
                         /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/routes`.
                         internal var routes: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.routesPayload
+                        /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload`.
+                        internal struct bikeStationsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/stationCode`.
+                            internal var stationCode: Swift.String?
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/name`.
+                            internal var name: Swift.String
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/coordinate`.
+                            internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/coordinate/latitude`.
+                                internal var latitude: Swift.Double
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/coordinate/longitude`.
+                                internal var longitude: Swift.Double
+                                /// Creates a new `coordinatePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - latitude:
+                                ///   - longitude:
+                                internal init(
+                                    latitude: Swift.Double,
+                                    longitude: Swift.Double
+                                ) {
+                                    self.latitude = latitude
+                                    self.longitude = longitude
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case latitude
+                                    case longitude
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/coordinate`.
+                            internal var coordinate: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.bikeStationsPayloadPayload.coordinatePayload
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/capacity`.
+                            internal var capacity: Swift.Int
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability`.
+                            internal struct availabilityPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability/mechanicalBikes`.
+                                internal var mechanicalBikes: Swift.Int
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability/electricBikes`.
+                                internal var electricBikes: Swift.Int
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability/docks`.
+                                internal var docks: Swift.Int
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability/isInstalled`.
+                                internal var isInstalled: Swift.Bool
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability/isRenting`.
+                                internal var isRenting: Swift.Bool
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability/isReturning`.
+                                internal var isReturning: Swift.Bool
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability/lastReportedAt`.
+                                internal var lastReportedAt: Foundation.Date?
+                                /// Creates a new `availabilityPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - mechanicalBikes:
+                                ///   - electricBikes:
+                                ///   - docks:
+                                ///   - isInstalled:
+                                ///   - isRenting:
+                                ///   - isReturning:
+                                ///   - lastReportedAt:
+                                internal init(
+                                    mechanicalBikes: Swift.Int,
+                                    electricBikes: Swift.Int,
+                                    docks: Swift.Int,
+                                    isInstalled: Swift.Bool,
+                                    isRenting: Swift.Bool,
+                                    isReturning: Swift.Bool,
+                                    lastReportedAt: Foundation.Date? = nil
+                                ) {
+                                    self.mechanicalBikes = mechanicalBikes
+                                    self.electricBikes = electricBikes
+                                    self.docks = docks
+                                    self.isInstalled = isInstalled
+                                    self.isRenting = isRenting
+                                    self.isReturning = isReturning
+                                    self.lastReportedAt = lastReportedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case mechanicalBikes
+                                    case electricBikes
+                                    case docks
+                                    case isInstalled
+                                    case isRenting
+                                    case isReturning
+                                    case lastReportedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStationsPayload/availability`.
+                            internal var availability: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.bikeStationsPayloadPayload.availabilityPayload?
+                            /// Creates a new `bikeStationsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - stationCode:
+                            ///   - name:
+                            ///   - coordinate:
+                            ///   - capacity:
+                            ///   - availability:
+                            internal init(
+                                id: Swift.String,
+                                stationCode: Swift.String? = nil,
+                                name: Swift.String,
+                                coordinate: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.bikeStationsPayloadPayload.coordinatePayload,
+                                capacity: Swift.Int,
+                                availability: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.bikeStationsPayloadPayload.availabilityPayload? = nil
+                            ) {
+                                self.id = id
+                                self.stationCode = stationCode
+                                self.name = name
+                                self.coordinate = coordinate
+                                self.capacity = capacity
+                                self.availability = availability
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case stationCode
+                                case name
+                                case coordinate
+                                case capacity
+                                case availability
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStations`.
+                        internal typealias bikeStationsPayload = [Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.bikeStationsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/bikeStations`.
+                        internal var bikeStations: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.bikeStationsPayload
+                        /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/sources`.
+                        internal struct sourcesPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/sources/velib`.
+                            internal enum velibPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case ok = "ok"
+                                case unavailable = "unavailable"
+                            }
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/sources/velib`.
+                            internal var velib: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.sourcesPayload.velibPayload
+                            /// Creates a new `sourcesPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - velib:
+                            internal init(velib: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.sourcesPayload.velibPayload) {
+                                self.velib = velib
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case velib
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/sources`.
+                        internal var sources: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.sourcesPayload
                         /// Creates a new `jsonPayload`.
                         ///
                         /// - Parameters:
                         ///   - stations:
                         ///   - routes:
+                        ///   - bikeStations:
+                        ///   - sources:
                         internal init(
                             stations: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayload,
-                            routes: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.routesPayload
+                            routes: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.routesPayload,
+                            bikeStations: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.bikeStationsPayload,
+                            sources: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.sourcesPayload
                         ) {
                             self.stations = stations
                             self.routes = routes
+                            self.bikeStations = bikeStations
+                            self.sources = sources
                         }
                         internal enum CodingKeys: String, CodingKey {
                             case stations
                             case routes
+                            case bikeStations
+                            case sources
                         }
                     }
                     /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/application\/json`.
@@ -10031,7 +10200,7 @@ internal enum Operations {
     }
     /// Recherche unifiée
     ///
-    /// Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
+    /// Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
     ///
     /// - Remark: HTTP `GET /search`.
     /// - Remark: Generated from `#/paths//search/get(search.query)`.
@@ -10048,6 +10217,8 @@ internal enum Operations {
                 internal var longitude: Swift.Double?
                 /// - Remark: Generated from `#/paths/search/GET/query/limit`.
                 internal var limit: Swift.Int?
+                /// - Remark: Generated from `#/paths/search/GET/query/bikeStationsOnly`.
+                internal var bikeStationsOnly: Swift.Bool?
                 /// Creates a new `Query`.
                 ///
                 /// - Parameters:
@@ -10055,16 +10226,19 @@ internal enum Operations {
                 ///   - latitude:
                 ///   - longitude:
                 ///   - limit:
+                ///   - bikeStationsOnly:
                 internal init(
                     q: Swift.String,
                     latitude: Swift.Double? = nil,
                     longitude: Swift.Double? = nil,
-                    limit: Swift.Int? = nil
+                    limit: Swift.Int? = nil,
+                    bikeStationsOnly: Swift.Bool? = nil
                 ) {
                     self.q = q
                     self.latitude = latitude
                     self.longitude = longitude
                     self.limit = limit
+                    self.bikeStationsOnly = bikeStationsOnly
                 }
             }
             internal var query: Operations.search_period_query.Input.Query
@@ -10302,6 +10476,61 @@ internal enum Operations {
                                 internal var coordinate: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value2Payload.coordinatePayload
                                 /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/distanceMeters`.
                                 internal var distanceMeters: Swift.Double?
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation`.
+                                internal struct bikeStationPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation/mechanicalBikes`.
+                                    internal var mechanicalBikes: Swift.Int
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation/electricBikes`.
+                                    internal var electricBikes: Swift.Int
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation/docks`.
+                                    internal var docks: Swift.Int
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation/isInstalled`.
+                                    internal var isInstalled: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation/isRenting`.
+                                    internal var isRenting: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation/isReturning`.
+                                    internal var isReturning: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation/lastReportedAt`.
+                                    internal var lastReportedAt: Foundation.Date?
+                                    /// Creates a new `bikeStationPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - mechanicalBikes:
+                                    ///   - electricBikes:
+                                    ///   - docks:
+                                    ///   - isInstalled:
+                                    ///   - isRenting:
+                                    ///   - isReturning:
+                                    ///   - lastReportedAt:
+                                    internal init(
+                                        mechanicalBikes: Swift.Int,
+                                        electricBikes: Swift.Int,
+                                        docks: Swift.Int,
+                                        isInstalled: Swift.Bool,
+                                        isRenting: Swift.Bool,
+                                        isReturning: Swift.Bool,
+                                        lastReportedAt: Foundation.Date? = nil
+                                    ) {
+                                        self.mechanicalBikes = mechanicalBikes
+                                        self.electricBikes = electricBikes
+                                        self.docks = docks
+                                        self.isInstalled = isInstalled
+                                        self.isRenting = isRenting
+                                        self.isReturning = isReturning
+                                        self.lastReportedAt = lastReportedAt
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case mechanicalBikes
+                                        case electricBikes
+                                        case docks
+                                        case isInstalled
+                                        case isRenting
+                                        case isReturning
+                                        case lastReportedAt
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2/bikeStation`.
+                                internal var bikeStation: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value2Payload.bikeStationPayload?
                                 /// Creates a new `Value2Payload`.
                                 ///
                                 /// - Parameters:
@@ -10311,13 +10540,15 @@ internal enum Operations {
                                 ///   - context:
                                 ///   - coordinate:
                                 ///   - distanceMeters:
+                                ///   - bikeStation:
                                 internal init(
                                     kind: OpenAPIRuntime.OpenAPIValueContainer,
                                     id: Swift.String,
                                     name: Swift.String,
                                     context: Swift.String,
                                     coordinate: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value2Payload.coordinatePayload,
-                                    distanceMeters: Swift.Double? = nil
+                                    distanceMeters: Swift.Double? = nil,
+                                    bikeStation: Operations.search_period_query.Output.Ok.Body.jsonPayload.resultsPayloadPayload.Value2Payload.bikeStationPayload? = nil
                                 ) {
                                     self.kind = kind
                                     self.id = id
@@ -10325,6 +10556,7 @@ internal enum Operations {
                                     self.context = context
                                     self.coordinate = coordinate
                                     self.distanceMeters = distanceMeters
+                                    self.bikeStation = bikeStation
                                 }
                                 internal enum CodingKeys: String, CodingKey {
                                     case kind
@@ -10333,6 +10565,7 @@ internal enum Operations {
                                     case context
                                     case coordinate
                                     case distanceMeters
+                                    case bikeStation
                                 }
                             }
                             /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/resultsPayload/value2`.
@@ -10461,25 +10694,36 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/elevators`.
                             internal var elevators: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.elevatorsPayload
+                            /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/velib`.
+                            internal enum velibPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case ok = "ok"
+                                case unavailable = "unavailable"
+                            }
+                            /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources/velib`.
+                            internal var velib: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.velibPayload
                             /// Creates a new `sourcesPayload`.
                             ///
                             /// - Parameters:
                             ///   - ban:
                             ///   - accessibility:
                             ///   - elevators:
+                            ///   - velib:
                             internal init(
                                 ban: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.banPayload,
                                 accessibility: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.accessibilityPayload,
-                                elevators: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.elevatorsPayload
+                                elevators: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.elevatorsPayload,
+                                velib: Operations.search_period_query.Output.Ok.Body.jsonPayload.sourcesPayload.velibPayload
                             ) {
                                 self.ban = ban
                                 self.accessibility = accessibility
                                 self.elevators = elevators
+                                self.velib = velib
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case ban
                                 case accessibility
                                 case elevators
+                                case velib
                             }
                         }
                         /// - Remark: Generated from `#/paths/search/GET/responses/200/content/json/sources`.

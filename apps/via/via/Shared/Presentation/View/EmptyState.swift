@@ -131,6 +131,18 @@ extension EmptyState {
         message: "Modifie le filtre Ascenseurs ou réessaie après la prochaine mise à jour.",
     )
 
+    static let bikeStationsUnavailable = EmptyState(
+        systemImage: "bicycle",
+        title: "Vélib’ indisponible",
+        message: "La disponibilité des stations ne répond pas. Réessaie dans un instant.",
+    )
+
+    static let noBikeStationsInArea = EmptyState(
+        systemImage: "bicycle",
+        title: "Aucune station Vélib’ dans cette zone",
+        message: "Déplace la carte pour explorer une autre zone.",
+    )
+
     static let noOperationalElevatorRoute = EmptyState(
         systemImage: "arrow.up.arrow.down.square",
         title: "Aucun trajet avec ascenseurs vérifiés",

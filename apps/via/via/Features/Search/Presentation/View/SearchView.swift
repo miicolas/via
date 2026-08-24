@@ -248,6 +248,7 @@ struct SearchView: View {
           datetimeRepresents: viewModel.wrappedValue.datetimeRepresents,
           requiresAccessibleStations: viewModel.wrappedValue.filters.requiresAccessibleStations,
           requiresOperationalElevators: viewModel.wrappedValue.filters.requiresOperationalElevators,
+          bikeStationsOnly: viewModel.wrappedValue.filters.bikeStationsOnly,
           onEditTime: { isNaturalDatePickerPresented = true },
           onToggleAccessibleStations: {
             viewModel.wrappedValue.setRequiresAccessibleStations(
@@ -257,6 +258,11 @@ struct SearchView: View {
           onToggleOperationalElevators: {
             viewModel.wrappedValue.setRequiresOperationalElevators(
               !viewModel.wrappedValue.filters.requiresOperationalElevators
+            )
+          },
+          onToggleBikeStationsOnly: {
+            viewModel.wrappedValue.setBikeStationsOnly(
+              !viewModel.wrappedValue.filters.bikeStationsOnly
             )
           },
           onShowAccessibilityInfo: { isAccessibilityInfoPresented = true },
@@ -288,7 +294,7 @@ struct SearchView: View {
 
       if viewModel.wrappedValue.showsRecentSearches {
         Section {
-          ForEach(viewModel.wrappedValue.recentSearches) { recent in
+          ForEach(viewModel.wrappedValue.visibleRecentSearches) { recent in
             SearchResultRow(
               result: recent.searchResult,
               accessibilityHint: isSelectingSavedDestination
@@ -361,6 +367,7 @@ struct SearchView: View {
             datetimeRepresents: viewModel.wrappedValue.datetimeRepresents,
             requiresAccessibleStations: viewModel.wrappedValue.filters.requiresAccessibleStations,
             requiresOperationalElevators: viewModel.wrappedValue.filters.requiresOperationalElevators,
+            bikeStationsOnly: viewModel.wrappedValue.filters.bikeStationsOnly,
             onEditTime: { isNaturalDatePickerPresented = true },
             onToggleAccessibleStations: {
               viewModel.wrappedValue.setRequiresAccessibleStations(
@@ -553,7 +560,7 @@ extension SearchResult {
       let routes = station.routes.prefix(3).map(\.shortName).joined(separator: " · ")
       return routes.isEmpty ? "Station" : routes
     case .address(let address):
-      return address.context.isEmpty ? "Adresse" : address.context
+      return address.subtitle
     }
   }
 
@@ -561,8 +568,8 @@ extension SearchResult {
     switch self {
     case .station(let station):
       station.routes.first?.mode.chipSystemImage ?? "tram.fill"
-    case .address:
-      "mappin.and.ellipse"
+    case .address(let address):
+      address.isBikeStation ? "bicycle" : "mappin.and.ellipse"
     }
   }
 }

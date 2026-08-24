@@ -173,6 +173,34 @@ final class JourneyProgressTests: XCTestCase {
         XCTAssertEqual(progress.projectedCoordinate?.longitude ?? 0, 2.35, accuracy: 0.002)
     }
 
+    func testEstimatedWalkingPositionStaysAtTheSectionOrigin() {
+        let schedule = ActiveJourneyRules.schedule(for: makeJourney())
+
+        let progress = JourneyProgressProjector.progress(
+            schedule: schedule,
+            sectionIndex: 1,
+            at: referenceDate.addingTimeInterval(750),
+            coordinate: nil,
+            horizontalAccuracy: nil
+        )
+
+        XCTAssertTrue(progress.isEstimated)
+        XCTAssertEqual(progress.projectedCoordinate?.longitude ?? 0, east.longitude, accuracy: 0.002)
+    }
+
+    func testNearestSectionIndexFindsTheSectionContainingTheFix() {
+        let schedule = ActiveJourneyRules.schedule(for: makeJourney())
+        let coordinate = GeoCoordinate(latitude: 48.8600, longitude: 2.3750)
+
+        let index = JourneyProgressProjector.nearestSectionIndex(
+            schedule: schedule,
+            to: coordinate,
+            horizontalAccuracy: 10
+        )
+
+        XCTAssertEqual(index, 0)
+    }
+
     // MARK: - Splitting
 
     func testSplitCutsTheLineInTwoAtTheGivenFraction() {

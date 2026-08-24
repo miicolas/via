@@ -15,6 +15,7 @@ enum SavedDestinationSymbols {
         "tram.fill",
         "airplane",
         "car.fill",
+        "bicycle",
         "building.2.fill",
         "tree.fill",
         "person.2.fill",
@@ -24,8 +25,8 @@ enum SavedDestinationSymbols {
         switch result {
         case .station:
             "tram.fill"
-        case .address:
-            "mappin"
+        case .address(let address):
+            address.isBikeStation ? "bicycle" : "mappin"
         }
     }
 

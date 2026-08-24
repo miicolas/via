@@ -109,7 +109,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
 
             let split = JourneyProgressProjector.split(
                 coordinates: segment.coordinates,
-                at: progress.fractionInSection
+                at: progress.splitFraction(for: segment)
             )
             return [
                 split.traveled.count >= 2
@@ -163,12 +163,12 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
         let ahead = segments
             .filter { $0.sectionIndex > progress.sectionIndex }
             .flatMap(\.coordinates)
-        let current = segments
+        let current: [GeoCoordinate] = segments
             .first { $0.sectionIndex == progress.sectionIndex }
             .map {
                 JourneyProgressProjector.split(
                     coordinates: $0.coordinates,
-                    at: progress.fractionInSection
+                    at: progress.splitFraction(for: $0)
                 ).remaining
             } ?? []
 
@@ -259,15 +259,24 @@ extension JourneyProgress {
             overallFraction: JourneyProgress.mapStep(overallFraction),
             passedStopCount: passedStopCount,
             stopsUntilAlighting: stopsUntilAlighting,
-            // Only the annotations and the split read this value, and neither
-            // reads the coordinate. Keeping it would defeat the whole point:
-            // it moves with every single fix.
-            projectedCoordinate: nil,
+            // The split reads the quantized fraction, while the position
+            // annotation needs the projected point to follow the route.
+            projectedCoordinate: projectedCoordinate,
             isLocationDerived: isLocationDerived
         )
     }
 
     private static func mapStep(_ fraction: Double) -> Double {
         (fraction * 200).rounded() / 200
+    }
+}
+
+extension JourneyProgress {
+    /// Where a drawn segment is cut in two. Timetables can place us on a
+    /// transit vehicle, but they cannot tell us which part of a walking
+    /// transfer we have crossed — so an estimated position leaves a pedestrian
+    /// segment intact until a live fix returns.
+    func splitFraction(for segment: JourneyMapSegment) -> Double {
+        isLocationDerived || !segment.isPedestrian ? fractionInSection : 0
     }
 }

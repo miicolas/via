@@ -83,6 +83,17 @@ const envSchema = z.object({
   VIA_ALLOWED_ORIGINS: originList(),
   /** The Géoplateforme (BAN) geocoder. Overridable to point tests at a fake. */
   BAN_SEARCH_URL: z.url().default("https://data.geopf.fr/geocodage/search"),
+  /** Public GBFS feeds published by Vélib' Métropole and refreshed every minute. */
+  VELIB_STATION_INFORMATION_URL: z
+    .url()
+    .default(
+      "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_information.json",
+    ),
+  VELIB_STATION_STATUS_URL: z
+    .url()
+    .default(
+      "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json",
+    ),
   /** Local or hosted Redis used for the PRIM cache and daily quota counter. */
   REDIS_URL: z.url().default("redis://localhost:6379"),
   /**

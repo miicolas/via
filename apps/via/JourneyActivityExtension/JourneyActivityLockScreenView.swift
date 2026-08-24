@@ -138,6 +138,49 @@ extension JourneyActivityAttributes.ContentState {
         case .ended: phaseTitle
         }
     }
+
+    /// What the status badge says. An alert condition speaks over the journey
+    /// phase; `overridesPhase` is that same test, so the widget decides whether
+    /// to show the badge from this ladder instead of re-listing its conditions.
+    struct Status {
+        let title: String
+        let systemImage: String
+        let tint: Color
+        let overridesPhase: Bool
+    }
+
+    func status(isStale: Bool) -> Status {
+        if isStale {
+            return Status(
+                title: "Mise à jour suspendue",
+                systemImage: "pause.circle.fill",
+                tint: .orange,
+                overridesPhase: true
+            )
+        }
+        if isOffline {
+            return Status(
+                title: "Hors connexion",
+                systemImage: "wifi.slash",
+                tint: .orange,
+                overridesPhase: true
+            )
+        }
+        if isEstimated {
+            return Status(
+                title: "Position estimée",
+                systemImage: "clock.badge.questionmark",
+                tint: .orange,
+                overridesPhase: true
+            )
+        }
+        return Status(
+            title: phaseStatusTitle,
+            systemImage: phaseSystemImage,
+            tint: phaseTint,
+            overridesPhase: false
+        )
+    }
 }
 
 struct JourneyActivityStatusView: View {
@@ -147,33 +190,20 @@ struct JourneyActivityStatusView: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: symbolName)
+            Image(systemName: status.systemImage)
                 .font(.caption2.weight(.semibold))
                 .accessibilityHidden(true)
 
-            Text(title)
+            Text(status.title)
                 .lineLimit(1)
         }
         .font(compact ? .caption2.weight(.semibold) : .caption.weight(.semibold))
-        .foregroundStyle(tint)
+        .foregroundStyle(status.tint)
         .accessibilityElement(children: .combine)
     }
 
-    private var title: String {
-        if isStale { return "Mise à jour suspendue" }
-        if state.isOffline { return "Hors connexion" }
-        return state.phaseStatusTitle
-    }
-
-    private var symbolName: String {
-        if isStale { return "pause.circle.fill" }
-        if state.isOffline { return "wifi.slash" }
-        return state.phaseSystemImage
-    }
-
-    private var tint: Color {
-        if isStale || state.isOffline { return .orange }
-        return state.phaseTint
+    private var status: JourneyActivityAttributes.ContentState.Status {
+        state.status(isStale: isStale)
     }
 }
 
@@ -182,26 +212,13 @@ struct JourneyActivityStatusIcon: View {
     let isStale: Bool
 
     var body: some View {
-        Image(systemName: symbolName)
-            .foregroundStyle(tint)
-            .accessibilityLabel(title)
+        Image(systemName: status.systemImage)
+            .foregroundStyle(status.tint)
+            .accessibilityLabel(status.title)
     }
 
-    private var title: String {
-        if isStale { return "Mise à jour suspendue" }
-        if state.isOffline { return "Hors connexion" }
-        return state.phaseStatusTitle
-    }
-
-    private var symbolName: String {
-        if isStale { return "pause.circle.fill" }
-        if state.isOffline { return "wifi.slash" }
-        return state.phaseSystemImage
-    }
-
-    private var tint: Color {
-        if isStale || state.isOffline { return .orange }
-        return state.phaseTint
+    private var status: JourneyActivityAttributes.ContentState.Status {
+        state.status(isStale: isStale)
     }
 }
 

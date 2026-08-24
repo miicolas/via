@@ -31,6 +31,7 @@ struct NetworkStationDTO: Decodable {
     let coordinate: CoordinateDTO
     let routeIds: [String]
     let accessibility: Accessibility?
+    let hasElevators: Bool?
     let toilets: Toilets?
 
     func domain() -> NetworkStation {
@@ -49,6 +50,7 @@ struct NetworkStationDTO: Decodable {
                     comment: value.comment
                 )
             },
+            hasElevators: hasElevators ?? false,
             toilets: toilets.map { StationToilets(label: $0.label, detail: $0.detail) }
         )
     }
@@ -81,13 +83,41 @@ struct RailMapDTO: Decodable {
 }
 
 struct StationsAreaDTO: Decodable {
+    struct Sources: Decodable {
+        let velib: String
+    }
+
     let stations: [NetworkStationDTO]
     let routes: [RouteBadgeDTO]
+    let bikeStations: [BikeStationDTO]?
+    let sources: Sources?
 
     func domain() throws -> StationsArea {
         StationsArea(
             stations: stations.map { $0.domain() },
-            routes: try routes.map { try $0.domain() }
+            routes: try routes.map { try $0.domain() },
+            bikeStations: (bikeStations ?? []).map { $0.domain },
+            bikeSourceAvailable: sources?.velib == "ok"
+        )
+    }
+}
+
+struct BikeStationDTO: Decodable {
+    let id: String
+    let stationCode: String?
+    let name: String
+    let coordinate: CoordinateDTO
+    let capacity: Int
+    let availability: BikeStationAvailability?
+
+    var domain: BikeStation {
+        BikeStation(
+            id: id,
+            stationCode: stationCode,
+            name: name,
+            coordinate: coordinate.domain,
+            capacity: capacity,
+            availability: availability
         )
     }
 }

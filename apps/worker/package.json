@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "bun --env-file=../../.env test",
+    "test:gtfs-integration": "bun test src/import-gtfs.integration.test.ts",
+    "sync-gtfs": "bun --env-file=../../.env src/prim/cli.ts",
     "import-elevators": "bun --env-file=../../.env src/elevators/cli.ts",
     "import-station-peaks": "bun --env-file=../../.env src/station-peaks/cli.ts",
     "import-toilets": "bun --env-file=../../.env src/toilets/cli.ts",
@@ -14,7 +16,8 @@
   "dependencies": {
     "@via/db": "workspace:*",
     "csv-parse": "^6.1.0",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "extract-zip": "^2.0.1"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

@@ -3,9 +3,11 @@ import * as z from 'zod';
 import {
   accessibilityConditionSchema,
   coordinateSchema,
+  queryBooleanSchema,
   routeBadgeSchema,
   sourceSnapshotStatusSchema,
 } from '../shared/schema';
+import { bikeStationAvailabilitySchema } from '../network/schema';
 
 export const searchInputSchema = z
   .object({
@@ -18,6 +20,8 @@ export const searchInputSchema = z
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
     limit: z.int().min(1).max(20).default(10),
+    /** Restrict the unified search to Vélib' stations. */
+    bikeStationsOnly: queryBooleanSchema.optional(),
   })
   .refine((input) => (input.latitude === undefined) === (input.longitude === undefined), {
     message: 'latitude et longitude vont ensemble',
@@ -52,6 +56,8 @@ export const addressSearchResultSchema = z.object({
   context: z.string(),
   coordinate: coordinateSchema,
   distanceMeters: z.number().optional(),
+  /** Present when this coordinate is a live Vélib' station rather than a BAN address. */
+  bikeStation: bikeStationAvailabilitySchema.optional(),
 });
 
 export const searchResultSchema = z.discriminatedUnion('kind', [
@@ -74,5 +80,6 @@ export const searchResponseSchema = z.object({
       importedAt: z.iso.datetime({ offset: true }).optional(),
     }),
     elevators: sourceSnapshotStatusSchema,
+    velib: z.enum(['ok', 'unavailable']),
   }),
 });

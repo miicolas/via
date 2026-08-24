@@ -4133,6 +4133,47 @@
                                     },
                                     "distanceMeters": {
                                       "type": "number"
+                                    },
+                                    "bikeStation": {
+                                      "type": "object",
+                                      "properties": {
+                                        "mechanicalBikes": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "electricBikes": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "docks": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "isInstalled": {
+                                          "type": "boolean"
+                                        },
+                                        "isRenting": {
+                                          "type": "boolean"
+                                        },
+                                        "isReturning": {
+                                          "type": "boolean"
+                                        },
+                                        "lastReportedAt": {
+                                          "type": "string",
+                                          "format": "date-time"
+                                        }
+                                      },
+                                      "required": [
+                                        "mechanicalBikes",
+                                        "electricBikes",
+                                        "docks",
+                                        "isInstalled",
+                                        "isRenting",
+                                        "isReturning"
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -4359,6 +4400,47 @@
                                     },
                                     "distanceMeters": {
                                       "type": "number"
+                                    },
+                                    "bikeStation": {
+                                      "type": "object",
+                                      "properties": {
+                                        "mechanicalBikes": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "electricBikes": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "docks": {
+                                          "type": "integer",
+                                          "minimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "isInstalled": {
+                                          "type": "boolean"
+                                        },
+                                        "isRenting": {
+                                          "type": "boolean"
+                                        },
+                                        "isReturning": {
+                                          "type": "boolean"
+                                        },
+                                        "lastReportedAt": {
+                                          "type": "string",
+                                          "format": "date-time"
+                                        }
+                                      },
+                                      "required": [
+                                        "mechanicalBikes",
+                                        "electricBikes",
+                                        "docks",
+                                        "isInstalled",
+                                        "isRenting",
+                                        "isReturning"
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -6582,6 +6664,9 @@
                               "label"
                             ]
                           },
+                          "hasElevators": {
+                            "type": "boolean"
+                          },
                           "toilets": {
                             "type": "object",
                             "properties": {
@@ -6738,6 +6823,9 @@
                               "label"
                             ]
                           },
+                          "hasElevators": {
+                            "type": "boolean"
+                          },
                           "toilets": {
                             "type": "object",
                             "properties": {
@@ -6797,11 +6885,112 @@
                           "textColor"
                         ]
                       }
+                    },
+                    "bikeStations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "stationCode": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "coordinate": {
+                            "type": "object",
+                            "properties": {
+                              "latitude": {
+                                "type": "number"
+                              },
+                              "longitude": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "latitude",
+                              "longitude"
+                            ]
+                          },
+                          "capacity": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "availability": {
+                            "type": "object",
+                            "properties": {
+                              "mechanicalBikes": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "electricBikes": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "docks": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "isInstalled": {
+                                "type": "boolean"
+                              },
+                              "isRenting": {
+                                "type": "boolean"
+                              },
+                              "isReturning": {
+                                "type": "boolean"
+                              },
+                              "lastReportedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "mechanicalBikes",
+                              "electricBikes",
+                              "docks",
+                              "isInstalled",
+                              "isRenting",
+                              "isReturning"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "coordinate",
+                          "capacity"
+                        ]
+                      }
+                    },
+                    "sources": {
+                      "type": "object",
+                      "properties": {
+                        "velib": {
+                          "enum": [
+                            "ok",
+                            "unavailable"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "velib"
+                      ]
                     }
                   },
                   "required": [
                     "stations",
-                    "routes"
+                    "routes",
+                    "bikeStations",
+                    "sources"
                   ]
                 }
               }
@@ -6814,7 +7003,7 @@
       "get": {
         "operationId": "search.query",
         "summary": "Recherche unifiée",
-        "description": "Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.",
+        "description": "Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.",
         "tags": [
           "search"
         ],
@@ -6864,6 +7053,16 @@
               "minimum": 1,
               "maximum": 20,
               "default": 10
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "bikeStationsOnly",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             },
             "allowEmptyValue": true,
             "allowReserved": true
@@ -7012,6 +7211,47 @@
                               },
                               "distanceMeters": {
                                 "type": "number"
+                              },
+                              "bikeStation": {
+                                "type": "object",
+                                "properties": {
+                                  "mechanicalBikes": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "electricBikes": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "docks": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "isInstalled": {
+                                    "type": "boolean"
+                                  },
+                                  "isRenting": {
+                                    "type": "boolean"
+                                  },
+                                  "isReturning": {
+                                    "type": "boolean"
+                                  },
+                                  "lastReportedAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                  }
+                                },
+                                "required": [
+                                  "mechanicalBikes",
+                                  "electricBikes",
+                                  "docks",
+                                  "isInstalled",
+                                  "isRenting",
+                                  "isReturning"
+                                ]
                               }
                             },
                             "required": [
@@ -7080,12 +7320,20 @@
                           "required": [
                             "status"
                           ]
+                        },
+                        "velib": {
+                          "enum": [
+                            "ok",
+                            "unavailable"
+                          ],
+                          "type": "string"
                         }
                       },
                       "required": [
                         "ban",
                         "accessibility",
-                        "elevators"
+                        "elevators",
+                        "velib"
                       ]
                     }
                   },

@@ -31,6 +31,9 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
         let nextLine: LineBadge?
         let arrivalAt: Date
         let isOffline: Bool
+        /// The cached timetable is moving the guidance cursor because a fresh
+        /// live location is not currently available.
+        let isEstimated: Bool
         let isArrived: Bool
         /// 0…1 across the whole journey, mirroring the in-app progress bar.
         let progressFraction: Double
@@ -59,6 +62,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             arrivalAt: Date,
             isOffline: Bool,
             isArrived: Bool,
+            isEstimated: Bool,
             progressFraction: Double,
             stopsRemaining: Int?,
             alightStopName: String?,
@@ -73,6 +77,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             self.nextLine = nextLine
             self.arrivalAt = arrivalAt
             self.isOffline = isOffline
+            self.isEstimated = isEstimated
             self.isArrived = isArrived
             self.progressFraction = progressFraction
             self.stopsRemaining = stopsRemaining
@@ -90,6 +95,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             case nextLine
             case arrivalAt
             case isOffline
+            case isEstimated
             case isArrived
             case progressFraction
             case stopsRemaining
@@ -108,6 +114,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             nextLine = try container.decodeIfPresent(LineBadge.self, forKey: .nextLine)
             arrivalAt = try container.decode(Date.self, forKey: .arrivalAt)
             isOffline = try container.decode(Bool.self, forKey: .isOffline)
+            isEstimated = try container.decodeIfPresent(Bool.self, forKey: .isEstimated) ?? false
             isArrived = try container.decode(Bool.self, forKey: .isArrived)
             progressFraction = try container.decode(Double.self, forKey: .progressFraction)
             stopsRemaining = try container.decodeIfPresent(Int.self, forKey: .stopsRemaining)
@@ -126,6 +133,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             try container.encodeIfPresent(nextLine, forKey: .nextLine)
             try container.encode(arrivalAt, forKey: .arrivalAt)
             try container.encode(isOffline, forKey: .isOffline)
+            try container.encode(isEstimated, forKey: .isEstimated)
             try container.encode(isArrived, forKey: .isArrived)
             try container.encode(progressFraction, forKey: .progressFraction)
             try container.encodeIfPresent(stopsRemaining, forKey: .stopsRemaining)

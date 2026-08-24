@@ -18,6 +18,7 @@ struct NetworkStation: Sendable, Hashable, Identifiable {
     let coordinate: GeoCoordinate
     let routeIDs: [RouteID]
     let accessibility: StationAccessibility?
+    let hasElevators: Bool
     let toilets: StationToilets?
 
     init(
@@ -26,6 +27,7 @@ struct NetworkStation: Sendable, Hashable, Identifiable {
         coordinate: GeoCoordinate,
         routeIDs: [RouteID],
         accessibility: StationAccessibility? = nil,
+        hasElevators: Bool = false,
         toilets: StationToilets? = nil
     ) {
         self.id = id
@@ -33,6 +35,7 @@ struct NetworkStation: Sendable, Hashable, Identifiable {
         self.coordinate = coordinate
         self.routeIDs = routeIDs
         self.accessibility = accessibility
+        self.hasElevators = hasElevators
         self.toilets = toilets
     }
 }
@@ -50,6 +53,20 @@ struct TransitNetwork: Sendable, Hashable {
 struct StationsArea: Sendable, Hashable {
     let stations: [NetworkStation]
     let routes: [RouteBadge]
+    let bikeStations: [BikeStation]
+    let bikeSourceAvailable: Bool
+
+    init(
+        stations: [NetworkStation],
+        routes: [RouteBadge],
+        bikeStations: [BikeStation] = [],
+        bikeSourceAvailable: Bool = true
+    ) {
+        self.stations = stations
+        self.routes = routes
+        self.bikeStations = bikeStations
+        self.bikeSourceAvailable = bikeSourceAvailable
+    }
 }
 
 struct ViewportTile: Sendable, Hashable, Identifiable {

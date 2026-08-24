@@ -150,6 +150,14 @@ final class LocationModel {
         journeyTrackingStartedAt = nil
     }
 
+    /// Nudges Core Location after connectivity returns. The location stream
+    /// remains the same; this only asks the adapter to resume if it had paused
+    /// updates while the traveller was underground.
+    func refreshJourneyTracking() {
+        guard !trackingContinuations.isEmpty else { return }
+        adapter.startUpdatingLocation(allowsBackgroundUpdates: allowsJourneyBackgroundUpdates)
+    }
+
     @ObservationIgnored private var updateContinuations: [UUID: AsyncStream<LocationState>.Continuation] = [:]
 
     private func stateUpdates(

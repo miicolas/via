@@ -62,7 +62,7 @@ struct JourneyProgressBar: View {
         MarkBadge(
             tint: Self.knobTint,
             size: knobSize,
-            isEstimated: !progress.isLocationDerived,
+            isEstimated: progress.isEstimated,
             showsHalo: false
         )
     }

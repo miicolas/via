@@ -65,7 +65,8 @@ struct JourneyActivityWidget: Widget {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                if context.isStale || context.state.isOffline || context.state.presentationPhase == .paused {
+                if context.state.status(isStale: context.isStale).overridesPhase
+                    || context.state.presentationPhase == .paused {
                     JourneyActivityStatusIcon(
                         state: context.state,
                         isStale: context.isStale
@@ -136,7 +137,7 @@ struct JourneyActivityWidget: Widget {
         for state: JourneyActivityAttributes.ContentState,
         isStale: Bool
     ) -> some View {
-        if isStale || state.isOffline || state.presentationPhase == .paused {
+        if state.status(isStale: isStale).overridesPhase || state.presentationPhase == .paused {
             JourneyActivityStatusIcon(state: state, isStale: isStale)
         } else if state.presentationPhase == .arrived {
             Image(systemName: "checkmark")

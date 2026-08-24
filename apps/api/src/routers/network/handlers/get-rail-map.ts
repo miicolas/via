@@ -3,7 +3,7 @@ import { redis } from '../../../redis';
 import { transitNetworkCacheVersion } from '../../departures/network-version';
 import { selectDrawnPatterns, selectRailStationPositions } from '../queries';
 import { toRailMap } from '../to-rail-map';
-import { NETWORK_CACHE_CONTROL } from './network-cache-control';
+import { RAIL_MAP_CACHE_CONTROL } from './network-cache-control';
 
 type RailMap = ReturnType<typeof toRailMap>;
 
@@ -26,7 +26,7 @@ export const getRailMap = implementer.network.railMap.handler(async ({ context }
   const version = await transitNetworkCacheVersion(redis);
   const value = await railMap(version);
 
-  context.resHeaders?.set('Cache-Control', NETWORK_CACHE_CONTROL);
+  context.resHeaders?.set('Cache-Control', RAIL_MAP_CACHE_CONTROL);
 
   return value;
 });

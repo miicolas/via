@@ -6,6 +6,14 @@ import Observation
 @Observable
 final class NetworkViewModel {
   private(set) var state: NetworkMapState = .idle
+  var stationFilter = StationMapFilter() {
+    didSet {
+      guard stationFilter != oldValue else { return }
+      scheduleBikeRefresh()
+      guard let lastViewport else { return }
+      publishSnapshot(for: lastViewport, loading: state.loading)
+    }
+  }
 
   @ObservationIgnored private let repository: any NetworkRepository
   @ObservationIgnored private var routeLayout: TransitRouteLayout?
@@ -13,6 +21,12 @@ final class NetworkViewModel {
   @ObservationIgnored private var positionedViewport: TransitMapViewport?
   @ObservationIgnored private var routesGeneration = 0
   @ObservationIgnored private var loadedStations: [StationMapItem] = []
+  /// Kept apart from `loadedStations`: the layer is off by default, and
+  /// `publishSnapshot` runs on every camera frame — no reason to walk a
+  /// thousand docks per frame only to reject them.
+  @ObservationIgnored private var loadedBikeStations: [StationMapItem] = []
+  @ObservationIgnored private var bikeSourceAvailable = true
+  @ObservationIgnored private var bikeRefreshTask: Task<Void, Never>?
   @ObservationIgnored private var viewportTask: Task<Void, Never>?
   @ObservationIgnored private var viewportRevision = 0
   @ObservationIgnored private var lastViewport: NetworkViewport?
@@ -104,10 +118,12 @@ final class NetworkViewModel {
       publishSnapshot(for: viewport, loading: .loading)
 
       if viewport.showsStations {
-        let fetchedStations = try await repository.viewport(in: viewport.bounds).mapItems
+        let fetchedArea = try await repository.viewport(in: viewport.bounds)
         try Task.checkCancellation()
         guard revision == viewportRevision else { return }
-        loadedStations = fetchedStations
+        loadedStations = fetchedArea.transitMapItems
+        loadedBikeStations = fetchedArea.bikeMapItems
+        bikeSourceAvailable = fetchedArea.bikeSourceAvailable
       }
       publishSnapshot(for: viewport, loading: .loaded)
       AppLog.network.debug(
@@ -125,18 +141,43 @@ final class NetworkViewModel {
 
   func stationMapItem(for stationID: StationID) -> StationMapItem? {
     loadedStations.first { $0.id == stationID }
+      ?? loadedBikeStations.first { $0.id == stationID }
+  }
+
+  /// Dock counts move by the minute while the rest of a tile is reference
+  /// data, so the layer being on is what decides the refresh — not the view
+  /// that happens to be drawing it.
+  private func scheduleBikeRefresh() {
+    bikeRefreshTask?.cancel()
+    guard stationFilter.contains(.bikeStations) else { return }
+    bikeRefreshTask = Task { [weak self] in
+      while !Task.isCancelled {
+        do {
+          try await Task.sleep(for: BikeStation.freshness)
+        } catch {
+          return
+        }
+        guard let self else { return }
+        retry()
+      }
+    }
   }
 
   private func publishSnapshot(
     for viewport: NetworkViewport,
     loading: NetworkMapLoadingState
   ) {
-    let visibleStations: [StationMapItem]
+    var visibleStations: [StationMapItem] = []
     if viewport.showsStations {
       let bounds = viewport.bounds
-      visibleStations = loadedStations.filter { bounds.contains($0.coordinate) }
-    } else {
-      visibleStations = []
+      visibleStations = loadedStations.filter {
+        bounds.contains($0.coordinate) && stationFilter.matches($0)
+      }
+      if stationFilter.contains(.bikeStations) {
+        visibleStations += loadedBikeStations.filter {
+          bounds.contains($0.coordinate) && stationFilter.matches($0)
+        }
+      }
     }
     let refreshed = NetworkMapState(
       snapshot: NetworkMapSnapshot(
@@ -144,7 +185,8 @@ final class NetworkViewModel {
         routesGeneration: routesGeneration,
         stations: visibleStations,
         lineStyle: viewport.lineStyle,
-        stationOpacity: viewport.stationOpacity
+        stationOpacity: viewport.stationOpacity,
+        bikeSourceAvailable: bikeSourceAvailable
       ),
       loading: loading
     )
