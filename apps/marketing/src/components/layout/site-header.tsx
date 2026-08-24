@@ -2,11 +2,11 @@
 
 import { navigation } from "@/constants/navigation";
 import { project } from "@/constants/project";
-import { MARKETING_EASE } from "@/lib/motion";
+import { MARKETING_EASE, useReducedMotion } from "@/lib/motion";
 import { Brand } from "@/components/ui/brand";
 import { SplitActionLink } from "@/components/ui/split-action-link";
 import { motion } from "motion/react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { DesktopNavigation } from "./desktop-navigation";
 import { HamburgerIcon } from "./hamburger-icon";
 import { HeaderCorner } from "./header-corner";
@@ -15,10 +15,29 @@ import { MobileNavigation } from "./mobile-navigation";
 export function SiteHeader(): ReactNode {
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
+
+  // The page must not scroll behind the open menu, and Escape must close it.
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileOpen]);
 
   return (
     <motion.header
-      initial={{ y: -100 }}
+      initial={reduceMotion ? false : { y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5, ease: MARKETING_EASE }}
       className="fixed top-2.5 left-1/2 z-9998 w-full max-w-5xl -translate-x-1/2 rounded-b-4xl bg-frame shadow-2xl/20 max-[1200px]:max-w-2xl max-[850px]:top-0 max-[850px]:right-0 max-[850px]:left-0 max-[850px]:w-full max-[850px]:max-w-none max-[850px]:translate-x-0 max-[850px]:overflow-hidden max-[850px]:rounded-none max-[850px]:rounded-b-4xl"
@@ -52,10 +71,11 @@ export function SiteHeader(): ReactNode {
 
         <button
           type="button"
-          className="hidden h-10 w-10 items-center justify-center max-[850px]:flex"
+          className="hidden h-11 w-11 items-center justify-center max-[850px]:flex"
           onClick={() => setMobileOpen((current) => !current)}
-          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
           aria-expanded={mobileOpen}
+          aria-controls="mobile-navigation"
         >
           <HamburgerIcon open={mobileOpen} />
         </button>

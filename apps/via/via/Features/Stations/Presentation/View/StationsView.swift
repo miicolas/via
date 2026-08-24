@@ -2,6 +2,9 @@ import SwiftUI
 
 struct StationsView: View {
     let viewModel: StationsViewModel
+    /// Absent in previews and tests, where the tab is still the single nearest
+    /// station it used to be.
+    let nearby: NearbyStationsModel?
     let selectedStation: SelectedStationModel
     let accountModel: AccountModel
 
@@ -9,6 +12,7 @@ struct StationsView: View {
     @Binding var detailDetent: PresentationDetent
     let profileModel: ProfileModel
 
+    let onSelectNearby: (StationMapItem) -> Void
     let onOpenSearch: () -> Void
     let naturalLanguageAccess: NaturalLanguageAccess
     let showsNaturalSearchDiscovery: Bool
@@ -82,15 +86,124 @@ struct StationsView: View {
     /// Only the first load gets a skeleton — a refresh keeps the stations on
     /// screen and says so inline instead.
     private var isInitialLoading: Bool {
+        if let nearby {
+            guard nearby.results.isEmpty else { return false }
+            switch nearby.loading {
+            // `.idle` means the map has not reported a centre yet — still a
+            // first load, not an answer.
+            case .idle, .loading: return true
+            case .loaded, .failed: return false
+            }
+        }
         switch viewModel.state {
-        case .idle, .locating: true
-        case let .loading(previous): previous == nil
-        case .loaded, .empty, .locationUnavailable, .failed: false
+        case .idle, .locating: return true
+        case let .loading(previous): return previous == nil
+        case .loaded, .empty, .locationUnavailable, .failed: return false
         }
     }
 
     @ViewBuilder
     private var settledContent: some View {
+        if let nearby {
+            nearbyContent(nearby)
+        } else {
+            singleStationContent
+        }
+    }
+
+    /// The tab as a nearby list: whatever matches the filter within
+    /// `NearbyStationsModel.radiusMeters` of the map's centre, nearest first.
+    /// The leading station keeps its departure board; the rest say where they
+    /// are and why they matched, because a board is one request per station.
+    @ViewBuilder
+    private func nearbyContent(_ nearby: NearbyStationsModel) -> some View {
+        if nearby.results.isEmpty {
+            if case let .failed(error) = nearby.loading {
+                errorContent(for: error)
+            } else if nearby.filter.isActive {
+                filteredContent(nearby)
+            } else {
+                emptyContent
+            }
+        } else {
+            nearbyList(nearby)
+        }
+    }
+
+    private func nearbyList(_ nearby: NearbyStationsModel) -> some View {
+        let hero = viewModel.state.overview
+        let others = nearby.results.filter { $0.id != hero?.id }
+
+        return List {
+            placePicker
+
+            if let hero {
+                Section {
+                    Button {
+                        detailDetent = isLargeScreen ? .fraction(0.97) : .large
+                        selectedStation.select(hero)
+                    } label: {
+                        StationRowLabel(station: hero)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets(top: 12, leading: 20, bottom: 12, trailing: 20))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
+            }
+
+            if !others.isEmpty {
+                Section("À proximité") {
+                    ForEach(others) { station in
+                        NearbyStationRow(station: station, filter: nearby.filter) {
+                            onSelectNearby(station.item)
+                        }
+                        .listRowInsets(
+                            EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20)
+                        )
+                        .listRowBackground(Color.clear)
+                    }
+                }
+            }
+
+            if case let .failed(error) = nearby.loading {
+                StationRefreshStatusView(
+                    message: message(for: error),
+                    onRetry: viewModel.retry,
+                )
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .refreshable {
+            await viewModel.refresh()
+        }
+    }
+
+    /// Everything is there, the filter is hiding it. The way out is the map's
+    /// own filter control, so the sentence points at it rather than repeating
+    /// it as a button this screen does not own.
+    private func filteredContent(_ nearby: NearbyStationsModel) -> some View {
+        EmptyStateView(
+            .filtered(
+                title: "Aucune station ne correspond",
+                message: nearby.matchesBeforeFilter > 0
+                    ? "\(nearby.matchesBeforeFilter) stations autour de ce point, aucune ne réunit les critères choisis."
+                    : "Aucune station autour de ce point. Déplacez la carte pour explorer une autre zone."
+            )
+        ) {
+            EmptyStateHint(
+                Text("Touchez \(Image(systemName: "line.3.horizontal.decrease")) sur la carte pour changer les filtres"),
+                label: "Ouvrir les filtres de la carte",
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var singleStationContent: some View {
         switch viewModel.state {
         case .idle, .locating:
             EmptyView()
@@ -133,21 +246,7 @@ struct StationsView: View {
         refreshError: ViaError? = nil,
     ) -> some View {
         List {
-            StationPlacePicker(
-                places: accountModel.places,
-                destinations: accountModel.destinations,
-                onOpen: onOpenSavedDestination,
-                onConfigure: onConfigurePlace,
-                onAdd: onAddSavedDestination,
-                onEditPlace: onEditPlace,
-                onEditDestination: onEditSavedDestination,
-                onClearPlace: { accountModel.removePlace(for: $0) },
-                onRemoveDestination: { accountModel.removeDestination(id: $0) },
-                onManage: onManageSavedDestinations
-            )
-                .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+            placePicker
 
             Button {
                 detailDetent = isLargeScreen ? .fraction(0.97) : .large
@@ -184,6 +283,24 @@ struct StationsView: View {
         .refreshable {
             await viewModel.refresh()
         }
+    }
+
+    private var placePicker: some View {
+        StationPlacePicker(
+            places: accountModel.places,
+            destinations: accountModel.destinations,
+            onOpen: onOpenSavedDestination,
+            onConfigure: onConfigurePlace,
+            onAdd: onAddSavedDestination,
+            onEditPlace: onEditPlace,
+            onEditDestination: onEditSavedDestination,
+            onClearPlace: { accountModel.removePlace(for: $0) },
+            onRemoveDestination: { accountModel.removeDestination(id: $0) },
+            onManage: onManageSavedDestinations
+        )
+        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
     }
 
     private var emptyContent: some View {
@@ -294,6 +411,7 @@ struct StationsView: View {
             networkRepository: InMemoryNetworkRepository.mapPreview,
             departuresRepository: InMemoryDeparturesRepository.stationsPreview,
         ),
+        nearby: nil,
         selectedStation: SelectedStationModel(
             departuresRepository: InMemoryDeparturesRepository.stationsPreview,
             reportRepository: InMemoryReportRepository(),
@@ -304,6 +422,7 @@ struct StationsView: View {
         isLargeScreen: .constant(false),
         detailDetent: .constant(.large),
         profileModel: ProfileModel(store: InMemoryProfileStore()),
+        onSelectNearby: { _ in },
         onOpenSearch: {},
         naturalLanguageAccess: .active,
         showsNaturalSearchDiscovery: true,

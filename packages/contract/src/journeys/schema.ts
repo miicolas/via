@@ -91,10 +91,11 @@ export const journeyQualifierSchema = z.enum([
   'less-walking',
   'comfort',
   'walking',
+  'bike',
 ]);
 
 export const journeyStatusSchema = z.enum(['normal', 'disrupted', 'theoretical']);
-export const journeySectionTypeSchema = z.enum(['walk', 'wait', 'transfer', 'transit']);
+export const journeySectionTypeSchema = z.enum(['walk', 'bike', 'wait', 'transfer', 'transit']);
 
 export const journeyStopSchema = z.object({
   id: z.string(),

@@ -127,7 +127,7 @@ struct JourneySummaryCard: View {
   private var route: some View {
     HStack(spacing: 7) {
       if routeBadges.isEmpty {
-        Label("À pied", systemImage: "figure.walk")
+        Label(isBikeOnly ? "À vélo" : "À pied", systemImage: isBikeOnly ? "bicycle" : "figure.walk")
           .font(.subheadline.weight(.semibold))
           .foregroundStyle(.secondary)
       } else {
@@ -254,6 +254,11 @@ struct JourneySummaryCard: View {
         )
       )
     }
+  }
+
+  private var isBikeOnly: Bool {
+    journey.sections.contains { $0.kind == .bike }
+      && journey.sections.allSatisfy { $0.kind == .bike || $0.kind == .walk }
   }
 
   private var maximumVisibleRouteBadges: Int {

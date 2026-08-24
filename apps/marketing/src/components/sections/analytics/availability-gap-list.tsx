@@ -2,6 +2,7 @@ import {
   elevatorAvailability,
   unavailableDaysPerYear,
 } from "@/constants/analytics-data";
+import { TransitText } from "@/components/ui/transit-text";
 import type { AnalyticsContent } from "@/constants/analytics-page";
 import type { ReactNode } from "react";
 
@@ -33,7 +34,7 @@ export function AvailabilityGapList({
           >
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold text-white">
-                {network.shortName}
+                <TransitText>{network.shortName}</TransitText>
               </span>
               <span className="block text-xs text-white/60">
                 {unavailableDaysPerYear(network.result)} jours par an sans

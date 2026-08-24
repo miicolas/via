@@ -11,16 +11,18 @@ extension Journey.Qualifier {
     case .lessWalking: "Moins de marche"
     case .comfort: "Le plus simple"
     case .walking: "À pied"
+    case .bike: "À vélo"
     }
   }
 
   var systemImage: String {
     switch self {
     case .recommended: "sparkles"
-    case .rapid: "hare.fill"
+    case .rapid: "bolt.fill"
     case .lessWalking: "figure.walk"
     case .comfort: "arrow.forward"
     case .walking: "figure.walk"
+    case .bike: "bicycle"
     }
   }
 
@@ -31,6 +33,7 @@ extension Journey.Qualifier {
     case .lessWalking: .indigo
     case .comfort: .cyan
     case .walking: .secondary
+    case .bike: .teal
     }
   }
 }

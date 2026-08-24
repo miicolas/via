@@ -22,5 +22,6 @@ export async function fetchStopMonitoring(
     signal,
     timeoutMs: PRIM_TIMEOUT_MS,
     logLabel: '[departures] PRIM',
+    telemetry: { provider: 'prim', product: 'stop_monitoring' },
   });
 }

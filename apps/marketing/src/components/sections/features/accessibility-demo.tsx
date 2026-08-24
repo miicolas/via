@@ -1,6 +1,7 @@
 "use client";
 
 import { ElevatorGlyph } from "@/components/ui/elevator-glyph";
+import { TransitText } from "@/components/ui/transit-text";
 import type { FeaturesContent } from "@/constants/features";
 import { Accessibility } from "lucide-react";
 import {
@@ -80,7 +81,7 @@ export function AccessibilityDemo({
             if (dragged.current) return;
             settle(!enabled);
           }}
-          className="relative h-8 w-[52px] shrink-0 cursor-pointer touch-none rounded-full bg-[#e5e5ea]"
+          className="relative h-8 w-[52px] shrink-0 cursor-pointer touch-none rounded-full bg-[#e5e5ea] before:absolute before:-inset-2 before:content-['']"
           role="switch"
           aria-checked={enabled}
           aria-label={content.toggleLabel}
@@ -160,7 +161,7 @@ export function AccessibilityDemo({
                   {content.status}
                 </span>
                 <span className="block truncate text-xs text-neutral-500">
-                  {content.detail}
+                  <TransitText>{content.detail}</TransitText>
                 </span>
               </span>
             </motion.div>

@@ -64,6 +64,15 @@ enum JourneyGuidance {
                 stopsUntilAlighting: nil,
                 alightStopName: nil
             )
+        case .bike:
+            return JourneyGuidanceHeadline(
+                title: "Pédaler jusqu'à \(section.to.name)",
+                detail: "\(JourneyFormatting.duration(section.durationSeconds)) · arrivée à \(JourneyFormatting.time(endsAt))",
+                symbolName: "bicycle",
+                route: nil,
+                stopsUntilAlighting: nil,
+                alightStopName: nil
+            )
         case .transfer:
             return JourneyGuidanceHeadline(
                 title: "Correspondance vers \(section.to.name)",

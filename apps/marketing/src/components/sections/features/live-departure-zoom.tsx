@@ -106,7 +106,7 @@ export function LiveDepartureZoom({
         return (
           <div
             key={row.id}
-            className="flex items-center gap-3 rounded-[1.25rem] p-2.5 sm:gap-4 sm:p-3"
+            className="flex items-center gap-2 rounded-[1.25rem] p-2 sm:gap-4 sm:p-3"
           >
             <span
               className="grid size-11 shrink-0 place-items-center rounded-[0.8rem] border border-white/65 text-xl font-bold shadow-sm sm:size-12"
@@ -128,16 +128,16 @@ export function LiveDepartureZoom({
                 aria-hidden="true"
               >
                 <span
-                  className={`text-neutral-400 tabular-nums ${delta ? "line-through" : ""}`}
+                  className={`whitespace-nowrap text-neutral-400 tabular-nums ${delta ? "line-through" : ""}`}
                 >
                   {frame.scheduled}
                 </span>
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.span
                     key={delta ?? departure.onTimeLabel}
-                    className={
+                    className={`whitespace-nowrap ${
                       delta ? `font-bold ${style.badge}` : "text-neutral-500"
-                    }
+                    }`}
                     initial={reduceMotion ? false : { y: -8, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={reduceMotion ? { opacity: 0 } : { y: 8, opacity: 0 }}
@@ -154,7 +154,7 @@ export function LiveDepartureZoom({
               onClick={() => toggleFavorite(rowIndex)}
               whileTap={reduceMotion ? {} : { scale: 0.8 }}
               transition={STAR_POP}
-              className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-full"
+              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full"
               aria-pressed={favorite}
               aria-label={`Favori ${row.destination}`}
             >
@@ -179,7 +179,7 @@ export function LiveDepartureZoom({
             </motion.button>
 
             <div
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 transition-colors duration-300 sm:px-3.5 ${style.pill} ${style.accent}`}
+              className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-2 transition-colors duration-300 sm:gap-1.5 sm:px-3.5 ${style.pill} ${style.accent}`}
             >
               <span className="sr-only">
                 {`${row.destination}, dans ${frame.minutes} ${frame.minutes > 1 ? "minutes" : "minute"}, ${spokenStatus(frame, departure.onTimeLabel)}`}

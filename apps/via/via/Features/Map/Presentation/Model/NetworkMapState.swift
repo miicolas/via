@@ -28,6 +28,17 @@ struct NetworkViewport: Sendable, Hashable {
       maxLongitude: min(180, center.longitude + longitudeRadius)
     )
   }
+
+  /// Whether a circular nearby query centred on this viewport covers every
+  /// visible corner. A partial circle must never be drawn: its hard edge makes
+  /// unloaded stations look like real gaps in the network.
+  func fitsInside(radiusMeters: Double) -> Bool {
+    guard radiusMeters > 0 else { return false }
+    let latitudeRadiusMeters = latitudeDelta * 111_000 / 2
+    let longitudeRadiusMeters = longitudeDelta * 111_000
+      * cos(center.latitude * .pi / 180) / 2
+    return hypot(latitudeRadiusMeters, longitudeRadiusMeters) <= radiusMeters
+  }
 }
 
 struct NetworkLineStyle: Sendable, Equatable {
@@ -42,23 +53,41 @@ struct NetworkMapSnapshot: Sendable, Equatable {
   /// polyline, and the view model runs it on the main thread for each
   /// continuous camera frame.
   let routesGeneration: Int
+  /// The modes `routes` was narrowed to before publishing; empty when the
+  /// whole network is drawn. Part of equality because a filter change reslices
+  /// the same generation.
+  let routeModes: Set<TransitMode>
   let stations: [StationMapItem]
   let lineStyle: NetworkLineStyle
   let stationOpacity: Double
+  /// A filtered set is capped by a radius and a count before it is asked for,
+  /// so it stays readable at a zoom where the unbounded network would not.
+  /// When it is what is being drawn, the zoom fade does not apply to it.
+  let stationsBypassZoomFade: Bool
   let bikeSourceAvailable: Bool
+
+  /// What the annotations actually render at.
+  var resolvedStationOpacity: Double {
+    stationsBypassZoomFade ? 1 : stationOpacity
+  }
 
   static let empty = NetworkMapSnapshot(
     routes: [],
     routesGeneration: 0,
+    routeModes: [],
     stations: [],
     lineStyle: NetworkLineStyle(opacity: 1, width: 3),
     stationOpacity: 1,
+    stationsBypassZoomFade: false,
     bikeSourceAvailable: true
   )
 
   static func == (lhs: Self, rhs: Self) -> Bool {
-    lhs.routesGeneration == rhs.routesGeneration && lhs.lineStyle == rhs.lineStyle
-      && lhs.stationOpacity == rhs.stationOpacity && lhs.stations == rhs.stations
+    lhs.routesGeneration == rhs.routesGeneration && lhs.routeModes == rhs.routeModes
+      && lhs.lineStyle == rhs.lineStyle
+      && lhs.stationOpacity == rhs.stationOpacity
+      && lhs.stationsBypassZoomFade == rhs.stationsBypassZoomFade
+      && lhs.stations == rhs.stations
       && lhs.bikeSourceAvailable == rhs.bikeSourceAvailable
   }
 }
@@ -87,6 +116,13 @@ extension NetworkViewport {
 
   var showsStations: Bool {
     maximumSpanMeters < Self.maximumStationSpanMeters
+  }
+
+  /// A filtered nearby set can remain visible beyond the normal station
+  /// threshold, but its full labels cannot: at overview scale they collapse
+  /// to symbols, then regain their detailed cards as the traveller zooms in.
+  var usesCompactStationAnnotations: Bool {
+    maximumSpanMeters > Self.fullyVisibleStationSpanMeters
   }
 
   var stationOpacity: Double {

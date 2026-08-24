@@ -20,6 +20,8 @@ enum JourneyActivationAction: String, Sendable, Equatable {
 
 struct JourneySectionSchedule: Sendable, Hashable, Identifiable {
     let section: JourneySection
+    /// The line actually followed on this section — see `Journey.path(at:)`.
+    let path: [GeoCoordinate]
     let startsAt: Date
     let endsAt: Date
 
@@ -67,13 +69,14 @@ enum ActiveJourneyRules {
     static func schedule(for journey: Journey) -> [JourneySectionSchedule] {
         var cursor = journey.departureAt
 
-        return journey.sections.map { section in
+        return journey.sections.enumerated().map { index, section in
             let startsAt = section.departureAt ?? cursor
             let durationEnd = startsAt.addingTimeInterval(TimeInterval(max(0, section.durationSeconds)))
             let endsAt = max(section.arrivalAt ?? durationEnd, startsAt)
             cursor = endsAt
             return JourneySectionSchedule(
                 section: section,
+                path: journey.path(at: index),
                 startsAt: startsAt,
                 endsAt: endsAt
             )

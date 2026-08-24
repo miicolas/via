@@ -9,6 +9,7 @@ import type {
 } from '@via/contract';
 
 import { qualifyDepartureStatus } from '../departures/status';
+import type { CachedStationSnapshot } from '../departures/cache';
 import type { JourneyPlanner } from './service';
 import { selectTimetableRuns, type TimetableRunReader } from './timetable-runs';
 
@@ -17,43 +18,37 @@ type ResolveContext = {
   signal?: AbortSignal;
 };
 
-/** An alternative the planner has already turned into a complete itinerary. */
 type SectionCandidate = {
-  id: string;
   journey: Journey;
   section: JourneySection;
-  source: 'idfm-realtime' | 'gtfs-theoretical' | undefined;
 };
 
-/**
- * One other passage on offer. The timetable can name a passage long before
- * anything has planned around it, so `candidate` is optional: a choice the
- * traveller never picks is never planned.
- */
 type Alternative = {
   id: string;
   departureAt: string;
   arrivalAt?: string;
   serviceId?: string;
+  headsign?: string;
   scheduledAt?: string;
+  scheduledArrivalAt?: string;
   expectedAt?: string;
   status: DepartureStatus;
   source: 'realtime' | 'theoretical';
-  candidate?: SectionCandidate;
 };
 
 type ResolvedGroup = {
   group: JourneyDepartureChoiceGroup;
   section: JourneySection;
   alternatives: Alternative[];
-  currentRevision?: SectionCandidate;
 };
 
-type SectionCandidates = {
-  currentRevision?: SectionCandidate;
-  /** Every matching service, chronological, the held one excluded. */
-  matches: SectionCandidate[];
-  failed?: boolean;
+export type StationDepartureSnapshotReader = (
+  stationId: string,
+) => Promise<CachedStationSnapshot | null>;
+
+type JourneyDepartureChoicesDependencies = {
+  readTimetableRuns?: TimetableRunReader;
+  readStationSnapshot?: StationDepartureSnapshotReader;
 };
 
 export type JourneyDepartureChoicesModule = {
@@ -69,17 +64,19 @@ export class DepartureChoiceUnavailableError extends Error {}
 const CHOICES_PER_SIDE = 3;
 /** How far the timetable is scanned around the held departure. */
 const TIMETABLE_WINDOW_MS = 90 * 60_000;
+const REALTIME_MATCH_WINDOW_SECONDS = 15 * 60;
 
 /**
- * Keeps live passage discovery and journey splicing behind one interface. The
- * app submits the itinerary it is displaying and receives another complete,
- * internally coherent itinerary; no caller ever assembles sections itself.
+ * Keeps local passage discovery, opportunistic realtime enrichment and journey
+ * splicing behind one interface. Passive reads never invoke the planner.
  */
 export function createJourneyDepartureChoicesModule(
   planner: JourneyPlanner,
   clock: { now: () => Date },
-  readTimetableRuns: TimetableRunReader = selectTimetableRuns
+  dependencies: JourneyDepartureChoicesDependencies = {},
 ): JourneyDepartureChoicesModule {
+  const readTimetableRuns = dependencies.readTimetableRuns ?? selectTimetableRuns;
+  const readStationSnapshot = dependencies.readStationSnapshot ?? (async () => null);
   const resolveGroups = async (
     input: JourneyDepartureChoicesInput,
     context: ResolveContext
@@ -95,43 +92,49 @@ export function createJourneyDepartureChoicesModule(
 
     return Promise.all(
       transitSections.map(async ({ section, index, id }) => {
-        // One provider failure must not erase fresh choices already resolved
-        // for the other legs; its group simply keeps the selected service.
-        const planned: SectionCandidates = await plannedCandidates(
-          input,
-          section,
-          id,
-          planner,
-          clock.now(),
-          context
-        ).catch((error) => {
-          if (context.signal?.aborted) throw error;
-          return { matches: [], failed: true as const };
-        });
+        const stationId = section.stops[0]?.stationId ?? section.stops[0]?.id;
+        const [scheduled, snapshot] = await Promise.all([
+          timetableAlternatives(
+            section,
+            id,
+            readTimetableRuns,
+            clock.now(),
+          ).catch((error) => {
+            if (context.signal?.aborted) throw error;
+            return [];
+          }),
+          stationId
+            ? readStationSnapshot(stationId).catch((error) => {
+                if (context.signal?.aborted) throw error;
+                return null;
+              })
+            : Promise.resolve(null),
+        ]);
 
-        const scheduled = await timetableAlternatives(
-          section,
-          id,
-          readTimetableRuns,
-          clock.now()
-        ).catch((error) => {
-          if (context.signal?.aborted) throw error;
-          return [];
-        });
-
-        const source = section.timingSource ?? sourceOf(planned.matches[0]?.source);
         const currentId = departureId(id, section);
-        const currentTiming = departureTiming(section, source);
-        const currentDepartureAt = section.departureAt!;
+        const localCurrent = alternativeFromSection(id, section);
+        const enriched = enrichWithSnapshot(
+          section.route!.id,
+          [localCurrent, ...scheduled],
+          snapshot,
+        );
+        const current = enriched[0]!;
+        const source = current.source === 'realtime'
+          || enriched.some((alternative) => alternative.source === 'realtime')
+          ? ('realtime' as const)
+          : ('theoretical' as const);
+        const currentDepartureAt = current.departureAt;
 
         const alternatives = stepRange(
-          merge(planned.matches, scheduled, currentId),
+          merge(enriched.slice(1), currentId),
           Date.parse(currentDepartureAt),
-          boardingReadyAt(input.journey.sections, index, clock.now())
+          boardingReadyAt(input.journey.sections, index, clock.now()),
         );
-        const fetchedAt = planned.failed && scheduled.length === 0
-          ? undefined
-          : clock.now().toISOString();
+        const fetchedAt = snapshot && enriched.some(
+          (alternative) => alternative.source === 'realtime',
+        )
+          ? new Date(snapshot.fetchedAt * 1_000).toISOString()
+          : undefined;
 
         // Chronological, so the row reads as a timeline the traveller steps
         // along: the services before, the one held, the ones after.
@@ -141,8 +144,10 @@ export function createJourneyDepartureChoicesModule(
             .map(toChoice),
           {
             id: currentId,
-            ...currentTiming,
-            source,
+            scheduledAt: current.scheduledAt,
+            expectedAt: current.expectedAt,
+            status: current.status,
+            source: current.source,
             isSelected: true,
           },
           ...alternatives
@@ -160,9 +165,8 @@ export function createJourneyDepartureChoicesModule(
           },
           section,
           alternatives,
-          currentRevision: planned.currentRevision,
         };
-      })
+      }),
     );
   };
 
@@ -176,21 +180,7 @@ export function createJourneyDepartureChoicesModule(
     resolve: async (input, context) => {
       const initial = await resolveGroups(input, context);
       const selection = input.selection;
-      if (!selection) {
-        const target = initial.find(({ currentRevision }) => currentRevision);
-        if (target?.currentRevision) {
-          const automaticRevision = target.currentRevision;
-          const revised = spliceJourney(
-            input.journey,
-            target.group.sectionId,
-            automaticRevision.journey,
-            automaticRevision.section
-          );
-          const refreshed = await resolveGroups({ ...input, journey: revised }, context);
-          return respond(revised, refreshed);
-        }
-        return respond(input.journey, initial);
-      }
+      if (!selection) return respond(input.journey, initial);
 
       const selected = initial.find(({ group }) => group.sectionId === selection.sectionId);
       const chosen = selected?.alternatives.find(
@@ -200,10 +190,22 @@ export function createJourneyDepartureChoicesModule(
         throw new DepartureChoiceUnavailableError('The selected departure is no longer available');
       }
 
-      // A choice read off the timetable has no itinerary yet: only the one the
-      // traveller actually picks is worth planning.
-      const candidate = chosen.candidate
-        ?? (await materialise(input, selected.section, selection.sectionId, chosen, planner, context));
+      const candidate = scheduledCandidateFromCurrent(
+        input.journey,
+        selected.section,
+        selection.sectionId,
+        chosen,
+      ) ?? (await scheduledCandidateWithReplannedDownstream(
+        input,
+        selected.section,
+        selection.sectionId,
+        chosen,
+        planner,
+        context,
+      ).catch((error) => {
+        if (context.signal?.aborted) throw error;
+        return undefined;
+      }));
       if (!candidate) {
         throw new DepartureChoiceUnavailableError('The selected departure is no longer available');
       }
@@ -260,15 +262,9 @@ function boardingReadyAt(sections: JourneySection[], index: number, now: Date) {
   return now.getTime();
 }
 
-/** Planned alternatives win over scheduled ones: they already carry a journey. */
-function merge(
-  planned: SectionCandidate[],
-  scheduled: Alternative[],
-  currentId: string
-): Alternative[] {
+function merge(scheduled: Alternative[], currentId: string): Alternative[] {
   const byId = new Map<string, Alternative>();
   for (const alternative of scheduled) byId.set(alternative.id, alternative);
-  for (const candidate of planned) byId.set(candidate.id, alternativeFor(candidate));
   byId.delete(currentId);
   return [...byId.values()].sort((a, b) => Date.parse(a.departureAt) - Date.parse(b.departureAt));
 }
@@ -310,7 +306,9 @@ async function timetableAlternatives(
     departureAt: run.departureAt,
     arrivalAt: run.arrivalAt,
     serviceId: canonicalServiceId(run.tripId),
+    headsign: run.headsign,
     scheduledAt: run.departureAt,
+    scheduledArrivalAt: run.arrivalAt,
     status: 'scheduled' as const,
     source: 'theoretical' as const,
   }));
@@ -318,60 +316,6 @@ async function timetableAlternatives(
 
 function stopIdentifiers(stop: { id: string; stationId?: string }) {
   return [stop.stationId, stop.id].filter((value): value is string => Boolean(value));
-}
-
-/**
- * Plans the one run the traveller picked. Anchored a minute before it leaves
- * with the boarding station pinned, an exact trip-id match wins. If the planner
- * prunes that run, the schedule holds it fixed and only the downstream is
- * preserved or replanned.
- */
-async function materialise(
-  input: JourneyDepartureChoicesInput,
-  section: JourneySection,
-  id: string,
-  alternative: Alternative,
-  planner: JourneyPlanner,
-  context: ResolveContext
-): Promise<SectionCandidate | undefined> {
-  const target = Date.parse(alternative.departureAt);
-  const result = await planner.plan(
-    {
-      origin: section.from.coordinate,
-      destination: input.destination,
-      limit: 6,
-      requestedAt: new Date(target - 60_000).toISOString(),
-      datetimeRepresents: 'departure',
-      requiredModes: input.policy.requiredModes,
-      excludedModes: input.policy.excludedModes,
-      preferredModes: input.policy.preferredModes,
-      requiresAccessibleStations: input.policy.requiresAccessibleStations,
-      requiresOperationalElevators: input.policy.requiresOperationalElevators,
-      originStationId: section.stops[0]?.stationId ?? section.stops[0]?.id,
-    },
-    context
-  );
-
-  for (const journey of result.journeys) {
-    const candidate = journey.sections.find((value) => value.type === 'transit');
-    if (!candidate?.departureAt || !sameTransit(section, candidate)) continue;
-    const resolved = {
-      id: departureId(id, candidate),
-      journey,
-      section: candidate,
-      source: result.source,
-    };
-    if (resolved.id === alternative.id) return resolved;
-  }
-  return scheduledCandidateFromCurrent(input.journey, section, id, alternative)
-    ?? (await scheduledCandidateWithReplannedDownstream(
-      input,
-      section,
-      id,
-      alternative,
-      planner,
-      context
-    ));
 }
 
 /**
@@ -402,9 +346,7 @@ function scheduledCandidateFromCurrent(
   const arrivalAt = sections.at(-1)?.arrivalAt ?? selected.arrivalAt!;
   const transitCount = sections.filter((candidate) => candidate.type === 'transit').length;
   return {
-    id: departureId(id, selected),
     section: selected,
-    source: 'gtfs-theoretical',
     journey: {
       ...journey,
       departureAt: selected.departureAt!,
@@ -485,9 +427,7 @@ async function scheduledCandidateWithReplannedDownstream(
   const arrivalAt = downstream.arrivalAt;
   const transitCount = sections.filter((candidate) => candidate.type === 'transit').length;
   return {
-    id: departureId(id, selected),
     section: selected,
-    source: 'gtfs-theoretical',
     journey: {
       ...downstream,
       departureAt: selected.departureAt!,
@@ -522,11 +462,11 @@ function retimeScheduledSection(section: JourneySection, alternative: Alternativ
     ),
     departureAt,
     arrivalAt,
-    scheduledDepartureAt: departureAt,
-    scheduledArrivalAt: arrivalAt,
+    scheduledDepartureAt: alternative.scheduledAt ?? departureAt,
+    scheduledArrivalAt: alternative.scheduledArrivalAt ?? arrivalAt,
     serviceId: alternative.serviceId,
-    timingSource: 'theoretical',
-    departureStatus: 'scheduled',
+    timingSource: alternative.source,
+    departureStatus: alternative.status,
     stops,
   };
 }
@@ -606,166 +546,6 @@ function retimeTrailingSections(sections: JourneySection[], startsAt: string) {
       arrivalAt: new Date(cursor).toISOString(),
     };
   });
-}
-
-async function plannedCandidates(
-  input: JourneyDepartureChoicesInput,
-  section: JourneySection,
-  id: string,
-  planner: JourneyPlanner,
-  now: Date,
-  context: ResolveContext
-): Promise<SectionCandidates> {
-  if (!section.departureAt || !section.route) return { matches: [] };
-  const firstStop = section.stops[0];
-  const originalDeparture = Date.parse(section.departureAt);
-
-  const scan = async (
-    requestedAt: string,
-    datetimeRepresents: 'departure' | 'arrival' = 'departure'
-  ): Promise<SectionCandidates> => {
-    const result = await planner.plan(
-      {
-        origin: section.from.coordinate,
-        destination: input.destination,
-        limit: 6,
-        requestedAt,
-        datetimeRepresents,
-        requiredModes: input.policy.requiredModes,
-        excludedModes: input.policy.excludedModes,
-        preferredModes: input.policy.preferredModes,
-        requiresAccessibleStations: input.policy.requiresAccessibleStations,
-        requiresOperationalElevators: input.policy.requiresOperationalElevators,
-        originStationId: firstStop?.stationId ?? firstStop?.id,
-      },
-      context
-    );
-
-    let currentRevision: SectionCandidate | undefined;
-    const matches: SectionCandidate[] = [];
-    for (const journey of result.journeys) {
-      const candidate = journey.sections.find(
-        (candidateSection) => candidateSection.type === 'transit'
-      );
-      if (!candidate?.departureAt || !sameTransit(section, candidate)) continue;
-      const resolved = {
-        id: departureId(id, candidate),
-        journey,
-        section: candidate,
-        source: result.source,
-      };
-      if (
-        section.serviceId
-        && candidate.serviceId
-        && canonicalServiceId(candidate.serviceId) === canonicalServiceId(section.serviceId)
-      ) {
-        if (hasTimingRevision(section, candidate)) currentRevision = resolved;
-        continue;
-      }
-      // A service that has already left is not a choice, so stepping back can
-      // only ever walk back towards now — never past it.
-      if (Date.parse(candidate.departureAt) <= now.getTime()) continue;
-      matches.push(resolved);
-    }
-    return { currentRevision, matches };
-  };
-
-  /** A second opinion never gets to cost the answers the first pass gave. */
-  const scanSafe = async (
-    requestedAt: string,
-    datetimeRepresents: 'departure' | 'arrival' = 'departure'
-  ) =>
-    scan(requestedAt, datetimeRepresents).catch((error) => {
-      if (context.signal?.aborted) throw error;
-      return { matches: [] } as SectionCandidates;
-    });
-
-  // Asked from just before the selected departure, the planner answers with the
-  // best itineraries leaving around then — and it prunes dominated ones, so the
-  // *next* service on this very line, arriving later for no fewer transfers, is
-  // exactly the kind of answer it drops. This pass still owns the revision of
-  // the selected service, since only it can see that service at all.
-  const around = await scan(new Date(originalDeparture - 5 * 60_000).toISOString());
-  const hasLater = around.matches.some(
-    (candidate) => Date.parse(candidate.section.departureAt!) > originalDeparture
-  );
-  const hasEarlier = around.matches.some(
-    (candidate) => Date.parse(candidate.section.departureAt!) < originalDeparture
-  );
-
-  const [after, before] = await Promise.all([
-    // Ask again from the minute after this departure: with the boarded service
-    // out of reach, the one behind it becomes the earliest answer rather than a
-    // dominated one.
-    hasLater
-      ? Promise.resolve(around)
-      : scanSafe(new Date(originalDeparture + 60_000).toISOString()),
-    // Backwards needs the other search entirely: a departure-anchored plan can
-    // only ever look forward. Anchored on an arrival a minute earlier than the
-    // one held, the reverse search returns the latest departures that still make
-    // it — which is the service just before this one.
-    hasEarlier
-      ? Promise.resolve(around)
-      : scanSafe(new Date(Date.parse(input.journey.arrivalAt) - 60_000).toISOString(), 'arrival'),
-  ]);
-
-  const matches = new Map<string, SectionCandidate>();
-  for (const candidate of [...around.matches, ...after.matches, ...before.matches]) {
-    matches.set(candidate.id, candidate);
-  }
-
-  return {
-    currentRevision: around.currentRevision,
-    matches: [...matches.values()].sort(
-      (a, b) => Date.parse(a.section.departureAt!) - Date.parse(b.section.departureAt!)
-    ),
-  };
-}
-
-function hasTimingRevision(current: JourneySection, candidate: JourneySection) {
-  return current.departureAt !== candidate.departureAt
-    || current.arrivalAt !== candidate.arrivalAt
-    || current.scheduledDepartureAt !== candidate.scheduledDepartureAt
-    || current.scheduledArrivalAt !== candidate.scheduledArrivalAt;
-}
-
-/**
- * Whether a planned ride is another passage of the ride being replaced: the
- * same line, still putting the traveller off where they meant to get off.
- *
- * The headsign is deliberately not part of it. On a RER, consecutive trains
- * towards the same platform carry different mission codes — SARA then ELBA —
- * so comparing them rejected every alternative and left the traveller with the
- * one train the planner happened to pick.
- */
-function sameTransit(original: JourneySection, candidate: JourneySection) {
-  if (!original.route || !candidate.route) return false;
-  const sameRoute = original.route.id === candidate.route.id
-    || (
-      original.route.mode === candidate.route.mode
-      && normalize(original.route.shortName) === normalize(candidate.route.shortName)
-    );
-  if (!sameRoute) return false;
-
-  const originalAlighting = original.stops.at(-1);
-  const candidateAlighting = candidate.stops.at(-1);
-  return Boolean(
-    originalAlighting?.id
-      && candidateAlighting?.id
-      && normalize(originalAlighting.id) === normalize(candidateAlighting.id)
-  ) || Boolean(
-    originalAlighting?.stationId
-      && candidateAlighting?.stationId
-      && normalize(originalAlighting.stationId) === normalize(candidateAlighting.stationId)
-  ) || normalize(original.to.name) === normalize(candidate.to.name)
-    || normalize(originalAlighting?.name) === normalize(candidateAlighting?.name)
-    // A mission that runs past the stop the traveller wanted still serves them.
-    || candidate.stops.some(
-      (stop) =>
-        normalize(stop.id) === normalize(originalAlighting?.id)
-        || (Boolean(stop.stationId)
-          && normalize(stop.stationId) === normalize(originalAlighting?.stationId))
-    );
 }
 
 function spliceJourney(
@@ -855,21 +635,118 @@ function rebuiltWait(
   };
 }
 
-/** An alternative service, timed and labelled by the feed that produced it. */
-function alternativeFor(candidate: SectionCandidate): Alternative {
-  const source = sourceOf(candidate.source);
-  const timing = departureTiming(candidate.section, source);
+function alternativeFromSection(id: string, section: JourneySection): Alternative {
+  const source = section.timingSource === 'theoretical' ? 'theoretical' : 'realtime';
+  const timing = departureTiming(section, source);
   return {
-    id: candidate.id,
-    departureAt: candidate.section.departureAt!,
+    id: departureId(id, section),
+    departureAt: section.departureAt!,
+    arrivalAt: section.arrivalAt,
+    serviceId: section.serviceId ? canonicalServiceId(section.serviceId) : undefined,
+    headsign: section.direction,
+    scheduledArrivalAt: section.scheduledArrivalAt
+      ?? (source === 'theoretical' ? section.arrivalAt : undefined),
     ...timing,
     source,
-    candidate,
   };
 }
 
-function sourceOf(source: 'idfm-realtime' | 'gtfs-theoretical' | undefined) {
-  return source === 'idfm-realtime' ? ('realtime' as const) : ('theoretical' as const);
+function enrichWithSnapshot(
+  routeId: string,
+  alternatives: Alternative[],
+  snapshot: CachedStationSnapshot | null,
+): Alternative[] {
+  if (!snapshot) return alternatives;
+
+  const matchedVisits = new Map<number, number>();
+  const usedVisits = new Set<number>();
+
+  // Identity is stronger than timing and destination. Resolve every identity
+  // match before allowing a fallback to consume one of those visits.
+  alternatives.forEach((alternative, alternativeIndex) => {
+    if (!alternative.serviceId) return;
+    const visitIndex = snapshot.visits.findIndex((visit, index) =>
+      !usedVisits.has(index)
+      && visit.routeId === routeId
+      && Boolean(visit.providerJourneyRef)
+      && canonicalServiceId(visit.providerJourneyRef!) === alternative.serviceId
+    );
+    if (visitIndex < 0) return;
+    usedVisits.add(visitIndex);
+    matchedVisits.set(alternativeIndex, visitIndex);
+  });
+
+  const fallbackCandidates: Array<{
+    alternativeIndex: number;
+    visitIndex: number;
+    distance: number;
+  }> = [];
+  alternatives.forEach((alternative, alternativeIndex) => {
+    if (matchedVisits.has(alternativeIndex) || !alternative.scheduledAt) return;
+    const scheduledAt = Math.floor(Date.parse(alternative.scheduledAt) / 1_000);
+    if (!Number.isFinite(scheduledAt)) return;
+
+    snapshot.visits.forEach((visit, visitIndex) => {
+      if (
+        usedVisits.has(visitIndex)
+        || visit.routeId !== routeId
+        || normalize(visit.destination) !== normalize(alternative.headsign)
+      ) {
+        return;
+      }
+      const visitAt = visit.scheduledAt ?? visit.expectedAt;
+      if (visitAt === undefined) return;
+      const distance = Math.abs(visitAt - scheduledAt);
+      if (distance <= REALTIME_MATCH_WINDOW_SECONDS) {
+        fallbackCandidates.push({ alternativeIndex, visitIndex, distance });
+      }
+    });
+  });
+  fallbackCandidates.sort((left, right) => left.distance - right.distance);
+  for (const candidate of fallbackCandidates) {
+    if (
+      matchedVisits.has(candidate.alternativeIndex)
+      || usedVisits.has(candidate.visitIndex)
+    ) {
+      continue;
+    }
+    matchedVisits.set(candidate.alternativeIndex, candidate.visitIndex);
+    usedVisits.add(candidate.visitIndex);
+  }
+
+  return alternatives.map((alternative, index) => {
+    const visitIndex = matchedVisits.get(index);
+    if (visitIndex === undefined) return alternative;
+    const visit = snapshot.visits[visitIndex]!;
+    const scheduledAt = alternative.scheduledAt
+      ? Math.floor(Date.parse(alternative.scheduledAt) / 1_000)
+      : visit.scheduledAt;
+    const expectedAt = visit.expectedAt;
+    const status = qualifyDepartureStatus({
+      scheduledAt,
+      expectedAt,
+      providerStatus: visit.providerStatus,
+    }).status;
+    const delaySeconds = scheduledAt !== undefined && expectedAt !== undefined
+      ? expectedAt - scheduledAt
+      : 0;
+    const expectedIso = expectedAt === undefined
+      ? undefined
+      : new Date(expectedAt * 1_000).toISOString();
+    const scheduledArrival = alternative.scheduledArrivalAt ?? alternative.arrivalAt;
+    const arrivalAt = scheduledArrival && expectedAt !== undefined
+      ? new Date(Date.parse(scheduledArrival) + delaySeconds * 1_000).toISOString()
+      : alternative.arrivalAt;
+
+    return {
+      ...alternative,
+      departureAt: expectedIso ?? alternative.scheduledAt ?? alternative.departureAt,
+      arrivalAt,
+      expectedAt: expectedIso,
+      status,
+      source: 'realtime' as const,
+    };
+  });
 }
 
 function sectionId(journey: Journey, section: JourneySection, index: number) {

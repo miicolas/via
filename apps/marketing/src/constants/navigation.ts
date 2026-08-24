@@ -11,7 +11,7 @@ export const navigation = {
           href: "/analytics",
         },
         {
-          label: "Integrations",
+          label: "Intégrations",
           description: "Connecter vos outils et vos flux",
           href: "/integrations",
         },
@@ -31,17 +31,17 @@ export const navigation = {
           href: "/blog",
         },
         {
-          label: "Community",
+          label: "Communauté",
           description: "Participer à l’avenir de Metyro",
           href: "/community",
         },
         {
-          label: "Security",
+          label: "Sécurité",
           description: "Découvrir notre approche de la confiance",
           href: "/security",
         },
         {
-          label: "Help",
+          label: "Aide",
           description: "Trouver une réponse rapidement",
           href: "/help",
         },
@@ -62,23 +62,23 @@ export const footerNavigation = [
     label: "Produit",
     items: [
       { label: "API", href: "/api" },
-      { label: "Integrations", href: "/integrations" },
+      { label: "Intégrations", href: "/integrations" },
       { label: "Analytics", href: "/analytics" },
     ],
   },
   {
-    label: "Company",
+    label: "Entreprise",
     items: [
-      { label: "Help", href: "/help" },
-      { label: "Terms", href: "/terms" },
-      { label: "Security", href: "/security" },
+      { label: "Aide", href: "/help" },
+      { label: "Conditions", href: "/terms" },
+      { label: "Sécurité", href: "/security" },
     ],
   },
   {
     label: "Découvrir",
     items: [
       { label: "Blog", href: "/blog" },
-      { label: "Community", href: "/community" },
+      { label: "Communauté", href: "/community" },
     ],
   },
 ] as const;

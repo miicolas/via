@@ -1,5 +1,6 @@
 "use client";
 
+import { TransitText } from "@/components/ui/transit-text";
 import type { FAQContent } from "@/constants/types";
 import { MARKETING_EASE } from "@/lib/motion";
 import { AnimatePresence, motion } from "motion/react";
@@ -33,13 +34,13 @@ export function Accordion({
               ease: MARKETING_EASE,
               delay: index * 0.05,
             }}
-            className="rounded-2xl bg-frame p-5 shadow-sm sm:p-6"
+            className="rounded-2xl bg-frame px-5 shadow-sm sm:px-6"
             role="listitem"
           >
             <button
               type="button"
               onClick={() => setOpenIndex(isOpen ? null : index)}
-              className="flex w-full cursor-pointer items-center justify-between gap-4 text-left"
+              className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-4 py-5 text-left sm:py-6"
               aria-expanded={isOpen}
             >
               <span className="text-base font-medium text-foreground sm:text-lg">
@@ -65,8 +66,8 @@ export function Accordion({
                   transition={{ duration: 0.3, ease: MARKETING_EASE }}
                   className="overflow-hidden"
                 >
-                  <p className="pt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                    {item.answer}
+                  <p className="pb-5 text-sm leading-relaxed text-muted-foreground sm:pb-6 sm:text-base">
+                    <TransitText>{item.answer}</TransitText>
                   </p>
                 </motion.div>
               )}

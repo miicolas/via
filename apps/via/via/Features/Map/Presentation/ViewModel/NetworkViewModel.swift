@@ -6,15 +6,18 @@ import Observation
 @Observable
 final class NetworkViewModel {
   private(set) var state: NetworkMapState = .idle
-  var stationFilter = StationMapFilter() {
-    didSet {
-      guard stationFilter != oldValue else { return }
-      scheduleBikeRefresh()
-      guard let lastViewport else { return }
-      publishSnapshot(for: lastViewport, loading: state.loading)
-    }
+
+  /// Reads and writes the one filter the Stations list shares, so a criterion
+  /// set on the map cannot show a different set of stations in the list.
+  var stationFilter: StationMapFilter {
+    get { filterStore.filter }
+    set { filterStore.filter = newValue }
   }
 
+  @ObservationIgnored let filterStore: StationMapFilterStore
+  /// Absent in isolation, where the map is the only consumer: the off-threshold
+  /// annotations are the nearby set, and there is no nearby set without it.
+  @ObservationIgnored private let nearby: NearbyStationsModel?
   @ObservationIgnored private let repository: any NetworkRepository
   @ObservationIgnored private var routeLayout: TransitRouteLayout?
   @ObservationIgnored private var positionedRoutes: [NetworkRoute] = []
@@ -31,8 +34,33 @@ final class NetworkViewModel {
   @ObservationIgnored private var viewportRevision = 0
   @ObservationIgnored private var lastViewport: NetworkViewport?
 
-  init(repository: any NetworkRepository) {
+  init(
+    repository: any NetworkRepository,
+    filterStore: StationMapFilterStore = StationMapFilterStore(),
+    nearby: NearbyStationsModel? = nil
+  ) {
     self.repository = repository
+    self.filterStore = filterStore
+    self.nearby = nearby
+    filterStore.onChange { [weak self] _ in
+      self?.filterChanged()
+    }
+    nearby?.onResultsChange { [weak self] in
+      self?.nearbyResultsChanged()
+    }
+  }
+
+  private func filterChanged() {
+    scheduleBikeRefresh()
+    guard let lastViewport else { return }
+    publishSnapshot(for: lastViewport, loading: state.loading)
+  }
+
+  /// Only matters where the nearby set *is* what is drawn; below the threshold
+  /// the annotations come from the viewport's own stations.
+  private func nearbyResultsChanged() {
+    guard let lastViewport, !lastViewport.showsStations, stationFilter.isActive else { return }
+    publishSnapshot(for: lastViewport, loading: state.loading)
   }
 
   /// Fetches and prepares the static network before the map gets its first
@@ -63,6 +91,12 @@ final class NetworkViewModel {
 
   func viewportChanged(to viewport: NetworkViewport, phase: NetworkViewportPhase) {
     lastViewport = viewport
+    // The centre of the frame anchors the nearby set: it needs no location
+    // permission, and it follows what the traveller is looking at. Only on a
+    // settled camera — a re-sort mid-gesture would move rows under a thumb.
+    if phase == .ended {
+      nearby?.anchorChanged(to: viewport.center)
+    }
     viewportRevision &+= 1
     let revision = viewportRevision
     viewportTask?.cancel()
@@ -151,6 +185,7 @@ final class NetworkViewModel {
   func stationMapItem(for stationID: StationID) -> StationMapItem? {
     loadedStations.first { $0.id == stationID }
       ?? loadedBikeStations.first { $0.id == stationID }
+      ?? nearby?.results.first { $0.id == stationID }?.item
   }
 
   /// Dock counts move by the minute while the rest of a tile is reference
@@ -204,6 +239,8 @@ final class NetworkViewModel {
     loading: NetworkMapLoadingState
   ) {
     var visibleStations: [StationMapItem] = []
+    var bypassZoomFade = false
+    var sourceAvailable = bikeSourceAvailable
     if viewport.showsStations {
       let bounds = viewport.bounds
       visibleStations = loadedStations.filter {
@@ -214,15 +251,32 @@ final class NetworkViewModel {
           bounds.contains($0.coordinate) && stationFilter.matches($0)
         }
       }
+    } else if stationFilter.isActive,
+              let nearby,
+              viewport.fitsInside(radiusMeters: NearbyStationsModel.radiusMeters) {
+      // A bounded nearby query is only safe to draw while its radius covers
+      // the entire viewport. Past that point every symbol disappears instead
+      // of revealing the circular edge of the loaded data.
+      visibleStations = nearby.annotationItems
+      bypassZoomFade = !visibleStations.isEmpty
+      sourceAvailable = nearby.bikeSourceAvailable
     }
+    // A mode criterion narrows the drawn network too: filtering on the métro
+    // keeps every RER and tram polyline off the map, not just their stations.
+    let routeModes = stationFilter.transitModes
+    let visibleRoutes = routeModes.isEmpty
+      ? positionedRoutes
+      : positionedRoutes.filter { routeModes.contains($0.badge.mode) }
     let refreshed = NetworkMapState(
       snapshot: NetworkMapSnapshot(
-        routes: positionedRoutes,
+        routes: visibleRoutes,
         routesGeneration: routesGeneration,
+        routeModes: routeModes,
         stations: visibleStations,
         lineStyle: viewport.lineStyle,
         stationOpacity: viewport.stationOpacity,
-        bikeSourceAvailable: bikeSourceAvailable
+        stationsBypassZoomFade: bypassZoomFade,
+        bikeSourceAvailable: sourceAvailable
       ),
       loading: loading
     )

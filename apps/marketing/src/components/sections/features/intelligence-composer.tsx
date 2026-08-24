@@ -100,7 +100,7 @@ export function IntelligenceComposer({
             onClick={() => choosePrompt(index)}
             whileTap={reduceMotion ? {} : { scale: 0.94 }}
             transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-            className={`cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold transition-colors duration-300 ${
+            className={`min-h-9 cursor-pointer rounded-full px-3.5 py-2 text-xs font-semibold transition-colors duration-300 ${
               index === promptIndex
                 ? "bg-purple-600/12 text-purple-700"
                 : "bg-white/70 text-neutral-600 hover:bg-white"

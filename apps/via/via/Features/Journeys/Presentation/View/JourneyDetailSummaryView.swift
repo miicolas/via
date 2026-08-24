@@ -1,140 +1,116 @@
 import SwiftUI
 
-/// The journey at a glance. Places and times live in the timeline below, so
-/// this strip only carries the facts that are not already visible there.
+/// The route card under the duration. It deliberately shows only facts the
+/// journey model owns; fares and ticket products are never invented locally.
 struct JourneyDetailSummaryView: View {
-  let journey: Journey
-  let source: JourneyResult.Source?
+    let journey: Journey
+    let source: JourneyResult.Source?
+    var canEditTimes = true
+    let onEditTime: (JourneyDatetimeRepresents) -> Void
 
-  var body: some View {
-    ViewThatFits(in: .horizontal) {
-      content
-        .frame(maxWidth: .infinity, alignment: .leading)
-
-      ScrollView(.horizontal) {
-        content
-          .fixedSize(horizontal: true, vertical: false)
-      }
-      .scrollIndicators(.hidden)
-    }
-    .padding(12)
-    .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 18))
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(accessibilityLabel)
-  }
-
-  private var content: some View {
-    HStack(spacing: 10) {
-      Image(systemName: journey.qualifier.systemImage)
-        .font(.subheadline.weight(.bold))
-        .foregroundStyle(journey.qualifier.color)
-        .frame(width: 34, height: 34)
-        .background(journey.qualifier.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
-        .accessibilityHidden(true)
-
-      if !routeBadges.isEmpty {
-        HStack(spacing: 7) {
-          ForEach(Array(routeBadges.enumerated()), id: \.element.id) { index, badge in
-            if index > 0 {
-              Image(systemName: "chevron.right")
-                .routeSeparatorStyle()
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if canEditTimes {
+                Label("Choisir l’heure de départ ou d’arrivée", systemImage: "clock")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 4)
             }
 
-            LineBadgeView(route: badge, size: 26)
-          }
+            VStack(spacing: 0) {
+                scheduleRow(
+                    name: originName,
+                    label: "Départ",
+                    value: journey.departureAt,
+                    endpoint: .departure
+                )
+
+                Divider()
+                    .padding(.leading, 18)
+
+                scheduleRow(
+                    name: destinationName,
+                    label: "Arrivée",
+                    value: journey.arrivalAt,
+                    endpoint: .arrival
+                )
+            }
+            .background(Color.secondary.opacity(0.11), in: .rect(cornerRadius: 22))
+
+            Label(journey.qualifier.displayName, systemImage: journey.qualifier.systemImage)
+                .font(.headline)
+                .foregroundStyle(journey.qualifier.color)
+                .padding(.horizontal, 18)
+                .frame(minHeight: 48)
+                .background(journey.qualifier.color.opacity(0.15), in: .capsule)
         }
-      }
-
-      compactFact(
-        JourneyFormatting.duration(journey.durationSeconds),
-        systemImage: "clock"
-      )
-      compactFact(transferTitle, systemImage: "arrow.triangle.branch")
-
-      if journey.walkingDurationSeconds > 0 {
-        compactFact(
-          JourneyFormatting.duration(journey.walkingDurationSeconds),
-          systemImage: "figure.walk"
-        )
-      }
-
-      if journey.status == .disrupted {
-        Label("Perturbé", systemImage: "exclamationmark.triangle.fill")
-          .font(.caption.weight(.bold))
-          .foregroundStyle(.red)
-      }
-
-      if let crowding = journey.reportedCrowding {
-        Label(
-          ReportAttribution.source(.reported, reporterCount: crowding.reporterCount),
-          systemImage: crowding.level.systemImage
-        )
-          .font(.caption.weight(.bold))
-          .foregroundStyle(.orange)
-      }
-
     }
-  }
 
-  private func compactFact(_ value: String, systemImage: String) -> some View {
-    Label(value, systemImage: systemImage)
-      .font(.subheadline.weight(.semibold).monospacedDigit())
-      .foregroundStyle(.primary)
-      .fixedSize()
-  }
+    private func scheduleRow(
+        name: String,
+        label: LocalizedStringKey,
+        value: Date,
+        endpoint: JourneyDatetimeRepresents
+    ) -> some View {
+        Button {
+            onEditTime(endpoint)
+        } label: {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(label)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
 
-  private var transferTitle: String {
-    journey.transferCount == 0 ? "Direct" : "\(journey.transferCount)"
-  }
+                    Text(name)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(timingTint)
+                        .lineLimit(2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-  private var transferDescription: String {
-    switch journey.transferCount {
-    case 0: "direct"
-    case 1: "une correspondance"
-    default: "\(journey.transferCount) correspondances"
+                HStack(spacing: 7) {
+                    Text(JourneyFormatting.time(value))
+                        .font(.title3.weight(.semibold).monospacedDigit())
+                        .contentTransition(.numericText())
+
+                    Image(systemName: "slider.vertical.3")
+                        .font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(timingTint)
+                .padding(.horizontal, 12)
+                .frame(minWidth: 98, minHeight: 44, alignment: .trailing)
+                .background(timingTint.opacity(0.12), in: .capsule)
+                .contentShape(.rect)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(!canEditTimes)
+        .accessibilityLabel(endpoint.accessibilityEditLabel)
+        .accessibilityValue(JourneyFormatting.time(value))
+        .accessibilityHint("Ouvre le sélecteur d’horaire")
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
     }
-  }
 
-  private var routeBadges: [RouteBadge] {
-    var seen = Set<RouteID>()
-    return journey.sections.compactMap(\.route).compactMap { route in
-      guard seen.insert(route.id).inserted else { return nil }
-      return route.badge
+    private var originName: String {
+        journey.sections.first?.from.name ?? "Départ"
     }
-  }
 
-  private var accessibilityLabel: String {
-    var parts = [String(localized: journey.qualifier.displayName)]
-    if !routeBadges.isEmpty {
-      parts.append(
-        routeBadges
-          .map { "\($0.mode.displayName) ligne \($0.shortName)" }
-          .joined(separator: ", puis ")
-      )
+    private var destinationName: String {
+        journey.sections.last?.to.name ?? "Destination"
     }
-    parts.append(JourneyFormatting.duration(journey.durationSeconds))
-    parts.append(transferDescription)
-    if journey.walkingDurationSeconds > 0 {
-      parts.append("\(JourneyFormatting.duration(journey.walkingDurationSeconds)) de marche")
+
+    private var timingTint: Color {
+        .accentColor
     }
-    if journey.status == .disrupted { parts.append("perturbé") }
-    return parts.joined(separator: ", ")
-  }
+
 }
 
-#Preview {
-  ScrollView {
-    VStack(spacing: 20) {
-      JourneyDetailSummaryView(
-        journey: JourneyResult.mapPreview.journeys[0],
-        source: .realtime
-      )
-
-      JourneyDetailSummaryView(
-        journey: JourneyResult.mapPreview.journeys[1],
-        source: .theoretical
-      )
+private extension JourneyDatetimeRepresents {
+    var accessibilityEditLabel: String {
+        switch self {
+        case .departure: "Modifier l’heure de départ"
+        case .arrival: "Modifier l’heure d’arrivée"
+        }
     }
-    .padding(16)
-  }
 }

@@ -578,6 +578,72 @@ final class SearchViewModel {
     }
   }
 
+  /// Replans the opened itinerary around one of its two boundary times.
+  ///
+  /// Departure and arrival are different backend constraints: subtracting the
+  /// old duration locally would miss a different service, wait or transfer.
+  /// The closest journey with the same line sequence is preferred when it is
+  /// still available, then the planner's recommended result is used.
+  func reviseJourneySchedule(
+    _ journey: Journey,
+    destination: JourneyDestination,
+    policy: JourneyPlanningPolicy,
+    requestedAt: Date,
+    represents: JourneyDatetimeRepresents
+  ) async throws -> Journey {
+    guard let firstSection = journey.sections.first else {
+      throw JourneyScheduleRevisionError.unavailable
+    }
+
+    var request = JourneyRequest(
+      origin: firstSection.from.coordinate,
+      destination: destination
+    )
+    request.limit = 4
+    request.requestedAt = requestedAt
+    request.datetimeRepresents = represents
+    request.requiredModes = policy.requiredModes
+    request.excludedModes = policy.excludedModes
+    request.preferredModes = policy.preferredModes
+    request.requiresAccessibleStations = policy.requiresAccessibleStations
+    request.requiresOperationalElevators = policy.requiresOperationalElevators
+    if firstSection.kind == .transit {
+      request.originStationID = firstSection.stops.first?.stationID
+    }
+
+    let result = try await journeyRepository.plan(request)
+    switch result.status {
+    case .noRoute:
+      throw JourneyScheduleRevisionError.noRoute
+    case .unavailable:
+      throw JourneyScheduleRevisionError.unavailable
+    case .ready:
+      break
+    }
+
+    let routeSequence = journey.sections.compactMap { $0.route?.id }
+    let candidate = result.journeys.first {
+      $0.sections.compactMap { $0.route?.id } == routeSequence
+    } ?? result.journeys.first
+    guard let candidate else {
+      throw JourneyScheduleRevisionError.noRoute
+    }
+
+    if journeyResult?.journeys.contains(where: { $0.id == journey.id }) == true {
+      if var criteria = naturalJourneyCriteria {
+        naturalCorrectionCount += 1
+        criteria.requestedAt = requestedAt
+        criteria.datetimeRepresents = represents
+        naturalJourneyCriteria = criteria
+      } else {
+        self.requestedAt = requestedAt
+        datetimeRepresents = represents
+      }
+    }
+
+    return candidate.identified(as: journey.id)
+  }
+
   var canResetSearch: Bool {
     step != .destination
       || !query.isEmpty
@@ -1051,4 +1117,3 @@ final class SearchViewModel {
     }
   }
 }
-

@@ -1,14 +1,19 @@
 import { describe, expect, test } from 'bun:test';
-import type { Journey, JourneyDepartureChoicesInput } from '@via/contract';
+import type { Journey, JourneyDepartureChoicesInput, JourneySection } from '@via/contract';
 
+import type { CachedStationSnapshot } from '../departures/cache';
 import { createJourneyDepartureChoicesModule } from './departure-choices';
 import type { JourneyPlanner } from './service';
-import type { TimetableRunReader } from './timetable-runs';
+import type { TimetableRun, TimetableRunReader } from './timetable-runs';
 
-/** Most tests exercise planner discovery alone; the schedule stays silent. */
-const noTimetableRuns: TimetableRunReader = async () => [];
+const now = new Date('2026-08-22T09:59:00Z');
+const destination = {
+  kind: 'station' as const,
+  id: 'destination',
+  name: 'Destination',
+  coordinate: { latitude: 48.9, longitude: 2.4 },
+};
 
-/** A quarter-hourly line, with one run already gone by the time it is read. */
 const scheduledRuns: TimetableRunReader = async () => [
   run('trip-gone', '09:52'),
   run('trip-1', '10:05'),
@@ -17,29 +22,259 @@ const scheduledRuns: TimetableRunReader = async () => [
   run('trip-4', '10:26'),
 ];
 
-function run(tripId: string, departure: string) {
-  const departureAt = new Date(`2026-08-22T${departure}:00Z`);
+describe('journey departure choices module', () => {
+  test('builds a passive refresh from GTFS and leaves the journey untouched', async () => {
+    const current = journey();
+    const { module, calls } = setup({ timetable: scheduledRuns });
+
+    const response = await module.resolve(input(current), { identity: 'person' });
+
+    expect(response.journey).toEqual(current);
+    expect(response.groups[0]).toMatchObject({
+      sectionId: 'ride',
+      availability: 'ready',
+      choices: [
+        { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
+        { scheduledAt: '2026-08-22T10:05:00.000Z', isSelected: false },
+        { scheduledAt: '2026-08-22T10:12:00.000Z', isSelected: false },
+        { scheduledAt: '2026-08-22T10:19:00.000Z', isSelected: false },
+      ],
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  test('a missing Redis snapshot keeps GTFS choices theoretical', async () => {
+    const { module, calls } = setup({
+      timetable: scheduledRuns,
+      snapshot: async () => null,
+    });
+
+    const response = await module.resolve(input(journey()), { identity: 'person' });
+
+    expect(response.groups[0]?.choices.slice(1).every(
+      (choice) => choice.source === 'theoretical' && choice.status === 'scheduled',
+    )).toBe(true);
+    expect(response.groups[0]?.fetchedAt).toBeUndefined();
+    expect(calls).toHaveLength(0);
+  });
+
+  test('enriches GTFS passages by canonical trip id then by destination and time', async () => {
+    const snapshot = stationSnapshot([
+      {
+        routeId: 'line-a',
+        destination: 'A destination deliberately ignored by the exact match',
+        scheduledAt: epoch('10:05'),
+        expectedAt: epoch('10:08'),
+        providerJourneyRef: 'vehicle_journey:trip-1',
+      },
+      {
+        routeId: 'line-a',
+        destination: 'Déstination',
+        scheduledAt: epoch('10:12'),
+        expectedAt: epoch('10:13'),
+      },
+    ]);
+    const { module, calls } = setup({
+      timetable: scheduledRuns,
+      snapshot: async () => snapshot,
+    });
+
+    const response = await module.resolve(input(journey()), { identity: 'person' });
+    const choices = response.groups[0]!.choices;
+
+    expect(choices.find((choice) => choice.id === 'departure:ride:trip-1')).toMatchObject({
+      id: 'departure:ride:trip-1',
+      scheduledAt: '2026-08-22T10:05:00.000Z',
+      expectedAt: '2026-08-22T10:08:00.000Z',
+      status: 'delayed',
+      source: 'realtime',
+    });
+    expect(choices.find((choice) => choice.id === 'departure:ride:trip-2')).toMatchObject({
+      expectedAt: '2026-08-22T10:13:00.000Z',
+      status: 'on_time',
+      source: 'realtime',
+    });
+    expect(response.groups[0]?.fetchedAt).toBe('2026-08-22T09:58:00.000Z');
+    expect(calls).toHaveLength(0);
+  });
+
+  test('one realtime visit enriches only the closest GTFS passage', async () => {
+    const timetable: TimetableRunReader = async () => [
+      run('trip-1', '10:05'),
+      run('trip-2', '10:07'),
+    ];
+    const snapshot = stationSnapshot([{
+      routeId: 'line-a',
+      destination: 'Destination',
+      expectedAt: epoch('10:07'),
+    }]);
+    const { module } = setup({ timetable, snapshot: async () => snapshot });
+
+    const response = await module.resolve(input(journey()), { identity: 'person' });
+    const alternatives = response.groups[0]!.choices.filter((choice) => !choice.isSelected);
+
+    expect(alternatives).toMatchObject([
+      { id: 'departure:ride:trip-1', source: 'theoretical' },
+      { id: 'departure:ride:trip-2', source: 'realtime' },
+    ]);
+  });
+
+  test('a partial timetable failure returns the unchanged journey and no planner call', async () => {
+    const current = journey();
+    const { module, calls } = setup({
+      timetable: async () => {
+        throw new Error('database unavailable');
+      },
+      snapshot: async () => {
+        throw new Error('redis unavailable');
+      },
+    });
+
+    const response = await module.resolve(input(current), { identity: 'person' });
+
+    expect(response.journey).toEqual(current);
+    expect(response.groups[0]).toMatchObject({
+      availability: 'unavailable',
+      choices: [{ isSelected: true }],
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  test('selecting a passage that keeps the downstream connection costs no plan', async () => {
+    const current = connectingJourney();
+    const snapshot = stationSnapshot([{
+      routeId: 'line-a',
+      destination: 'Destination',
+      scheduledAt: epoch('10:05'),
+      expectedAt: epoch('10:08'),
+      providerJourneyRef: 'trip:trip-1',
+    }]);
+    const { module, calls } = setup({
+      timetable: async (query) => query.routeId === 'line-a' ? [run('trip-1', '10:05')] : [],
+      snapshot: async () => snapshot,
+    });
+
+    const response = await module.resolve(
+      input(current, { sectionId: 'ride', departureId: 'departure:ride:trip-1' }),
+      { identity: 'person' },
+    );
+
+    expect(calls).toHaveLength(0);
+    expect(response.journey.sections.find((section) => section.id === 'ride')).toMatchObject({
+      serviceId: 'trip-1',
+      departureAt: '2026-08-22T10:08:00.000Z',
+      arrivalAt: '2026-08-22T10:38:00.000Z',
+      scheduledDepartureAt: '2026-08-22T10:05:00.000Z',
+      scheduledArrivalAt: '2026-08-22T10:35:00.000Z',
+      timingSource: 'realtime',
+      departureStatus: 'delayed',
+    });
+    expect(response.journey.sections.find((section) => section.id === 'connection')).toMatchObject({
+      departureAt: '2026-08-22T10:40:00Z',
+    });
+  });
+
+  test('a broken downstream connection performs one plan from the alighting station', async () => {
+    const downstream = journey('downstream', '2026-08-22T10:50:00Z', '2026-08-22T11:10:00Z');
+    downstream.departureAt = '2026-08-22T10:45:00Z';
+    downstream.sections[0] = {
+      ...downstream.sections[0]!,
+      departureAt: '2026-08-22T10:45:00Z',
+      arrivalAt: '2026-08-22T10:50:00Z',
+    };
+    const { module, calls } = setup({
+      timetable: async (query) => query.routeId === 'line-a' ? [run('trip-late', '10:12')] : [],
+      plan: async () => plannerResponse([downstream]),
+    });
+
+    const response = await module.resolve(
+      input(connectingJourney(), {
+        sectionId: 'ride',
+        departureId: 'departure:ride:trip-late',
+      }),
+      { identity: 'person' },
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      originStationId: 'station-b',
+      requestedAt: '2026-08-22T10:42:00.000Z',
+    });
+    expect(response.journey.sections.find((section) => section.id === 'ride')).toMatchObject({
+      serviceId: 'trip-late',
+      departureAt: '2026-08-22T10:12:00.000Z',
+      arrivalAt: '2026-08-22T10:42:00.000Z',
+    });
+    expect(response.journey.arrivalAt).toBe('2026-08-22T11:10:00Z');
+  });
+
+  test('a failed downstream replan returns the existing unavailable error without mutation', async () => {
+    const current = connectingJourney();
+    const before = structuredClone(current);
+    const { module, calls } = setup({
+      timetable: async (query) => query.routeId === 'line-a' ? [run('trip-late', '10:12')] : [],
+      plan: async () => {
+        throw new Error('provider unavailable');
+      },
+    });
+
+    await expect(module.resolve(
+      input(current, { sectionId: 'ride', departureId: 'departure:ride:trip-late' }),
+      { identity: 'person' },
+    )).rejects.toThrow('no longer available');
+
+    expect(calls).toHaveLength(1);
+    expect(current).toEqual(before);
+  });
+
+  test('rejects a stale selection without calling the planner', async () => {
+    const { module, calls } = setup({ timetable: scheduledRuns });
+
+    await expect(module.resolve(
+      input(journey(), { sectionId: 'ride', departureId: 'departure:ride:gone' }),
+      { identity: 'person' },
+    )).rejects.toThrow('no longer available');
+
+    expect(calls).toHaveLength(0);
+  });
+});
+
+function setup(options: {
+  timetable?: TimetableRunReader;
+  snapshot?: (stationId: string) => Promise<CachedStationSnapshot | null>;
+  plan?: JourneyPlanner['plan'];
+} = {}) {
+  const calls: Array<{ requestedAt?: string; originStationId?: string }> = [];
+  const planner: JourneyPlanner = {
+    plan: async (request, context) => {
+      calls.push({
+        requestedAt: request.requestedAt,
+        originStationId: request.originStationId,
+      });
+      return options.plan
+        ? options.plan(request, context)
+        : plannerResponse([]);
+    },
+  };
   return {
-    tripId,
-    headsign: 'Destination',
-    departureAt: departureAt.toISOString(),
-    arrivalAt: new Date(departureAt.getTime() + 1_800_000).toISOString(),
+    calls,
+    module: createJourneyDepartureChoicesModule(
+      planner,
+      { now: () => now },
+      {
+        readTimetableRuns: options.timetable ?? scheduledRuns,
+        readStationSnapshot: options.snapshot ?? (async () => null),
+      },
+    ),
   };
 }
 
-const destination = {
-  kind: 'station' as const,
-  id: 'destination',
-  name: 'Destination',
-  coordinate: { latitude: 48.9, longitude: 2.4 },
-};
-
-const current = journey('current', '2026-08-22T10:00:00Z', '2026-08-22T10:30:00Z');
-const next = journey('next', '2026-08-22T10:05:00Z', '2026-08-22T10:35:00Z');
-
-function input(selection?: JourneyDepartureChoicesInput['selection']): JourneyDepartureChoicesInput {
+function input(
+  value: Journey,
+  selection?: JourneyDepartureChoicesInput['selection'],
+): JourneyDepartureChoicesInput {
   return {
-    journey: current,
+    journey: value,
     destination,
     policy: {
       requiredModes: [],
@@ -52,689 +287,96 @@ function input(selection?: JourneyDepartureChoicesInput['selection']): JourneyDe
   };
 }
 
-function setup(
-  result: Journey[] = [next],
-  source: 'idfm-realtime' | 'gtfs-theoretical' = 'idfm-realtime',
-  timetable: TimetableRunReader = noTimetableRuns
-) {
-  const calls: Array<{ requestedAt?: string; originStationId?: string }> = [];
-  const planner: JourneyPlanner = {
-    plan: async (request) => {
-      calls.push({ requestedAt: request.requestedAt, originStationId: request.originStationId });
-      return {
-        status: result.length ? 'ready' : 'no-route',
-        source,
-        generatedAt: '2026-08-22T09:59:00Z',
-        journeys: result,
-      };
-    },
-  };
+function run(tripId: string, departure: string): TimetableRun {
+  const departureAt = new Date(`2026-08-22T${departure}:00Z`);
   return {
-    calls,
-    module: createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:59:00Z') },
-      timetable
-    ),
+    tripId,
+    headsign: 'Destination',
+    departureAt: departureAt.toISOString(),
+    arrivalAt: new Date(departureAt.getTime() + 30 * 60_000).toISOString(),
   };
 }
 
-describe('journey departure choices module', () => {
-  test('returns the selected departure and the immediate matching next one', async () => {
-    const { module, calls } = setup();
+function epoch(time: string) {
+  return Math.floor(Date.parse(`2026-08-22T${time}:00Z`) / 1_000);
+}
 
-    const response = await module.resolve(input(), { identity: 'person' });
+function stationSnapshot(visits: CachedStationSnapshot['visits']): CachedStationSnapshot {
+  return {
+    visits,
+    fetchedAt: epoch('09:58'),
+    routes: [{
+      id: 'line-a',
+      shortName: 'A',
+      mode: 'rer',
+      color: '#FF0000',
+      textColor: '#FFFFFF',
+    }],
+  };
+}
 
-    expect(response.groups).toHaveLength(1);
-    expect(response.groups[0]).toMatchObject({
-      sectionId: 'ride',
-      availability: 'ready',
-      source: 'realtime',
-      choices: [
-        { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
-        { scheduledAt: '2026-08-22T10:05:00Z', isSelected: false },
-      ],
-    });
-    expect(calls[0]?.originStationId).toBe('station-a');
-  });
+function plannerResponse(journeys: Journey[]) {
+  return {
+    status: journeys.length > 0 ? ('ready' as const) : ('no-route' as const),
+    source: 'idfm-realtime' as const,
+    generatedAt: now.toISOString(),
+    journeys,
+  };
+}
 
-  test('asks again after the selected departure when the first plan hid the next service', async () => {
-    const calls: string[] = [];
-    const planner: JourneyPlanner = {
-      plan: async (request) => {
-        calls.push(request.requestedAt!);
-        // The planner prunes the later same-line service as dominated until it
-        // is asked from a time the boarded one can no longer answer.
-        const journeys = Date.parse(request.requestedAt!) > Date.parse('2026-08-22T10:00:00Z')
-          ? [next]
-          : [current];
-        return {
-          status: 'ready',
-          source: 'gtfs-theoretical',
-          generatedAt: '2026-08-22T09:59:00Z',
-          journeys,
-        };
-      },
-    };
-    const module = createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:59:00Z') },
-      noTimetableRuns
-    );
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(calls).toEqual([
-      '2026-08-22T09:55:00.000Z',
-      '2026-08-22T10:01:00.000Z',
-      // The backwards pass, anchored on an arrival a minute before the held one.
-      '2026-08-22T10:29:00.000Z',
-    ]);
-    expect(response.groups[0]).toMatchObject({ availability: 'ready' });
-    expect(response.groups[0]?.choices).toMatchObject([
-      { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
-      { scheduledAt: '2026-08-22T10:05:00Z', isSelected: false },
-    ]);
-  });
-
-  test('offers the service before the held one and lets it be chosen back', async () => {
-    const earlier = journey('earlier', '2026-08-22T09:57:00Z', '2026-08-22T10:27:00Z');
-    const planner: JourneyPlanner = {
-      plan: async (request) => ({
-        status: 'ready',
-        source: 'gtfs-theoretical',
-        generatedAt: '2026-08-22T09:55:00Z',
-        // Only the backwards, arrival-anchored pass sees the earlier service.
-        journeys: request.datetimeRepresents === 'arrival' ? [earlier] : [next],
-      }),
-    };
-    const module = createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:55:00Z') },
-      noTimetableRuns
-    );
-
-    const choices = await module.resolve(input(), { identity: 'person' });
-
-    expect(choices.groups[0]?.choices).toMatchObject([
-      { scheduledAt: '2026-08-22T09:57:00Z', isSelected: false },
-      { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
-      { scheduledAt: '2026-08-22T10:05:00Z', isSelected: false },
-    ]);
-
-    const response = await module.resolve(
-      input({ sectionId: 'ride', departureId: choices.groups[0]!.choices[0]!.id }),
-      { identity: 'person' }
-    );
-
-    expect(response.journey.sections[1]?.departureAt).toBe('2026-08-22T09:57:00Z');
-    expect(response.journey.arrivalAt).toBe('2026-08-22T10:27:00Z');
-  });
-
-  test('never offers a service that has already left', async () => {
-    const departed = journey('departed', '2026-08-22T09:57:00Z', '2026-08-22T10:27:00Z');
-    const planner: JourneyPlanner = {
-      plan: async (request) => ({
-        status: 'ready',
-        source: 'gtfs-theoretical',
-        generatedAt: '2026-08-22T09:59:00Z',
-        journeys: request.datetimeRepresents === 'arrival' ? [departed] : [],
-      }),
-    };
-    const module = createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:59:00Z') },
-      noTimetableRuns
-    );
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(response.groups[0]?.choices).toHaveLength(1);
-    expect(response.groups[0]).toMatchObject({ availability: 'unavailable' });
-  });
-
-  test('keeps the revised selected service when the second pass fails', async () => {
-    const delayed = journey('current-revised', '2026-08-22T10:03:00Z', '2026-08-22T10:33:00Z');
-    delayed.sections = delayed.sections.map((section) => section.type === 'transit'
-      ? { ...section, serviceId: 'service-current' }
-      : section);
-    const planner: JourneyPlanner = {
-      plan: async (request) => {
-        if (Date.parse(request.requestedAt!) > Date.parse('2026-08-22T10:00:00Z')) {
-          throw new Error('provider down');
-        }
-        return {
-          status: 'ready',
-          source: 'idfm-realtime',
-          generatedAt: '2026-08-22T09:59:00Z',
-          journeys: [delayed],
-        };
-      },
-    };
-    const module = createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:59:00Z') },
-      noTimetableRuns
-    );
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(response.journey.sections[1]?.departureAt).toBe('2026-08-22T10:03:00Z');
-    expect(response.groups[0]).toMatchObject({ availability: 'unavailable' });
-  });
-
-  test('keeps the journey unchanged when no matching next service exists', async () => {
-    const differentLine = {
-      ...next,
-      sections: next.sections.map((section) => section.type === 'transit'
-        ? { ...section, route: { ...section.route!, id: 'line-b', shortName: 'B' } }
-        : section),
-    };
-    const { module } = setup([differentLine]);
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(response.journey).toEqual(current);
-    expect(response.groups[0]).toMatchObject({ availability: 'unavailable' });
-    expect(response.groups[0]?.choices).toHaveLength(1);
-  });
-
-  test('offers another mission of the same line that still serves the alighting stop', async () => {
-    // Consecutive RER services towards the same platform carry different
-    // mission codes; treating the headsign as identity hid every alternative.
-    const otherMission = {
-      ...next,
-      sections: next.sections.map((section) => section.type === 'transit'
-        ? { ...section, direction: 'ELBA' }
-        : section),
-    };
-    const { module } = setup([otherMission]);
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(response.groups[0]).toMatchObject({ availability: 'ready' });
-    expect(response.groups[0]?.choices).toMatchObject([
-      { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
-      { scheduledAt: '2026-08-22T10:05:00Z', isSelected: false },
-    ]);
-  });
-
-  test('filters candidates that never call at the alighting stop', async () => {
-    const wrongAlighting = {
-      ...next,
-      id: 'wrong-stop',
-      sections: next.sections.map((section) => section.type === 'transit'
-        ? {
-            ...section,
-            to: { ...section.to, name: 'Station C' },
-            stops: section.stops.map((stop, index) => index === section.stops.length - 1
-              ? { ...stop, id: 'stop-c', stationId: 'station-c', name: 'Station C' }
-              : stop),
-          }
-        : section),
-    };
-    const { module } = setup([wrongAlighting]);
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(response.groups[0]).toMatchObject({ availability: 'unavailable' });
-    expect(response.groups[0]?.choices).toHaveLength(1);
-  });
-
-  test('marks a fallback next service as theoretical without relabelling the selected realtime one', async () => {
-    const theoreticalNext = {
-      ...next,
-      sections: next.sections.map((section) => section.type === 'transit'
-        ? { ...section, timingSource: 'theoretical' as const }
-        : section),
-    };
-    const { module } = setup([theoreticalNext], 'gtfs-theoretical');
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(response.groups[0]?.choices).toMatchObject([
-      { source: 'realtime', isSelected: true },
-      { source: 'theoretical', status: 'scheduled', isSelected: false },
-    ]);
-  });
-
-  test('atomically revises the selected realtime service and its downstream timings', async () => {
-    const delayed = journey(
-      'current-revised',
-      '2026-08-22T10:03:00Z',
-      '2026-08-22T10:33:00Z'
-    );
-    delayed.sections = delayed.sections.map((section) => section.type === 'transit'
-      ? {
-          ...section,
-          serviceId: 'vehicle_journey:service-current',
-          scheduledDepartureAt: '2026-08-22T10:00:00Z',
-          scheduledArrivalAt: '2026-08-22T10:30:00Z',
-        }
-      : section);
-    const { module } = setup([delayed, next]);
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(response.journey.id).toBe(current.id);
-    expect(response.journey.sections[0]).toEqual(current.sections[0]);
-    expect(response.journey.sections[1]?.departureAt).toBe('2026-08-22T10:03:00Z');
-    expect(response.journey.arrivalAt).toBe('2026-08-22T10:33:00Z');
-    expect(response.groups[0]?.choices[0]).toMatchObject({
-      scheduledAt: '2026-08-22T10:00:00Z',
-      expectedAt: '2026-08-22T10:03:00Z',
-      status: 'delayed',
-      isSelected: true,
-    });
-  });
-
-  test('preserves the upstream section and replaces the selected leg plus downstream', async () => {
-    const { module } = setup();
-    const choices = await module.resolve(input(), { identity: 'person' });
-    const nextId = choices.groups[0]?.choices[1]?.id;
-    expect(nextId).toBeDefined();
-
-    const response = await module.resolve(
-      input({ sectionId: 'ride', departureId: nextId! }),
-      { identity: 'person' }
-    );
-
-    expect(response.journey.id).toBe(current.id);
-    expect(response.journey.sections[0]).toEqual(current.sections[0]);
-    expect(response.journey.sections[1]?.id).toBe('ride');
-    expect(response.journey.sections[1]?.departureAt).toBe('2026-08-22T10:05:00Z');
-    expect(response.journey.arrivalAt).toBe('2026-08-22T10:35:00Z');
-  });
-
-  test('recomputes the wait before the chosen service while preserving the physical prefix', async () => {
-    const oldWait = {
-      id: 'wait',
-      type: 'wait' as const,
-      durationSeconds: 180,
-      from: current.sections[1]!.from,
-      to: current.sections[1]!.from,
-      departureAt: '2026-08-22T09:57:00Z',
-      arrivalAt: '2026-08-22T10:00:00Z',
-      geometry: [],
-      stops: [],
-    };
-    const currentWithWait: Journey = {
-      ...current,
-      sections: [
-        { ...current.sections[0]!, arrivalAt: '2026-08-22T09:57:00Z' },
-        oldWait,
-        current.sections[1]!,
-      ],
-    };
-    const { module } = setup();
-    const request = { ...input(), journey: currentWithWait };
-    const choices = await module.resolve(request, { identity: 'person' });
-
-    const response = await module.resolve({
-      ...request,
-      selection: {
-        sectionId: 'ride',
-        departureId: choices.groups[0]!.choices[1]!.id,
-      },
-    }, { identity: 'person' });
-
-    expect(response.journey.sections[0]).toEqual(currentWithWait.sections[0]);
-    expect(response.journey.sections[1]).toMatchObject({
-      id: 'wait',
-      type: 'wait',
-      durationSeconds: 480,
-      arrivalAt: '2026-08-22T10:05:00Z',
-    });
-    expect(response.journey.sections[2]).toMatchObject({
-      id: 'ride',
-      departureAt: '2026-08-22T10:05:00Z',
-    });
-  });
-
-  test('offers the passages the schedule knows when the planner prunes them all', async () => {
-    // The planner drops a later train on the same line as dominated, so
-    // discovery through planning alone can only ever surface one alternative.
-    const { module } = setup([], 'gtfs-theoretical', scheduledRuns);
-
-    const response = await module.resolve(input(), { identity: 'person' });
-
-    expect(response.groups[0]).toMatchObject({ availability: 'ready' });
-    expect(response.groups[0]?.choices).toMatchObject([
-      { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
-      { scheduledAt: '2026-08-22T10:05:00.000Z', isSelected: false },
-      { scheduledAt: '2026-08-22T10:12:00.000Z', isSelected: false },
-      { scheduledAt: '2026-08-22T10:19:00.000Z', isSelected: false },
-    ]);
-  });
-
-  test('plans the scheduled passage the traveller picks and splices it in', async () => {
-    const planner: JourneyPlanner = {
-      plan: async (request) => ({
-        status: 'ready',
-        source: 'gtfs-theoretical',
-        generatedAt: '2026-08-22T09:59:00Z',
-        // Only an anchor sitting on that run answers with it.
-        journeys: request.requestedAt === '2026-08-22T10:04:00.000Z' ? [next] : [],
-      }),
-    };
-    const module = createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:59:00Z') },
-      scheduledRuns
-    );
-
-    const response = await module.resolve(
-      input({ sectionId: 'ride', departureId: 'departure:ride:trip-1' }),
-      { identity: 'person' }
-    );
-
-    expect(response.journey.sections[1]?.departureAt).toBe('2026-08-22T10:05:00.000Z');
-    expect(response.journey.arrivalAt).toBe('2026-08-22T10:35:00.000Z');
-  });
-
-  test('uses the scheduled run when it still catches the held downstream connection', async () => {
-    const interchange = current.sections[1]!.to;
-    const connection = {
-      ...current.sections[1]!,
-      id: 'connection',
-      from: interchange,
-      to: destination,
-      departureAt: '2026-08-22T10:40:00Z',
-      arrivalAt: '2026-08-22T11:00:00Z',
-      route: {
-        ...current.sections[1]!.route!,
-        id: 'line-b',
-        shortName: 'B',
-        longName: 'Ligne B',
-      },
-      stops: [
-        {
-          id: 'stop-b',
-          stationId: 'station-b',
-          name: interchange.name,
-          coordinate: interchange.coordinate,
-          departureAt: '2026-08-22T10:40:00Z',
-        },
-        {
-          id: 'stop-c',
-          stationId: destination.id,
-          name: destination.name,
-          coordinate: destination.coordinate,
-          arrivalAt: '2026-08-22T11:00:00Z',
-        },
-      ],
-      serviceId: 'connection-service',
-    };
-    const connectingJourney: Journey = {
-      ...current,
-      arrivalAt: '2026-08-22T11:00:00Z',
-      durationSeconds: 3_900,
-      transferCount: 1,
-      sections: [
-        current.sections[0]!,
-        current.sections[1]!,
-        {
-          id: 'connection-wait',
-          type: 'wait',
-          durationSeconds: 600,
-          from: interchange,
-          to: interchange,
-          departureAt: '2026-08-22T10:30:00Z',
-          arrivalAt: '2026-08-22T10:40:00Z',
-          geometry: [],
-          stops: [],
-        },
-        connection,
-      ],
-    };
-    const planner: JourneyPlanner = {
-      plan: async () => ({
-        status: 'no-route',
-        source: 'idfm-realtime',
-        generatedAt: '2026-08-22T09:59:00Z',
-        journeys: [],
-      }),
-    };
-    const timetable: TimetableRunReader = async (query) =>
-      query.routeId === 'line-a' ? [run('trip-1', '10:05')] : [];
-    const module = createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:59:00Z') },
-      timetable
-    );
-
-    const response = await module.resolve(
+function connectingJourney(): Journey {
+  const base = journey();
+  const interchange = base.sections[1]!.to;
+  const connection = transitSection(
+    'connection',
+    'line-b',
+    interchange,
+    { name: destination.name, coordinate: destination.coordinate },
+    '2026-08-22T10:40:00Z',
+    '2026-08-22T11:00:00Z',
+    'connection-service',
+    'station-b',
+    destination.id,
+  );
+  return {
+    ...base,
+    arrivalAt: '2026-08-22T11:00:00Z',
+    durationSeconds: 3_900,
+    transferCount: 1,
+    sections: [
+      base.sections[0]!,
+      base.sections[1]!,
       {
-        ...input({ sectionId: 'ride', departureId: 'departure:ride:trip-1' }),
-        journey: connectingJourney,
+        id: 'connection-wait',
+        type: 'wait',
+        durationSeconds: 600,
+        from: interchange,
+        to: interchange,
+        departureAt: '2026-08-22T10:30:00Z',
+        arrivalAt: '2026-08-22T10:40:00Z',
+        geometry: [],
+        stops: [],
       },
-      { identity: 'person' }
-    );
+      connection,
+    ],
+  };
+}
 
-    expect(response.journey.sections[1]).toMatchObject({
-      id: 'ride',
-      serviceId: 'trip-1',
-      departureAt: '2026-08-22T10:05:00.000Z',
-      arrivalAt: '2026-08-22T10:35:00.000Z',
-      timingSource: 'theoretical',
-    });
-    expect(response.journey.sections[2]).toMatchObject({
-      type: 'wait',
-      durationSeconds: 300,
-      departureAt: '2026-08-22T10:35:00.000Z',
-      arrivalAt: '2026-08-22T10:40:00Z',
-    });
-    expect(response.journey.sections[3]).toMatchObject({
-      id: 'connection',
-      departureAt: '2026-08-22T10:40:00Z',
-    });
-    expect(response.journey.arrivalAt).toBe('2026-08-22T11:00:00Z');
-  });
-
-  test('replans downstream when the scheduled run misses the held connection', async () => {
-    const interchange = current.sections[1]!.to;
-    const connection = journey(
-      'connection',
-      '2026-08-22T10:40:00Z',
-      '2026-08-22T11:00:00Z'
-    ).sections[1]!;
-    const connectingJourney: Journey = {
-      ...current,
-      arrivalAt: '2026-08-22T11:00:00Z',
-      durationSeconds: 3_900,
-      transferCount: 1,
-      sections: [
-        current.sections[0]!,
-        current.sections[1]!,
-        {
-          id: 'connection-wait',
-          type: 'wait',
-          durationSeconds: 600,
-          from: interchange,
-          to: interchange,
-          departureAt: '2026-08-22T10:30:00Z',
-          arrivalAt: '2026-08-22T10:40:00Z',
-          geometry: [],
-          stops: [],
-        },
-        {
-          ...connection,
-          id: 'connection',
-          route: {
-            ...connection.route!,
-            id: 'line-b',
-            shortName: 'B',
-          },
-          serviceId: 'connection-service',
-        },
-      ],
-    };
-    const downstream = journey(
-      'downstream',
-      '2026-08-22T10:50:00Z',
-      '2026-08-22T11:10:00Z'
-    );
-    downstream.departureAt = '2026-08-22T10:45:00Z';
-    downstream.sections[0] = {
-      ...downstream.sections[0]!,
-      durationSeconds: 300,
-      departureAt: '2026-08-22T10:45:00Z',
-      arrivalAt: '2026-08-22T10:50:00Z',
-    };
-    const planner: JourneyPlanner = {
-      plan: async (request) => ({
-        status: request.originStationId === 'station-b' ? 'ready' : 'no-route',
-        source: 'idfm-realtime',
-        generatedAt: '2026-08-22T09:59:00Z',
-        journeys: request.originStationId === 'station-b' ? [downstream] : [],
-      }),
-    };
-    const timetable: TimetableRunReader = async (query) =>
-      query.routeId === 'line-a' ? [run('trip-late', '10:12')] : [];
-    const module = createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:59:00Z') },
-      timetable
-    );
-
-    const response = await module.resolve(
-      {
-        ...input({ sectionId: 'ride', departureId: 'departure:ride:trip-late' }),
-        journey: connectingJourney,
-      },
-      { identity: 'person' }
-    );
-
-    expect(response.journey.sections[1]).toMatchObject({
-      id: 'ride',
-      serviceId: 'trip-late',
-      departureAt: '2026-08-22T10:12:00.000Z',
-      arrivalAt: '2026-08-22T10:42:00.000Z',
-    });
-    expect(response.journey.sections[2]).toMatchObject({
-      type: 'wait',
-      durationSeconds: 180,
-      departureAt: '2026-08-22T10:42:00.000Z',
-      arrivalAt: '2026-08-22T10:45:00Z',
-    });
-    expect(response.journey.sections[4]).toMatchObject({
-      type: 'transit',
-      departureAt: '2026-08-22T10:50:00Z',
-    });
-    expect(response.journey.arrivalAt).toBe('2026-08-22T11:10:00Z');
-  });
-
-  test('matches a timetable trip across the Navitia vehicle-journey prefix', async () => {
-    const chosen = journey('chosen', '2026-08-22T10:04:00Z', '2026-08-22T10:34:00Z');
-    chosen.sections[1] = {
-      ...chosen.sections[1]!,
-      serviceId: 'vehicle_journey:trip-1',
-      scheduledDepartureAt: '2026-08-22T10:05:00Z',
-      scheduledArrivalAt: '2026-08-22T10:35:00Z',
-    };
-    const nearerWrongRun = journey(
-      'nearer-wrong-run',
-      '2026-08-22T10:05:00Z',
-      '2026-08-22T10:35:00Z'
-    );
-    nearerWrongRun.sections[1] = {
-      ...nearerWrongRun.sections[1]!,
-      serviceId: 'vehicle_journey:another-trip',
-    };
-    const planner: JourneyPlanner = {
-      plan: async (request) => ({
-        status: 'ready',
-        source: 'idfm-realtime',
-        generatedAt: '2026-08-22T09:59:00Z',
-        journeys: request.requestedAt === '2026-08-22T10:04:00.000Z'
-          ? [nearerWrongRun, chosen]
-          : [],
-      }),
-    };
-    const module = createJourneyDepartureChoicesModule(
-      planner,
-      { now: () => new Date('2026-08-22T09:59:00Z') },
-      scheduledRuns
-    );
-
-    const response = await module.resolve(
-      input({ sectionId: 'ride', departureId: 'departure:ride:trip-1' }),
-      { identity: 'person' }
-    );
-
-    expect(response.journey.sections[1]).toMatchObject({
-      serviceId: 'vehicle_journey:trip-1',
-      departureAt: '2026-08-22T10:04:00Z',
-      scheduledDepartureAt: '2026-08-22T10:05:00Z',
-    });
-  });
-
-  test('does not offer the held service twice under GTFS and Navitia ids', async () => {
-    const held = journey('held', '2026-08-22T10:00:00Z', '2026-08-22T10:30:00Z');
-    held.sections[1] = {
-      ...held.sections[1]!,
-      serviceId: 'vehicle_journey:trip-held',
-    };
-    const timetable: TimetableRunReader = async () => [
-      run('trip-held', '10:00'),
-      run('trip-next', '10:05'),
-    ];
-    const { module } = setup([], 'gtfs-theoretical', timetable);
-
-    const response = await module.resolve(
-      { ...input(), journey: held },
-      { identity: 'person' }
-    );
-
-    expect(response.groups[0]?.choices.map((choice) => choice.scheduledAt)).toEqual([
-      '2026-08-22T10:00:00Z',
-      '2026-08-22T10:05:00.000Z',
-    ]);
-  });
-
-  test('never offers a passage that leaves before the traveller reaches the platform', async () => {
-    const walking: Journey = {
-      ...current,
-      sections: [
-        { ...current.sections[0]!, arrivalAt: '2026-08-22T10:08:00Z' },
-        current.sections[1]!,
-      ],
-    };
-    const { module } = setup([], 'gtfs-theoretical', scheduledRuns);
-
-    const response = await module.resolve(
-      { ...input(), journey: walking },
-      { identity: 'person' }
-    );
-
-    // 10:05 is still walking time; the rail starts at the run after it.
-    expect(response.groups[0]?.choices).toMatchObject([
-      { scheduledAt: '2026-08-22T10:00:00Z', isSelected: true },
-      { scheduledAt: '2026-08-22T10:12:00.000Z', isSelected: false },
-      { scheduledAt: '2026-08-22T10:19:00.000Z', isSelected: false },
-      { scheduledAt: '2026-08-22T10:26:00.000Z', isSelected: false },
-    ]);
-  });
-
-  test('rejects a departure that disappeared without returning a mutated journey', async () => {
-    const { module } = setup([]);
-
-    await expect(module.resolve(
-      input({ sectionId: 'ride', departureId: 'gone' }),
-      { identity: 'person' }
-    )).rejects.toThrow('no longer available');
-  });
-});
-
-function journey(id: string, transitDeparture: string, arrivalAt: string): Journey {
+function journey(
+  id = 'current',
+  transitDeparture = '2026-08-22T10:00:00Z',
+  arrivalAt = '2026-08-22T10:30:00Z',
+): Journey {
   const origin = { name: 'Origine', coordinate: { latitude: 48.8, longitude: 2.3 } };
   const station = { name: 'Station A', coordinate: { latitude: 48.81, longitude: 2.31 } };
   const alighting = { name: 'Station B', coordinate: { latitude: 48.85, longitude: 2.35 } };
   return {
     id,
     qualifier: 'recommended',
-    durationSeconds: 2_400,
-    walkingDurationSeconds: 300,
+    durationSeconds: Math.round(
+      (Date.parse(arrivalAt) - Date.parse('2026-08-22T09:55:00Z')) / 1_000,
+    ),
+    walkingDurationSeconds: 180,
     transferCount: 0,
     departureAt: '2026-08-22T09:55:00Z',
     arrivalAt,
@@ -744,49 +386,75 @@ function journey(id: string, transitDeparture: string, arrivalAt: string): Journ
       {
         id: 'walk',
         type: 'walk',
-        durationSeconds: 300,
+        durationSeconds: 180,
         from: origin,
         to: station,
+        departureAt: '2026-08-22T09:55:00Z',
+        arrivalAt: '2026-08-22T09:58:00Z',
         geometry: [origin.coordinate, station.coordinate],
         stops: [],
       },
-      {
-        id: 'ride',
-        type: 'transit',
-        durationSeconds: 1_200,
-        from: station,
-        to: alighting,
-        departureAt: transitDeparture,
+      transitSection(
+        'ride',
+        'line-a',
+        station,
+        alighting,
+        transitDeparture,
         arrivalAt,
-        geometry: [station.coordinate, alighting.coordinate],
-        route: {
-          id: 'line-a',
-          shortName: 'A',
-          longName: 'Ligne A',
-          mode: 'rer',
-          color: '#FF0000',
-          textColor: '#FFFFFF',
-        },
-        direction: 'Destination',
-        stops: [
-          {
-            id: 'stop-a',
-            stationId: 'station-a',
-            name: 'Station A',
-            coordinate: station.coordinate,
-            departureAt: transitDeparture,
-          },
-          {
-            id: 'stop-b',
-            stationId: 'station-b',
-            name: 'Station B',
-            coordinate: alighting.coordinate,
-            arrivalAt,
-          },
-        ],
-        serviceId: `service-${id}`,
-        timingSource: 'realtime',
+        id === 'current' ? 'trip-held' : `service-${id}`,
+        'station-a',
+        'station-b',
+      ),
+    ],
+  };
+}
+
+function transitSection(
+  id: string,
+  routeId: string,
+  from: JourneySection['from'],
+  to: JourneySection['to'],
+  departureAt: string,
+  arrivalAt: string,
+  serviceId: string,
+  boardingStationId: string,
+  alightingStationId: string,
+): JourneySection {
+  return {
+    id,
+    type: 'transit',
+    durationSeconds: Math.round((Date.parse(arrivalAt) - Date.parse(departureAt)) / 1_000),
+    from,
+    to,
+    departureAt,
+    arrivalAt,
+    geometry: [from.coordinate, to.coordinate],
+    route: {
+      id: routeId,
+      shortName: routeId === 'line-a' ? 'A' : 'B',
+      longName: routeId === 'line-a' ? 'Ligne A' : 'Ligne B',
+      mode: 'rer',
+      color: '#FF0000',
+      textColor: '#FFFFFF',
+    },
+    direction: 'Destination',
+    stops: [
+      {
+        id: `stop-${boardingStationId}`,
+        stationId: boardingStationId,
+        name: from.name,
+        coordinate: from.coordinate,
+        departureAt,
+      },
+      {
+        id: `stop-${alightingStationId}`,
+        stationId: alightingStationId,
+        name: to.name,
+        coordinate: to.coordinate,
+        arrivalAt,
       },
     ],
+    serviceId,
+    timingSource: 'realtime',
   };
 }

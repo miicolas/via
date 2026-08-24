@@ -21,10 +21,13 @@ test('normalizes Navitia and enforces the requested result limit', () => {
     duration: 300,
     sections: [
       {
-        type: 'street_network',
+        type: 'public_transport',
         duration: 300,
-        from: { name: 'Ma position' },
-        to: { name: '7 Allée Verte' },
+        departure_date_time: `20260813T20${String(minute).padStart(2, '0')}00`,
+        arrival_date_time: `20260813T20${String(minute + 5).padStart(2, '0')}00`,
+        from: { name: 'Hôtel de Ville', coord: { lon: 2.3522, lat: 48.8566 } },
+        to: { name: 'Bastille', coord: { lon: 2.369, lat: 48.853 } },
+        display_informations: { code: '76', name: 'Bus 76', commercial_mode: 'Bus' },
       },
     ],
   });
@@ -36,8 +39,67 @@ test('normalizes Navitia and enforces the requested result limit', () => {
   );
 
   expect(journeys).toHaveLength(2);
-  expect(journeys[0]?.sections[0]?.type).toBe('walk');
-  expect(journeys.map((journey) => journey.qualifier)).toEqual(['recommended', 'walking']);
+  expect(journeys[0]?.sections[0]?.type).toBe('transit');
+  expect(journeys.map((journey) => journey.qualifier)).toEqual(['recommended', 'rapid']);
+});
+
+test('keeps one direct path per mode as alternatives outside the transit limit', () => {
+  const transitRow = (minute: number) => ({
+    departure_date_time: `20260813T20${String(minute).padStart(2, '0')}00`,
+    arrival_date_time: `20260813T20${String(minute + 5).padStart(2, '0')}00`,
+    duration: 300,
+    sections: [
+      {
+        type: 'public_transport',
+        duration: 300,
+        departure_date_time: `20260813T20${String(minute).padStart(2, '0')}00`,
+        arrival_date_time: `20260813T20${String(minute + 5).padStart(2, '0')}00`,
+        from: { name: 'Hôtel de Ville', coord: { lon: 2.3522, lat: 48.8566 } },
+        to: { name: 'Bastille', coord: { lon: 2.369, lat: 48.853 } },
+        display_informations: { code: '76', name: 'Bus 76', commercial_mode: 'Bus' },
+      },
+    ],
+  });
+  const directRow = (mode: string, durationMinutes: number) => ({
+    departure_date_time: '20260813T200000',
+    arrival_date_time: `20260813T20${String(durationMinutes).padStart(2, '0')}00`,
+    duration: durationMinutes * 60,
+    sections: [
+      {
+        type: 'street_network',
+        mode,
+        duration: durationMinutes * 60,
+        from: { name: 'Ma position' },
+        to: { name: '7 Allée Verte' },
+      },
+    ],
+  });
+
+  const journeys = parseIdfmJourneys(
+    {
+      journeys: [
+        transitRow(0),
+        directRow('walking', 25),
+        transitRow(10),
+        directRow('bike', 8),
+        directRow('walking', 18),
+      ],
+    },
+    input,
+    new Date('2026-08-13T20:00:00+02:00')
+  );
+
+  // Two transit journeys fill the requested limit; the direct paths ride along
+  // behind them, the fastest first, one per mode.
+  expect(journeys.map((journey) => journey.qualifier)).toEqual([
+    'recommended',
+    'rapid',
+    'bike',
+    'walking',
+  ]);
+  expect(journeys[2]?.sections.every((section) => section.type === 'bike')).toBe(true);
+  expect(journeys[3]?.sections.every((section) => section.type === 'walk')).toBe(true);
+  expect(journeys[3]?.durationSeconds).toBe(18 * 60);
 });
 
 test('keeps the road geometry of a walking section, including multiple line parts', () => {

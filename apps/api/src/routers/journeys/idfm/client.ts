@@ -33,6 +33,7 @@ export function createIdfmJourneyPlanner({
         signal,
         timeoutMs,
         logLabel: '[journeys] IDFM',
+        telemetry: { provider: 'prim', product: 'journey_planner' },
       });
       if (body === null) return null;
       const parsed = parseIdfmJourneys(body, input, requestedAt);
@@ -64,6 +65,12 @@ export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Da
   url.searchParams.set('datetime', compactParisDateTime(requestedAt));
   url.searchParams.set('datetime_represents', input.datetimeRepresents ?? 'departure');
   if (input.requiresAccessibleStations) url.searchParams.set('wheelchair', 'true');
+  url.searchParams.append('direct_path_mode[]', 'walking');
+  // A bike-only alternative makes no sense on a journey constrained for
+  // step-free travel.
+  if (!input.requiresAccessibleStations && !input.requiresOperationalElevators) {
+    url.searchParams.append('direct_path_mode[]', 'bike');
+  }
   for (const mode of input.requiredModes ?? []) {
     url.searchParams.append('allowed_id[]', physicalModeUri(mode));
   }

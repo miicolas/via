@@ -56,8 +56,17 @@
 
 html {
   color-scheme: light;
-  scroll-behavior: smooth;
-  overflow-x: hidden;
+}
+
+/*
+ * Lenis drives wheel scrolling and warns against a native smooth-behavior
+ * running underneath it; on touch it does not run, so the native one takes
+ * over for anchor jumps there.
+ */
+@media (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 html.dark {
@@ -85,6 +94,11 @@ body {
 }
 
 body {
+  /*
+   * The single horizontal-overflow guard: html must stay overflow-visible so
+   * position: sticky keeps working, and a second guard there would only hide
+   * regressions this one already contains.
+   */
   overflow-x: hidden;
   background-color: var(--background);
   color: var(--foreground);

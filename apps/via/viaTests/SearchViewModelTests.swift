@@ -772,6 +772,58 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertNil(model.highlightedJourneySectionID)
     }
 
+    func testScheduleRevisionSendsDepartureAndArrivalAsDistinctPlannerConstraints() async throws {
+        let original = try XCTUnwrap(JourneyResult.mapPreview.journeys.first)
+        let plannerJourney = original.identified(
+            as: JourneyID(rawValue: "planner:revised-journey")
+        )
+        let result = JourneyResult(
+            status: .ready,
+            source: .realtime,
+            generatedAt: .now,
+            journeys: [plannerJourney]
+        )
+        let repository = JourneyRepositoryRecorder(result: result)
+        let model = makeModel(journeyRepository: repository)
+        let destination = JourneyPlaceSelection(.previewStation).journeyDestination
+        let policy = JourneyPlanningPolicy(
+            requiredModes: [.metro],
+            excludedModes: [.bus],
+            preferredModes: [.rer],
+            requiresAccessibleStations: true,
+            requiresOperationalElevators: true
+        )
+        let departure = Date(timeIntervalSince1970: 2_100_000_000)
+        let arrival = departure.addingTimeInterval(3_600)
+
+        let departureRevision = try await model.reviseJourneySchedule(
+            original,
+            destination: destination,
+            policy: policy,
+            requestedAt: departure,
+            represents: .departure
+        )
+        let arrivalRevision = try await model.reviseJourneySchedule(
+            departureRevision,
+            destination: destination,
+            policy: policy,
+            requestedAt: arrival,
+            represents: .arrival
+        )
+
+        let requests = await repository.requests()
+        XCTAssertEqual(requests.map(\.requestedAt), [departure, arrival])
+        XCTAssertEqual(requests.map(\.datetimeRepresents), [.departure, .arrival])
+        XCTAssertEqual(requests.first?.requiredModes, [.metro])
+        XCTAssertEqual(requests.first?.excludedModes, [.bus])
+        XCTAssertEqual(requests.first?.preferredModes, [.rer])
+        XCTAssertEqual(requests.first?.requiresAccessibleStations, true)
+        XCTAssertEqual(requests.first?.requiresOperationalElevators, true)
+        XCTAssertEqual(departureRevision.id, original.id)
+        XCTAssertEqual(arrivalRevision.id, original.id)
+        XCTAssertNotEqual(plannerJourney.id, original.id)
+    }
+
     func testNoRouteStateIsDisplayedWhenRepositoryReturnsNoRoute() async {
         let journeys = JourneyRepositoryRecorder(result: JourneyResult(
             status: .noRoute,

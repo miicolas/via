@@ -1,6 +1,7 @@
 "use client";
 
 import type { FeaturesContent } from "@/constants/features";
+import { useMediaQuery } from "@/lib/use-media-query";
 import {
   animate,
   motion,
@@ -21,6 +22,9 @@ export function ScheduleDemo({
   readonly content: FeaturesContent["highlights"]["schedule"];
 }): ReactNode {
   const reduceMotion = useReducedMotion();
+  // A drag="y" surface sets touch-action: pan-x and would swallow the page's
+  // vertical scroll on touch — there, the wheel is driven by taps only.
+  const coarsePointer = useMediaQuery("(pointer: coarse)");
   const [optionIndex, setOptionIndex] = useState(0);
   const [timeIndex, setTimeIndex] = useState(2);
   const y = useMotionValue(-2 * ITEM_HEIGHT);
@@ -57,7 +61,7 @@ export function ScheduleDemo({
             type="button"
             onClick={() => setOptionIndex(index)}
             whileTap={reduceMotion ? {} : { scale: 0.96 }}
-            className="relative flex-1 cursor-pointer px-3 py-2 text-center"
+            className="relative min-h-11 flex-1 cursor-pointer px-3 py-2 text-center"
             aria-pressed={index === optionIndex}
           >
             {index === optionIndex && (
@@ -98,6 +102,7 @@ export function ScheduleDemo({
         >
           <motion.div
             drag="y"
+            dragListener={!coarsePointer}
             style={{ y }}
             dragConstraints={{ top: minY, bottom: 0 }}
             dragElastic={0.15}

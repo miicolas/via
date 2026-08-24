@@ -48,7 +48,7 @@ export const pageContent = {
   footer: {
     headline: "Le métro, toujours avec vous.",
     action: appStoreAction,
-    copyright: "All rights reserved.",
+    copyright: "Tous droits réservés.",
   },
 } as const;
 

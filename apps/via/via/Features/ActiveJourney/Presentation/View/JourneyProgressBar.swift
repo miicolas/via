@@ -13,6 +13,8 @@ struct JourneyProgressBar: View {
     let progress: JourneyProgress
     var height: CGFloat = 12
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// Matches `JourneyTimelineRail`'s bubble: a colour no transit line uses.
     private static let knobTint = Color.blue
     private static let segmentSpacing: CGFloat = 3
@@ -46,7 +48,7 @@ struct JourneyProgressBar: View {
             .frame(maxHeight: .infinity, alignment: .center)
         }
         .frame(height: max(height, knobSize))
-        .animation(.smooth(duration: 0.5), value: progress)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.5), value: progress)
         .accessibilityElement()
         .accessibilityLabel("Progression du trajet")
         .accessibilityValue("\(Int((progress.overallFraction * 100).rounded())) pour cent")
@@ -62,7 +64,7 @@ struct JourneyProgressBar: View {
         MarkBadge(
             tint: Self.knobTint,
             size: knobSize,
-            isEstimated: progress.isEstimated,
+            isEstimated: !progress.isLocationDerived,
             showsHalo: false
         )
     }

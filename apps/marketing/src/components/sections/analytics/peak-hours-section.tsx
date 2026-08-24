@@ -2,6 +2,7 @@
 
 import { Reveal } from "@/components/ui/reveal";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { TransitText } from "@/components/ui/transit-text";
 import { gareDuNordHourlyProfile, peakHour } from "@/constants/analytics-data";
 import type { AnalyticsContent } from "@/constants/analytics-page";
 import { useReducedMotion } from "@/lib/motion";
@@ -65,7 +66,7 @@ export function PeakHoursSection({
         >
           <div>
             <p className="text-sm font-medium text-card-foreground-muted">
-              {content.station}
+              <TransitText>{content.station}</TransitText>
             </p>
             <p className="mt-0.5 text-xs text-card-foreground-muted/80">
               {content.dayType}

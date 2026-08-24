@@ -38,6 +38,15 @@ final class StationMapFilterTests: XCTestCase {
     }
   }
 
+  func testTransitModesCollectsOnlyModeCriteria() {
+    XCTAssertEqual(StationMapFilter().transitModes, [])
+    XCTAssertEqual(StationMapFilter(criteria: [.toilets, .bikeStations]).transitModes, [])
+    XCTAssertEqual(
+      StationMapFilter(criteria: [.mode(.metro), .mode(.tram), .toilets]).transitModes,
+      [.metro, .tram]
+    )
+  }
+
   func testBikeStationsStayHiddenUntilTheVelibFilterIsSelected() {
     let bike = StationMapItem(bikeStation: BikeStation(
       id: "1",
@@ -95,6 +104,44 @@ final class StationMapFilterTests: XCTestCase {
       accessibility: accessibility,
       hasElevators: hasElevators,
       toilets: toilets
+    )
+  }
+}
+
+extension StationMapFilterTests {
+  func testFilterSurvivesAnEncodeDecodeRoundTrip() throws {
+    var filter = StationMapFilter()
+    filter.criteria = [.toilets, .bikeStations, .mode(.rer)]
+
+    let data = try JSONEncoder().encode(filter)
+    let restored = try JSONDecoder().decode(StationMapFilter.self, from: data)
+
+    XCTAssertEqual(restored, filter)
+  }
+
+  /// A criterion this build no longer knows must cost only itself: the rest of
+  /// a stored filter still comes back.
+  func testUnknownStoredCriteriaAreDroppedRatherThanFailingTheWholeFilter() throws {
+    let stored = Data(#"{"criteria":["toilets","mode.hovercraft","teleportation"]}"#.utf8)
+
+    let restored = try JSONDecoder().decode(StationMapFilter.self, from: stored)
+
+    XCTAssertEqual(restored.criteria, [.toilets])
+  }
+
+  @MainActor
+  func testStoreRestoresWhatWasSavedAndTellsItsObservers() {
+    let persistence = InMemoryStationMapFilterPersistence()
+    let store = StationMapFilterStore(persistence: persistence)
+    var notified: [StationMapFilter] = []
+    store.onChange { notified.append($0) }
+
+    store.filter.criteria = [.elevators]
+
+    XCTAssertEqual(notified.map(\.criteria), [[.elevators]])
+    XCTAssertEqual(
+      StationMapFilterStore(persistence: persistence).filter.criteria,
+      [.elevators]
     )
   }
 }

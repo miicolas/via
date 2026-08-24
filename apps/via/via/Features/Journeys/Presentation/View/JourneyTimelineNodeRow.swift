@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// One row of the journey timeline: its rail slice, its content and its time.
-///
-/// The same row serves the pre-trip detail and live guidance; only `state` and
-/// `cursorFraction` differ between the two.
+/// One textual event beside the rail. Vehicle guidance is owned by the parent
+/// section, leaving this row responsible only for a place, instruction or stop.
 struct JourneyTimelineNodeRow: View {
     let node: JourneyTimelineNode
     let state: JourneyTimelineNodeState
@@ -18,26 +16,31 @@ struct JourneyTimelineNodeRow: View {
     var canSelectDepartures = false
     var onSelectDeparture: ((JourneyDepartureChoice) -> Void)?
     var onRetryDepartures: (() -> Void)?
-    /// `nil` when rows are not selectable, as in guidance where the map already
-    /// follows the current section.
     var onSelect: (() -> Void)?
 
-    private static let timeColumnWidth: CGFloat = 54
+    private static let timeColumnWidth: CGFloat = 68
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if case .ride(let intermediate) = node.kind {
             VStack(spacing: 0) {
-                rideRow(intermediate)
-                if isExpanded {
-                    JourneyStopListView(stops: intermediate, rail: node.railBelow, state: state)
+                if hiddenStopCount(in: intermediate) > 0 {
+                    rideRow(hiddenStopCount: hiddenStopCount(in: intermediate))
                 }
+
+                JourneyStopListView(
+                    stops: intermediate,
+                    rail: node.railBelow,
+                    state: state,
+                    isExpanded: isExpanded
+                )
             }
         } else if case .board(_, let route, _, _, _) = node.kind,
                   showsDepartureChoices {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 0) {
                 selectableRow
+
                 JourneyDepartureChoicesView(
                     route: route,
                     group: departureChoicesGroup,
@@ -48,9 +51,9 @@ struct JourneyTimelineNodeRow: View {
                     onSelect: { onSelectDeparture?($0) },
                     onRetry: { onRetryDepartures?() }
                 )
-                .padding(.leading, JourneyTimelineRail.width + 8)
+                .padding(.leading, JourneyTimelineRail.width + 10)
                 .padding(.trailing, 8)
-                .padding(.bottom, 8)
+                .padding(.bottom, 12)
             }
         } else {
             selectableRow
@@ -78,20 +81,24 @@ struct JourneyTimelineNodeRow: View {
             || departureChoicesError != nil
     }
 
-    // MARK: - Generic row
-
     private var rowBody: some View {
         HStack(alignment: .top, spacing: 0) {
             rail
+                .frame(maxHeight: .infinity)
+
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, 8)
+                .padding(.trailing, 10)
+                .padding(.vertical, verticalPadding)
+                .opacity(contentOpacity)
+
             trailing
+                .padding(.vertical, verticalPadding)
+                .opacity(contentOpacity)
         }
-        .padding(.vertical, verticalPadding)
-        .opacity(state == .done ? 0.45 : 1)
+        .frame(minHeight: minimumHeight)
         .contentShape(.rect)
-        .animation(.smooth(duration: 0.35), value: state)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: state)
     }
 
     private var rail: some View {
@@ -107,12 +114,19 @@ struct JourneyTimelineNodeRow: View {
 
     private var verticalPadding: CGFloat {
         switch node.kind {
-        case .board, .alight, .origin, .destination: 6
-        default: 8
+        case .board, .alight: 10
+        case .origin, .destination: 12
+        case .walk, .bike, .wait, .transfer, .ride: 14
         }
     }
 
-    // MARK: - Content
+    private var minimumHeight: CGFloat {
+        switch node.kind {
+        case .board, .alight: 76
+        case .origin, .destination: 62
+        case .walk, .bike, .wait, .transfer, .ride: 66
+        }
+    }
 
     @ViewBuilder
     private var content: some View {
@@ -121,38 +135,47 @@ struct JourneyTimelineNodeRow: View {
             place(name, caption: "Départ")
         case .destination(let name):
             place(name, caption: "Arrivée", symbol: "flag.checkered")
-        case .board(let stop, let route, let direction, let platform, let position):
-            VStack(alignment: .leading, spacing: 8) {
-                JourneyLegHeaderView(
-                    route: route,
-                    direction: direction,
-                    platform: platform,
-                    durationSeconds: node.durationSeconds,
-                    isDimmed: state == .done
-                )
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(stop.name)
-                        .font(.headline)
-                    if let position {
-                        JourneyBoardingPositionView(position: position, isDimmed: state == .done)
+        case .board(let stop, let route, let direction, let platform, _):
+            VStack(alignment: .leading, spacing: 5) {
+                Text(stop.name)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(routeTint(route))
+                    .lineLimit(3)
+
+                HStack(spacing: 8) {
+                    if let direction, !direction.isEmpty {
+                        Text("→ \(direction)")
+                            .lineLimit(2)
+                    }
+
+                    if let platform, !platform.isEmpty {
+                        Label(platform, systemImage: "rectangle.split.3x1")
                     }
                 }
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
             }
         case .alight(let stop, let exit):
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Image(systemName: "arrow.down.right")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
+
                     Text(stop.name)
-                        .font(.headline)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(node.railAbove.lineTint ?? .primary)
+                        .lineLimit(3)
                 }
+
                 if let exit {
                     JourneyExitView(exit: exit, isDimmed: state == .done)
                 }
             }
         case .walk(let destination):
-            movement("Marcher jusqu'à \(destination)", symbol: "figure.walk")
+            movement("Marcher jusqu’à \(destination)", symbol: "figure.walk")
+        case .bike(let destination):
+            movement("Pédaler jusqu’à \(destination)", symbol: "bicycle")
         case .wait(let place):
             movement("Attendre à \(place)", symbol: "clock")
         case .transfer(let destination):
@@ -163,93 +186,122 @@ struct JourneyTimelineNodeRow: View {
     }
 
     private func place(_ name: String, caption: String, symbol: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 if let symbol {
                     Image(systemName: symbol)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
+
                 Text(caption)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
+
             Text(name)
-                .font(.headline)
+                .font(.title3.weight(.semibold))
+                .lineLimit(3)
         }
     }
 
     private func movement(_ title: String, symbol: String) -> some View {
         Label(title, systemImage: symbol)
-            .font(.subheadline)
+            .font(.body.weight(.medium))
             .foregroundStyle(.secondary)
             .labelStyle(.titleAndIcon)
+            .lineLimit(3)
     }
-
-    // MARK: - Trailing column
 
     @ViewBuilder
     private var trailing: some View {
         switch node.kind {
         case .origin, .destination, .board, .alight:
             Text(JourneyFormatting.time(node.startsAt))
-                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .font(.title3.weight(.semibold).monospacedDigit())
+                .foregroundStyle(.secondary)
                 .contentTransition(reduceMotion ? .identity : .numericText())
                 .animation(reduceMotion ? nil : .default, value: node.startsAt)
                 .frame(width: Self.timeColumnWidth, alignment: .trailing)
-        case .walk, .wait, .transfer, .ride:
-            Text(JourneyFormatting.duration(node.durationSeconds))
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: Self.timeColumnWidth, alignment: .trailing)
+        case .walk, .bike, .wait, .transfer:
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(JourneyFormatting.time(node.endsAt))
+                    .font(.body.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.secondary)
+
+                Text(JourneyFormatting.duration(node.durationSeconds))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(width: Self.timeColumnWidth, alignment: .trailing)
+        case .ride:
+            EmptyView()
         }
     }
 
-    // MARK: - Ride row
-
-    private func rideRow(_ intermediate: [JourneyStop]) -> some View {
+    private func rideRow(hiddenStopCount: Int) -> some View {
         Button {
-            withAnimation(.snappy(duration: 0.22)) { isExpanded.toggle() }
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.24)) {
+                isExpanded.toggle()
+            }
         } label: {
             HStack(alignment: .top, spacing: 0) {
                 rail
-                HStack(spacing: 4) {
-                    Text(stopCountTitle(intermediate.count))
-                        .font(.subheadline.weight(.semibold))
+                    .frame(maxHeight: .infinity)
+
+                HStack(spacing: 7) {
+                    Text(stopCountTitle(hiddenStopCount))
+                        .font(.body.weight(.semibold))
+
                     Image(systemName: "chevron.down")
                         .font(.caption2.weight(.bold))
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(node.railBelow.lineTint ?? .secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 12)
+                .opacity(contentOpacity)
 
                 Text(JourneyFormatting.duration(node.durationSeconds))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: Self.timeColumnWidth, alignment: .trailing)
+                    .padding(.vertical, 14)
+                    .opacity(contentOpacity)
             }
-            .frame(minHeight: 44)
-            .opacity(state == .done ? 0.45 : 1)
+            .frame(minHeight: 52)
             .contentShape(.rect)
-            .animation(.smooth(duration: 0.35), value: state)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(stopCountTitle(intermediate.count))
-        .accessibilityHint(isExpanded ? "Masquer les arrêts" : "Afficher les arrêts et leurs horaires")
+        .accessibilityLabel(stopCountTitle(hiddenStopCount))
+        .accessibilityHint(isExpanded ? "Masque les stations" : "Affiche toutes les stations")
         .accessibilityAddTraits(isHighlighted ? [.isSelected] : [])
     }
 
-    private func stopCountTitle(_ count: Int) -> String {
-        count == 1 ? "1 arrêt" : "\(count) arrêts"
+    private func hiddenStopCount(in intermediate: [JourneyStop]) -> Int {
+        max(0, intermediate.count - 1)
     }
 
-    // MARK: - Accessibility
+    private func stopCountTitle(_ count: Int) -> String {
+        count == 1 ? "1 autre arrêt" : "\(count) autres arrêts"
+    }
+
+    private func routeTint(_ route: JourneyRoute?) -> Color {
+        guard let route else { return .primary }
+        return Color(transitHex: route.colorHex, fallback: .accentColor)
+    }
+
+    private var contentOpacity: Double {
+        state == .done ? 0.42 : 1
+    }
 
     private var accessibilityLabel: String {
         let time = JourneyFormatting.time(node.startsAt)
         let base: String = switch node.kind {
-        case .origin(let name): "Départ de \(name) à \(time)"
-        case .destination(let name): "Arrivée à \(name) à \(time)"
+        case .origin(let name):
+            "Départ de \(name) à \(time)"
+        case .destination(let name):
+            "Arrivée à \(name) à \(time)"
         case .board(let stop, let route, let direction, let platform, let position):
             [
                 "Monter à \(stop.name) à \(time)",
@@ -270,12 +322,15 @@ struct JourneyTimelineNodeRow: View {
                 },
             ].compactMap(\.self).joined(separator: ". ")
         case .walk(let destination):
-            "Marcher \(JourneyFormatting.duration(node.durationSeconds)) jusqu'à \(destination)"
+            "Marcher \(JourneyFormatting.duration(node.durationSeconds)) jusqu’à \(destination)"
+        case .bike(let destination):
+            "Pédaler \(JourneyFormatting.duration(node.durationSeconds)) jusqu’à \(destination)"
         case .wait(let place):
             "Attendre \(JourneyFormatting.duration(node.durationSeconds)) à \(place)"
         case .transfer(let destination):
             "Correspondance de \(JourneyFormatting.duration(node.durationSeconds)) vers \(destination)"
-        case .ride(let intermediate): stopCountTitle(intermediate.count)
+        case .ride(let intermediate):
+            stopCountTitle(hiddenStopCount(in: intermediate))
         }
 
         return switch state {

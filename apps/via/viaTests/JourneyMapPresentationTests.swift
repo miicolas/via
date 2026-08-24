@@ -90,6 +90,36 @@ final class JourneyMapPresentationTests: XCTestCase {
         )
     }
 
+    func testWalkOutOfTheStationStartsAtTheRecommendedExit() throws {
+        let exitCoordinate = GeoCoordinate(latitude: 48.95, longitude: 2.5)
+        let journey = makeJourney(
+            exit: JourneyExit(
+                id: "exit:6",
+                name: "boulevard Henri IV",
+                number: 6,
+                coordinate: exitCoordinate,
+                walkingMeters: 50
+            )
+        )
+        let presentation = JourneyMapPresentation(journey: journey)
+        let exit = try XCTUnwrap(presentation.exits.first)
+        let walkIndex = exit.sectionIndex + 1
+        let walk = try XCTUnwrap(presentation.segments.first { $0.sectionIndex == walkIndex })
+
+        XCTAssertEqual(journey.sections[walkIndex].kind, .walk)
+        XCTAssertEqual(walk.coordinates.first, exitCoordinate)
+        XCTAssertEqual(walk.coordinates.last, journey.sections[walkIndex].to.coordinate)
+    }
+
+    func testWalkKeepsItsPlannedStartWithoutARecommendedExit() throws {
+        let journey = makeJourney(exit: nil)
+        let presentation = JourneyMapPresentation(journey: journey)
+        let walkIndex = try XCTUnwrap(journey.sections.indices.last)
+        let walk = try XCTUnwrap(presentation.segments.first { $0.sectionIndex == walkIndex })
+
+        XCTAssertEqual(walk.coordinates.first, journey.sections[walkIndex].from.coordinate)
+    }
+
     private func makeJourney(exit: JourneyExit?) -> Journey {
         let base = JourneyResult.mapPreview.journeys[0]
         guard let targetIndex = base.sections.firstIndex(where: { $0.exit != nil }) else {

@@ -22,17 +22,27 @@ export function JourneyMomentsSection({
   const reduceMotion = useReducedMotion();
   const [activeIndex, setActiveIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  // On touch, pointerleave fires right at touch-end, so the hover-style pause
+  // never holds: the first touch stops the autoplay for good instead.
+  const [touchLocked, setTouchLocked] = useState(false);
   const activeMoment = moments[activeIndex] ?? moments[0];
 
   useEffect(() => {
-    if (paused || reduceMotion || moments.length < 2) return;
+    if (paused || touchLocked || reduceMotion || moments.length < 2) return;
 
     const timer = window.setTimeout(() => {
       setActiveIndex((current) => (current + 1) % moments.length);
     }, autoplayInterval);
 
     return () => window.clearTimeout(timer);
-  }, [activeIndex, autoplayInterval, moments.length, paused, reduceMotion]);
+  }, [
+    activeIndex,
+    autoplayInterval,
+    moments.length,
+    paused,
+    reduceMotion,
+    touchLocked,
+  ]);
 
   useEffect(() => {
     function updateVisibility(): void {
@@ -55,6 +65,9 @@ export function JourneyMomentsSection({
       className="w-full border-y border-accent/15 bg-frame px-6 py-28 sm:py-32"
       onPointerEnter={() => setPaused(true)}
       onPointerLeave={() => setPaused(false)}
+      onPointerDown={(event) => {
+        if (event.pointerType === "touch") setTouchLocked(true);
+      }}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={resumeAfterFocus}
     >

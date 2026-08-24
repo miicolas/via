@@ -67,6 +67,7 @@ function storeForMany(subscriptions: NotificationJourneyRecipient[]) {
   const store: NotificationJourneySubscriptionStore = {
     register: async () => {},
     unregister: async () => {},
+    hasActive: async () => subscriptions.length > 0,
     listActiveBatch: async (_now, afterInstallationId, limit) =>
       subscriptions
         .filter(
@@ -95,6 +96,33 @@ function snapshot(
 ): DisruptionsSnapshot {
   return { disruptions: [value], fetchedAt: Math.floor(now.getTime() / 1_000) };
 }
+
+test("the monitor does not load disruptions without an active journey", async () => {
+  const { client } = fakeRedis();
+  let snapshotLoads = 0;
+  let cleanups = 0;
+  const subscriptions = storeForMany([]);
+  subscriptions.deleteExpiredBatch = async () => {
+    cleanups += 1;
+    return 0;
+  };
+  const monitor = new NotificationDisruptionMonitor({
+    redis: client,
+    subscriptions,
+    delivery: deliveryFor([]),
+    snapshot: async () => {
+      snapshotLoads += 1;
+      return snapshot();
+    },
+    now: () => now,
+    shardCount: 1,
+  });
+
+  await monitor.pollOnce();
+
+  expect(snapshotLoads).toBe(0);
+  expect(cleanups).toBe(1);
+});
 
 test("only a matching line inside both active windows is eligible", () => {
   expect(journeyDisruptionMatches(subscription(), disruption, now)).toBe(true);

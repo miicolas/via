@@ -2108,7 +2108,8 @@
                               "rapid",
                               "less-walking",
                               "comfort",
-                              "walking"
+                              "walking",
+                              "bike"
                             ],
                             "type": "string"
                           },
@@ -2285,6 +2286,7 @@
                                 "type": {
                                   "enum": [
                                     "walk",
+                                    "bike",
                                     "wait",
                                     "transfer",
                                     "transit"
@@ -2648,7 +2650,8 @@
                           "rapid",
                           "less-walking",
                           "comfort",
-                          "walking"
+                          "walking",
+                          "bike"
                         ],
                         "type": "string"
                       },
@@ -2825,6 +2828,7 @@
                             "type": {
                               "enum": [
                                 "walk",
+                                "bike",
                                 "wait",
                                 "transfer",
                                 "transit"
@@ -3339,7 +3343,8 @@
                             "rapid",
                             "less-walking",
                             "comfort",
-                            "walking"
+                            "walking",
+                            "bike"
                           ],
                           "type": "string"
                         },
@@ -3516,6 +3521,7 @@
                               "type": {
                                 "enum": [
                                   "walk",
+                                  "bike",
                                   "wait",
                                   "transfer",
                                   "transit"
@@ -4648,7 +4654,8 @@
                                       "rapid",
                                       "less-walking",
                                       "comfort",
-                                      "walking"
+                                      "walking",
+                                      "bike"
                                     ],
                                     "type": "string"
                                   },
@@ -4825,6 +4832,7 @@
                                         "type": {
                                           "enum": [
                                             "walk",
+                                            "bike",
                                             "wait",
                                             "transfer",
                                             "transit"

@@ -1,24 +1,19 @@
+import { transitLines as metroLines } from "./transit";
 import type { JourneyMomentContent, JourneyMomentVisuals } from "./types";
-
-const metroLines = {
-  m1: { shortName: "1", color: "#ffcd00", textColor: "#111111" },
-  m13: { shortName: "13", color: "#98d4e2", textColor: "#111111" },
-  m14: { shortName: "14", color: "#62259d", textColor: "#ffffff" },
-} as const;
 
 export const journeyMoments = [
   {
     label: "Recherche",
-    title: "Décris simplement où tu vas",
+    title: "Décrivez simplement où vous allez",
     description:
-      "Écris ton trajet comme tu le penses. Metyro comprend le lieu, l’heure et tes contraintes, directement sur ton iPhone.",
+      "Écrivez votre trajet comme vous le pensez. Metyro comprend le lieu, l’heure et vos contraintes, directement sur votre iPhone.",
     detail: "Traité sur cet iPhone avec Apple Intelligence",
     icon: "search",
     color: "#1872f7",
   },
   {
     label: "En direct",
-    title: "Ton trajet avance avec toi",
+    title: "Votre trajet avance avec vous",
     description:
       "Prochain arrêt, correspondance et heure d’arrivée restent visibles au bon moment, même sur l’écran verrouillé.",
     detail: "Live Activity pendant tout le trajet",
@@ -27,18 +22,18 @@ export const journeyMoments = [
   },
   {
     label: "Perturbations",
-    title: "Vois ce qui change avant de partir",
+    title: "Voyez ce qui change avant de partir",
     description:
-      "Les perturbations importantes remontent sans bruit inutile pour t’aider à adapter ton trajet à temps.",
+      "Les perturbations importantes remontent sans bruit inutile pour vous aider à adapter votre trajet à temps.",
     detail: "Informations trafic en temps réel",
     icon: "disruption",
     color: "#1872f7",
   },
   {
     label: "Stations",
-    title: "Retrouve les prochains départs",
+    title: "Retrouvez les prochains départs",
     description:
-      "Repère les stations autour de toi et consulte les prochains passages sans fouiller dans des menus.",
+      "Repérez les stations autour de vous et consultez les prochains passages sans fouiller dans des menus.",
     detail: "Carte et départs à proximité",
     icon: "station",
     color: "#1872f7",

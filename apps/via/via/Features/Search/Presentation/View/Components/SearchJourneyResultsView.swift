@@ -84,45 +84,78 @@ struct SearchJourneyResultsView: View {
   }
 
   private func resultsContent(_ result: JourneyResult) -> some View {
-    VStack(alignment: .leading, spacing: 14) {
+    let transit = Array(transitJourneys(in: result).prefix(4))
+    let direct = directJourneys(in: result)
+
+    return VStack(alignment: .leading, spacing: 14) {
       HStack(alignment: .firstTextBaseline) {
         Text("Choisir un itinéraire")
           .font(.title3.weight(.bold))
 
         Spacer()
 
-        Text(result.journeys.count, format: .number)
+        Text(transit.count + direct.count, format: .number)
           .font(.caption.weight(.bold))
           .foregroundStyle(.secondary)
           .padding(.horizontal, 9)
           .padding(.vertical, 5)
           .background(.secondary.opacity(0.1), in: Capsule())
-          .accessibilityLabel("\(result.journeys.count) itinéraires proposés")
+          .accessibilityLabel("\(transit.count + direct.count) itinéraires proposés")
       }
 
-      ForEach(Array(result.journeys.prefix(4))) { journey in
-        Button {
-          onSelectJourney(journey)
-        } label: {
-          JourneySummaryCard(
-            journey: journey,
-            source: result.source,
-            isSelected: selectedJourneyID == journey.id
-          )
+      ForEach(transit) { journey in
+        journeyCard(journey, in: result)
+      }
+
+      if !direct.isEmpty {
+        if !transit.isEmpty {
+          Text("Sans transports")
+            .font(.headline)
+            .padding(.top, 8)
         }
-        .buttonStyle(.plain)
-        .accessibilityHint("Ouvre le détail de cet itinéraire et l’affiche sur la carte")
-        .contextMenu {
-          JourneyReminderContextMenu(
-            selectedLeadTime: reminderLeadTime,
-            isScheduled: scheduledReminderJourneyID == journey.id,
-            isUpdating: isUpdatingReminder,
-            onSchedule: { onScheduleReminder(journey, $0) },
-            onCancel: onCancelReminder
-          )
+
+        ForEach(direct) { journey in
+          journeyCard(journey, in: result)
         }
       }
     }
+  }
+
+  private func journeyCard(_ journey: Journey, in result: JourneyResult) -> some View {
+    Button {
+      onSelectJourney(journey)
+    } label: {
+      JourneySummaryCard(
+        journey: journey,
+        source: result.source,
+        isSelected: selectedJourneyID == journey.id
+      )
+    }
+    .buttonStyle(.plain)
+    .accessibilityHint("Ouvre le détail de cet itinéraire et l’affiche sur la carte")
+    .contextMenu {
+      JourneyReminderContextMenu(
+        selectedLeadTime: reminderLeadTime,
+        isScheduled: scheduledReminderJourneyID == journey.id,
+        isUpdating: isUpdatingReminder,
+        onSchedule: { onScheduleReminder(journey, $0) },
+        onCancel: onCancelReminder
+      )
+    }
+  }
+
+  /// A journey the traveller covers on their own legs or wheels. It never
+  /// competes with the transit list — it reads under its own heading below.
+  private func isDirectPath(_ journey: Journey) -> Bool {
+    journey.sections.allSatisfy { $0.kind == .walk || $0.kind == .bike }
+  }
+
+  private func transitJourneys(in result: JourneyResult) -> [Journey] {
+    result.journeys.filter { !isDirectPath($0) }
+  }
+
+  private func directJourneys(in result: JourneyResult) -> [Journey] {
+    result.journeys.filter(isDirectPath)
   }
 
   @ViewBuilder

@@ -83,7 +83,7 @@ export function HourlyProfileChart({
               aria-checked={active}
               tabIndex={active ? 0 : -1}
               aria-label={`${entry.hour} h, ${entry.share.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} % des validations`}
-              onPointerDown={() => onSelect(entry.hour)}
+              onClick={() => onSelect(entry.hour)}
               onKeyDown={(event) => moveSelection(event, index)}
               onFocus={() => onSelect(entry.hour)}
               className="focus-ring group flex h-full flex-1 cursor-pointer items-end rounded-md"
@@ -115,13 +115,14 @@ export function HourlyProfileChart({
         })}
       </div>
 
-      <div className="mt-3 flex gap-[3px]" aria-hidden="true">
-        {profile.map((entry) => (
+      <div className="relative mt-3 h-4" aria-hidden="true">
+        {AXIS_HOURS.map((hour) => (
           <span
-            key={entry.hour}
-            className="flex-1 text-center text-[10px] whitespace-nowrap text-card-foreground-muted"
+            key={hour}
+            className="absolute -translate-x-1/2 text-[10px] whitespace-nowrap text-card-foreground-muted"
+            style={{ left: `${((hour + 0.5) / 24) * 100}%` }}
           >
-            {AXIS_HOURS.includes(entry.hour) ? `${entry.hour} h` : ""}
+            {`${hour} h`}
           </span>
         ))}
       </div>

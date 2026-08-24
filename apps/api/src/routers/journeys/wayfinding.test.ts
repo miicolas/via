@@ -35,6 +35,48 @@ const SNAPSHOT: WayfindingSnapshot = {
       { fromQuayId: 'IDFM:22364', targetId: 'IDFM:50147797', targetKind: 'exit', car: 1, carCount: 5, zone: 'front', equipment: null },
     ]],
   ]),
+  positionsByStationDirection: new Map(),
+  patternsByRouteId: new Map(),
+};
+
+const RER_A = {
+  id: 'IDFM:C01742',
+  shortName: 'A',
+  longName: 'RER A',
+  mode: 'rer',
+  color: '#E2231A',
+  textColor: '#FFFFFF',
+} as const;
+
+/**
+ * An RER alighting as Navitia reports it: monomodal stop areas only, advice
+ * keyed by (station, route, direction), and the patterns that order the line
+ * Chatou → Vincennes → Châtelet → Val d'Europe.
+ */
+const DIRECTIONAL_SNAPSHOT: WayfindingSnapshot = {
+  stationByStopId: new Map([
+    ['stop_point:IDFM:monomodalStopPlace:53783', 'IDFM:64483'],
+    ['stop_point:IDFM:monomodalStopPlace:43224', 'IDFM:70001'],
+    ['stop_point:IDFM:monomodalStopPlace:45102', 'IDFM:71264'],
+    ['stop_point:IDFM:monomodalStopPlace:47000', 'IDFM:72000'],
+  ]),
+  exitsByStopId: SNAPSHOT.exitsByStopId,
+  positionsByQuayId: new Map(),
+  positionsByStationDirection: new Map([
+    ['IDFM:71264 IDFM:C01742 0', [
+      { fromQuayId: 'IDFM:473001', targetId: 'IDFM:50147797', targetKind: 'exit', car: 2, carCount: 10, zone: 'front', equipment: null },
+      { fromQuayId: 'IDFM:473001', targetId: 'IDFM:monomodalStopPlace:43230', targetKind: 'transfer', car: 10, carCount: 10, zone: 'rear', equipment: null },
+    ]],
+    ['IDFM:71264 IDFM:C01742 1', [
+      { fromQuayId: 'IDFM:473002', targetId: 'IDFM:50147797', targetKind: 'exit', car: 9, carCount: 10, zone: 'rear', equipment: null },
+    ]],
+  ]),
+  patternsByRouteId: new Map([
+    ['IDFM:C01742', [
+      { directionId: 0, stationIds: ['IDFM:64483', 'IDFM:70001', 'IDFM:71264', 'IDFM:72000'] },
+      { directionId: 1, stationIds: ['IDFM:72000', 'IDFM:71264', 'IDFM:70001', 'IDFM:64483'] },
+    ]],
+  ]),
 };
 
 function transit(stopIDs: string[], overrides: Partial<JourneySection> = {}): JourneySection {
@@ -75,8 +117,12 @@ function journey(sections: JourneySection[]): Journey {
   };
 }
 
-function apply(sections: JourneySection[], destination: Coordinate) {
-  return applyWayfinding(journey(sections), destination, SNAPSHOT).sections;
+function apply(
+  sections: JourneySection[],
+  destination: Coordinate,
+  snapshot: WayfindingSnapshot = SNAPSHOT
+) {
+  return applyWayfinding(journey(sections), destination, snapshot).sections;
 }
 
 describe('applyWayfinding', () => {
@@ -170,6 +216,97 @@ describe('applyWayfinding', () => {
 
     expect(sections[0]!.exit!.id).toBe('IDFM:50147797');
     expect(sections[0]!.boardingPosition).toBeUndefined();
+  });
+
+  test('a monomodal RER stop recovers the carriage from (station, route, direction)', () => {
+    const sections = apply(
+      [
+        transit(
+          [
+            'stop_point:IDFM:monomodalStopPlace:53783',
+            'stop_point:IDFM:monomodalStopPlace:43224',
+            'stop_point:IDFM:monomodalStopPlace:45102',
+          ],
+          { route: RER_A }
+        ),
+        walk(),
+      ],
+      PLACE_DU_CHATELET,
+      DIRECTIONAL_SNAPSHOT
+    );
+
+    expect(sections[0]!.exit!.id).toBe('IDFM:50147797');
+    expect(sections[0]!.boardingPosition).toEqual({
+      car: 2,
+      carCount: 10,
+      zone: 'front',
+      reason: 'exit',
+    });
+  });
+
+  test('the opposite run of the same line reads the other direction rows', () => {
+    const sections = apply(
+      [
+        transit(
+          [
+            'stop_point:IDFM:monomodalStopPlace:47000',
+            'stop_point:IDFM:monomodalStopPlace:45102',
+          ],
+          { route: RER_A }
+        ),
+        walk(),
+      ],
+      PLACE_DU_CHATELET,
+      DIRECTIONAL_SNAPSHOT
+    );
+
+    expect(sections[0]!.boardingPosition).toMatchObject({ car: 9, zone: 'rear' });
+  });
+
+  test('no pattern orders the two stations: the exit stays, the carriage does not', () => {
+    const snapshotWithoutPatterns: WayfindingSnapshot = {
+      ...DIRECTIONAL_SNAPSHOT,
+      patternsByRouteId: new Map(),
+    };
+    const result = applyWayfinding(
+      journey([
+        transit(
+          [
+            'stop_point:IDFM:monomodalStopPlace:53783',
+            'stop_point:IDFM:monomodalStopPlace:45102',
+          ],
+          { route: RER_A }
+        ),
+        walk(),
+      ]),
+      PLACE_DU_CHATELET,
+      snapshotWithoutPatterns
+    );
+
+    expect(result.sections[0]!.exit!.id).toBe('IDFM:50147797');
+    expect(result.sections[0]!.boardingPosition).toBeUndefined();
+  });
+
+  test('a connection out of an RER leg matches the monomodal transfer target', () => {
+    const sections = applyWayfinding(
+      journey([
+        transit(
+          [
+            'stop_point:IDFM:monomodalStopPlace:53783',
+            'stop_point:IDFM:monomodalStopPlace:43224',
+            'stop_point:IDFM:monomodalStopPlace:45102',
+          ],
+          { route: RER_A }
+        ),
+        { ...walk(), type: 'transfer' },
+        transit(['stop_point:IDFM:monomodalStopPlace:43230', 'stop_point:IDFM:21967'], {}),
+        walk(),
+      ]),
+      RUE_DES_LAVANDIERES,
+      DIRECTIONAL_SNAPSHOT
+    ).sections;
+
+    expect(sections[0]!.boardingPosition).toMatchObject({ reason: 'transfer', car: 10 });
   });
 
   test('leaves a journey untouched when nothing is known about its stations', () => {

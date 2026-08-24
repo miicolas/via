@@ -20,6 +20,11 @@ import { searchRouter } from './search/router';
 import { searchPlaces } from './search/search-places';
 import { reportsRouter } from './reports/router';
 import { createDatabaseJourneyReportOverlay } from './journeys/community-reports';
+import { readCachedStationSnapshot } from './departures/cache';
+import {
+  transitNetworkCacheVersion,
+  transitStationSnapshotCacheKey,
+} from './departures/network-version';
 
 const journeyPlanner = createJourneyPlanner({
   redis,
@@ -72,7 +77,16 @@ const naturalJourneyService = createNaturalJourneyService({
 
 const journeyDepartureChoices = createJourneyDepartureChoicesModule(
   journeyPlanner,
-  { now: () => new Date() }
+  { now: () => new Date() },
+  {
+    readStationSnapshot: async (stationId) => {
+      const version = await transitNetworkCacheVersion(redis);
+      return readCachedStationSnapshot(
+        redis,
+        transitStationSnapshotCacheKey(version, stationId),
+      );
+    },
+  },
 );
 
 /**

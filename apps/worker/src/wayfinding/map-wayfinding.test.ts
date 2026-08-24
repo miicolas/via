@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
-import { mapBoardingPositions, mapExits, zoneOf } from './map-wayfinding';
+import { mapBoardingPositions, mapExits, stationRouteKey, zoneOf } from './map-wayfinding';
+import { inferQuayDirection } from './quay-directions';
 
 /** Real rows, trimmed: Châtelet metro (ZdA 42587 → ZdC 71264) and its line 7 quays. */
 const STOP_AREA_PARENTS = new Map([['42587', '71264'], ['45102', '474151']]);
@@ -190,6 +191,171 @@ describe('mapBoardingPositions', () => {
         zone: 'front',
       }),
     ]);
+  });
+});
+
+/** An east–west platform: direction 0 trains travel east, their head to the east. */
+const CHATOU = { lon: 2.1559, lat: 48.8852 };
+const EXIT_EAST = { lon: 2.158, lat: 48.8852 };
+const EXIT_WEST = { lon: 2.1538, lat: 48.8852 };
+const TRAVEL_VECTORS = [
+  { directionId: 0, east: 1, north: 0 },
+  { directionId: 1, east: -1, north: 0 },
+];
+
+describe('inferQuayDirection', () => {
+  test('a front carriage towards an eastern exit means the train heads east', () => {
+    const directionId = inferQuayDirection({
+      stationLocation: CHATOU,
+      travelVectors: TRAVEL_VECTORS,
+      advice: [{ car: 2, carCount: 10, exitLocation: EXIT_EAST }],
+    });
+
+    expect(directionId).toBe(0);
+  });
+
+  test('a rear carriage towards the same exit means the opposite direction', () => {
+    const directionId = inferQuayDirection({
+      stationLocation: CHATOU,
+      travelVectors: TRAVEL_VECTORS,
+      advice: [{ car: 9, carCount: 10, exitLocation: EXIT_EAST }],
+    });
+
+    expect(directionId).toBe(1);
+  });
+
+  test('contradictory rows leave the quay unresolved', () => {
+    const directionId = inferQuayDirection({
+      stationLocation: CHATOU,
+      travelVectors: TRAVEL_VECTORS,
+      advice: [
+        { car: 2, carCount: 10, exitLocation: EXIT_EAST },
+        { car: 2, carCount: 10, exitLocation: EXIT_WEST },
+      ],
+    });
+
+    expect(directionId).toBeUndefined();
+  });
+
+  test('middle carriages and central exits abstain', () => {
+    const directionId = inferQuayDirection({
+      stationLocation: CHATOU,
+      travelVectors: TRAVEL_VECTORS,
+      advice: [
+        { car: 5, carCount: 10, exitLocation: EXIT_EAST },
+        { car: 1, carCount: 10, exitLocation: { lon: 2.15592, lat: 48.8852 } },
+      ],
+    });
+
+    expect(directionId).toBeUndefined();
+  });
+});
+
+describe('mapBoardingPositions with referential-only quays', () => {
+  const directionOptions = {
+    exitIDs: new Set(['IDFM:50148532', 'IDFM:50148533']),
+    knownQuayIDs: new Set(['IDFM:monomodalStopPlace:53783']),
+    stopAreaByQuay: new Map([['473964', '53783'], ['473965', '53783']]),
+    stationByStopArea: new Map([['53783', 'IDFM:64483']]),
+    exitLocationById: new Map([
+      ['IDFM:50148532', EXIT_EAST],
+      ['IDFM:50148533', EXIT_WEST],
+    ]),
+    stationLocationByStopId: new Map([['IDFM:64483', CHATOU]]),
+    travelVectorsByStationRoute: new Map([
+      [stationRouteKey('IDFM:64483', 'IDFM:C01742'), TRAVEL_VECTORS],
+    ]),
+  };
+
+  function rerRow(overrides: Record<string, unknown> = {}) {
+    return positionRow({
+      from_id: 473964,
+      line_id: 'C01742',
+      to_id: 50148532,
+      position: 2,
+      position_max: 10,
+      position_average: 'Avant',
+      ...overrides,
+    });
+  }
+
+  test('stamps a resolvable RER quay with its station and direction', () => {
+    const positions = mapBoardingPositions({
+      ...directionOptions,
+      trainPositions: [
+        rerRow(),
+        rerRow({ from_id: 473965, position: 9, position_average: 'Arrière' }),
+      ],
+    });
+
+    expect(positions).toEqual([
+      expect.objectContaining({
+        fromQuayId: 'IDFM:473964',
+        stationStopId: 'IDFM:64483',
+        directionId: 0,
+        car: 2,
+      }),
+      expect.objectContaining({
+        fromQuayId: 'IDFM:473965',
+        stationStopId: 'IDFM:64483',
+        directionId: 1,
+        car: 9,
+      }),
+    ]);
+  });
+
+  test('an unresolved quay contributes nothing beyond the direction-safe aggregate', () => {
+    const positions = mapBoardingPositions({
+      ...directionOptions,
+      // Both quays advise the same middle carriage: no direction signal, but
+      // a safe station-level aggregate.
+      trainPositions: [
+        rerRow({ position: 5, position_average: 'Milieu' }),
+        rerRow({ from_id: 473965, position: 5, position_average: 'Milieu' }),
+      ],
+    });
+
+    expect(positions).toEqual([
+      expect.objectContaining({
+        fromQuayId: 'IDFM:monomodalStopPlace:53783',
+        stationStopId: 'IDFM:64483',
+        directionId: null,
+        car: 5,
+      }),
+    ]);
+  });
+
+  test('renames an RER transfer target to the monomodal stop the planner reports', () => {
+    const positions = mapBoardingPositions({
+      exitIDs: new Set(),
+      knownQuayIDs: new Set(['IDFM:463060', 'IDFM:monomodalStopPlace:53783']),
+      stopAreaByQuay: new Map([['473970', '53783']]),
+      trainPositions: [
+        positionRow({ to_type: 'stop_point', to_id: 473970 }),
+      ],
+    });
+
+    expect(positions).toEqual([
+      expect.objectContaining({
+        fromQuayId: 'IDFM:463060',
+        targetId: 'IDFM:monomodalStopPlace:53783',
+        targetKind: 'transfer',
+      }),
+    ]);
+  });
+
+  test('drops a renamed transfer when the two merged platforms disagree', () => {
+    const positions = mapBoardingPositions({
+      exitIDs: new Set(),
+      knownQuayIDs: new Set(['IDFM:463060', 'IDFM:monomodalStopPlace:53783']),
+      stopAreaByQuay: new Map([['473970', '53783'], ['473971', '53783']]),
+      trainPositions: [
+        positionRow({ to_type: 'stop_point', to_id: 473970 }),
+        positionRow({ to_type: 'stop_point', to_id: 473971, position: 1, position_average: 'Avant' }),
+      ],
+    });
+
+    expect(positions).toEqual([]);
   });
 });
 

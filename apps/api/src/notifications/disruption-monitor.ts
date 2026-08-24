@@ -230,6 +230,7 @@ export class NotificationDisruptionMonitor {
       this.deliveryCircuitOpen =
         (await this.options.redis.get(DELIVERY_CIRCUIT_KEY)) !== null;
       if (this.deliveryCircuitOpen) return;
+      if (!(await this.options.subscriptions.hasActive(now))) return;
       const snapshot = await (
         this.options.snapshot ??
         ((date) => getDisruptionsSnapshot(this.options.redis, date))

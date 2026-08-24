@@ -1,5 +1,6 @@
 import { MarketingIcon } from "@/components/ui/marketing-icon";
 import { Reveal } from "@/components/ui/reveal";
+import { TransitText } from "@/components/ui/transit-text";
 import type { JournalEntry } from "@/constants/blog";
 import type { ReactNode } from "react";
 
@@ -36,10 +37,10 @@ export function JournalEntryRow({
             {entry.category}
           </span>
           <h3 className="mt-4 max-w-3xl text-2xl leading-[1.15] font-medium tracking-tight text-balance text-foreground sm:text-3xl">
-            {entry.title}
+            <TransitText>{entry.title}</TransitText>
           </h3>
           <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">
-            {entry.standfirst}
+            <TransitText>{entry.standfirst}</TransitText>
           </p>
         </div>
 

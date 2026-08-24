@@ -1,18 +1,16 @@
 import SwiftUI
 
-/// The intermediate stops of one leg, listed on the same rail as the rest of
-/// the timeline.
-///
-/// The previous version nested a `DisclosureGroup` inside another one, which
-/// buried arrival times two taps deep. Here the stops simply continue the rail.
+/// Intermediate stations continue the same wide rail as the boarding and
+/// alighting rows. They are real rows, not text nested inside a disclosure.
 struct JourneyStopListView: View {
     let stops: [JourneyStop]
     let rail: JourneyTimelineRailStyle
     let state: JourneyTimelineNodeState
+    let isExpanded: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
+            ForEach(Self.displayedStops(from: stops, isExpanded: isExpanded)) { stop in
                 HStack(alignment: .top, spacing: 0) {
                     JourneyTimelineRail(
                         above: rail,
@@ -20,24 +18,36 @@ struct JourneyStopListView: View {
                         bead: .minor,
                         state: state
                     )
+                    .frame(maxHeight: .infinity)
 
                     Text(stop.name)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(rail.lineTint ?? .primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.trailing, 8)
+                        .padding(.trailing, 10)
+                        .padding(.vertical, 10)
+                        .opacity(state == .done ? 0.42 : 1)
 
-                    JourneyTimelineTimeLabel(stop: stop)
+                    JourneyTimelineStopTimeLabel(stop: stop)
+                        .padding(.vertical, 10)
+                        .opacity(state == .done ? 0.42 : 1)
                 }
-                .opacity(state == .done ? 0.45 : 1)
-                .padding(.vertical, 5)
+                .frame(minHeight: 58)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(label(for: stop))
-                // A leg unfolds stop by stop, so expanding it reads as the rail
-                // being drawn rather than as a block of text dropping in.
-                .staggeredAppearance(rank: index, step: 0.03, limit: 0.3)
             }
         }
+    }
+
+    /// In the compact passenger-board state, the last intermediate stop is
+    /// always visible: it is the station immediately before the terminus.
+    /// Expansion reveals the earlier hidden stations without moving either
+    /// endpoint out of the timeline.
+    static func displayedStops(
+        from stops: [JourneyStop],
+        isExpanded: Bool
+    ) -> [JourneyStop] {
+        isExpanded ? stops : Array(stops.suffix(1))
     }
 
     private func label(for stop: JourneyStop) -> String {
@@ -46,8 +56,7 @@ struct JourneyStopListView: View {
     }
 }
 
-/// Trailing time column shared by the stop rows.
-private struct JourneyTimelineTimeLabel: View {
+private struct JourneyTimelineStopTimeLabel: View {
     let stop: JourneyStop
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -62,11 +71,11 @@ private struct JourneyTimelineTimeLabel: View {
                 Text(verbatim: "")
             }
         }
-        .font(.caption.monospacedDigit())
+        .font(.body.weight(.semibold).monospacedDigit())
         .contentTransition(reduceMotion ? .identity : .numericText())
         .animation(reduceMotion ? nil : .default, value: time)
         .foregroundStyle(.secondary)
-        .frame(width: 54, alignment: .trailing)
+        .frame(width: 68, alignment: .trailing)
     }
 }
 
@@ -82,9 +91,11 @@ private struct JourneyTimelineTimeLabel: View {
         )
     }
 
-    return VStack(spacing: 24) {
-        JourneyStopListView(stops: stops, rail: .line(colorHex: "FFCE00"), state: .upcoming)
-        JourneyStopListView(stops: stops, rail: .line(colorHex: "E3051C"), state: .done)
-    }
+    return JourneyStopListView(
+        stops: stops,
+        rail: .line(colorHex: "E3051C"),
+        state: .upcoming,
+        isExpanded: false
+    )
     .padding()
 }

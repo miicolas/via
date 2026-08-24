@@ -1,11 +1,7 @@
 import SwiftUI
 
-/// The whole journey as one continuous rail.
-///
-/// `mode` is the only difference between the pre-trip detail and live guidance:
-/// in `.plan` every node reads as upcoming and no cursor is drawn; in `.live`
-/// the travelled part dims and a cursor rides the rail. Keeping one view for
-/// both is what makes the two screens read as the same object.
+/// The journey rendered as a passenger information board: each leg owns one
+/// continuous rail and transit legs introduce themselves with a train diagram.
 struct JourneyTimelineView: View {
     enum Mode: Equatable {
         case plan
@@ -23,19 +19,14 @@ struct JourneyTimelineView: View {
     var mode: Mode = .plan
     @Binding var expandedSectionIDs: Set<String>
     var highlightedSectionID: String?
-    /// `nil` leaves the rows non-interactive, which is what guidance wants.
     var onSelectSection: ((String) -> Void)?
-    /// `nil` on the screens that do not offer departure re-picking.
     var departureChoices: JourneyDepartureChoicesModel?
-    /// Which sections may still be re-picked, from
-    /// `ActiveJourneyRules.revisableSectionIDs`. Precomputed by the caller
-    /// rather than asked per row: the guidance panel would otherwise re-project
-    /// progress over the whole journey once per node, on every body pass.
     var revisableSectionIDs: Set<String> = []
     var onSelectDeparture: ((JourneyDepartureChoice, String) -> Void)?
     var onRetryDepartures: (() -> Void)?
 
-    /// Identifier the guidance screen scrolls to when the traveller advances.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     static func currentNodeID(in journey: Journey, progress: JourneyProgress?) -> String? {
         let nodes = JourneyTimeline.nodes(for: journey)
         return JourneyTimeline.cursor(in: nodes, progress: progress)?.nodeID
@@ -44,73 +35,69 @@ struct JourneyTimelineView: View {
 
     var body: some View {
         let allNodes = JourneyTimeline.nodes(for: journey)
-        let nodes = allNodes.filter(\.isTravellerInstruction)
+        let nodes = displayNodes(from: allNodes)
         let cursor = JourneyTimeline.cursor(in: allNodes, progress: mode.progress)
         let groups = nodeGroups(from: nodes)
-        // Rank in the whole rail, not in the group: the cascade has to run down
-        // the journey once, not restart at every leg.
-        let ranks = Dictionary(
-            uniqueKeysWithValues: nodes.enumerated().map { ($0.element.id, $0.offset) }
-        )
 
         VStack(spacing: 0) {
             ForEach(groups) { group in
-                let isSelected = group.isSelectable && highlightedSectionID == group.sectionID
-
-                VStack(spacing: 0) {
-                    ForEach(group.nodes) { node in
-                        JourneyTimelineNodeRow(
-                            node: node,
-                            state: JourneyTimeline.state(of: node, progress: mode.progress),
-                            cursorFraction: cursor?.nodeID == node.id ? cursor?.fraction : nil,
-                            isCursorLive: mode.progress?.isLocationDerived == true,
-                            isHighlighted: isSelected,
-                            isExpanded: binding(for: node.sectionID),
-                            departureChoicesGroup: departureChoices?
-                                .groupsBySectionID[node.sectionID],
-                            isDepartureChoicesLoading: departureChoices?.isRefreshing == true,
-                            isSelectingDeparture: departureChoices?
-                                .selectingSectionID == node.sectionID,
-                            departureChoicesError: departureChoices?
-                                .errorMessage(for: node.sectionID),
-                            // The rail stays live while a revision flies: a
-                            // traveller mid-swipe must not hit a dead control.
-                            canSelectDepartures: revisableSectionIDs.contains(node.sectionID),
-                            onSelectDeparture: onSelectDeparture.map { select in
-                                { choice in select(choice, node.sectionID) }
-                            },
-                            onRetryDepartures: onRetryDepartures,
-                            onSelect: onSelectSection.map { select in { select(node.sectionID) } }
-                        )
-                        .id(node.id)
-                        .staggeredAppearance(rank: ranks[node.id] ?? 0)
-                    }
-                }
-                .background {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.accentColor.opacity(0.045))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .strokeBorder(Color.accentColor.opacity(0.24), lineWidth: 1.5)
-                            }
-                            .padding(.leading, JourneyTimelineRail.width - 6)
-                    }
-                }
+                JourneyTimelineSectionView(
+                    nodes: group.nodes,
+                    progress: mode.progress,
+                    cursor: cursor,
+                    isCursorLive: mode.progress?.isLocationDerived == true,
+                    isHighlighted: group.isSelectable
+                        && highlightedSectionID == group.sectionID,
+                    isExpanded: binding(for: group.sectionID),
+                    departureChoicesGroup: departureChoices?.groupsBySectionID[group.sectionID],
+                    isDepartureChoicesLoading: departureChoices?.isRefreshing == true,
+                    isSelectingDeparture: departureChoices?.selectingSectionID == group.sectionID,
+                    departureChoicesError: departureChoices?.errorMessage(for: group.sectionID),
+                    canSelectDepartures: revisableSectionIDs.contains(group.sectionID),
+                    onSelectDeparture: onSelectDeparture.map { select in
+                        { choice in select(choice, group.sectionID) }
+                    },
+                    onRetryDepartures: onRetryDepartures,
+                    onSelect: group.isSelectable
+                        ? onSelectSection.map { select in { select(group.sectionID) } }
+                        : nil
+                )
+                .simultaneousGesture(swipeGesture(for: group))
             }
         }
-        // One animation for the whole rail: when progress moves, the colours,
-        // the dimming and the position bubble travel together instead of each
-        // row snapping to its new state on its own.
-        .animation(.smooth(duration: 0.45), value: mode)
-        .animation(.smooth(duration: 0.25), value: highlightedSectionID)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: mode)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: highlightedSectionID)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: expandedSectionIDs)
+        .sensoryFeedback(.selection, trigger: expandedSectionIDs)
     }
 
-    /// Endpoint rows describe the whole journey, while the rows between them
-    /// describe one selectable leg. Keeping a leg in one group gives selection
-    /// a single continuous surface instead of disconnected pills at each stop.
-    private func nodeGroups(from nodes: [JourneyTimelineNode]) -> [NodeGroup] {
-        var groups: [NodeGroup] = []
+    /// Boarding at the origin and alighting at the destination already name
+    /// those places. Suppressing their duplicate endpoint rows keeps the board
+    /// as direct as the supplied RER displays without changing the domain model.
+    private func displayNodes(from nodes: [JourneyTimelineNode]) -> [JourneyTimelineNode] {
+        nodes.enumerated().compactMap { index, node in
+            guard node.isTravellerInstruction else { return nil }
+
+            if case .origin = node.kind,
+               node.railBelow == .none,
+               nodes.indices.contains(index + 1),
+               case .board = nodes[index + 1].kind {
+                return nil
+            }
+
+            if case .destination = node.kind,
+               node.railAbove == .none,
+               index > 0,
+               case .alight = nodes[index - 1].kind {
+                return nil
+            }
+
+            return node
+        }
+    }
+
+    private func nodeGroups(from nodes: [JourneyTimelineNode]) -> [JourneyTimelineNodeGroup] {
+        var groups: [JourneyTimelineNodeGroup] = []
 
         for node in nodes {
             let isEndpoint = switch node.kind {
@@ -125,7 +112,7 @@ struct JourneyTimelineView: View {
                 groups[last].nodes.append(node)
             } else {
                 groups.append(
-                    NodeGroup(
+                    JourneyTimelineNodeGroup(
                         id: isEndpoint ? "endpoint:\(node.id)" : "section:\(node.sectionID)",
                         sectionID: node.sectionID,
                         nodes: [node],
@@ -141,66 +128,41 @@ struct JourneyTimelineView: View {
     private func binding(for sectionID: String) -> Binding<Bool> {
         Binding(
             get: { expandedSectionIDs.contains(sectionID) },
-            set: { isExpanded in
-                if isExpanded {
-                    expandedSectionIDs.insert(sectionID)
-                } else {
-                    expandedSectionIDs.remove(sectionID)
-                }
+            set: { setExpanded($0, for: sectionID) }
+        )
+    }
+
+    private func swipeGesture(for group: JourneyTimelineNodeGroup) -> some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                guard group.hasExpandableStops else { return }
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(horizontal) > 44,
+                      abs(horizontal) > abs(vertical) * 1.35 else { return }
+                setExpanded(horizontal > 0, for: group.sectionID)
             }
-        )
+    }
+
+    private func setExpanded(_ isExpanded: Bool, for sectionID: String) {
+        if isExpanded {
+            expandedSectionIDs.insert(sectionID)
+        } else {
+            expandedSectionIDs.remove(sectionID)
+        }
     }
 }
 
-private struct NodeGroup: Identifiable {
-    let id: String
-    let sectionID: String
+private struct JourneyTimelineNodeGroup: Identifiable {
+    var id: String
+    var sectionID: String
     var nodes: [JourneyTimelineNode]
-    let isSelectable: Bool
-}
+    var isSelectable: Bool
 
-#Preview("Détail") {
-    @Previewable @State var expanded: Set<String> = []
-
-    ScrollView {
-        JourneyTimelineView(
-            journey: .mapPreviewMultipleTransfers,
-            expandedSectionIDs: $expanded
-        )
-        .padding(.horizontal, 16)
+    var hasExpandableStops: Bool {
+        nodes.contains { node in
+            if case .ride(let stops) = node.kind { return stops.count > 1 }
+            return false
+        }
     }
-}
-
-#Preview("En direct") {
-    @Previewable @State var expanded: Set<String> = []
-    let journey = Journey.mapPreviewMultipleTransfers
-    let progress = JourneyProgressProjector.progress(
-        schedule: ActiveJourneyRules.schedule(for: journey),
-        sectionIndex: 1,
-        at: journey.departureAt.addingTimeInterval(600),
-        coordinate: nil,
-        horizontalAccuracy: nil
-    )
-
-    return ScrollView {
-        JourneyTimelineView(
-            journey: journey,
-            mode: .live(progress),
-            expandedSectionIDs: $expanded
-        )
-        .padding(.horizontal, 16)
-    }
-}
-
-#Preview("Grande taille de texte") {
-    @Previewable @State var expanded: Set<String> = []
-
-    ScrollView {
-        JourneyTimelineView(
-            journey: .mapPreviewMultipleTransfers,
-            expandedSectionIDs: $expanded
-        )
-        .padding(.horizontal, 16)
-    }
-    .environment(\.dynamicTypeSize, .accessibility2)
 }

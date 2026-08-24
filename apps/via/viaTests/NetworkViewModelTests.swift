@@ -80,6 +80,43 @@ final class NetworkViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testModeFilterNarrowsTheDrawnNetworkToThatMode() async {
+        let coordinates = [
+            GeoCoordinate(latitude: 48.85, longitude: 2.348),
+            GeoCoordinate(latitude: 48.85, longitude: 2.352),
+        ]
+        let network = TransitNetwork(
+            routes: [
+                NetworkRoute(
+                    badge: badge("M1", mode: .metro),
+                    segments: [NetworkSegment(id: "M1-segment", coordinates: coordinates)]
+                ),
+                NetworkRoute(
+                    badge: badge("RER-A", mode: .rer),
+                    segments: [NetworkSegment(id: "RER-A-segment", coordinates: coordinates)]
+                ),
+            ],
+            stations: []
+        )
+        let repository = NetworkRepositorySpy(network: network, area: area())
+        let model = NetworkViewModel(repository: repository)
+        model.viewportChanged(to: viewport(), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+        XCTAssertEqual(model.state.snapshot.routes.count, 2)
+
+        model.stationFilter.criteria = [.mode(.metro)]
+
+        XCTAssertEqual(
+            model.state.snapshot.routes.map(\.badge.shortName),
+            ["M1"]
+        )
+
+        model.stationFilter.criteria = []
+
+        XCTAssertEqual(model.state.snapshot.routes.count, 2)
+    }
+
+    @MainActor
     func testFilterSelectedBeforeLoadingAppliesToFetchedStations() async {
         let route = badge("metro", mode: .metro)
         let withoutToilets = NetworkStation(
@@ -162,6 +199,81 @@ final class NetworkViewModelTests: XCTestCase {
         XCTAssertEqual(model.state.snapshot.stationOpacity, 0)
         let viewportCalls = await repository.viewportCallCount
         XCTAssertEqual(viewportCalls, 0)
+    }
+
+    /// A filtered nearby set is useful just past the normal annotation zoom,
+    /// but disappears once its bounded query no longer covers the viewport.
+    @MainActor
+    func testFilteredStationsOnlyDrawWhileNearbyRadiusCoversViewport() async {
+        let route = badge("metro", mode: .metro)
+        let withToilets = NetworkStation(
+            id: StationID(rawValue: "with-toilets"),
+            name: "Avec sanitaires",
+            coordinate: GeoCoordinate(latitude: 48.8505, longitude: 2.35),
+            routeIDs: [route.id],
+            toilets: StationToilets(label: "Sanitaires disponibles", detail: nil)
+        )
+        let withoutToilets = NetworkStation(
+            id: StationID(rawValue: "without-toilets"),
+            name: "Sans sanitaires",
+            coordinate: GeoCoordinate(latitude: 48.851, longitude: 2.35),
+            routeIDs: [route.id]
+        )
+        let area = StationsArea(stations: [withToilets, withoutToilets], routes: [route])
+        let repository = NetworkRepositorySpy(network: network(), area: area)
+        let filterStore = StationMapFilterStore()
+        let nearby = NearbyStationsModel(repository: repository, filterStore: filterStore)
+        let model = NetworkViewModel(
+            repository: repository,
+            filterStore: filterStore,
+            nearby: nearby
+        )
+
+        // Past the normal 1 600 m threshold, but still wholly inside the
+        // nearby model's 2 km radius.
+        model.viewportChanged(to: viewport(spanMeters: 2_000), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+        XCTAssertTrue(model.state.snapshot.stations.isEmpty)
+
+        filterStore.filter.criteria = [.toilets]
+        await waitUntil { !model.state.snapshot.stations.isEmpty }
+
+        XCTAssertEqual(
+            model.state.snapshot.stations.map(\.id),
+            [StationID(rawValue: "with-toilets")]
+        )
+        // The zoom fade does not apply to a set this small.
+        XCTAssertEqual(model.state.snapshot.stationOpacity, 0)
+        XCTAssertEqual(model.state.snapshot.resolvedStationOpacity, 1)
+
+        // At overview scale the query only covers a circle in the middle of
+        // the screen, so every annotation must disappear together.
+        model.viewportChanged(to: viewport(spanMeters: 12_000), phase: .ended)
+        await waitUntil {
+            model.state.loading == .loaded && model.state.snapshot.stations.isEmpty
+        }
+        XCTAssertEqual(model.state.snapshot.resolvedStationOpacity, 0)
+    }
+
+    @MainActor
+    func testNoFilterStillDrawsNothingBeyondTheZoomThreshold() async {
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: area(stationID: "hidden", latitude: 48.85)
+        )
+        let filterStore = StationMapFilterStore()
+        let nearby = NearbyStationsModel(repository: repository, filterStore: filterStore)
+        let model = NetworkViewModel(
+            repository: repository,
+            filterStore: filterStore,
+            nearby: nearby
+        )
+
+        model.viewportChanged(to: viewport(spanMeters: 12_000), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+
+        XCTAssertTrue(model.state.snapshot.stations.isEmpty)
+        XCTAssertEqual(model.state.snapshot.resolvedStationOpacity, 0)
     }
 
     @MainActor
