@@ -6,6 +6,7 @@ import {
   jobDb,
   notificationDevices,
   notificationJourneySubscriptions,
+  timestamptz,
 } from "@via/db";
 import type {
   ActiveJourneyRegistration,
@@ -40,6 +41,7 @@ export class NotificationInstallationOwnershipError extends Error {
 export interface NotificationJourneySubscriptionStore {
   register(userId: string, input: ActiveJourneyRegistration): Promise<void>;
   unregister(userId: string, input: ActiveJourneyUnregistration): Promise<void>;
+  hasActive(now: Date): Promise<boolean>;
   listActiveBatch(
     now: Date,
     afterInstallationId: string | undefined,
@@ -50,6 +52,17 @@ export interface NotificationJourneySubscriptionStore {
     recipients: readonly NotificationJourneyRecipient[],
   ): Promise<NotificationJourneyRecipient[]>;
   deleteExpiredBatch(now: Date, limit: number): Promise<number>;
+}
+
+export function activeJourneyExistsQuery(now: Date) {
+  return sql`
+    SELECT EXISTS (
+      SELECT 1
+      FROM ${notificationJourneySubscriptions}
+      WHERE ${notificationJourneySubscriptions.endsAt} > ${timestamptz(now)}
+        AND ${notificationJourneySubscriptions.startsAt} <= ${timestamptz(now)}
+    ) AS active
+  `;
 }
 
 export function activeJourneyRouteWindows(input: ActiveJourneyRegistration) {
@@ -255,6 +268,13 @@ export function createDatabaseNotificationJourneySubscriptionStore(
           );
         });
       }
+    },
+
+    async hasActive(now) {
+      const rows = await database.execute<{ active: boolean }>(
+        activeJourneyExistsQuery(now),
+      );
+      return rows[0]?.active ?? false;
     },
 
     async listActiveBatch(now, afterInstallationId, limit, shard) {

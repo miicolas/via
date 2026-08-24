@@ -206,6 +206,9 @@ struct JourneyDepartureChoicesView: View {
                 Text("·")
             }
             Text(group.availability == .unavailable ? "Aucun autre passage" : position)
+                .monospacedDigit()
+                .contentTransition(reduceMotion ? .identity : .numericText())
+                .animation(reduceMotion ? nil : .default, value: focusedIndex)
         }
         .font(.caption2.weight(.medium))
         .foregroundStyle(.secondary)

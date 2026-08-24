@@ -11,12 +11,12 @@ export function FooterLinkGroup({
       <h3 className="mb-4 text-xs font-medium tracking-wider text-white/75 uppercase">
         {group.label}
       </h3>
-      <ul className="space-y-2">
+      <ul className="space-y-1">
         {group.items.map((link) => (
           <li key={link.label}>
             <a
               href={link.href}
-              className="text-sm text-white transition-colors hover:text-white/75"
+              className="inline-flex min-h-10 items-center text-sm text-white transition-colors hover:text-white/75"
             >
               {link.label}
             </a>

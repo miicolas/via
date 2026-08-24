@@ -1,3 +1,5 @@
+import { transitLines } from "./transit";
+
 export const featureContent = {
   onboarding: {
     title: "Tout le réseau, d’un coup d’œil",
@@ -17,7 +19,7 @@ export const featureContent = {
         label: "Au Louvre à 9 h",
         text: "Au Louvre demain à 9 h",
         result: {
-          line: { shortName: "1", color: "#ffcd00", textColor: "#111111" },
+          line: transitLines.m1,
           destination: "Louvre — Rivoli",
           note: "Départ 8 h 41 · 12 min",
         },
@@ -26,7 +28,7 @@ export const featureContent = {
         label: "Dernier train",
         text: "Dernier train pour chez moi",
         result: {
-          line: { shortName: "14", color: "#62259d", textColor: "#ffffff" },
+          line: transitLines.m14,
           destination: "Maison · Olympiades",
           note: "Dernier départ 0 h 47",
         },
@@ -35,7 +37,7 @@ export const featureContent = {
         label: "Gare de Lyon",
         text: "Gare de Lyon avant 18 h",
         result: {
-          line: { shortName: "14", color: "#62259d", textColor: "#ffffff" },
+          line: transitLines.m14,
           destination: "Gare de Lyon",
           note: "Départ 17 h 38 · 9 min",
         },
@@ -49,7 +51,7 @@ export const featureContent = {
       time: "21:47",
     },
     activity: {
-      line: { shortName: "1", color: "#ffcd00", textColor: "#111111" },
+      line: transitLines.m1,
       destination: "La Défense",
       unit: "MIN",
       phases: [
@@ -68,12 +70,12 @@ export const featureContent = {
       hint: "Touchez une ligne pour signaler",
       rows: [
         {
-          line: { shortName: "1", color: "#ffcd00", textColor: "#111111" },
+          line: transitLines.m1,
           station: "Châtelet",
           initialLevel: 0,
         },
         {
-          line: { shortName: "14", color: "#62259d", textColor: "#ffffff" },
+          line: transitLines.m14,
           station: "Bercy",
           initialLevel: 2,
         },

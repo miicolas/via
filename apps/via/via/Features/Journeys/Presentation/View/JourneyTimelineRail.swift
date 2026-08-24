@@ -1,170 +1,207 @@
 import SwiftUI
 
-/// The vertical rail slice belonging to one timeline row: the stroke above the
-/// bead, the bead itself, the stroke below, and — in guidance — the live
-/// position bubble.
-///
-/// Each row draws its own slice rather than a single rail being laid out across
-/// the whole list. That keeps the bubble and the beads aligned with their text
-/// at every Dynamic Type size, with no cross-row geometry to reconcile.
-///
-/// Nothing here switches between view branches: the ridden and the walked
-/// strokes are both always in the tree and only their opacity changes. That is
-/// what lets a leg change colour, dim behind the traveller, or turn from ridden
-/// to walked as a crossfade instead of a pop.
+/// One slice of the passenger-display rail. Consecutive slices meet edge to
+/// edge, forming a single wide band with white station holes punched through.
 struct JourneyTimelineRail: View {
     let above: JourneyTimelineRailStyle
     let below: JourneyTimelineRailStyle
     let bead: JourneyTimelineBead
     let state: JourneyTimelineNodeState
-    /// 0…1 down this row, when the traveller is on it.
     var cursorFraction: Double?
-    /// A bubble placed from a location fix reads as live; a scheduled one does not.
-    var isCursorLive: Bool = false
+    var isCursorLive = false
+    var beadTopInset: CGFloat = 0
 
-    static let width: CGFloat = 40
+    static let width: CGFloat = 56
 
-    /// Solid core of a ridden leg. The halo around it is what makes the rail
-    /// read as one thick, soft object rather than a hairline.
-    private static let lineWidth: CGFloat = 11
-    private static let haloWidth: CGFloat = 22
+    /// Wide enough for the white station hole to remain visibly inset in the
+    /// coloured band, like the platform displays used as reference.
+    private static let transitWidth: CGFloat = 26
     private static let pedestrianWidth: CGFloat = 7
-
-    /// Deliberately outside the network palette: on a rail already tinted by
-    /// every operator colour, only a colour no line uses reads instantly as *me*.
-    /// The bubble is also the only bead on the rail wearing the app mark, for
-    /// the same reason — everything else on the rail is a place, not a person.
     private static let cursorTint = Color.blue
-    private static let cursorSize: CGFloat = 30
+    private static let cursorSize: CGFloat = 28
 
-    @ScaledMetric(relativeTo: .headline) private var beadCenter: CGFloat = 14
+    @ScaledMetric(relativeTo: .headline) private var beadCenter: CGFloat = 22
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(spacing: 0) {
-            stroke(above)
-                .frame(height: beadCenter)
-            stroke(below)
-                .frame(maxHeight: .infinity)
+        ZStack {
+            VStack(spacing: 0) {
+                pedestrianStroke(above)
+                    .frame(height: beadPosition)
+
+                pedestrianStroke(below)
+                    .frame(maxHeight: .infinity)
+            }
+
+            GeometryReader { proxy in
+                transitBand(in: proxy.size)
+            }
         }
         .frame(width: Self.width)
-        .overlay(alignment: .top) { beadView.offset(y: beadCenter - beadSize / 2) }
+        .overlay(alignment: .top) {
+            beadView
+                .offset(y: beadPosition - beadSize / 2)
+        }
         .overlay { cursorView }
-        .animation(.smooth(duration: 0.35), value: state)
-        .animation(.smooth(duration: 0.35), value: above)
-        .animation(.smooth(duration: 0.35), value: below)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: state)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: above)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: below)
         .accessibilityHidden(true)
     }
 
-    // MARK: - Strokes
-
-    private func stroke(_ style: JourneyTimelineRailStyle) -> some View {
+    private func pedestrianStroke(_ style: JourneyTimelineRailStyle) -> some View {
         ZStack {
-            lineStroke(style.lineTint ?? Color.accentColor)
-                .opacity(style.isLine ? strokeOpacity : 0)
-
-            pedestrianStroke
-                .opacity(style.isPedestrian ? strokeOpacity : 0)
+            JourneyRailPath()
+                .stroke(
+                    Color.secondary.opacity(0.75),
+                    style: StrokeStyle(
+                        lineWidth: Self.pedestrianWidth,
+                        lineCap: .round,
+                        dash: [1, 11]
+                    )
+                )
+                .frame(width: Self.pedestrianWidth)
+                .opacity(style.isPedestrian ? strokeOpacity(for: style) : 0)
         }
         .frame(width: Self.width)
     }
 
-    /// A solid core inside a soft halo. The halo is a plain horizontal gradient
-    /// rather than a blur, so consecutive rows still stack without a seam.
-    private func lineStroke(_ tint: Color) -> some View {
-        ZStack {
-            Rectangle()
-                .fill(
-                    LinearGradient(
-                        colors: [tint.opacity(0), tint.opacity(0.22), tint.opacity(0)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .frame(width: Self.haloWidth)
+    /// The coloured rail is one of three deliberate pieces. A start owns its
+    /// rounded top, a middle is edge-to-edge, and an end owns its rounded
+    /// bottom. Consecutive rows therefore meet without spacer seams.
+    @ViewBuilder
+    private func transitBand(in size: CGSize) -> some View {
+        switch transitBandRole {
+        case .start(let colorHex):
+            let startY = max(0, beadPosition - Self.transitWidth / 2)
+            let height = max(0, size.height - startY)
 
+            UnevenRoundedRectangle(
+                topLeadingRadius: Self.transitWidth / 2,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: Self.transitWidth / 2,
+                style: .continuous
+            )
+            .fill(lineTint(colorHex))
+            .frame(width: Self.transitWidth, height: height)
+            .position(x: size.width / 2, y: startY + height / 2)
+            .opacity(transitOpacity)
+
+        case .middle(let colorHex):
             Rectangle()
-                .fill(tint)
-                .frame(width: Self.lineWidth)
+                .fill(lineTint(colorHex))
+                .frame(width: Self.transitWidth, height: size.height)
+                .position(x: size.width / 2, y: size.height / 2)
+                .opacity(transitOpacity)
+
+        case .end(let colorHex):
+            let height = min(size.height, beadPosition + Self.transitWidth / 2)
+
+            UnevenRoundedRectangle(
+                topLeadingRadius: 0,
+                bottomLeadingRadius: Self.transitWidth / 2,
+                bottomTrailingRadius: Self.transitWidth / 2,
+                topTrailingRadius: 0,
+                style: .continuous
+            )
+            .fill(lineTint(colorHex))
+            .frame(width: Self.transitWidth, height: height)
+            .position(x: size.width / 2, y: height / 2)
+            .opacity(transitOpacity)
+
+        case .transition(let aboveHex, let belowHex):
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(lineTint(aboveHex))
+                    .frame(height: beadPosition)
+
+                Rectangle()
+                    .fill(lineTint(belowHex))
+                    .frame(maxHeight: .infinity)
+            }
+            .frame(width: Self.transitWidth, height: size.height)
+            .position(x: size.width / 2, y: size.height / 2)
+            .opacity(transitOpacity)
+
+        case .none:
+            EmptyView()
         }
     }
 
-    private var pedestrianStroke: some View {
-        RailPath()
-            .stroke(
-                Color.secondary.opacity(0.8),
-                style: StrokeStyle(
-                    lineWidth: Self.pedestrianWidth,
-                    lineCap: .round,
-                    dash: [0.5, 11]
-                )
-            )
-            .frame(width: Self.pedestrianWidth)
+    private var transitBandRole: TransitBandRole {
+        switch (above, below) {
+        case let (.line(aboveHex), .line(belowHex)) where aboveHex == belowHex:
+            .middle(colorHex: aboveHex)
+        case let (.line(aboveHex), .line(belowHex)):
+            .transition(aboveHex: aboveHex, belowHex: belowHex)
+        case let (_, .line(colorHex)):
+            .start(colorHex: colorHex)
+        case let (.line(colorHex), _):
+            .end(colorHex: colorHex)
+        default:
+            .none
+        }
     }
 
-    // MARK: - Bead
+    private func lineTint(_ colorHex: String?) -> Color {
+        Color(transitHex: colorHex ?? "", fallback: .accentColor)
+    }
+
+    private var transitOpacity: Double {
+        state == .done ? 0.42 : 1
+    }
+
+    private var beadPosition: CGFloat {
+        beadCenter + beadTopInset
+    }
 
     private var beadSize: CGFloat {
         switch bead {
-        case .terminus: 20
-        case .major: 18
-        case .minor: 12
+        case .terminus, .major: 16
+        case .minor: 14
         case .none: 0
         }
     }
 
-    /// The bead sits in a background-coloured gap, so it keeps punching out of a
-    /// rail that is now thick enough to swallow it.
     @ViewBuilder
     private var beadView: some View {
-        if bead != .none {
-            beadShape
-                .frame(width: beadSize, height: beadSize)
-                .background {
-                    Circle()
-                        .fill(Color(.systemBackground))
-                        .frame(width: beadSize + 7, height: beadSize + 7)
-                }
-        }
-    }
-
-    @ViewBuilder
-    private var beadShape: some View {
         switch bead {
         case .none:
             EmptyView()
+        case .minor, .major:
+            stationHole
         case .terminus:
-            Circle()
-                .fill(beadTint.opacity(strokeOpacity))
-                .overlay {
-                    Circle()
-                        .fill(Color(.systemBackground))
-                        .frame(width: beadSize * 0.36, height: beadSize * 0.36)
-                }
-        case .minor:
-            Circle()
-                .fill(Color(.systemBackground))
-                .overlay {
-                    Circle().strokeBorder(beadTint.opacity(strokeOpacity), lineWidth: 3)
-                }
-        case .major:
-            Circle()
-                .fill(Color(.systemBackground))
-                .overlay {
-                    // A done stop keeps a thin ring, an upcoming one a thick
-                    // filled ring, so the state survives without colour.
-                    Circle().strokeBorder(
-                        beadTint.opacity(strokeOpacity),
-                        lineWidth: state == .done ? 2.5 : 5
-                    )
-                }
+            if hasTransitRail {
+                stationHole
+            } else {
+                Circle()
+                    .fill(beadTint)
+                    .overlay {
+                        Circle()
+                            .fill(.white)
+                            .frame(width: beadSize * 0.38, height: beadSize * 0.38)
+                    }
+                    .frame(width: beadSize, height: beadSize)
+                    .opacity(state == .done ? 0.5 : 1)
+            }
         }
+    }
+
+    private var stationHole: some View {
+        Circle()
+            .fill(.white)
+            .frame(width: beadSize, height: beadSize)
+            .opacity(state == .done ? 0.72 : 1)
     }
 
     private var beadTint: Color {
         below.lineTint ?? above.lineTint ?? Color.accentColor
     }
 
-    // MARK: - Position bubble
+    private var hasTransitRail: Bool {
+        above.isLine || below.isLine
+    }
 
     @ViewBuilder
     private var cursorView: some View {
@@ -180,25 +217,32 @@ struct JourneyTimelineRail: View {
                     y: proxy.size.height * min(max(0, cursorFraction), 1)
                 )
             }
-            .transition(.scale(scale: 0.4).combined(with: .opacity))
-            .animation(.smooth(duration: 0.55), value: cursorFraction)
+            .transition(.scale(scale: 0.5).combined(with: .opacity))
+            .animation(reduceMotion ? nil : .smooth(duration: 0.5), value: cursorFraction)
         }
     }
 
-    // MARK: - Shared styling
-
-    private var strokeOpacity: Double {
-        state == .done ? 0.35 : 1
+    private func strokeOpacity(for style: JourneyTimelineRailStyle) -> Double {
+        guard state == .done else { return 1 }
+        return style.isLine ? 0.42 : 0.46
     }
 }
 
-private extension JourneyTimelineRailStyle {
-    var isLine: Bool {
+private enum TransitBandRole {
+    case start(colorHex: String?)
+    case middle(colorHex: String?)
+    case end(colorHex: String?)
+    case transition(aboveHex: String?, belowHex: String?)
+    case none
+}
+
+extension JourneyTimelineRailStyle {
+    fileprivate var isLine: Bool {
         if case .line = self { return true }
         return false
     }
 
-    var isPedestrian: Bool {
+    fileprivate var isPedestrian: Bool {
         self == .pedestrian
     }
 
@@ -208,66 +252,11 @@ private extension JourneyTimelineRailStyle {
     }
 }
 
-/// A plain vertical line, so the pedestrian rail can be dashed.
-private struct RailPath: Shape {
+private struct JourneyRailPath: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.midX, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
         return path
     }
-}
-
-#Preview("Rail states") {
-    HStack(alignment: .top, spacing: 24) {
-        JourneyTimelineRail(
-            above: .none,
-            below: .pedestrian,
-            bead: .terminus,
-            state: .done
-        )
-        JourneyTimelineRail(
-            above: .pedestrian,
-            below: .line(colorHex: "FFCE00"),
-            bead: .major,
-            state: .done
-        )
-        JourneyTimelineRail(
-            above: .line(colorHex: "FFCE00"),
-            below: .line(colorHex: "FFCE00"),
-            bead: .none,
-            state: .current,
-            cursorFraction: 0.45,
-            isCursorLive: true
-        )
-        JourneyTimelineRail(
-            above: .line(colorHex: "E3051C"),
-            below: .none,
-            bead: .major,
-            state: .upcoming
-        )
-    }
-    .frame(height: 160)
-    .padding()
-}
-
-#Preview("Bulle qui descend") {
-    @Previewable @State var fraction: Double = 0.1
-
-    return VStack(spacing: 24) {
-        JourneyTimelineRail(
-            above: .line(colorHex: "0064B0"),
-            below: .line(colorHex: "0064B0"),
-            bead: .none,
-            state: .current,
-            cursorFraction: fraction,
-            isCursorLive: true
-        )
-        .frame(height: 260)
-
-        Button("Avancer") {
-            fraction = fraction >= 0.9 ? 0.1 : fraction + 0.2
-        }
-    }
-    .padding()
 }

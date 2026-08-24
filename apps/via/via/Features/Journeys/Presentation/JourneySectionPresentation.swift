@@ -2,6 +2,7 @@ extension JourneySection.Kind {
     var systemImage: String {
         switch self {
         case .walk: "figure.walk"
+        case .bike: "bicycle"
         case .wait: "clock"
         case .transfer: "arrow.triangle.turn.up.right.diamond"
         case .transit: "tram.fill"

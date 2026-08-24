@@ -1,6 +1,7 @@
 "use client";
 
 import { ElevatorGlyph } from "@/components/ui/elevator-glyph";
+import { TransitText } from "@/components/ui/transit-text";
 import type { AnalyticsContent } from "@/constants/analytics-page";
 import { useReducedMotion } from "@/lib/motion";
 import { AnimatePresence, motion } from "motion/react";
@@ -82,7 +83,8 @@ export function ElevatorRealityDemo({
               transition={reduceMotion ? { duration: 0 } : PANEL_SPRING}
             >
               <p className="px-3 pt-3 pb-1 text-xs font-medium text-neutral-500">
-                {content.station} · {content.elevators.length} ascenseurs
+                <TransitText>{content.station}</TransitText> ·{" "}
+                {content.elevators.length} ascenseurs
               </p>
               <ul>
                 {content.elevators.map((elevator) => {
@@ -145,7 +147,7 @@ export function ElevatorRealityDemo({
                 {content.quarter.label}
               </p>
               <p className="mt-1 text-xs text-neutral-400">
-                {content.quarter.detail}
+                <TransitText>{content.quarter.detail}</TransitText>
               </p>
             </motion.div>
           )}

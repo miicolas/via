@@ -166,6 +166,11 @@ final class StationsViewModel {
     private(set) var state: StationsViewState = .idle
 
     @ObservationIgnored private let locationModel: LocationModel
+    /// When present, the nearby set decides which station leads the tab and
+    /// the traveller's position no longer does: the anchor is the map's centre,
+    /// which needs no permission and follows what is on screen. The list beside
+    /// the hero reads the same model, so the two cannot disagree.
+    @ObservationIgnored private let nearby: NearbyStationsModel?
     @ObservationIgnored private let networkRepository: any NetworkRepository
     @ObservationIgnored private let departuresRepository: any DeparturesRepository
     @ObservationIgnored private let now: @Sendable () -> Date
@@ -179,47 +184,126 @@ final class StationsViewModel {
         locationAdapter: any LocationAdapter,
         networkRepository: any NetworkRepository,
         departuresRepository: any DeparturesRepository,
+        nearby: NearbyStationsModel? = nil,
         now: @escaping @Sendable () -> Date = { .now }
     ) {
         self.locationModel = LocationModel(adapter: locationAdapter)
+        self.nearby = nearby
         self.networkRepository = networkRepository
         self.departuresRepository = departuresRepository
         self.now = now
         self.locationModel.onStateChange = { [weak self] state in
             self?.handle(state)
         }
+        observeNearby()
     }
 
     init(
         locationModel: LocationModel,
         networkRepository: any NetworkRepository,
         departuresRepository: any DeparturesRepository,
+        nearby: NearbyStationsModel? = nil,
         now: @escaping @Sendable () -> Date = { .now }
     ) {
         self.locationModel = locationModel
+        self.nearby = nearby
         self.networkRepository = networkRepository
         self.departuresRepository = departuresRepository
         self.now = now
         self.locationModel.onStateChange = { [weak self] state in
             self?.handle(state)
         }
+        observeNearby()
+    }
+
+    private func observeNearby() {
+        nearby?.onResultsChange { [weak self] in
+            self?.nearbyResultsChanged()
+        }
+    }
+
+    /// The hero follows the nearest result that has a departure board — docks
+    /// have none. Re-fetching the board for a station that is already leading
+    /// is what `runAutomaticRefresh` is for, so a re-sort that keeps the same
+    /// winner changes nothing here.
+    private func nearbyResultsChanged() {
+        guard let nearby else { return }
+
+        guard let hero = nearby.heroStation else {
+            loadTask?.cancel()
+            refreshGeneration &+= 1
+            stationCandidate = nil
+            lastOverview = nil
+            state = .empty
+            return
+        }
+
+        guard hero.item.id != stationCandidate?.station.id else { return }
+        load(NearbyStationsModel.candidate(for: hero))
+    }
+
+    /// Fetches the board for a candidate the nearby set already resolved.
+    private func load(_ candidate: StationCandidate) {
+        loadTask?.cancel()
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
+        stationCandidate = candidate
+
+        let previous = lastOverview
+        state = .loading(previous: previous)
+
+        let departuresRepository = self.departuresRepository
+        let requestedAt = now()
+
+        loadTask = Task { [weak self] in
+            let board: DepartureBoard
+            do {
+                board = try await departuresRepository.board(stationID: candidate.station.id)
+            } catch is CancellationError {
+                return
+            } catch {
+                board = DepartureBoard(
+                    source: .unavailable,
+                    generatedAt: requestedAt,
+                    groups: []
+                )
+            }
+
+            guard let self, self.refreshGeneration == generation else { return }
+            let overview = StationOverviewBuilder.makeOverview(
+                from: candidate,
+                board: board,
+                now: self.now()
+            )
+            self.lastOverview = overview
+            self.state = .loaded(overview)
+        }
     }
 
     func loadIfNeeded() {
         guard !hasStarted else { return }
         hasStarted = true
-        requestLocation()
+        start()
     }
 
     func retry() {
         hasStarted = true
-        requestLocation()
+        start()
     }
 
     func refresh() async {
         hasStarted = true
-        requestLocation()
+        start()
         await loadTask?.value
+    }
+
+    private func start() {
+        guard let nearby else {
+            requestLocation()
+            return
+        }
+        nearby.retry()
+        nearbyResultsChanged()
     }
 
     /// Keeps the current station's departure board fresh while the screen is active.
@@ -248,6 +332,10 @@ final class StationsViewModel {
     }
 
     private func handle(_ locationState: LocationState) {
+        // The map's centre is the anchor when a nearby set is wired in, so a
+        // missing fix is no longer a dead end for this tab.
+        guard nearby == nil else { return }
+
         switch locationState {
         case .idle(let authorization):
             switch authorization {
@@ -360,20 +448,8 @@ final class StationsViewModel {
 
     static func searchBounds(
         around coordinate: GeoCoordinate,
-        radiusMeters: Double = 2_000
+        radiusMeters: Double = NearbyStationsModel.radiusMeters
     ) -> GeoBounds {
-        let latitudeDelta = radiusMeters / 111_000
-        let longitudeMetersPerDegree = max(
-            1_000,
-            111_000 * abs(cos(coordinate.latitude * .pi / 180))
-        )
-        let longitudeDelta = radiusMeters / longitudeMetersPerDegree
-
-        return GeoBounds(
-            minLatitude: max(-90, coordinate.latitude - latitudeDelta),
-            maxLatitude: min(90, coordinate.latitude + latitudeDelta),
-            minLongitude: max(-180, coordinate.longitude - longitudeDelta),
-            maxLongitude: min(180, coordinate.longitude + longitudeDelta)
-        )
+        .around(coordinate, radiusMeters: radiusMeters)
     }
 }

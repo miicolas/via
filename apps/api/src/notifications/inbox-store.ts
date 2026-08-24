@@ -99,18 +99,10 @@ export function createDatabaseNotificationInboxStore(database: InboxDatabase = d
     },
 
     async sentToday(userId, at = new Date(), category) {
-      const startOfDay = new Date(toInstant(parisDate(at), 0));
       const result = await database
         .select({ count: sql<number>`count(*)::int` })
         .from(notificationInbox)
-        .where(
-          and(
-            eq(notificationInbox.userId, userId),
-            category ? eq(notificationInbox.category, category) : undefined,
-            isNull(notificationInbox.dropReason),
-            sql`${notificationInbox.createdAt} >= ${startOfDay}`,
-          ),
-        );
+        .where(notificationSentTodayWhere(userId, at, category));
       return result[0]?.count ?? 0;
     },
 
@@ -129,6 +121,20 @@ export function createDatabaseNotificationInboxStore(database: InboxDatabase = d
       return result.length;
     },
   };
+}
+
+export function notificationSentTodayWhere(
+  userId: string,
+  at: Date,
+  category?: NotificationCategory,
+) {
+  const startOfDay = new Date(toInstant(parisDate(at), 0));
+  return and(
+    eq(notificationInbox.userId, userId),
+    category ? eq(notificationInbox.category, category) : undefined,
+    isNull(notificationInbox.dropReason),
+    sql`${notificationInbox.createdAt} >= ${timestamptz(startOfDay)}`,
+  )!;
 }
 
 export function encodeCursor(cursor: { createdAt: Date; id: string }): string {

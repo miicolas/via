@@ -1,3 +1,5 @@
+import { transitLines } from "./transit";
+
 export const departurePreview = {
   eyebrow: "Détail en temps réel",
   title: "Le prochain métro, lisible en un regard.",
@@ -9,7 +11,7 @@ export const departurePreview = {
   rows: [
     {
       id: "vincennes",
-      line: { shortName: "1", color: "#ffcd00", textColor: "#111111" },
+      line: transitLines.m1,
       destination: "Château de Vincennes",
       initialFavorite: true,
       frames: [
@@ -31,7 +33,7 @@ export const departurePreview = {
     },
     {
       id: "defense",
-      line: { shortName: "1", color: "#ffcd00", textColor: "#111111" },
+      line: transitLines.m1,
       destination: "La Défense",
       initialFavorite: false,
       frames: [

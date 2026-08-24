@@ -67,11 +67,9 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
             JourneyMapSegment(
                 id: section.id,
                 sectionIndex: index,
-                coordinates: section.geometry.isEmpty
-                    ? [section.from.coordinate, section.to.coordinate]
-                    : section.geometry,
+                coordinates: journey.path(at: index),
                 colorHex: section.route?.colorHex,
-                isPedestrian: section.kind == .walk || section.kind == .transfer,
+                isPedestrian: section.kind == .walk || section.kind == .bike || section.kind == .transfer,
                 isStationary: section.kind == .wait
             )
         }
@@ -237,7 +235,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                     sectionIndex: node.sectionIndex,
                     colorHex: node.lineColorHex
                 )
-            case .walk, .wait, .transfer, .ride:
+            case .walk, .bike, .wait, .transfer, .ride:
                 return nil
             }
         }

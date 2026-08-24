@@ -16,7 +16,7 @@
   "deploy": {
     "runtime": "V2",
     "numReplicas": 1,
-    "startCommand": "bun run --filter=@via/api start",
+    "startCommand": "bun apps/api/src/index.ts",
     "healthcheckPath": "/api/health",
     "preDeployCommand": [
       "bun --cwd packages/db ./node_modules/.bin/drizzle-kit migrate"

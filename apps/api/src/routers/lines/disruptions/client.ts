@@ -18,5 +18,6 @@ export async function fetchDisruptionsBulk(signal?: AbortSignal): Promise<unknow
     signal,
     timeoutMs: BULK_TIMEOUT_MS,
     logLabel: '[lines] PRIM disruptions',
+    telemetry: { provider: 'prim', product: 'disruptions_bulk' },
   });
 }

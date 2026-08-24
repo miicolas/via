@@ -163,7 +163,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     /// the Live Activity cannot disagree. Takes the projection the caller
     /// already has rather than running a second one.
     func isPositionEstimated(_ progress: JourneyProgress?) -> Bool {
-        isTracking && (progress?.isEstimated ?? true)
+        isTracking && !(progress?.isLocationDerived ?? false)
     }
 
     func phase(at date: Date) -> ActiveJourneyPhase {
@@ -830,6 +830,11 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         switch section.kind {
         case .walk:
             title = "Marchez jusqu’à \(section.to.name)"
+            detail = section.durationSeconds > 0
+                ? JourneyFormatting.duration(section.durationSeconds)
+                : nil
+        case .bike:
+            title = "Pédalez jusqu’à \(section.to.name)"
             detail = section.durationSeconds > 0
                 ? JourneyFormatting.duration(section.durationSeconds)
                 : nil

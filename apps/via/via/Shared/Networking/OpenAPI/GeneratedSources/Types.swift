@@ -3676,6 +3676,7 @@ internal enum Operations {
                                 case less_hyphen_walking = "less-walking"
                                 case comfort = "comfort"
                                 case walking = "walking"
+                                case bike = "bike"
                             }
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/qualifier`.
                             internal var qualifier: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.qualifierPayload
@@ -3883,6 +3884,7 @@ internal enum Operations {
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/sectionsPayload/type`.
                                 internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case walk = "walk"
+                                    case bike = "bike"
                                     case wait = "wait"
                                     case transfer = "transfer"
                                     case transit = "transit"
@@ -4608,6 +4610,7 @@ internal enum Operations {
                             case less_hyphen_walking = "less-walking"
                             case comfort = "comfort"
                             case walking = "walking"
+                            case bike = "bike"
                         }
                         /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/qualifier`.
                         internal var qualifier: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.qualifierPayload
@@ -4815,6 +4818,7 @@ internal enum Operations {
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/sectionsPayload/type`.
                             internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                 case walk = "walk"
+                                case bike = "bike"
                                 case wait = "wait"
                                 case transfer = "transfer"
                                 case transit = "transit"
@@ -5720,6 +5724,7 @@ internal enum Operations {
                                 case less_hyphen_walking = "less-walking"
                                 case comfort = "comfort"
                                 case walking = "walking"
+                                case bike = "bike"
                             }
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/qualifier`.
                             internal var qualifier: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.qualifierPayload
@@ -5927,6 +5932,7 @@ internal enum Operations {
                                 /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/sectionsPayload/type`.
                                 internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case walk = "walk"
+                                    case bike = "bike"
                                     case wait = "wait"
                                     case transfer = "transfer"
                                     case transit = "transit"

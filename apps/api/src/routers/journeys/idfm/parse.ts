@@ -12,24 +12,38 @@ export function parseIdfmJourneys(body: unknown, input: JourneyInput, generatedA
   const rows = Array.isArray((body as { journeys?: unknown[] } | null)?.journeys)
     ? ((body as { journeys: unknown[] }).journeys ?? [])
     : [];
-  const journeys = rows
-    .flatMap((row, index) => parseJourney(row, input, generatedAt, index))
-    .slice(0, input.limit);
-  return qualifyAlternatives(journeys);
+  const journeys = rows.flatMap((row, index) => parseJourney(row, input, generatedAt, index));
+  // Direct paths are alternatives, not competitors: they neither consume the
+  // requested transit slots nor outrank a transit journey, and the app draws
+  // them in their own section under the list.
+  const transit = journeys.filter((journey) => !isDirectPath(journey)).slice(0, input.limit);
+  const direct = bestDirectPathPerMode(journeys.filter(isDirectPath));
+  return qualifyAlternatives(transit, direct);
 }
 
-function qualifyAlternatives(journeys: Journey[]): Journey[] {
-  if (journeys.length === 0) return journeys;
-  const qualifiers = new Map<string, Journey['qualifier']>([
-    [journeys[0].id, 'recommended'],
-  ]);
-  const remaining = journeys.slice(1);
+/** A journey the traveller covers entirely on their own legs or wheels. */
+function isDirectPath(journey: Journey) {
+  return journey.sections.every((section) => section.type === 'walk' || section.type === 'bike');
+}
 
-  for (const journey of remaining) {
-    if (journey.sections.every((section) => section.type === 'walk')) {
-      qualifiers.set(journey.id, 'walking');
-    }
+function directPathQualifier(journey: Journey): Journey['qualifier'] {
+  return journey.sections.some((section) => section.type === 'bike') ? 'bike' : 'walking';
+}
+
+function bestDirectPathPerMode(journeys: Journey[]): Journey[] {
+  const byMode = new Map<Journey['qualifier'], Journey>();
+  for (const journey of journeys) {
+    const mode = directPathQualifier(journey);
+    const current = byMode.get(mode);
+    if (!current || journey.durationSeconds < current.durationSeconds) byMode.set(mode, journey);
   }
+  return [...byMode.values()].sort((a, b) => a.durationSeconds - b.durationSeconds);
+}
+
+function qualifyAlternatives(transit: Journey[], direct: Journey[]): Journey[] {
+  const qualifiers = new Map<string, Journey['qualifier']>();
+  if (transit.length > 0) qualifiers.set(transit[0].id, 'recommended');
+  const remaining = transit.slice(1);
 
   assignBest(remaining, qualifiers, 'rapid', (journey) => journey.durationSeconds);
   assignBest(
@@ -40,7 +54,11 @@ function qualifyAlternatives(journeys: Journey[]): Journey[] {
   );
   assignBest(remaining, qualifiers, 'comfort', (journey) => journey.transferCount);
 
-  return journeys.map((journey) => ({
+  for (const journey of direct) {
+    qualifiers.set(journey.id, directPathQualifier(journey));
+  }
+
+  return [...transit, ...direct].map((journey) => ({
     ...journey,
     qualifier: qualifiers.get(journey.id) ?? journey.qualifier,
   }));
@@ -108,7 +126,7 @@ function toSection(value: unknown, input: JourneyInput, generatedAt: Date): Jour
   const sourceGeometry = section.geojson ?? section.shape;
   if (type === 'street_network' || type === 'crow_fly') {
     return [{
-      type: 'walk',
+      type: section.mode === 'bike' ? 'bike' : 'walk',
       durationSeconds: safeSeconds(durationSeconds),
       from,
       to,
@@ -285,7 +303,8 @@ function navitiaDate(value: unknown): string | undefined {
 function qualifierOf(tags: string[], index: number): Journey['qualifier'] {
   if (tags.includes('less_fallback_walk')) return 'less-walking';
   if (tags.includes('comfort')) return 'comfort';
-  if (tags.includes('non_pt_walk')) return 'walking';
+  if (tags.includes('non_pt_walk') || tags.includes('non_pt_walking')) return 'walking';
+  if (tags.includes('non_pt_bike')) return 'bike';
   if (tags.includes('rapid') || tags.includes('fastest')) return 'rapid';
   return index === 0 || tags.includes('best') ? 'recommended' : 'comfort';
 }

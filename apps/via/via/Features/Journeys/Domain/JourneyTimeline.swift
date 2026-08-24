@@ -32,6 +32,7 @@ struct JourneyTimelineNode: Identifiable, Sendable, Hashable {
     enum Kind: Sendable, Hashable {
         case origin(name: String)
         case walk(destination: String)
+        case bike(destination: String)
         case wait(place: String)
         case transfer(destination: String)
         case board(
@@ -67,7 +68,7 @@ struct JourneyTimelineNode: Identifiable, Sendable, Hashable {
     /// does, so it earns no row and no map stop.
     var isTravellerInstruction: Bool {
         switch kind {
-        case .walk, .wait, .transfer: durationSeconds > 0
+        case .walk, .bike, .wait, .transfer: durationSeconds > 0
         case .origin, .board, .ride, .alight, .destination: true
         }
     }
@@ -136,6 +137,20 @@ enum JourneyTimeline {
         let rail = railStyle(for: section)
 
         switch section.kind {
+        case .bike:
+            return [
+                Draft(
+                    id: "\(section.id):bike",
+                    sectionID: section.id,
+                    sectionIndex: index,
+                    kind: .bike(destination: section.to.name),
+                    startsAt: entry.startsAt,
+                    endsAt: entry.endsAt,
+                    rail: rail,
+                    bead: .none,
+                    mode: section.route?.mode
+                )
+            ]
         case .walk:
             return [
                 Draft(
@@ -372,7 +387,7 @@ extension JourneyTimeline {
             return progress.fractionInSection > 0 ? .done : .current
         case .alight, .destination:
             return progress.fractionInSection >= 1 ? .current : .upcoming
-        case .walk, .wait, .transfer, .ride:
+        case .walk, .bike, .wait, .transfer, .ride:
             return .current
         }
     }
@@ -390,7 +405,7 @@ extension JourneyTimeline {
 
         let host = candidates.first { node in
             switch node.kind {
-            case .ride, .walk, .wait, .transfer: return true
+            case .ride, .walk, .bike, .wait, .transfer: return true
             case .origin, .board, .alight, .destination: return false
             }
         } ?? candidates.first { node in

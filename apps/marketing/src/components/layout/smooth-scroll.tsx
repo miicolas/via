@@ -2,6 +2,7 @@
 
 import { project } from "@/constants/project";
 import Lenis from "lenis";
+import "lenis/dist/lenis.css";
 import { useEffect, type ReactNode } from "react";
 
 const LENIS_OPTIONS = {
@@ -22,6 +23,9 @@ export function SmoothScroll({
   useEffect(() => {
     if (!project.features.smoothScroll) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Touch scrolling stays native (syncTouch is off): on a phone the instance
+    // would only burn a rAF loop per frame and fight programmatic scrolls.
+    if (window.matchMedia("(pointer: coarse)").matches) return;
 
     const lenis = new Lenis(LENIS_OPTIONS);
     let frame: number;

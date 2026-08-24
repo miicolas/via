@@ -1,4 +1,5 @@
 import { SectionHeading } from "@/components/ui/section-heading";
+import { TransitText } from "@/components/ui/transit-text";
 import type { CommunityContent } from "@/constants/community-page";
 import { Braces, Check, CircleDashed, MessageCircle } from "lucide-react";
 import type { ReactNode } from "react";
@@ -15,12 +16,12 @@ function ReportVisual({
     <div className="mx-auto w-full max-w-sm rounded-2xl border border-border bg-background p-5 shadow-2xl/10">
       <div className="flex items-center justify-between text-muted-foreground">
         <span className="font-mono text-[10px] tracking-wider uppercase">
-          {visual.meta}
+          <TransitText>{visual.meta}</TransitText>
         </span>
         <MessageCircle className="h-4 w-4" aria-hidden="true" />
       </div>
       <p className="mt-4 text-sm leading-6 font-medium text-foreground">
-        {visual.quote}
+        <TransitText>{visual.quote}</TransitText>
       </p>
       <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-accent/10 py-1 pr-3 pl-2 text-xs font-medium text-accent">
         <Check className="h-3.5 w-3.5" aria-hidden="true" />

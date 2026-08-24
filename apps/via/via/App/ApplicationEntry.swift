@@ -12,6 +12,7 @@ struct ApplicationEntry: App {
     @State private var isContinuingAsGuest = false
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
+    @State private var nearbyStationsModel: NearbyStationsModel
     @State private var linesViewModel: LinesViewModel
     @State private var selectedStationModel: SelectedStationModel
     @State private var searchViewModel: SearchViewModel
@@ -34,14 +35,30 @@ struct ApplicationEntry: App {
         let pushNotificationManager = PushNotificationManager.shared
         let dependencies = Self.makeDependencies(pushNotificationManager: pushNotificationManager)
         journeyDepartureChoicesRepository = dependencies.journeyDepartureChoicesRepository
+        // One filter and one nearby set for the whole shell: the map's
+        // annotations and the Stations list are two views of it, and the
+        // filter outlives the launch that set it.
+        let stationMapFilterStore = StationMapFilterStore(
+            persistence: UserDefaultsStationMapFilterPersistence(),
+        )
+        let nearbyStationsModel = NearbyStationsModel(
+            repository: dependencies.networkRepository,
+            filterStore: stationMapFilterStore,
+        )
+        _nearbyStationsModel = State(initialValue: nearbyStationsModel)
         _networkViewModel = State(
-            initialValue: NetworkViewModel(repository: dependencies.networkRepository),
+            initialValue: NetworkViewModel(
+                repository: dependencies.networkRepository,
+                filterStore: stationMapFilterStore,
+                nearby: nearbyStationsModel,
+            ),
         )
         _stationsViewModel = State(
             initialValue: StationsViewModel(
                 locationModel: dependencies.locationModel,
                 networkRepository: dependencies.networkRepository,
                 departuresRepository: dependencies.departuresRepository,
+                nearby: nearbyStationsModel,
             ),
         )
         _linesViewModel = State(
@@ -113,7 +130,27 @@ struct ApplicationEntry: App {
 
     var body: some Scene {
         WindowGroup {
-            applicationRoot
+            if ProcessInfo.processInfo.arguments.contains("-viaTrainOrderVisualCheck") {
+                JourneyBoardingPositionView(
+                    route: JourneyRoute(
+                        id: RouteID(rawValue: "visual-check:A"),
+                        shortName: "A",
+                        longName: "RER A",
+                        mode: .rer,
+                        colorHex: "#007AFF",
+                        textColorHex: "#FFFFFF"
+                    ),
+                    position: JourneyBoardingPosition(
+                        car: 8,
+                        carCount: 8,
+                        zone: .rear,
+                        reason: .transfer,
+                        equipment: nil
+                    )
+                )
+                .padding(24)
+            } else {
+                applicationRoot
             .task(id: onboardingModel.isCompleted) {
                 guard onboardingModel.isCompleted else { return }
                 await preloadInitialData()
@@ -154,6 +191,7 @@ struct ApplicationEntry: App {
                 await pushNotificationManager.setNotificationsAuthorized(
                     journeyNotificationCoordinator.isAuthorized
                 )
+            }
             }
         }
     }
@@ -205,6 +243,7 @@ struct ApplicationEntry: App {
                 MapShellView(
                     networkViewModel: networkViewModel,
                     stationsViewModel: stationsViewModel,
+                    nearbyStationsModel: nearbyStationsModel,
                     linesViewModel: linesViewModel,
                     selectedStationModel: selectedStationModel,
                     searchViewModel: searchViewModel,

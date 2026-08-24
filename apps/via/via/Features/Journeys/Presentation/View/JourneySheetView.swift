@@ -74,6 +74,7 @@ struct JourneySheetView: View {
                         departureChoicesModel: departureChoicesModel,
                         onSelectDeparture: selectDeparture,
                         onRetryDepartures: refreshDepartureChoices,
+                        onUpdateTime: updateTime,
                         prefersGoAction: scheduledReminder != nil || isPlannedJourney,
                         prefersPlanAction: scheduledReminder == nil
                             && !isPlannedJourney
@@ -247,5 +248,24 @@ struct JourneySheetView: View {
             searchViewModel.replaceJourney(journey)
             await journeyNotificationCoordinator.applyJourneyRevision(journey)
         }
+    }
+
+    private func updateTime(
+        _ requestedAt: Date,
+        represents: JourneyDatetimeRepresents
+    ) async throws {
+        guard let resolved = resolvedJourney else {
+            throw JourneyScheduleRevisionError.unavailable
+        }
+        let revision = try await searchViewModel.reviseJourneySchedule(
+            resolved.journey,
+            destination: resolved.destination,
+            policy: resolved.policy,
+            requestedAt: requestedAt,
+            represents: represents
+        )
+        departureChoicesModel.reset()
+        searchViewModel.highlightJourneySection(nil)
+        await applyRevision(revision)
     }
 }

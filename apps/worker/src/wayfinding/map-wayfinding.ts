@@ -5,6 +5,7 @@ import type {
 } from '@via/db/schema';
 
 import { asInteger, asString, viaId } from '../idfm/referential';
+import { inferQuayDirection, type TravelVector } from './quay-directions';
 
 /**
  * Turns the two IDFM wayfinding datasets into rows, with no I/O.
@@ -30,6 +31,10 @@ export type MappedBoardingPosition = {
   targetId: string;
   targetKind: 'exit' | 'transfer';
   routeId: string;
+  /** Canonical Via station of the arrival quay, when the referential resolves it. */
+  stationStopId: string | null;
+  /** GTFS direction the quay serves, when the inference could tell; see quay-directions.ts. */
+  directionId: number | null;
   car: number;
   carCount: number;
   zone: BoardingPositionZone;
@@ -155,6 +160,13 @@ export type MapBoardingPositionsOptions = {
   knownQuayIDs: ReadonlySet<string>;
   /** Referential `arrid → zdaid`, for planners that collapse rail quays to a stop area. */
   stopAreaByQuay?: ReadonlyMap<string, string>;
+  /** `zdaid → canonical Via station id`, for stations the GTFS import created. */
+  stationByStopArea?: ReadonlyMap<string, string>;
+  /** Exit coordinates, so the direction of a referential-only quay can be inferred. */
+  exitLocationById?: ReadonlyMap<string, LonLat>;
+  stationLocationByStopId?: ReadonlyMap<string, LonLat>;
+  /** {@link stationRouteKey} → travel vectors, one per GTFS direction of the route. */
+  travelVectorsByStationRoute?: ReadonlyMap<string, readonly TravelVector[]>;
 };
 
 type BoardingCandidate = MappedBoardingPosition & {
@@ -167,9 +179,15 @@ export function mapBoardingPositions({
   exitIDs,
   knownQuayIDs,
   stopAreaByQuay = new Map(),
+  stationByStopArea = new Map(),
+  exitLocationById = new Map(),
+  stationLocationByStopId = new Map(),
+  travelVectorsByStationRoute = new Map(),
 }: MapBoardingPositionsOptions) {
   const positions = new Map<string, MappedBoardingPosition>();
   const aggregateCandidates: BoardingCandidate[] = [];
+  const referentialQuayRows = new Map<string, MappedBoardingPosition[]>();
+  const stationLevelTransfers: MappedBoardingPosition[] = [];
   const platformsByStopAreaAndRoute = new Map<string, Set<string>>();
 
   for (const row of trainPositions as TrainPositionRow[]) {
@@ -188,6 +206,7 @@ export function mapBoardingPositions({
 
     const routeId = viaId(lineID);
     const stopAreaId = stopAreaByQuay.get(fromID);
+    const stationStopId = stopAreaId ? stationByStopArea.get(stopAreaId) ?? null : null;
     if (stopAreaId) {
       const groupKey = stopAreaRouteKey(stopAreaId, routeId);
       const platforms = platformsByStopAreaAndRoute.get(groupKey);
@@ -195,16 +214,32 @@ export function mapBoardingPositions({
       else platformsByStopAreaAndRoute.set(groupKey, new Set([fromID]));
     }
 
-    const targetId = viaId(toID);
     const targetKind = asString(row.to_type) === 'access_point' ? 'exit' : 'transfer';
-    const reachable = targetKind === 'exit' ? exitIDs.has(targetId) : knownQuayIDs.has(targetId);
-    if (!reachable) continue;
+    // A transfer normally aims at the next line's quay. When that quay only
+    // exists in the referential — an RER platform — it is renamed to the
+    // monomodal stop area the planner will actually report, so the reader can
+    // still equate the two. Those renamed rows merge two platforms into one
+    // station and are only kept when they do not disagree.
+    let targetId = viaId(toID);
+    let isStationLevelTarget = false;
+    if (targetKind === 'transfer' && !knownQuayIDs.has(targetId)) {
+      const targetStopArea = stopAreaByQuay.get(toID);
+      const monomodalId = targetStopArea
+        ? viaId(`monomodalStopPlace:${targetStopArea}`)
+        : undefined;
+      if (!monomodalId || !knownQuayIDs.has(monomodalId)) continue;
+      targetId = monomodalId;
+      isStationLevelTarget = true;
+    }
+    if (targetKind === 'exit' && !exitIDs.has(targetId)) continue;
 
     const position: MappedBoardingPosition = {
       fromQuayId,
       targetId,
       targetKind,
       routeId,
+      stationStopId,
+      directionId: null,
       car,
       carCount,
       zone: zoneOf(asString(row.position_average), car, carCount),
@@ -212,20 +247,120 @@ export function mapBoardingPositions({
       source: BOARDING_POSITION_SOURCE,
     };
 
-    if (knownQuayIDs.has(fromQuayId)) positions.set(positionKey(position), position);
+    if (knownQuayIDs.has(fromQuayId)) {
+      if (isStationLevelTarget) stationLevelTransfers.push(position);
+      else positions.set(positionKey(position), position);
+    } else if (stationStopId) {
+      // A quay only the referential knows — an RER platform. Kept aside until
+      // the direction inference below can tell which way its trains run.
+      const bucket = referentialQuayRows.get(fromQuayId);
+      if (bucket) bucket.push(position);
+      else referentialQuayRows.set(fromQuayId, [position]);
+    }
     if (stopAreaId && targetKind === 'exit') {
       aggregateCandidates.push({ ...position, sourceQuayId: fromID, stopAreaId });
     }
   }
 
+  addInferredDirectionPositions({
+    positions,
+    referentialQuayRows,
+    stationLevelTransfers,
+    exitLocationById,
+    stationLocationByStopId,
+    travelVectorsByStationRoute,
+  });
+  addAgreedStationLevelTransfers(positions, stationLevelTransfers);
   addDirectionSafeStopAreaPositions({
     positions,
     candidates: aggregateCandidates,
     platformsByStopAreaAndRoute,
     knownQuayIDs,
+    stationByStopArea,
   });
 
   return [...positions.values()];
+}
+
+type AddInferredDirectionOptions = {
+  positions: Map<string, MappedBoardingPosition>;
+  referentialQuayRows: ReadonlyMap<string, MappedBoardingPosition[]>;
+  stationLevelTransfers: MappedBoardingPosition[];
+  exitLocationById: ReadonlyMap<string, LonLat>;
+  stationLocationByStopId: ReadonlyMap<string, LonLat>;
+  travelVectorsByStationRoute: ReadonlyMap<string, readonly TravelVector[]>;
+};
+
+/**
+ * Emits the rows of referential-only quays whose direction the geometry could
+ * prove, stamped with (station, direction) so the reader can find them from a
+ * monomodal planner stop. A quay the inference cannot resolve contributes
+ * nothing here; the direction-safe aggregate below remains its only chance.
+ */
+function addInferredDirectionPositions({
+  positions,
+  referentialQuayRows,
+  stationLevelTransfers,
+  exitLocationById,
+  stationLocationByStopId,
+  travelVectorsByStationRoute,
+}: AddInferredDirectionOptions) {
+  for (const rows of referentialQuayRows.values()) {
+    const first = rows[0]!;
+    const stationLocation = stationLocationByStopId.get(first.stationStopId!);
+    const travelVectors = travelVectorsByStationRoute.get(
+      stationRouteKey(first.stationStopId!, first.routeId)
+    );
+    if (!stationLocation || !travelVectors) continue;
+
+    const directionId = inferQuayDirection({
+      stationLocation,
+      travelVectors,
+      advice: rows.flatMap((row) => {
+        const exitLocation =
+          row.targetKind === 'exit' ? exitLocationById.get(row.targetId) : undefined;
+        return exitLocation ? [{ car: row.car, carCount: row.carCount, exitLocation }] : [];
+      }),
+    });
+    if (directionId === undefined) continue;
+
+    for (const row of rows) {
+      const directed = { ...row, directionId };
+      if (row.targetKind === 'transfer' && row.targetId.includes('monomodalStopPlace:')) {
+        stationLevelTransfers.push(directed);
+      } else {
+        positions.set(positionKey(directed), directed);
+      }
+    }
+  }
+}
+
+/**
+ * Station-level transfer targets merged two platforms of the next line into
+ * one id, so the advice of one platform could silently overwrite the other's.
+ * Only unanimous groups survive; equipment survives only when unanimous too.
+ */
+function addAgreedStationLevelTransfers(
+  positions: Map<string, MappedBoardingPosition>,
+  candidates: readonly MappedBoardingPosition[]
+) {
+  const groups = new Map<string, MappedBoardingPosition[]>();
+  for (const candidate of candidates) {
+    const key = positionKey(candidate);
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(candidate);
+    else groups.set(key, [candidate]);
+  }
+
+  for (const [key, group] of groups) {
+    const choices = new Set(group.map((candidate) => choiceKey(candidate)));
+    if (choices.size !== 1) continue;
+    const equipments = new Set(group.map((candidate) => candidate.equipment));
+    positions.set(key, {
+      ...group[0]!,
+      equipment: equipments.size === 1 ? [...equipments][0]! : null,
+    });
+  }
 }
 
 type AddStopAreaPositionsOptions = {
@@ -233,6 +368,7 @@ type AddStopAreaPositionsOptions = {
   candidates: BoardingCandidate[];
   platformsByStopAreaAndRoute: ReadonlyMap<string, ReadonlySet<string>>;
   knownQuayIDs: ReadonlySet<string>;
+  stationByStopArea: ReadonlyMap<string, string>;
 };
 
 /**
@@ -245,6 +381,7 @@ function addDirectionSafeStopAreaPositions({
   candidates,
   platformsByStopAreaAndRoute,
   knownQuayIDs,
+  stationByStopArea,
 }: AddStopAreaPositionsOptions) {
   const candidatesByTarget = new Map<string, BoardingCandidate[]>();
   for (const candidate of candidates) {
@@ -292,6 +429,8 @@ function addDirectionSafeStopAreaPositions({
       targetId: representative.targetId,
       targetKind: representative.targetKind,
       routeId: representative.routeId,
+      stationStopId: stationByStopArea.get(first.stopAreaId) ?? null,
+      directionId: null,
       car: representative.car,
       carCount: representative.carCount,
       zone: representative.zone,
@@ -304,6 +443,11 @@ function addDirectionSafeStopAreaPositions({
 
 function stopAreaRouteKey(stopAreaId: string, routeId: string) {
   return `${stopAreaId}\u0000${routeId}`;
+}
+
+/** Key of {@link MapBoardingPositionsOptions.travelVectorsByStationRoute}. */
+export function stationRouteKey(stationStopId: string, routeId: string) {
+  return [stationStopId, routeId].join(' ');
 }
 
 function positionKey(position: Pick<MappedBoardingPosition, 'fromQuayId' | 'targetId'>) {

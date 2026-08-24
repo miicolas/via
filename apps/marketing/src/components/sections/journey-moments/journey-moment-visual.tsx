@@ -2,29 +2,14 @@
 
 import { AppleIntelligenceGlyph } from "@/components/ui/apple-intelligence-glyph";
 import { LiveSignalSymbol } from "@/components/sections/features/live-signal-symbol";
+import { LineBadge } from "@/components/ui/line-badge";
+import { TransitText } from "@/components/ui/transit-text";
 import { journeyMomentVisuals } from "@/constants/journey-moments";
-import type { JourneyMomentContent, TransitLine } from "@/constants/types";
+import type { JourneyMomentContent } from "@/constants/types";
 import { useReducedMotion } from "@/lib/motion";
 import { TriangleAlert } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
-
-function LineBadge({
-  line,
-  className = "size-10 rounded-[0.7rem] text-lg",
-}: {
-  readonly line: TransitLine;
-  readonly className?: string;
-}): ReactNode {
-  return (
-    <span
-      className={`grid shrink-0 place-items-center font-bold ${className}`}
-      style={{ backgroundColor: line.color, color: line.textColor }}
-    >
-      {line.shortName}
-    </span>
-  );
-}
 
 function SearchVignette({
   reduceMotion,
@@ -84,7 +69,9 @@ function JourneyVignette({
           <p className="truncate text-sm font-semibold tracking-tight">
             {visual.destination}
           </p>
-          <p className="truncate text-xs text-white/60">{visual.nextStop}</p>
+          <p className="truncate text-xs text-white/60">
+            <TransitText>{visual.nextStop}</TransitText>
+          </p>
         </div>
         <div className="flex shrink-0 items-baseline gap-1">
           <span className="text-2xl leading-none font-bold tabular-nums">
@@ -127,7 +114,7 @@ function DisruptionVignette(): ReactNode {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold tracking-tight text-neutral-950">
-            {visual.alert.title}
+            <TransitText>{visual.alert.title}</TransitText>
           </span>
           <span className="block truncate text-xs text-neutral-500">
             {visual.alert.note}
@@ -141,7 +128,7 @@ function DisruptionVignette(): ReactNode {
             {visual.reroute.title}
           </span>
           <span className="block truncate text-xs text-neutral-500">
-            {visual.reroute.note}
+            <TransitText>{visual.reroute.note}</TransitText>
           </span>
         </span>
       </div>
@@ -156,7 +143,7 @@ function StationVignette(): ReactNode {
     <div className="rounded-[1.75rem] border border-black/8 bg-white/94 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.14)] backdrop-blur-xl">
       <div className="flex items-center gap-2 px-2 pt-1.5 pb-2.5">
         <p className="min-w-0 flex-1 truncate text-base font-semibold tracking-tight text-neutral-950">
-          {visual.name}
+          <TransitText>{visual.name}</TransitText>
           <span className="ml-2 text-xs font-medium text-neutral-500">
             {visual.distance}
           </span>

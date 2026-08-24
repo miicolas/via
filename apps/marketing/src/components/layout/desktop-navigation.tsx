@@ -32,6 +32,9 @@ export function DesktopNavigation({
           >
             <button
               type="button"
+              // Hover opens on desktop; the click keeps the menu reachable on
+              // tablets, where the header is still in its desktop layout.
+              onClick={() => onActiveGroupChange(open ? null : group.label)}
               className="flex items-center gap-1 rounded-full px-4 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground max-[1200px]:px-3"
               aria-expanded={open}
               aria-haspopup="true"

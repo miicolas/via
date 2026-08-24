@@ -63,7 +63,13 @@ final class JourneyTimelineTests: XCTestCase {
 
     func testSectionWithoutStopsStillProducesBoardingAndAlightingNodes() {
         let nodes = JourneyTimeline.nodes(for: makeJourney())
-        let secondLeg = nodes.filter { $0.sectionID == "section:3" }
+        let secondLeg = nodes.filter { node in
+            guard node.sectionID == "section:3" else { return false }
+            switch node.kind {
+            case .board, .alight: return true
+            default: return false
+            }
+        }
 
         XCTAssertEqual(secondLeg.count, 2, "no stop list means no ride row")
         guard case .board(let stop, _, _, _, _) = secondLeg[0].kind else {
@@ -97,8 +103,16 @@ final class JourneyTimelineTests: XCTestCase {
         let journey = makeJourney(startsWithWalk: false)
         let nodes = JourneyTimeline.nodes(for: journey)
 
-        XCTAssertEqual(nodes.first?.railBelow, .none, "origin and boarding share a place")
-        XCTAssertEqual(nodes.last?.railAbove, .none, "alighting and destination share a place")
+        XCTAssertEqual(
+            nodes.first?.railBelow,
+            JourneyTimelineRailStyle.none,
+            "origin and boarding share a place"
+        )
+        XCTAssertEqual(
+            nodes.last?.railAbove,
+            JourneyTimelineRailStyle.none,
+            "alighting and destination share a place"
+        )
     }
 
     func testTerminusBeadsSitAtBothEnds() {
@@ -106,8 +120,8 @@ final class JourneyTimelineTests: XCTestCase {
 
         XCTAssertEqual(nodes.first?.bead, .terminus)
         XCTAssertEqual(nodes.last?.bead, .terminus)
-        XCTAssertEqual(nodes.first?.railAbove, .none)
-        XCTAssertEqual(nodes.last?.railBelow, .none)
+        XCTAssertEqual(nodes.first?.railAbove, JourneyTimelineRailStyle.none)
+        XCTAssertEqual(nodes.last?.railBelow, JourneyTimelineRailStyle.none)
     }
 
     func testPreviewJourneyWithTwoTransfersExposesEveryLeg() {
@@ -226,6 +240,38 @@ final class JourneyTimelineTests: XCTestCase {
         XCTAssertEqual(JourneyActivationAction.active.systemImage, "checkmark")
         XCTAssertEqual(StateSymbol.bell(isOn: false), "bell")
         XCTAssertEqual(StateSymbol.bell(isOn: true), "bell.fill")
+    }
+
+    @MainActor
+    func testCompactTransitSectionKeepsDeparturePenultimateAndTerminusVisible() {
+        let sectionNodes = JourneyTimeline.nodes(for: makeJourney())
+            .filter { $0.sectionID == "section:1" }
+
+        let departure = sectionNodes.compactMap { node -> JourneyStop? in
+            guard case .board(let stop, _, _, _, _) = node.kind else { return nil }
+            return stop
+        }.first
+        let intermediate = sectionNodes.compactMap { node -> [JourneyStop]? in
+            guard case .ride(let stops) = node.kind else { return nil }
+            return stops
+        }.first ?? []
+        let terminus = sectionNodes.compactMap { node -> JourneyStop? in
+            guard case .alight(let stop, _) = node.kind else { return nil }
+            return stop
+        }.first
+
+        let compactStops = JourneyStopListView.displayedStops(
+            from: intermediate,
+            isExpanded: false
+        )
+        XCTAssertEqual(
+            [departure?.name, compactStops.first?.name, terminus?.name].compactMap(\.self),
+            ["Châtelet", "Gare d'Austerlitz", "Gare de Lyon"]
+        )
+        XCTAssertEqual(
+            JourneyStopListView.displayedStops(from: intermediate, isExpanded: true).map(\.name),
+            ["Bastille", "Gare d'Austerlitz"]
+        )
     }
 
     // MARK: - Fixtures

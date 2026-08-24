@@ -18,6 +18,23 @@ export type CachedStationSnapshot = {
 type LoadFresh = () => Promise<(CachedStationSnapshot & { ttlSeconds: number }) | null>;
 
 /**
+ * Reads an already-published departure snapshot without ever filling it.
+ * A miss or Redis outage is deliberately indistinguishable to passive callers:
+ * neither is allowed to acquire the cache lock or spend Stop Monitoring quota.
+ */
+export async function readCachedStationSnapshot(
+  redis: RedisClient,
+  cacheKey: string,
+): Promise<CachedStationSnapshot | null> {
+  try {
+    return await readSnapshot(redis, cacheKey);
+  } catch (cause) {
+    console.error('[departures] cached snapshot unavailable', cause);
+    return null;
+  }
+}
+
+/**
  * Read-through cache with a best-effort cross-instance single-flight.
  *
  * Cache hit → serve it. Miss → take a short `SET NX` lock; the winner calls

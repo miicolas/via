@@ -1,7 +1,12 @@
 import type { BoardingPosition, Coordinate, Journey, JourneyExit } from '@via/contract';
 import { db } from '@via/db';
-import { boardingPositions, stationExits } from '@via/db/schema';
-import { inArray } from 'drizzle-orm';
+import {
+  boardingPositions,
+  stationExits,
+  transitRoutePatterns,
+  transitRoutePatternStops,
+} from '@via/db/schema';
+import { and, asc, eq, inArray, isNotNull } from 'drizzle-orm';
 
 import { haversineMeters } from '../../geo/distance';
 import { bareStopId } from '../idfm/stop-ids';
@@ -17,10 +22,11 @@ import { canonicalStationIDs } from './accessibility';
  * carriage 1 in one direction and carriage 5 in the other.
  *
  * Navitia usually reports a directional quay such as
- * `stop_point:IDFM:463060`. On RER sections it can instead report a monomodal
- * stop area; the importer only stores advice under that aggregate id when every
- * documented directional quay agrees. The GTFS fallback resolves all the way
- * to canonical stations and therefore still degrades to exits alone.
+ * `stop_point:IDFM:463060`. On RER sections it instead reports a monomodal
+ * stop area that no quay-keyed row can match. Those sections fall back to the
+ * rows the importer stamped with (station, route, GTFS direction): the leg's
+ * penultimate call names the station the train came from, and the route's
+ * patterns tell which direction visits the two in that order.
  */
 
 type ExitRow = {
@@ -41,11 +47,20 @@ type PositionRow = {
   equipment: BoardingPosition['equipment'] | null;
 };
 
+type PatternStations = {
+  directionId: number;
+  stationIds: string[];
+};
+
 export type WayfindingSnapshot = {
   /** Exits of a station, keyed by `transit_stops.id`. */
   exitsByStopId: ReadonlyMap<string, ExitRow[]>;
   /** Every boarding position leaving a quay, keyed by that quay. */
   positionsByQuayId: ReadonlyMap<string, PositionRow[]>;
+  /** Direction-resolved rows, keyed by {@link stationDirectionKey}. */
+  positionsByStationDirection: ReadonlyMap<string, PositionRow[]>;
+  /** Station sequences of every pattern of the journeys' routes, keyed by route. */
+  patternsByRouteId: ReadonlyMap<string, PatternStations[]>;
   /** Raw planner stop id → canonical station id. */
   stationByStopId: ReadonlyMap<string, string>;
 };
@@ -53,31 +68,46 @@ export type WayfindingSnapshot = {
 const EMPTY_SNAPSHOT: WayfindingSnapshot = {
   exitsByStopId: new Map(),
   positionsByQuayId: new Map(),
+  positionsByStationDirection: new Map(),
+  patternsByRouteId: new Map(),
   stationByStopId: new Map(),
 };
 
-/** Boarding and alighting stop of every transit section, in section order. */
+/** Boarding, penultimate and alighting stop of every transit section, in order. */
 function transitEnds(journey: Journey) {
   return journey.sections.flatMap((section, index) => {
     if (section.type !== 'transit' || section.stops.length === 0) return [];
     return [{
       index,
+      routeId: section.route?.id,
       boardingStopId: section.stops[0]!.id,
+      penultimateStopId: section.stops.at(-2)?.id,
       alightingStopId: section.stops.at(-1)!.id,
     }];
   });
 }
 
+type TransitEnd = ReturnType<typeof transitEnds>[number];
+
 export async function readWayfindingSnapshot(journeys: Journey[]): Promise<WayfindingSnapshot> {
   const ends = journeys.flatMap(transitEnds);
   if (ends.length === 0) return EMPTY_SNAPSHOT;
 
-  const rawStopIDs = [...new Set(ends.flatMap((end) => [end.boardingStopId, end.alightingStopId]))];
+  const rawStopIDs = [
+    ...new Set(
+      ends.flatMap((end) => [
+        end.boardingStopId,
+        end.alightingStopId,
+        ...(end.penultimateStopId ? [end.penultimateStopId] : []),
+      ])
+    ),
+  ];
   const quayIDs = [...new Set(rawStopIDs.map(bareStopId).filter((id) => id !== undefined))];
+  const routeIDs = [...new Set(ends.flatMap((end) => (end.routeId ? [end.routeId] : [])))];
   const stationByStopId = await canonicalStationIDs(rawStopIDs);
   const stationIDs = [...new Set(stationByStopId.values())];
 
-  const [exitRows, positionRows] = await Promise.all([
+  const [exitRows, positionRows, directionalRows, patternRows] = await Promise.all([
     stationIDs.length === 0
       ? []
       : db
@@ -104,6 +134,47 @@ export async function readWayfindingSnapshot(journeys: Journey[]): Promise<Wayfi
         })
         .from(boardingPositions)
         .where(inArray(boardingPositions.fromQuayId, quayIDs)),
+    stationIDs.length === 0
+      ? []
+      : db
+        .select({
+          fromQuayId: boardingPositions.fromQuayId,
+          targetId: boardingPositions.targetId,
+          targetKind: boardingPositions.targetKind,
+          stationStopId: boardingPositions.stationStopId,
+          routeId: boardingPositions.routeId,
+          directionId: boardingPositions.directionId,
+          car: boardingPositions.car,
+          carCount: boardingPositions.carCount,
+          zone: boardingPositions.zone,
+          equipment: boardingPositions.equipment,
+        })
+        .from(boardingPositions)
+        .where(
+          and(
+            inArray(boardingPositions.stationStopId, stationIDs),
+            isNotNull(boardingPositions.directionId)
+          )
+        ),
+    routeIDs.length === 0
+      ? []
+      : db
+        .select({
+          patternId: transitRoutePatternStops.patternId,
+          routeId: transitRoutePatterns.routeId,
+          directionId: transitRoutePatterns.directionId,
+          stopId: transitRoutePatternStops.stopId,
+        })
+        .from(transitRoutePatternStops)
+        .innerJoin(
+          transitRoutePatterns,
+          eq(transitRoutePatterns.id, transitRoutePatternStops.patternId)
+        )
+        .where(inArray(transitRoutePatterns.routeId, routeIDs))
+        .orderBy(
+          asc(transitRoutePatternStops.patternId),
+          asc(transitRoutePatternStops.stopSequence)
+        ),
   ]);
 
   const exitsByStopId = new Map<string, ExitRow[]>();
@@ -127,7 +198,38 @@ export async function readWayfindingSnapshot(journeys: Journey[]): Promise<Wayfi
     else positionsByQuayId.set(row.fromQuayId, [row]);
   }
 
-  return { exitsByStopId, positionsByQuayId, stationByStopId };
+  const positionsByStationDirection = new Map<string, PositionRow[]>();
+  for (const row of directionalRows) {
+    const key = stationDirectionKey(row.stationStopId!, row.routeId, row.directionId!);
+    const bucket = positionsByStationDirection.get(key);
+    if (bucket) bucket.push(row);
+    else positionsByStationDirection.set(key, [row]);
+  }
+
+  const patternsByRouteId = new Map<string, PatternStations[]>();
+  let pattern: (PatternStations & { patternId: string; routeId: string }) | undefined;
+  for (const row of patternRows) {
+    if (pattern?.patternId !== row.patternId) {
+      pattern = {
+        patternId: row.patternId,
+        routeId: row.routeId,
+        directionId: row.directionId,
+        stationIds: [],
+      };
+      const bucket = patternsByRouteId.get(row.routeId);
+      if (bucket) bucket.push(pattern);
+      else patternsByRouteId.set(row.routeId, [pattern]);
+    }
+    pattern.stationIds.push(row.stopId);
+  }
+
+  return {
+    exitsByStopId,
+    positionsByQuayId,
+    positionsByStationDirection,
+    patternsByRouteId,
+    stationByStopId,
+  };
 }
 
 /**
@@ -151,7 +253,7 @@ export function applyWayfinding(
     if (!next) continue;
     const target = bareStopId(next.boardingStopId);
     const position = target
-      ? positionsFrom(snapshot, end.alightingStopId)
+      ? alightingPositions(snapshot, end)
         .find((row) => row.targetKind === 'transfer' && row.targetId === target)
       : undefined;
     if (position) boardingPositionByIndex.set(end.index, boardingPositionOf(position, 'transfer'));
@@ -162,7 +264,7 @@ export function applyWayfinding(
   const station = snapshot.stationByStopId.get(last.alightingStopId);
   const candidates = station ? snapshot.exitsByStopId.get(station) ?? [] : [];
   if (candidates.length > 0) {
-    const positions = positionsFrom(snapshot, last.alightingStopId)
+    const positions = alightingPositions(snapshot, last)
       .filter((row) => row.targetKind === 'exit');
     // Exit choice is authoritative: always pick the closest one. Carriage
     // advice is additive and may be absent for that exit.
@@ -192,9 +294,57 @@ export function applyWayfinding(
   };
 }
 
-function positionsFrom(snapshot: WayfindingSnapshot, rawStopId: string) {
-  const quayId = bareStopId(rawStopId);
-  return quayId ? snapshot.positionsByQuayId.get(quayId) ?? [] : [];
+/**
+ * The advice rows of the quay a section alights on: matched by quay id when
+ * the planner named one, recovered from (station, route, direction) when it
+ * collapsed the quay to a monomodal stop area.
+ */
+function alightingPositions(snapshot: WayfindingSnapshot, end: TransitEnd): PositionRow[] {
+  const quayId = bareStopId(end.alightingStopId);
+  const byQuay = (quayId ? snapshot.positionsByQuayId.get(quayId) : undefined) ?? [];
+
+  // A direction-safe aggregate can coexist with richer direction-resolved
+  // rows; the aggregate wins per target, the rest fills in around it.
+  const covered = new Set(byQuay.map((row) => row.targetId));
+  const byDirection = directionalPositions(snapshot, end)
+    .filter((row) => !covered.has(row.targetId));
+  return byDirection.length === 0 ? byQuay : [...byQuay, ...byDirection];
+}
+
+function directionalPositions(snapshot: WayfindingSnapshot, end: TransitEnd): PositionRow[] {
+  const station = snapshot.stationByStopId.get(end.alightingStopId);
+  const cameFrom = end.penultimateStopId
+    ? snapshot.stationByStopId.get(end.penultimateStopId)
+    : undefined;
+  if (!station || !cameFrom || !end.routeId || station === cameFrom) return [];
+
+  const directionId = travelDirection(
+    snapshot.patternsByRouteId.get(end.routeId) ?? [],
+    cameFrom,
+    station
+  );
+  if (directionId === undefined) return [];
+  return (
+    snapshot.positionsByStationDirection.get(
+      stationDirectionKey(station, end.routeId, directionId)
+    ) ?? []
+  );
+}
+
+/** The GTFS direction whose patterns visit `cameFrom` before `station`, if unambiguous. */
+function travelDirection(patterns: readonly PatternStations[], cameFrom: string, station: string) {
+  const directions = new Set<number>();
+  for (const pattern of patterns) {
+    const from = pattern.stationIds.indexOf(cameFrom);
+    const to = pattern.stationIds.indexOf(station);
+    if (from !== -1 && to !== -1 && from < to) directions.add(pattern.directionId);
+  }
+  if (directions.size !== 1) return undefined;
+  return [...directions][0];
+}
+
+function stationDirectionKey(stationStopId: string, routeId: string, directionId: number) {
+  return [stationStopId, routeId, directionId].join(' ');
 }
 
 function boardingPositionOf(row: PositionRow, reason: BoardingPosition['reason']): BoardingPosition {

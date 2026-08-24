@@ -3,6 +3,7 @@ import SwiftUI
 
 struct NetworkMapView: View {
   let viewModel: NetworkViewModel
+  let nearby: NearbyStationsModel?
   let stationSelectionEnabled: Bool
   let journeyPresentation: JourneyMapPresentation?
   let journeyProgress: JourneyProgress?
@@ -12,11 +13,15 @@ struct NetworkMapView: View {
   @Binding var selectedStation: StationMapItem?
   @Namespace private var mapScope
   @State private var visibleRegion: MKCoordinateRegion = .paris
+  /// A filter change reframes on the *results*, which land a beat later. Armed
+  /// here, spent when they arrive.
+  @State private var awaitsCameraFit = false
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   init(
     viewModel: NetworkViewModel,
     position: Binding<MapCameraPosition>,
+    nearby: NearbyStationsModel? = nil,
     stationSelectionEnabled: Bool = true,
     journeyPresentation: JourneyMapPresentation? = nil,
     journeyProgress: JourneyProgress? = nil,
@@ -25,6 +30,7 @@ struct NetworkMapView: View {
     selectedStation: Binding<StationMapItem?> = .constant(nil)
   ) {
     self.viewModel = viewModel
+    self.nearby = nearby
     self.stationSelectionEnabled = stationSelectionEnabled
     self.journeyPresentation = journeyPresentation
     self.journeyProgress = journeyProgress
@@ -69,7 +75,7 @@ struct NetworkMapView: View {
               coordinate: coordinate.clLocationCoordinate,
               anchor: .center
             ) {
-              JourneyPositionAnnotationView(isEstimated: journeyProgress.isEstimated)
+              JourneyPositionAnnotationView(isEstimated: !journeyProgress.isLocationDerived)
             }
             .annotationTitles(.hidden)
           } else {
@@ -84,12 +90,19 @@ struct NetworkMapView: View {
             ) {
               Group {
                 if let bikeStation = station.bikeStation {
-                  BikeStationAnnotationView(station: bikeStation)
+                  BikeStationAnnotationView(
+                    station: bikeStation,
+                    isCompact: annotationIsCompact(in: geometry.size)
+                  )
                 } else {
-                  StationAnnotationView(item: station)
+                  StationAnnotationView(
+                    item: station,
+                    visibleModes: snapshot.routeModes,
+                    isCompact: annotationIsCompact(in: geometry.size)
+                  )
                 }
               }
-              .opacity(snapshot.stationOpacity * stationDimming)
+              .opacity(snapshot.resolvedStationOpacity * stationDimming)
               .transition(.opacity)
             }
             .annotationTitles(.hidden)
@@ -123,6 +136,9 @@ struct NetworkMapView: View {
         }
         .onMapCameraChange(frequency: .onEnd) { context in
           visibleRegion = context.region
+          // The traveller moved the map themselves: a reframe still owed to an
+          // earlier filter is no longer wanted.
+          awaitsCameraFit = false
           viewModel.viewportChanged(
             to: context.region.networkViewport(size: geometry.size),
             phase: .ended
@@ -133,6 +149,14 @@ struct NetworkMapView: View {
             to: visibleRegion.networkViewport(size: geometry.size),
             phase: .ended
           )
+        }
+        .onChange(of: viewModel.stationFilter) { _, filter in
+          // Arm only for a filter that has something to frame. Clearing one
+          // must not move the camera at all.
+          awaitsCameraFit = filter.isActive
+        }
+        .onChange(of: nearby?.results) { _, _ in
+          fitCameraToResultsIfWorthwhile()
         }
 
         NetworkMapStatusView(
@@ -166,14 +190,34 @@ struct NetworkMapView: View {
       // above the map would otherwise take the taps meant for this button.
       .overlay(alignment: .topLeading) {
         StationMapFilterMenu(filter: $viewModel.stationFilter)
-          .padding(.top, geometry.safeAreaInsets.top + 8)
+          // The map control region already starts below the top safe area.
+          // Adding it again places this button one status-bar height below
+          // MapKit's location control.
+          .padding(.top, 8)
           .padding(.leading, geometry.safeAreaInsets.leading + 8)
       }
     }
   }
 
+  /// Never widens and never fires on a pan: `MapCameraFit` refuses anything
+  /// that is not a decisive tightening, and this is only armed by a filter.
+  private func fitCameraToResultsIfWorthwhile() {
+    guard awaitsCameraFit else { return }
+    awaitsCameraFit = false
+    guard let bounds = nearby?.resultsBounds,
+          let region = MapCameraFit.fittedRegion(for: bounds, in: visibleRegion)
+    else { return }
+    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) {
+      position = .region(region)
+    }
+  }
+
   private var mapSelection: Binding<StationMapItem?> {
     stationSelectionEnabled ? $selectedStation : .constant(nil)
+  }
+
+  private func annotationIsCompact(in size: CGSize) -> Bool {
+    visibleRegion.networkViewport(size: size).usesCompactStationAnnotations
   }
 
   private var bikeSourceUnavailable: Bool {
@@ -187,7 +231,7 @@ struct NetworkMapView: View {
   private var bikeFilterHasNoResults: Bool {
     viewModel.state.loading == .loaded
       && viewModel.stationFilter.contains(.bikeStations)
-      && viewModel.state.snapshot.stationOpacity > 0
+      && viewModel.state.snapshot.resolvedStationOpacity > 0
       && viewModel.state.snapshot.stations.isEmpty
   }
 

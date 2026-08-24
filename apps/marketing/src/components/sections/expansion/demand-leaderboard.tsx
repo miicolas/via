@@ -68,7 +68,7 @@ export function DemandLeaderboard({
             <button
               type="button"
               onClick={() => onSelect(entry.city)}
-              className="focus-ring group flex w-full items-center gap-4 rounded-2xl px-3 py-2.5 text-left transition-colors duration-200 hover:bg-white/6 active:bg-white/10"
+              className="focus-ring group flex min-h-11 w-full items-center gap-4 rounded-2xl px-3 py-2.5 text-left transition-colors duration-200 hover:bg-white/6 active:bg-white/10"
             >
               <span className="w-5 shrink-0 text-[12px] text-white/35 tabular-nums">
                 {entry.rank}

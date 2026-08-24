@@ -34,7 +34,7 @@ export function ThemeSwitch(): ReactNode {
     <div className="fixed right-6 bottom-6 z-50">
       <button
         onClick={() => setTheme(isDark ? "light" : "dark")}
-        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-frame text-foreground opacity-30 shadow-lg transition-opacity duration-300 hover:opacity-100 hover:shadow-xl"
+        className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-frame text-foreground shadow-lg transition-opacity duration-300 hover:opacity-100 hover:shadow-xl [@media(hover:hover)]:opacity-30"
         aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
         aria-pressed={isDark}
         type="button"

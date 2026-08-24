@@ -322,6 +322,19 @@ export const boardingPositions = pgTable(
     targetId: text('target_id').notNull(),
     targetKind: text('target_kind', { enum: ['exit', 'transfer'] }).notNull(),
     routeId: text('route_id').notNull(),
+    /**
+     * The canonical station of the arrival quay, when the importer resolved it.
+     *
+     * RER planners report a `monomodalStopPlace`, never the directional quay
+     * this table is keyed by. Rows whose quay direction the importer inferred
+     * carry the station and a GTFS `direction_id`, so the reader can recover
+     * the advice from (station, route, travel direction) alone.
+     */
+    stationStopId: text('station_stop_id').references(() => transitStops.id, {
+      onDelete: 'cascade',
+    }),
+    /** GTFS `direction_id` the arrival quay serves; NULL when direction-agnostic. */
+    directionId: integer('direction_id'),
     car: integer('car').notNull(),
     /** The line's nominal train length — a short trainset makes this optimistic. */
     carCount: integer('car_count').notNull(),
@@ -334,6 +347,11 @@ export const boardingPositions = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.fromQuayId, table.targetId] }),
+    index('boarding_positions_station_route_idx').on(
+      table.stationStopId,
+      table.routeId,
+      table.directionId
+    ),
     check('boarding_positions_car_check', sql`${table.car} BETWEEN 1 AND ${table.carCount}`),
   ]
 );

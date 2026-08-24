@@ -149,3 +149,31 @@ extension Collection<RouteBadge> {
         TransitMode.allCases.filter { mode in contains { $0.mode == mode } }
     }
 }
+
+extension GeoBounds {
+    /// The square that covers `radiusMeters` around a point.
+    ///
+    /// Shared rather than restated: the Stations tab, the nearby list and the
+    /// map's off-threshold pins all have to ask for the *same* box, or the
+    /// list and the annotations drawn from it would disagree about what counts
+    /// as nearby. The longitude degree shrinks with latitude, so the two axes
+    /// are converted separately.
+    static func around(
+        _ coordinate: GeoCoordinate,
+        radiusMeters: Double
+    ) -> GeoBounds {
+        let latitudeDelta = radiusMeters / 111_000
+        let longitudeMetersPerDegree = max(
+            1_000,
+            111_000 * abs(cos(coordinate.latitude * .pi / 180))
+        )
+        let longitudeDelta = radiusMeters / longitudeMetersPerDegree
+
+        return GeoBounds(
+            minLatitude: max(-90, coordinate.latitude - latitudeDelta),
+            maxLatitude: min(90, coordinate.latitude + latitudeDelta),
+            minLongitude: max(-180, coordinate.longitude - longitudeDelta),
+            maxLongitude: min(180, coordinate.longitude + longitudeDelta)
+        )
+    }
+}

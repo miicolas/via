@@ -18,7 +18,7 @@ export function DashboardCard({
       className="group relative flex min-h-80 flex-col overflow-hidden rounded-4xl bg-card-secondary p-8 md:block"
     >
       <div className="relative z-10 max-w-48 transition-transform duration-500 ease-out group-hover:scale-105">
-        <h3 className="mb-3 text-xl leading-tight font-medium whitespace-nowrap text-card-foreground md:text-2xl">
+        <h3 className="mb-3 text-xl leading-tight font-medium text-card-foreground md:text-2xl md:whitespace-nowrap">
           {content.title}
         </h3>
         <p className="text-sm text-card-foreground-muted">

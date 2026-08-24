@@ -17,9 +17,11 @@ enum JourneyDestination: Codable, Sendable, Hashable {
     }
 }
 
-enum JourneyDatetimeRepresents: String, Codable, Sendable, Hashable {
+enum JourneyDatetimeRepresents: String, Codable, Sendable, Hashable, Identifiable {
     case departure
     case arrival
+
+    var id: Self { self }
 }
 
 struct JourneyRequest: Sendable, Hashable {
@@ -109,7 +111,7 @@ struct JourneyExit: Codable, Sendable, Hashable, Identifiable {
 }
 
 struct JourneySection: Codable, Sendable, Hashable, Identifiable {
-    enum Kind: String, Codable, Sendable, Hashable { case walk, wait, transfer, transit }
+    enum Kind: String, Codable, Sendable, Hashable { case walk, bike, wait, transfer, transit }
 
     let id: String
     /// Opaque circulation reference. It is round-tripped, never interpreted on-device.
@@ -284,6 +286,7 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         case lessWalking = "less-walking"
         case comfort
         case walking
+        case bike
     }
 
     enum Status: String, Codable, Sendable, Hashable { case normal, disrupted, theoretical }
@@ -356,6 +359,67 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         self.reportedCrowding = reportedCrowding
         self.wheelchairReport = wheelchairReport
         self.sections = sections
+    }
+}
+
+enum JourneyScheduleRevisionError: LocalizedError, Sendable {
+    case noRoute
+    case unavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .noRoute:
+            "Aucun trajet ne correspond à cet horaire."
+        case .unavailable:
+            "Les horaires ne sont pas disponibles pour le moment."
+        }
+    }
+}
+
+extension Journey {
+    /// A schedule search returns a new planner identity. The detail sheet,
+    /// reminders and active draft deliberately keep the identity the traveller
+    /// opened while adopting every freshly planned section and time.
+    func identified(as id: JourneyID) -> Journey {
+        Journey(
+            id: id,
+            qualifier: qualifier,
+            durationSeconds: durationSeconds,
+            walkingDurationSeconds: walkingDurationSeconds,
+            transferCount: transferCount,
+            departureAt: departureAt,
+            arrivalAt: arrivalAt,
+            status: status,
+            warnings: warnings,
+            accessibility: accessibility,
+            peak: peak,
+            reportedCrowding: reportedCrowding,
+            wheelchairReport: wheelchairReport,
+            sections: sections
+        )
+    }
+
+    /// The line the traveller really follows on section `index` — what the map
+    /// draws, and what a location fix is projected onto.
+    ///
+    /// The planner starts the walk out of the network at the alighting stop,
+    /// which is a platform coordinate. The traveller surfaces at the
+    /// recommended exit — the marker the map already puts there in place of the
+    /// alighting one — so the walk leaves from that exit instead of from a
+    /// point underground.
+    func path(at index: Int) -> [GeoCoordinate] {
+        guard sections.indices.contains(index) else { return [] }
+        let section = sections[index]
+        let planned = section.geometry.count >= 2
+            ? section.geometry
+            : [section.from.coordinate, section.to.coordinate]
+
+        guard section.kind == .walk,
+              index > 0,
+              let exit = sections[index - 1].exit
+        else { return planned }
+
+        return [exit.coordinate] + planned.dropFirst()
     }
 }
 

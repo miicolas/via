@@ -13,6 +13,7 @@ extension MKCoordinateRegion {
 struct MapShellView: View {
   let networkViewModel: NetworkViewModel
   let stationsViewModel: StationsViewModel
+  let nearbyStationsModel: NearbyStationsModel
   let linesViewModel: LinesViewModel
   let selectedStationModel: SelectedStationModel
   let searchViewModel: SearchViewModel
@@ -40,6 +41,11 @@ struct MapShellView: View {
   @State private var selectedMapStation: StationMapItem?
   @State private var selectedBikeStation: BikeStation?
 
+  /// The opening region is a hardcoded Paris. Until the first fix lands it is
+  /// also what anchors the nearby list, so the camera moves to the traveller
+  /// once — after that the camera is theirs.
+  @State private var hasCenteredOnUser = false
+
   @State private var isLargeScreen: Bool = false
   // The reference opens with the map still visible above the content sheet.
   @State private var activeDetent: PresentationDetent = .fraction(0.45)
@@ -56,6 +62,7 @@ struct MapShellView: View {
   init(
     networkViewModel: NetworkViewModel,
     stationsViewModel: StationsViewModel,
+    nearbyStationsModel: NearbyStationsModel,
     linesViewModel: LinesViewModel,
     selectedStationModel: SelectedStationModel,
     searchViewModel: SearchViewModel,
@@ -76,6 +83,7 @@ struct MapShellView: View {
   ) {
     self.networkViewModel = networkViewModel
     self.stationsViewModel = stationsViewModel
+    self.nearbyStationsModel = nearbyStationsModel
     self.linesViewModel = linesViewModel
     self.selectedStationModel = selectedStationModel
     self.searchViewModel = searchViewModel
@@ -101,6 +109,7 @@ struct MapShellView: View {
       NetworkMapView(
         viewModel: networkViewModel,
         position: $position,
+        nearby: nearbyStationsModel,
         stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
         journeyPresentation: displayedJourneyPresentation,
         journeyProgress: activeJourneyModel.progress(at: context.date)?.mapQuantized,
@@ -118,6 +127,25 @@ struct MapShellView: View {
     .sheet(isPresented: $showTabSheet) {
       sheetContent
         .adaptiveSheet(380, isActive: isLargeScreen)
+    }
+    .onChange(of: locationModel.coordinate) { _, coordinate in
+      guard let coordinate, !hasCenteredOnUser else { return }
+      hasCenteredOnUser = true
+      // Only an untouched opening camera may jump. If the traveller has already
+      // moved the map while the fix was in flight, the map is theirs.
+      guard let region = position.region,
+            region.center.latitude == MKCoordinateRegion.paris.center.latitude,
+            region.center.longitude == MKCoordinateRegion.paris.center.longitude
+      else { return }
+      withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
+        position = .region(
+          MKCoordinateRegion(
+            center: coordinate.clLocationCoordinate,
+            latitudinalMeters: 1_200,
+            longitudinalMeters: 1_200
+          )
+        )
+      }
     }
     .onChange(of: selectedMapStation) { _, newValue in
       guard let newValue else { return }
@@ -246,6 +274,21 @@ struct MapShellView: View {
       selectedBikeStation = nil
       selectedStationModel.select(item)
     }
+  }
+
+  /// Picking a row is what actually moves the camera: applying a filter never
+  /// does more than tighten, so this is the gesture that says "take me there".
+  private func revealStation(_ item: StationMapItem) {
+    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) {
+      position = .region(
+        MKCoordinateRegion(
+          center: item.coordinate.clLocationCoordinate,
+          latitudinalMeters: 600,
+          longitudinalMeters: 600
+        )
+      )
+    }
+    presentStation(item)
   }
 
   private func closeSearch() {
@@ -490,11 +533,13 @@ struct MapShellView: View {
       Tab(value: .stations) {
         StationsView(
           viewModel: stationsViewModel,
+          nearby: nearbyStationsModel,
           selectedStation: selectedStationModel,
           accountModel: accountModel,
           isLargeScreen: $isLargeScreen,
           detailDetent: $detailSheetDetent,
           profileModel: profileModel,
+          onSelectNearby: revealStation,
           onOpenSearch: { activeTab = .search },
           naturalLanguageAccess: searchViewModel.naturalLanguageAccess,
           showsNaturalSearchDiscovery: searchViewModel.showsNaturalSearchDiscovery,
@@ -799,14 +844,25 @@ struct MapShellView: View {
     return model
   }()
   let departures = InMemoryDeparturesRepository.stationsPreview
+  let filterStore = StationMapFilterStore()
+  let nearbyStationsModel = NearbyStationsModel(
+    repository: InMemoryNetworkRepository.mapPreview,
+    filterStore: filterStore
+  )
 
   MapShellView(
-    networkViewModel: NetworkViewModel(repository: InMemoryNetworkRepository.mapPreview),
+    networkViewModel: NetworkViewModel(
+      repository: InMemoryNetworkRepository.mapPreview,
+      filterStore: filterStore,
+      nearby: nearbyStationsModel
+    ),
     stationsViewModel: StationsViewModel(
       locationModel: locationModel,
       networkRepository: InMemoryNetworkRepository.mapPreview,
-      departuresRepository: departures
+      departuresRepository: departures,
+      nearby: nearbyStationsModel
     ),
+    nearbyStationsModel: nearbyStationsModel,
     linesViewModel: LinesViewModel(repository: PreviewLineStatusRepository()),
     selectedStationModel: SelectedStationModel(
       departuresRepository: departures,

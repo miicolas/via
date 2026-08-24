@@ -140,17 +140,24 @@ export function CityVoteCard({
        * inline, and the class would lose to it. The popover is placed through
        * `x`/`y` for that reason, and the sheet through `inset-x`.
        */
-      className={`z-30 rounded-[26px] bg-[#16171A]/78 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_30px_80px_-30px_rgba(0,0,0,0.95)] ring-1 ring-white/12 backdrop-blur-2xl backdrop-saturate-150 ${
-        place ? "absolute" : "fixed inset-x-4 bottom-4 sm:mx-auto sm:max-w-72"
+      className={`z-[60] rounded-[26px] bg-[#16171A]/78 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_30px_80px_-30px_rgba(0,0,0,0.95)] ring-1 ring-white/12 backdrop-blur-2xl backdrop-saturate-150 ${
+        place
+          ? "absolute"
+          : "fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] sm:mx-auto sm:max-w-72"
       }`}
     >
       <button
         type="button"
         onClick={onClose}
         aria-label={expansionContent.card.close}
-        className="focus-ring absolute top-4 right-4 flex size-7 items-center justify-center rounded-full bg-white/10 text-white/60 transition-colors hover:bg-white/18 hover:text-white"
+        className="focus-ring group absolute top-2 right-2 flex size-11 items-center justify-center rounded-full"
       >
-        <X className="size-3.5" aria-hidden="true" />
+        <span
+          className="flex size-7 items-center justify-center rounded-full bg-white/10 text-white/60 transition-colors group-hover:bg-white/18 group-hover:text-white"
+          aria-hidden="true"
+        >
+          <X className="size-3.5" />
+        </span>
       </button>
 
       <div key={city.slug} className="relative">

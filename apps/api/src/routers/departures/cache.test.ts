@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import type { RouteBadge } from '@via/contract';
 
 import { fakeRedis } from './__fixtures__/fake-redis';
-import { stationSnapshotThroughCache } from './cache';
+import { readCachedStationSnapshot, stationSnapshotThroughCache } from './cache';
 import type { NormalizedVisit } from './prim/parse';
 
 const someVisits: NormalizedVisit[] = [
@@ -23,6 +23,37 @@ const routes: RouteBadge[] = [
   },
 ];
 const cacheKey = 'transit:station-snapshot:v1:IDFM:71264';
+
+test('the read-only reader returns a warm snapshot without creating a lock', async () => {
+  const { client, store } = fakeRedis();
+  store.set(cacheKey, { visits: someVisits, fetchedAt, routes });
+
+  const snapshot = await readCachedStationSnapshot(client, cacheKey);
+
+  expect(snapshot).toEqual({ visits: someVisits, fetchedAt, routes });
+  expect(store.has(`${cacheKey}:lock`)).toBe(false);
+});
+
+test('the read-only reader turns a miss into null without loading anything', async () => {
+  const { client, store } = fakeRedis();
+
+  const snapshot = await readCachedStationSnapshot(client, cacheKey);
+
+  expect(snapshot).toBeNull();
+  expect(store.size).toBe(0);
+});
+
+test('the read-only reader turns a Redis error into null without creating a lock', async () => {
+  const { client, store } = fakeRedis();
+  client.get = async () => {
+    throw new Error('boom');
+  };
+
+  const snapshot = await readCachedStationSnapshot(client, cacheKey);
+
+  expect(snapshot).toBeNull();
+  expect(store.has(`${cacheKey}:lock`)).toBe(false);
+});
 
 test('a cache hit never reaches the loader', async () => {
   const { client, store } = fakeRedis();

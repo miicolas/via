@@ -40,9 +40,20 @@ export class NotificationAlertMonitor {
     const cycle = Math.floor(now.getTime() / (this.options.cycleMilliseconds ?? 120_000));
     let delivered = 0;
     try {
+      const [allLineSubscriptions, allStationSubscriptions] = await Promise.all([
+        this.options.subscriptions.listActive('line'),
+        this.options.subscriptions.listActive('station'),
+      ]);
+      const lineSubscriptions = allLineSubscriptions.filter((subscription) =>
+        isAlertWindowActive(subscription, now)
+      );
+      const stationSubscriptions = allStationSubscriptions.filter((subscription) =>
+        isAlertWindowActive(subscription, now)
+      );
+      if (lineSubscriptions.length === 0 && stationSubscriptions.length === 0) return 0;
+
       const snapshot = await this.options.snapshot(now);
       if (!snapshot) return 0;
-      const lineSubscriptions = await this.options.subscriptions.listActive('line');
       const routes = new Set([
         ...snapshot.disruptions.flatMap((disruption) => disruption.routeIds),
         ...lineSubscriptions.map((subscription) => subscription.topicId),
@@ -61,7 +72,9 @@ export class NotificationAlertMonitor {
         const restored = [...previous]
           .filter((id) => !currentIDs.has(id))
           .map((id) => ({ id, routeIds: [routeId] }));
-        const subscriptions = await this.options.subscriptions.listForTopic('line', routeId);
+        const subscriptions = lineSubscriptions.filter(
+          (subscription) => subscription.topicId === routeId
+        );
         for (const subscription of subscriptions) {
           for (const disruption of appeared) {
             if (!matchesAlert(subscription, now, disruption.severity)) continue;
@@ -84,7 +97,6 @@ export class NotificationAlertMonitor {
           stations.set(stopId, bucket);
         }
       }
-      const stationSubscriptions = await this.options.subscriptions.listActive('station');
       const stationIDs = new Set([
         ...stations.keys(),
         ...stationSubscriptions.map((subscription) => subscription.topicId),
@@ -104,7 +116,9 @@ export class NotificationAlertMonitor {
           { nx: true, ex: ALERT_CLAIM_TTL_SECONDS },
         );
         if (claimed === null) continue;
-        const subscriptions = await this.options.subscriptions.listForTopic('station', stationID);
+        const subscriptions = stationSubscriptions.filter(
+          (subscription) => subscription.topicId === stationID
+        );
         for (const subscription of subscriptions) {
           for (const disruption of appeared) {
             if (!matchesAlert(subscription, now, disruption.severity)) continue;
@@ -232,6 +246,13 @@ function matchesAlert(
 ): boolean {
   const ranks = { attention: 0, disrupted: 1, suspended: 2 };
   if (ranks[severity] < ranks[subscription.minimumSeverity]) return false;
+  return isAlertWindowActive(subscription, now);
+}
+
+function isAlertWindowActive(
+  subscription: NotificationAlertSubscription,
+  now: Date,
+): boolean {
   const weekday = parisWeekday(now);
   if (subscription.daysOfWeek.length > 0 && !subscription.daysOfWeek.includes(weekday)) return false;
   if (subscription.windows.length === 0) return true;
