@@ -1,5 +1,7 @@
 export { railMapRelation } from './rail-map-relation';
 export {
+  bikeStationAvailabilitySchema,
+  bikeStationSchema,
   networkRouteSchema,
   networkSegmentSchema,
   networkStationSchema,
@@ -10,6 +12,8 @@ export {
 } from './schema';
 export { stationsInAreaRelation } from './stations-in-area-relation';
 export type {
+  BikeStation,
+  BikeStationAvailability,
   NetworkRoute,
   NetworkSegment,
   NetworkStation,

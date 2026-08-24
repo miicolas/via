@@ -50,13 +50,18 @@ actor LiveNetworkRepository: NetworkRepository {
     private static let prefetchableVisibleTileCount = 9
     private static let prefetchTileLimit = 16
 
+    private struct CachedTile {
+        let area: StationsArea
+        let loadedAt: ContinuousClock.Instant
+    }
+
     private let remote: any NetworkRemote
     /// How long a failed tile stays quiet before it may be fetched again.
     /// Without it, a failing tile is retried on every map gesture, forever.
     private let retryCooldown: Duration
     private let clock = ContinuousClock()
 
-    private var cache: [ViewportTile: StationsArea] = [:]
+    private var cache: [ViewportTile: CachedTile] = [:]
     private var failedTiles: [ViewportTile: ContinuousClock.Instant] = [:]
     private var inFlight: [ViewportTile: Task<StationsArea?, Never>] = [:]
     private var railMapTask: Task<TransitNetwork, Error>?
@@ -86,7 +91,7 @@ actor LiveNetworkRepository: NetworkRepository {
 
     func viewport(in bounds: GeoBounds) async throws -> StationsArea {
         let visibleTiles = ViewportTile.covering(bounds)
-        let fetchableTiles = visibleTiles.filter { cache[$0] == nil && !isCoolingDown($0) }
+        let fetchableTiles = visibleTiles.filter { needsRefresh($0) && !isCoolingDown($0) }
         if fetchableTiles.isEmpty, let lastAssembly, lastAssembly.tiles == visibleTiles {
             prefetchNeighbours(of: visibleTiles)
             return lastAssembly.area
@@ -99,15 +104,23 @@ actor LiveNetworkRepository: NetworkRepository {
 
         var stationsByID: [StationID: NetworkStation] = [:]
         var routesByID: [RouteID: RouteBadge] = [:]
+        var bikeStationsByID: [String: BikeStation] = [:]
+        var bikeSourceAvailable = true
         for tile in visibleTiles {
-            guard let area = cache[tile] else { continue }
+            guard let area = cache[tile]?.area else { continue }
             area.stations.forEach { stationsByID[$0.id] = $0 }
             area.routes.forEach { routesByID[$0.id] = $0 }
+            area.bikeStations.forEach { bikeStationsByID[$0.id] = $0 }
+            bikeSourceAvailable = bikeSourceAvailable && area.bikeSourceAvailable
         }
 
         let area = StationsArea(
             stations: stationsByID.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending },
-            routes: routesByID.values.sorted { $0.shortName.localizedStandardCompare($1.shortName) == .orderedAscending }
+            routes: routesByID.values.sorted { $0.shortName.localizedStandardCompare($1.shortName) == .orderedAscending },
+            bikeStations: bikeStationsByID.values.sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            },
+            bikeSourceAvailable: bikeSourceAvailable
         )
         lastAssembly = (tiles: visibleTiles, area: area)
         prefetchNeighbours(of: visibleTiles)
@@ -129,7 +142,7 @@ actor LiveNetworkRepository: NetworkRepository {
                     throw ViaError.invalidRequest("viewport")
                 }
                 let area = try await remote.stationsTile(in: tile.bounds)
-                cache[tile] = area
+                cache[tile] = CachedTile(area: area, loadedAt: clock.now)
                 failedTiles[tile] = nil
                 return area
             } catch is CancellationError {
@@ -149,6 +162,11 @@ actor LiveNetworkRepository: NetworkRepository {
         if clock.now - failedAt < retryCooldown { return true }
         failedTiles[tile] = nil
         return false
+    }
+
+    private func needsRefresh(_ tile: ViewportTile) -> Bool {
+        guard let cached = cache[tile] else { return true }
+        return clock.now - cached.loadedAt >= BikeStation.freshness
     }
 
     /// Warms the ring of tiles around the viewport at background priority, so

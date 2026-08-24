@@ -25,6 +25,26 @@ export const stationToiletsSchema = z.object({
   detail: z.string().optional(),
 });
 
+/** Live Vélib' inventory joined to the station's stable GBFS information. */
+export const bikeStationAvailabilitySchema = z.object({
+  mechanicalBikes: z.int().min(0),
+  electricBikes: z.int().min(0),
+  docks: z.int().min(0),
+  isInstalled: z.boolean(),
+  isRenting: z.boolean(),
+  isReturning: z.boolean(),
+  lastReportedAt: z.iso.datetime({ offset: true }).optional(),
+});
+
+export const bikeStationSchema = z.object({
+  id: z.string(),
+  stationCode: z.string().optional(),
+  name: z.string(),
+  coordinate: coordinateSchema,
+  capacity: z.int().min(0),
+  availability: bikeStationAvailabilitySchema.optional(),
+});
+
 export const networkStationSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -44,6 +64,8 @@ export const networkStationSchema = z.object({
       comment: z.string().optional(),
     })
     .optional(),
+  /** At least one lift is referenced for this station, regardless of live status. */
+  hasElevators: z.boolean().optional(),
   toilets: stationToiletsSchema.optional(),
 });
 
@@ -89,4 +111,9 @@ export const stationsInAreaSchema = z.object({
   stations: z.array(networkStationSchema),
   /** The badges the stations' `routeIds` point to, deduplicated. */
   routes: z.array(routeBadgeSchema),
+  /** Vélib' stations stay distinct from transit stops and never own route ids. */
+  bikeStations: z.array(bikeStationSchema),
+  sources: z.object({
+    velib: z.enum(['ok', 'unavailable']),
+  }),
 });

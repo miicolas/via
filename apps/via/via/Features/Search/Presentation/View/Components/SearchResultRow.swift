@@ -63,8 +63,8 @@ struct SearchResultRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 32)
 
-        case .address:
-            Image(systemName: "mappin.and.ellipse")
+        case .address(let address):
+            Image(systemName: address.isBikeStation ? "bicycle" : "mappin.and.ellipse")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 32)
@@ -90,7 +90,7 @@ struct SearchResultRow: View {
             }
 
         case .address(let address):
-            Text(address.context.isEmpty ? "Adresse" : address.context)
+            Text(addressDetail(address))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -104,10 +104,19 @@ struct SearchResultRow: View {
             let base = routes.isEmpty ? "Station \(station.name)" : "Station \(station.name), lignes \(routes)"
             return base
         case .address(let address):
+            if address.isBikeStation {
+                let detail = address.bikeStation?.accessibilityDetail ?? "disponibilité inconnue"
+                return "Station Vélib \(address.name), \(detail)"
+            }
             return address.context.isEmpty
                 ? "Adresse \(address.name)"
                 : "Adresse \(address.name), \(address.context)"
         }
+    }
+
+    private func addressDetail(_ address: AddressSearchResult) -> String {
+        guard let availability = address.bikeStation else { return address.subtitle }
+        return "\(availability.totalBikes) vélo\(availability.totalBikes > 1 ? "s" : "") · \(availability.docks) bornette\(availability.docks > 1 ? "s" : "")"
     }
 }
 

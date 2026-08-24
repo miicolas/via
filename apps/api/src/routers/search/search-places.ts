@@ -9,6 +9,8 @@ import { toStationResults } from './mappers';
 import { mergeSearchResults } from './merge';
 import { selectMatchingStations } from './queries';
 import { readElevatorSourceStatus } from '../elevators';
+import { getVelibSnapshot } from '../velib/snapshot';
+import { selectMatchingBikeStations } from '../velib/select';
 
 /** Per-source fetch sizes, before the merge truncates to `limit`. */
 const STATION_LIMIT = 5;
@@ -20,6 +22,8 @@ export type PlaceSearch = {
   municipalities: AddressSearchResult[];
   /** False when the BAN geocoder was unreachable, so addresses are missing. */
   banAvailable: boolean;
+  /** False only when a requested Vélib' snapshot was unavailable. */
+  velibAvailable: boolean;
   accessibility: AccessibilitySourceStatus;
   elevators: Awaited<ReturnType<typeof readElevatorSourceStatus>>;
 };
@@ -62,12 +66,36 @@ export async function searchPlaces(
     limit,
     origin,
     signal,
+    bikeStationsOnly = false,
   }: {
     limit: number;
     origin?: Coordinate;
     signal?: AbortSignal;
+    bikeStationsOnly?: boolean;
   }
 ): Promise<PlaceSearch> {
+  if (bikeStationsOnly) {
+    const [velib, accessibility, elevators] = await Promise.all([
+      getVelibSnapshot(),
+      readAccessibilitySourceStatus(),
+      readElevatorSourceStatus(),
+    ]);
+    return {
+      // Through the merge like every other source, so one function stays the
+      // only place a search result gets stamped with a distance.
+      results: mergeSearchResults([], selectMatchingBikeStations(velib.stations, q, limit, origin), {
+        q,
+        limit,
+        origin,
+      }),
+      municipalities: [],
+      banAvailable: true,
+      velibAvailable: velib.sourceAvailable,
+      accessibility,
+      elevators,
+    };
+  }
+
   const [stationRows, banFeatures, accessibility, elevators] = await Promise.all([
     selectMatchingStations(q, STATION_LIMIT, origin),
     searchBan(q, { limit: ADDRESS_LIMIT, origin, signal }),
@@ -83,6 +111,7 @@ export async function searchPlaces(
     }),
     municipalities: toMunicipalityResults(banFeatures ?? []),
     banAvailable: banFeatures !== null,
+    velibAvailable: true,
     accessibility,
     elevators,
   };

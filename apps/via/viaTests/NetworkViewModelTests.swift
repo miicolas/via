@@ -45,6 +45,100 @@ final class NetworkViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testChangingFilterRepublishesCachedStationsWithoutAnotherRequest() async {
+        let metro = badge("metro", mode: .metro)
+        let bus = badge("bus", mode: .bus)
+        let metroStation = NetworkStation(
+            id: StationID(rawValue: "metro-station"),
+            name: "Métro",
+            coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35),
+            routeIDs: [metro.id]
+        )
+        let busStation = NetworkStation(
+            id: StationID(rawValue: "bus-station"),
+            name: "Bus",
+            coordinate: GeoCoordinate(latitude: 48.8505, longitude: 2.35),
+            routeIDs: [bus.id]
+        )
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: StationsArea(stations: [metroStation, busStation], routes: [metro, bus])
+        )
+        let model = NetworkViewModel(repository: repository)
+        model.viewportChanged(to: viewport(), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+
+        model.stationFilter.criteria = [.mode(.bus)]
+
+        XCTAssertEqual(
+            model.state.snapshot.stations.map(\.id),
+            [StationID(rawValue: "bus-station")]
+        )
+        XCTAssertNotNil(model.stationMapItem(for: StationID(rawValue: "metro-station")))
+        let viewportCalls = await repository.viewportCallCount
+        XCTAssertEqual(viewportCalls, 1)
+    }
+
+    @MainActor
+    func testFilterSelectedBeforeLoadingAppliesToFetchedStations() async {
+        let route = badge("metro", mode: .metro)
+        let withoutToilets = NetworkStation(
+            id: StationID(rawValue: "without-toilets"),
+            name: "Sans sanitaires",
+            coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35),
+            routeIDs: [route.id]
+        )
+        let withToilets = NetworkStation(
+            id: StationID(rawValue: "with-toilets"),
+            name: "Avec sanitaires",
+            coordinate: GeoCoordinate(latitude: 48.8505, longitude: 2.35),
+            routeIDs: [route.id],
+            toilets: StationToilets(label: "Sanitaires disponibles", detail: nil)
+        )
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: StationsArea(stations: [withoutToilets, withToilets], routes: [route])
+        )
+        let model = NetworkViewModel(repository: repository)
+        model.stationFilter.criteria = [.toilets]
+
+        model.viewportChanged(to: viewport(), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+
+        XCTAssertEqual(
+            model.state.snapshot.stations.map(\.id),
+            [StationID(rawValue: "with-toilets")]
+        )
+    }
+
+    @MainActor
+    func testVelibFilterRevealsBikeStationsFromTheCachedViewport() async {
+        let bike = BikeStation(
+            id: "1",
+            stationCode: "04001",
+            name: "Hôtel de Ville",
+            coordinate: GeoCoordinate(latitude: 48.8505, longitude: 2.35),
+            capacity: 35,
+            availability: nil
+        )
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: StationsArea(stations: [], routes: [], bikeStations: [bike])
+        )
+        let model = NetworkViewModel(repository: repository)
+
+        model.viewportChanged(to: viewport(), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+        XCTAssertTrue(model.state.snapshot.stations.isEmpty)
+
+        model.stationFilter.criteria = [.bikeStations]
+
+        XCTAssertEqual(model.state.snapshot.stations.map(\.bikeStation), [bike])
+        let viewportCalls = await repository.viewportCallCount
+        XCTAssertEqual(viewportCalls, 1)
+    }
+
+    @MainActor
     func testStationThresholdSkipsViewportLoadingAndHidesAnnotations() async {
         let repository = NetworkRepositorySpy(
             network: network(),
@@ -291,11 +385,11 @@ final class NetworkViewModelTests: XCTestCase {
         return StationsArea(stations: stations, routes: routes)
     }
 
-    private func badge(_ id: String) -> RouteBadge {
+    private func badge(_ id: String, mode: TransitMode = .metro) -> RouteBadge {
         RouteBadge(
             id: RouteID(rawValue: id),
             shortName: id,
-            mode: .metro,
+            mode: mode,
             colorHex: "000000",
             textColorHex: "FFFFFF"
         )

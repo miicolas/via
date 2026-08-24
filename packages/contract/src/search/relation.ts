@@ -8,7 +8,7 @@ export const searchQueryRelation = oc
     path: '/search',
     summary: 'Recherche unifiée',
     description:
-      'Arrêts de métro, RER, Transilien, tram et bus et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. ' +
+      'Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. ' +
       'Avec une position, chaque résultat porte sa distance en mètres.',
     tags: ['search'],
   })

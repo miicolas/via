@@ -5,6 +5,7 @@ struct SearchFiltersMenu: View {
     let filters: SearchFilters
     let onSetRequiresAccessibleStations: @MainActor (Bool) -> Void
     let onSetRequiresOperationalElevators: @MainActor (Bool) -> Void
+    let onSetBikeStationsOnly: @MainActor (Bool) -> Void
     let onShowAccessibilityInfo: @MainActor () -> Void
 
     var body: some View {
@@ -30,6 +31,17 @@ struct SearchFiltersMenu: View {
                     .labelStyle(.iconOnly)
             }
             .accessibilityLabel("Ascenseurs opérationnels")
+
+            Toggle(
+                isOn: Binding(
+                    get: { filters.bikeStationsOnly },
+                    set: onSetBikeStationsOnly
+                )
+            ) {
+                Label("Vélib’", systemImage: "bicycle")
+                    .labelStyle(.iconOnly)
+            }
+            .accessibilityLabel("Stations Vélib uniquement")
 
             Divider()
 

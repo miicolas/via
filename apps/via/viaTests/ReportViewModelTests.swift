@@ -418,7 +418,11 @@ private actor RecordingReportSearchRepository: SearchRepository {
         self.response = response
     }
 
-    func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
+    func search(
+        query: String,
+        near coordinate: GeoCoordinate?,
+        bikeStationsOnly: Bool
+    ) async throws -> SearchResponse {
         recordedQueries.append(query)
         return response
     }

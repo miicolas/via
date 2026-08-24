@@ -599,6 +599,20 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(model.departureResults, SearchResponse.preview.results)
     }
 
+    func testBikeFilterRefreshesTheCurrentQueryAsVelibOnly() async {
+        let repository = BikeFilterRecordingSearchRepository()
+        let model = makeModel(repository: repository)
+
+        model.updateQuery("hotel")
+        await waitForLoadState(model, .loaded)
+        model.setBikeStationsOnly(true)
+        await waitUntil { await repository.filters.count == 2 }
+
+        XCTAssertTrue(model.filters.bikeStationsOnly)
+        let filters = await repository.filters
+        XCTAssertEqual(filters, [false, true])
+    }
+
     func testDepartureSearchCanBeEmpty() async {
         let repository = InMemorySearchRepository(
             response: SearchResponse(results: [], addressSource: .ok),
@@ -954,6 +968,27 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertFalse(model.showsRecentSearches)
     }
 
+    func testVelibFilterHidesNonBikeRecentDestinations() {
+        let bikeResult = BikeStation(
+            id: "1",
+            stationCode: "04001",
+            name: "Hôtel de Ville",
+            coordinate: GeoCoordinate(latitude: 48.8569, longitude: 2.3522),
+            capacity: 35,
+            availability: nil
+        ).searchResult
+        let store = InMemoryRecentSearchStore(searches: [
+            RecentSearch(result: .previewStation, savedAt: Date(timeIntervalSince1970: 1)),
+            RecentSearch(result: bikeResult, savedAt: Date(timeIntervalSince1970: 2)),
+        ])
+        let model = makeModel(recentSearchStore: store)
+
+        model.setBikeStationsOnly(true)
+
+        XCTAssertEqual(model.visibleRecentSearches.map(\.id), [bikeResult.id])
+        XCTAssertTrue(model.showsRecentSearches)
+    }
+
     func testSelectingARecentDestinationReordersItAndPlansTheJourney() async {
         let store = InMemoryRecentSearchStore()
         let recent = RecentSearch(result: .previewAddress, savedAt: .distantPast)
@@ -1165,7 +1200,11 @@ private actor SystemModelFailureNaturalJourneyRepository: NaturalJourneyReposito
 }
 
 private actor NeverFinishingSearchRepository: SearchRepository {
-    func search(query _: String, near _: GeoCoordinate?) async throws -> SearchResponse {
+    func search(
+        query _: String,
+        near _: GeoCoordinate?,
+        bikeStationsOnly _: Bool
+    ) async throws -> SearchResponse {
         while !Task.isCancelled {
             try await Task.sleep(for: .seconds(1))
         }
@@ -1176,7 +1215,11 @@ private actor NeverFinishingSearchRepository: SearchRepository {
 private actor DelayedSearchRepository: SearchRepository {
     private var recordedQueries: [String] = []
 
-    func search(query: String, near _: GeoCoordinate?) async throws -> SearchResponse {
+    func search(
+        query: String,
+        near _: GeoCoordinate?,
+        bikeStationsOnly _: Bool
+    ) async throws -> SearchResponse {
         recordedQueries.append(query)
         if query == "old" {
             try await Task.sleep(for: .seconds(2))
@@ -1196,11 +1239,28 @@ private actor QueuedSearchRepository: SearchRepository {
         self.responses = responses
     }
 
-    func search(query: String, near _: GeoCoordinate?) async throws -> SearchResponse {
+    func search(
+        query: String,
+        near _: GeoCoordinate?,
+        bikeStationsOnly _: Bool
+    ) async throws -> SearchResponse {
         recordedQueries.append(query)
         let response = responses.count > 1 ? responses.removeFirst() : responses[0]
         return try response.get()
     }
 
     func queries() -> [String] { recordedQueries }
+}
+
+private actor BikeFilterRecordingSearchRepository: SearchRepository {
+    private(set) var filters: [Bool] = []
+
+    func search(
+        query _: String,
+        near _: GeoCoordinate?,
+        bikeStationsOnly: Bool
+    ) async throws -> SearchResponse {
+        filters.append(bikeStationsOnly)
+        return .preview
+    }
 }

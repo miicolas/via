@@ -121,15 +121,15 @@ struct ActiveJourneyPanelView: View {
         if model.isOffline {
             statusBanner(
                 title: "Hors connexion",
-                message: "Metyro continue avec le trajet mémorisé. Les recalculs sont suspendus.",
+                message: "La position avance selon les horaires du trajet mémorisé. Le direct reprendra à la reconnexion.",
                 systemImage: "wifi.slash",
                 color: .orange
             )
-        } else if model.isTracking && !model.hasLocationFix {
+        } else if model.isTracking && model.isPositionEstimated {
             statusBanner(
-                title: "Position indisponible",
-                message: "La position n’est pas disponible. La progression reste basée sur les horaires prévus.",
-                systemImage: "location.slash",
+                title: "Position estimée",
+                message: "La progression suit les horaires jusqu’au retour d’une position fiable.",
+                systemImage: "clock.badge.questionmark",
                 color: .orange
             )
         } else if model.isTracking,
@@ -332,7 +332,7 @@ struct ActiveJourneyPanelView: View {
 
     private var canCheckForAlternative: Bool {
         model.recalculationState != .checking &&
-            model.hasLocationFix &&
+            model.hasLiveLocationFix &&
             model.canRecalculate
     }
 

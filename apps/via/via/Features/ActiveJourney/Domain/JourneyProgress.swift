@@ -21,6 +21,8 @@ struct JourneyProgress: Sendable, Hashable {
     /// `false` when the value comes from schedule interpolation alone.
     let isLocationDerived: Bool
 
+    var isEstimated: Bool { !isLocationDerived }
+
     static let start = JourneyProgress(
         sectionIndex: 0,
         fractionInSection: 0,
@@ -47,8 +49,6 @@ enum JourneyProgressProjector {
 
         let index = min(max(0, sectionIndex), schedule.count - 1)
         let entry = schedule[index]
-        let timeFraction = fraction(of: date, between: entry.startsAt, and: entry.endsAt)
-
         let route = polyline(of: entry.section)
         let match = coordinate.flatMap { coordinate in
             project(
@@ -59,7 +59,8 @@ enum JourneyProgressProjector {
         }
 
         let isLocationDerived = match != nil
-        let fractionInSection = match?.fraction ?? timeFraction
+        let fractionInSection = match?.fraction
+            ?? estimatedFraction(of: entry, route: route, at: date)
         let passed = passedStopCount(
             section: entry.section,
             route: route,
@@ -78,10 +79,32 @@ enum JourneyProgressProjector {
             ),
             passedStopCount: passed,
             stopsUntilAlighting: stopsUntilAlighting(section: entry.section, passed: passed),
-            projectedCoordinate: match?.coordinate
-                ?? interpolate(route: route, at: fractionInSection),
+            projectedCoordinate: match?.coordinate ?? projectedCoordinate(
+                for: entry,
+                route: route,
+                fraction: fractionInSection
+            ),
             isLocationDerived: isLocationDerived
         )
+    }
+
+    /// Finds the section whose geometry contains a fresh fix. This is allowed
+    /// to move backwards from a timetable-derived section: after a tunnel, the
+    /// real vehicle position is more trustworthy than the cached schedule.
+    static func nearestSectionIndex(
+        schedule: [JourneySectionSchedule],
+        to coordinate: GeoCoordinate,
+        horizontalAccuracy: Double?
+    ) -> Int? {
+        let tolerance = ActiveJourneyRules.arrivalRadius(horizontalAccuracy: horizontalAccuracy)
+        let candidates = schedule.enumerated().compactMap { index, entry -> (index: Int, distance: Double)? in
+            guard let match = polyline(of: entry.section).nearest(to: coordinate),
+                  match.distance <= tolerance else { return nil }
+            return (index, match.distance)
+        }
+        // `candidates` is already in ascending index order and `min(by:)` keeps
+        // the first minimal element, so ties resolve to the earliest section.
+        return candidates.min { $0.distance < $1.distance }?.index
     }
 
     /// Cuts a drawn segment in two at `fraction`, so the map can dim what is
@@ -113,10 +136,60 @@ enum JourneyProgressProjector {
 
     // MARK: - Time
 
+    private struct TimedRoutePoint {
+        let date: Date
+        let fraction: Double
+    }
+
     private static func fraction(of date: Date, between start: Date, and end: Date) -> Double {
         let span = end.timeIntervalSince(start)
         guard span > 0 else { return date >= end ? 1 : 0 }
         return min(max(0, date.timeIntervalSince(start) / span), 1)
+    }
+
+    /// Interpolates a transit vehicle between the timetable's stop calls. This
+    /// keeps the marker at a station during a dwell and avoids assuming that
+    /// every stretch of a line is travelled at the same speed.
+    private static func estimatedFraction(
+        of entry: JourneySectionSchedule,
+        route: Polyline,
+        at date: Date
+    ) -> Double {
+        let section = entry.section
+        guard section.kind == .transit, route.length > 0 else {
+            return fraction(of: date, between: entry.startsAt, and: entry.endsAt)
+        }
+
+        var points: [TimedRoutePoint] = [
+            TimedRoutePoint(date: entry.startsAt, fraction: 0)
+        ]
+
+        for stop in section.stops {
+            guard let stopFraction = route.fraction(nearest: stop.coordinate) else { continue }
+            if let arrivalAt = stop.arrivalAt, arrivalAt >= entry.startsAt, arrivalAt <= entry.endsAt {
+                points.append(TimedRoutePoint(date: arrivalAt, fraction: stopFraction))
+            }
+            if let departureAt = stop.departureAt, departureAt >= entry.startsAt, departureAt <= entry.endsAt {
+                points.append(TimedRoutePoint(date: departureAt, fraction: stopFraction))
+            }
+        }
+
+        points.append(TimedRoutePoint(date: entry.endsAt, fraction: 1))
+        let sorted = points.sorted { lhs, rhs in
+            if lhs.date == rhs.date { return lhs.fraction < rhs.fraction }
+            return lhs.date < rhs.date
+        }
+        guard let upperIndex = sorted.firstIndex(where: { $0.date >= date }) else {
+            return sorted.last?.fraction ?? 1
+        }
+        if upperIndex == 0 { return sorted[0].fraction }
+
+        let lower = sorted[upperIndex - 1]
+        let upper = sorted[upperIndex]
+        let span = upper.date.timeIntervalSince(lower.date)
+        guard span > 0 else { return upper.fraction }
+        let local = min(max(0, date.timeIntervalSince(lower.date) / span), 1)
+        return min(max(0, lower.fraction + (upper.fraction - lower.fraction) * local), 1)
     }
 
     private static func overallFraction(
@@ -174,6 +247,18 @@ enum JourneyProgressProjector {
                 ? section.geometry
                 : [section.from.coordinate, section.to.coordinate]
         )
+    }
+
+    private static func projectedCoordinate(
+        for entry: JourneySectionSchedule,
+        route: Polyline,
+        fraction: Double
+    ) -> GeoCoordinate? {
+        // A timetable is useful for a vehicle, but it must not pretend to know
+        // the traveller's exact walking path. Hold the marker at the section's
+        // origin for non-transit sections until Core Location is live again.
+        guard entry.section.kind == .transit else { return entry.section.from.coordinate }
+        return interpolate(route: route, at: fraction)
     }
 
     private static func project(

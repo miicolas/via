@@ -45,18 +45,21 @@ struct NetworkMapSnapshot: Sendable, Equatable {
   let stations: [StationMapItem]
   let lineStyle: NetworkLineStyle
   let stationOpacity: Double
+  let bikeSourceAvailable: Bool
 
   static let empty = NetworkMapSnapshot(
     routes: [],
     routesGeneration: 0,
     stations: [],
     lineStyle: NetworkLineStyle(opacity: 1, width: 3),
-    stationOpacity: 1
+    stationOpacity: 1,
+    bikeSourceAvailable: true
   )
 
   static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.routesGeneration == rhs.routesGeneration && lhs.lineStyle == rhs.lineStyle
       && lhs.stationOpacity == rhs.stationOpacity && lhs.stations == rhs.stations
+      && lhs.bikeSourceAvailable == rhs.bikeSourceAvailable
   }
 }
 

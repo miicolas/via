@@ -38,6 +38,7 @@ struct MapShellView: View {
   @State private var previousTab: MapShellTab = .stations
   @State private var position: MapCameraPosition = .region(.paris)
   @State private var selectedMapStation: StationMapItem?
+  @State private var selectedBikeStation: BikeStation?
 
   @State private var isLargeScreen: Bool = false
   // The reference opens with the map still visible above the content sheet.
@@ -94,15 +95,20 @@ struct MapShellView: View {
   }
 
   var body: some View {
-    NetworkMapView(
-      viewModel: networkViewModel,
-      position: $position,
-      stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
-      journeyPresentation: displayedJourneyPresentation,
-      journeyProgress: activeJourneyModel.progress?.mapQuantized,
-      highlightedJourneySegmentID: displayedHighlightedSectionID,
-      selectedStation: $selectedMapStation
-    )
+    TimelineView(
+      .periodic(from: .now, by: activeJourneyModel.isActive ? 5 : 60)
+    ) { context in
+      NetworkMapView(
+        viewModel: networkViewModel,
+        position: $position,
+        stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
+        journeyPresentation: displayedJourneyPresentation,
+        journeyProgress: activeJourneyModel.progress(at: context.date)?.mapQuantized,
+        showsJourneyPosition: activeJourneyModel.isTracking,
+        highlightedJourneySegmentID: displayedHighlightedSectionID,
+        selectedStation: $selectedMapStation
+      )
+    }
     // Keeps the Apple legal attribution above the collapsed sheet.
     .safeAreaInset(edge: .bottom, spacing: 0) {
       Rectangle()
@@ -118,8 +124,7 @@ struct MapShellView: View {
       // Clear right away so re-tapping the same annotation reopens the sheet.
       selectedMapStation = nil
       activeTab = .stations
-      detailSheetDetent = isLargeScreen ? .fraction(0.97) : .large
-      selectedStationModel.select(newValue)
+      presentStation(newValue)
     }
     .onChange(of: displayedJourneyPresentation) { _, presentation in
       guard let mapRect = presentation?.mapRect else { return }
@@ -226,6 +231,20 @@ struct MapShellView: View {
     }
     .onOpenURL { url in
       route(url)
+    }
+  }
+
+  /// Opens the detail sheet for a map item. A dock and a transit station own
+  /// the same sheet slot, so selecting one always clears the other — the
+  /// invariant lives here rather than at each entry point.
+  private func presentStation(_ item: StationMapItem) {
+    detailSheetDetent = isLargeScreen ? .fraction(0.97) : .large
+    if let bikeStation = item.bikeStation {
+      selectedStationModel.dismiss()
+      selectedBikeStation = bikeStation
+    } else {
+      selectedBikeStation = nil
+      selectedStationModel.select(item)
     }
   }
 
@@ -402,7 +421,7 @@ struct MapShellView: View {
       }
       activeTab = .stations
       if let item = networkViewModel.stationMapItem(for: StationID(rawValue: stationID)) {
-        selectedStationModel.select(item)
+        presentStation(item)
       }
       return
     }
@@ -460,6 +479,7 @@ struct MapShellView: View {
       activeDetent: $activeDetent,
       isLargeScreen: isLargeScreen,
       isAnotherSheetPresenting: selectedStationModel.overview != nil
+        || selectedBikeStation != nil
         || reportViewModel.isPresentingAnotherSheet || accountSheetDestination != nil
         || searchSheetDestination != nil || savedDestinationDraft != nil,
       hidesTabBar: searchViewModel.isNaturalSearchPresented,
@@ -554,6 +574,17 @@ struct MapShellView: View {
         },
         onDelete: deleteAction(for: draft),
         onClose: { savedDestinationDraft = nil }
+      )
+    }
+    .sheet(item: $selectedBikeStation) { station in
+      BikeStationDetailView(
+        station: station,
+        isLargeScreen: isLargeScreen,
+        detailDetent: $detailSheetDetent,
+        onPlanJourney: {
+          selectedBikeStation = nil
+          openJourney(station.searchResult)
+        }
       )
     }
     .sheet(item: $accountSheetDestination) { destination in

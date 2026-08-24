@@ -6,6 +6,7 @@ struct NetworkMapView: View {
   let stationSelectionEnabled: Bool
   let journeyPresentation: JourneyMapPresentation?
   let journeyProgress: JourneyProgress?
+  let showsJourneyPosition: Bool
   let highlightedJourneySegmentID: String?
   @Binding var position: MapCameraPosition
   @Binding var selectedStation: StationMapItem?
@@ -19,6 +20,7 @@ struct NetworkMapView: View {
     stationSelectionEnabled: Bool = true,
     journeyPresentation: JourneyMapPresentation? = nil,
     journeyProgress: JourneyProgress? = nil,
+    showsJourneyPosition: Bool = false,
     highlightedJourneySegmentID: String? = nil,
     selectedStation: Binding<StationMapItem?> = .constant(nil)
   ) {
@@ -26,12 +28,15 @@ struct NetworkMapView: View {
     self.stationSelectionEnabled = stationSelectionEnabled
     self.journeyPresentation = journeyPresentation
     self.journeyProgress = journeyProgress
+    self.showsJourneyPosition = showsJourneyPosition
     self.highlightedJourneySegmentID = highlightedJourneySegmentID
     _position = position
     _selectedStation = selectedStation
   }
 
   var body: some View {
+    @Bindable var viewModel = viewModel
+
     GeometryReader { geometry in
       ZStack(alignment: .top) {
         Map(
@@ -56,7 +61,20 @@ struct NetworkMapView: View {
             )
           }
 
-          UserAnnotation()
+          if showsJourneyPosition,
+             let journeyProgress,
+             let coordinate = journeyProgress.projectedCoordinate {
+            Annotation(
+              "Votre position",
+              coordinate: coordinate.clLocationCoordinate,
+              anchor: .center
+            ) {
+              JourneyPositionAnnotationView(isEstimated: journeyProgress.isEstimated)
+            }
+            .annotationTitles(.hidden)
+          } else {
+            UserAnnotation()
+          }
 
           ForEach(snapshot.stations) { station in
             Annotation(
@@ -64,9 +82,15 @@ struct NetworkMapView: View {
               coordinate: station.coordinate.clLocationCoordinate,
               anchor: .bottom
             ) {
-              StationAnnotationView(item: station)
-                .opacity(snapshot.stationOpacity * stationDimming)
-                .transition(.opacity)
+              Group {
+                if let bikeStation = station.bikeStation {
+                  BikeStationAnnotationView(station: bikeStation)
+                } else {
+                  StationAnnotationView(item: station)
+                }
+              }
+              .opacity(snapshot.stationOpacity * stationDimming)
+              .transition(.opacity)
             }
             .annotationTitles(.hidden)
             .tag(station)
@@ -78,13 +102,13 @@ struct NetworkMapView: View {
             pointsOfInterest: .excludingAll
           )
         )
-        .mapControls {
-          MapCompass(scope: mapScope)
-          MapUserLocationButton(scope: mapScope)
-        }
         .animation(
           reduceMotion ? nil : .smooth(duration: 0.18),
           value: viewModel.state.snapshot.stations
+        )
+        .animation(
+          reduceMotion ? nil : .smooth(duration: 0.5),
+          value: journeyProgress
         )
         .onMapCameraChange(frequency: .continuous) { context in
           visibleRegion = context.region
@@ -106,6 +130,14 @@ struct NetworkMapView: View {
             phase: .ended
           )
         }
+        .overlay(alignment: .topTrailing) {
+          MapControlClusterView(
+            filter: $viewModel.stationFilter,
+            mapScope: mapScope
+          )
+          .padding(.top, geometry.safeAreaInsets.top + 8)
+          .padding(.trailing, geometry.safeAreaInsets.trailing + 8)
+        }
 
         NetworkMapStatusView(
           loading: viewModel.state.loading,
@@ -115,12 +147,44 @@ struct NetworkMapView: View {
         )
         .padding(.top, 8)
         .padding(.horizontal, 12)
+
+        if bikeSourceUnavailable {
+          EmptyStateView(.bikeStationsUnavailable) {
+            RetryButton(action: viewModel.retry)
+              .primaryAction()
+          }
+          .background(.regularMaterial, in: .rect(cornerRadius: 24))
+          .padding(.horizontal, 24)
+          .frame(maxHeight: .infinity)
+        } else if bikeFilterHasNoResults {
+          EmptyStateView(.noBikeStationsInArea)
+            .background(.regularMaterial, in: .rect(cornerRadius: 24))
+            .padding(.horizontal, 24)
+            .frame(maxHeight: .infinity)
+            .allowsHitTesting(false)
+        }
       }
+      .mapScope(mapScope)
     }
   }
 
   private var mapSelection: Binding<StationMapItem?> {
     stationSelectionEnabled ? $selectedStation : .constant(nil)
+  }
+
+  private var bikeSourceUnavailable: Bool {
+    viewModel.state.loading == .loaded
+      && viewModel.stationFilter.contains(.bikeStations)
+      && !viewModel.state.snapshot.bikeSourceAvailable
+  }
+
+  /// Only read in the `else` of `bikeSourceUnavailable`, so the source is
+  /// known to be up by the time this is asked.
+  private var bikeFilterHasNoResults: Bool {
+    viewModel.state.loading == .loaded
+      && viewModel.stationFilter.contains(.bikeStations)
+      && viewModel.state.snapshot.stationOpacity > 0
+      && viewModel.state.snapshot.stations.isEmpty
   }
 
   /// A selected journey owns the map: the rest of the network drops to a

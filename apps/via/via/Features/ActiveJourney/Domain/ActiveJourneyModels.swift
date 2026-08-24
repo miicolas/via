@@ -8,6 +8,10 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
     var currentSectionIndex: Int
     var lastCoordinate: GeoCoordinate?
     var horizontalAccuracy: Double?
+    /// The timestamp of the most recent location sample. It is cleared from
+    /// the persisted copy together with the coordinate, so a restored journey
+    /// always starts from the timetable until a fresh fix arrives.
+    var lastLocationAt: Date?
     var manualOverrideUntil: Date?
     var isTrackingStarted: Bool
     var allowsBackgroundTracking: Bool
@@ -31,6 +35,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         currentSectionIndex: Int,
         lastCoordinate: GeoCoordinate?,
         horizontalAccuracy: Double?,
+        lastLocationAt: Date? = nil,
         manualOverrideUntil: Date?,
         isTrackingStarted: Bool,
         allowsBackgroundTracking: Bool
@@ -42,6 +47,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         self.currentSectionIndex = currentSectionIndex
         self.lastCoordinate = lastCoordinate
         self.horizontalAccuracy = horizontalAccuracy
+        self.lastLocationAt = lastLocationAt
         self.manualOverrideUntil = manualOverrideUntil
         self.isTrackingStarted = isTrackingStarted
         self.allowsBackgroundTracking = allowsBackgroundTracking
@@ -55,6 +61,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         case currentSectionIndex
         case lastCoordinate
         case horizontalAccuracy
+        case lastLocationAt
         case manualOverrideUntil
         case isTrackingStarted
         case allowsBackgroundTracking
@@ -82,6 +89,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         currentSectionIndex = try container.decode(Int.self, forKey: .currentSectionIndex)
         lastCoordinate = try container.decodeIfPresent(GeoCoordinate.self, forKey: .lastCoordinate)
         horizontalAccuracy = try container.decodeIfPresent(Double.self, forKey: .horizontalAccuracy)
+        lastLocationAt = try container.decodeIfPresent(Date.self, forKey: .lastLocationAt)
         manualOverrideUntil = try container.decodeIfPresent(Date.self, forKey: .manualOverrideUntil)
         isTrackingStarted = try container.decode(Bool.self, forKey: .isTrackingStarted)
         allowsBackgroundTracking = try container.decode(Bool.self, forKey: .allowsBackgroundTracking)

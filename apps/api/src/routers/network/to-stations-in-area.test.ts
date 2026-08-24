@@ -30,6 +30,7 @@ const rows: StationInAreaRow[] = [
     accessibilityDetail: null,
     toiletStopId: 'IDFM:10001',
     toiletDetail: 'Accès gratuit · Accessible PMR',
+    hasElevators: true,
     routes: [BUS_38, BUS_47],
   },
   {
@@ -41,6 +42,7 @@ const rows: StationInAreaRow[] = [
     accessibilityDetail: null,
     toiletStopId: null,
     toiletDetail: null,
+    hasElevators: false,
     routes: [BUS_38],
   },
 ];
@@ -58,11 +60,13 @@ describe('toStationsInArea', () => {
         condition: 'autonomous',
         label: 'En autonomie',
       },
+      hasElevators: true,
       toilets: {
         label: 'Sanitaires disponibles',
         detail: 'Accès gratuit · Accessible PMR',
       },
     });
+    expect(stations[1]).not.toHaveProperty('hasElevators');
   });
 
   test('badges land once, deduplicated across every station of the area', () => {
@@ -83,6 +87,11 @@ describe('toStationsInArea', () => {
   });
 
   test('an empty area yields empty collections', () => {
-    expect(toStationsInArea([])).toEqual({ stations: [], routes: [] });
+    expect(toStationsInArea([])).toEqual({
+      stations: [],
+      routes: [],
+      bikeStations: [],
+      sources: { velib: 'ok' },
+    });
   });
 });

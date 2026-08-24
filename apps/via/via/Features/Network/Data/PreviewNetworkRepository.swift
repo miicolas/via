@@ -1,3 +1,5 @@
+import Foundation
+
 struct InMemoryNetworkRepository: NetworkRepository {
     var network: TransitNetwork = .init(routes: [], stations: [])
     var area: StationsArea = .init(stations: [], routes: [])
@@ -89,7 +91,17 @@ extension StationsArea {
                     id: StationID(rawValue: "preview:chatelet"),
                     name: "Châtelet",
                     coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470),
-                    routeIDs: [metro1.id, metro4.id, metro7.id, metro11.id, metro14.id, rerA.id, rerB.id, rerD.id]
+                    routeIDs: [metro1.id, metro4.id, metro7.id, metro11.id, metro14.id, rerA.id, rerB.id, rerD.id],
+                    accessibility: StationAccessibility(
+                        condition: .staffAssistance,
+                        label: "Avec un agent",
+                        comment: "Agent présent aux heures d’ouverture"
+                    ),
+                    hasElevators: true,
+                    toilets: StationToilets(
+                        label: "Sanitaires disponibles",
+                        detail: "Accès gratuit · Accessible PMR"
+                    )
                 ),
                 NetworkStation(
                     id: StationID(rawValue: "preview:cite"),
@@ -104,7 +116,25 @@ extension StationsArea {
                     routeIDs: [metro7.id]
                 ),
             ],
-            routes: routes
+            routes: routes,
+            bikeStations: [
+                BikeStation(
+                    id: "preview:velib:hotel-de-ville",
+                    stationCode: "4015",
+                    name: "Place de l’Hôtel de Ville",
+                    coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3515),
+                    capacity: 35,
+                    availability: BikeStationAvailability(
+                        mechanicalBikes: 8,
+                        electricBikes: 5,
+                        docks: 22,
+                        isInstalled: true,
+                        isRenting: true,
+                        isReturning: true,
+                        lastReportedAt: .now
+                    )
+                )
+            ]
         )
     }()
 }

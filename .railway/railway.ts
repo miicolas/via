@@ -169,6 +169,36 @@ export default defineRailway(() => {
     },
   });
 
+  const viaGtfsCron = fn("@via/gtfs-cron", {
+    source: via,
+    build: {
+      buildCommand: "bun run --filter=@via/worker typecheck",
+      buildEnvironment: "V3",
+      builder: "RAILPACK",
+      watchPatterns: [
+        "/apps/worker/**",
+        "/packages/db/**",
+        "/package.json",
+        "/bun.lock",
+        "/turbo.json",
+      ],
+    },
+    start: "bun apps/worker/src/prim/cli.ts",
+    deploy: {
+      // Runs after IDFM's 08:00, 13:00 and 17:00 publication windows.
+      // Railway schedules are UTC-only.
+      cronSchedule: "30 18 * * *",
+      ipv6EgressEnabled: false,
+      preDeployCommand: ["bun --cwd packages/db ./node_modules/.bin/drizzle-kit migrate"],
+      restartPolicyType: "NEVER",
+    },
+    env: {
+      DATABASE_URL: PostGIS.env.DATABASE_URL,
+      // Dataset token ("JEUX DE DONNÉES"), never the realtime PRIM API key.
+      PRIM_STATIC_DATA_TOKEN: preserve(),
+    },
+  });
+
   const viaElevatorsCron = fn("@via/elevators-cron", {
     source: via,
     configFile: "/apps/worker/railway.elevators.json",
@@ -204,6 +234,7 @@ export default defineRailway(() => {
       viaApi,
       viaMarketing,
       viaToiletsCron,
+      viaGtfsCron,
       viaElevatorsCron,
       PostGIS,
       Redis,

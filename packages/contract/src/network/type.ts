@@ -1,6 +1,8 @@
 import * as z from 'zod';
 
 import {
+  bikeStationAvailabilitySchema,
+  bikeStationSchema,
   networkRouteSchema,
   networkSegmentSchema,
   networkStationSchema,
@@ -10,6 +12,8 @@ import {
   stationsInAreaSchema,
 } from './schema';
 
+export type BikeStationAvailability = z.infer<typeof bikeStationAvailabilitySchema>;
+export type BikeStation = z.infer<typeof bikeStationSchema>;
 export type NetworkSegment = z.infer<typeof networkSegmentSchema>;
 export type NetworkRoute = z.infer<typeof networkRouteSchema>;
 export type NetworkStation = z.infer<typeof networkStationSchema>;

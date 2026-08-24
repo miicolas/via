@@ -11,6 +11,7 @@ struct SearchResponseDTO: Decodable {
         let ban: String
         let accessibility: Accessibility?
         let elevators: Accessibility?
+        let velib: String?
     }
     let results: [SearchResultDTO]
     let sources: Sources
@@ -28,7 +29,8 @@ struct SearchResponseDTO: Decodable {
                 status: sources.elevators?.status == "ok" ? .ok : .unavailable,
                 sourceUpdatedAt: sources.elevators?.sourceUpdatedAt,
                 importedAt: sources.elevators?.importedAt
-            )
+            ),
+            bikeSource: sources.velib == "ok" ? .ok : .unavailable
         )
     }
 }
@@ -58,6 +60,7 @@ enum SearchResultDTO: Codable {
         let context: String
         let coordinate: CoordinateDTO
         let distanceMeters: Double?
+        let bikeStation: BikeStationAvailability?
     }
 
     private enum CodingKeys: String, CodingKey { case kind }
@@ -88,7 +91,8 @@ enum SearchResultDTO: Codable {
                 name: address.name,
                 context: address.context,
                 coordinate: .init(address.coordinate),
-                distanceMeters: address.distanceMeters
+                distanceMeters: address.distanceMeters,
+                bikeStation: address.bikeStation
             ))
         }
     }
@@ -150,7 +154,8 @@ enum SearchResultDTO: Codable {
                 name: value.name,
                 context: value.context,
                 coordinate: value.coordinate.domain,
-                distanceMeters: value.distanceMeters
+                distanceMeters: value.distanceMeters,
+                bikeStation: value.bikeStation
             ))
         }
     }

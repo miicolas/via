@@ -197,7 +197,7 @@ private extension SearchResult {
         case .station:
             "Station"
         case .address(let address):
-            address.context.isEmpty ? "Adresse" : address.context
+            address.subtitle
         }
     }
 }

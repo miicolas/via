@@ -1,4 +1,4 @@
-import type { StationsInArea } from '@via/contract';
+import type { BikeStation, StationsInArea } from '@via/contract';
 
 import { toRouteBadge, type RouteBadgeRow } from '../route-badge';
 import { ACCESSIBILITY_CONDITION_LABELS } from '../accessibility-labels';
@@ -9,7 +9,11 @@ import type { StationInAreaRow } from './queries';
  * `routes`, deduplicated across the whole area, so a corridor served by the
  * same lines does not repeat five badges per stop.
  */
-export function toStationsInArea(rows: StationInAreaRow[]): StationsInArea {
+export function toStationsInArea(
+  rows: StationInAreaRow[],
+  bikeStations: BikeStation[] = [],
+  velibAvailable = true
+): StationsInArea {
   const badgeRows = new Map<string, RouteBadgeRow>();
 
   return {
@@ -30,6 +34,7 @@ export function toStationsInArea(rows: StationInAreaRow[]): StationsInArea {
               comment: row.accessibilityDetail ?? undefined,
             } }
           : {}),
+        ...(row.hasElevators ? { hasElevators: true } : {}),
         ...(row.toiletStopId
           ? { toilets: {
               label: 'Sanitaires disponibles',
@@ -39,5 +44,7 @@ export function toStationsInArea(rows: StationInAreaRow[]): StationsInArea {
       };
     }),
     routes: [...badgeRows.values()].map(toRouteBadge),
+    bikeStations,
+    sources: { velib: velibAvailable ? 'ok' : 'unavailable' },
   };
 }

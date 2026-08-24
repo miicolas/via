@@ -15,10 +15,11 @@ export const querySearch = implementer.search.query.handler(
         ? { latitude: input.latitude, longitude: input.longitude }
         : undefined;
 
-    const { results, banAvailable, accessibility, elevators } = await searchPlaces(input.q, {
+    const { results, banAvailable, velibAvailable, accessibility, elevators } = await searchPlaces(input.q, {
       limit: input.limit,
       origin,
       signal,
+      bikeStationsOnly: input.bikeStationsOnly,
     });
 
     context.resHeaders?.set('Cache-Control', SEARCH_CACHE_CONTROL);
@@ -29,6 +30,7 @@ export const querySearch = implementer.search.query.handler(
         ban: banAvailable ? ('ok' as const) : ('unavailable' as const),
         accessibility,
         elevators,
+        velib: velibAvailable ? ('ok' as const) : ('unavailable' as const),
       },
     };
   }

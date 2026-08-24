@@ -31,6 +31,9 @@ enum ActiveJourneyRules {
     static let standardMonitoringInterval: TimeInterval = 2 * 60
     static let transitionMonitoringInterval: TimeInterval = 30
     static let transitionWindow: TimeInterval = 2 * 60
+    /// A point older than this is no longer trusted as a live position. The
+    /// projector can still use the cached journey and timetable in its place.
+    static let locationFreshnessInterval: TimeInterval = 30
     static let missedConnectionGracePeriod: TimeInterval = 2 * 60
     static let restorationGracePeriod: TimeInterval = 30 * 60
 
@@ -78,7 +81,12 @@ enum ActiveJourneyRules {
     }
 
     static func sectionIndex(in journey: Journey, at now: Date) -> Int {
-        let sections = schedule(for: journey)
+        sectionIndex(in: schedule(for: journey), at: now)
+    }
+
+    /// For callers that already hold the schedule — building it a second time
+    /// walks every section of the journey for nothing.
+    static func sectionIndex(in sections: [JourneySectionSchedule], at now: Date) -> Int {
         guard !sections.isEmpty else { return 0 }
         if now < sections[0].startsAt { return 0 }
         return sections.lastIndex(where: { now >= $0.startsAt }) ?? 0

@@ -1,13 +1,27 @@
 import Foundation
 
 protocol SearchRepository: Sendable {
-    func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse
+    func search(
+        query: String,
+        near coordinate: GeoCoordinate?,
+        bikeStationsOnly: Bool
+    ) async throws -> SearchResponse
+}
+
+extension SearchRepository {
+    func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
+        try await search(query: query, near: coordinate, bikeStationsOnly: false)
+    }
 }
 
 struct LiveSearchRepository: SearchRepository {
     let transport: APITransport
 
-    func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse {
+    func search(
+        query: String,
+        near coordinate: GeoCoordinate?,
+        bikeStationsOnly: Bool
+    ) async throws -> SearchResponse {
         try await transport.perform("search") { client in
             let coordinate = coordinate?.roundedForSearch
             let input = Operations.search_period_query.Input(query: .init(
@@ -15,6 +29,7 @@ struct LiveSearchRepository: SearchRepository {
                 latitude: coordinate?.latitude,
                 longitude: coordinate?.longitude,
                 limit: 10,
+                bikeStationsOnly: bikeStationsOnly,
             ))
             switch try await client.search_period_query(input) {
             case .ok(let response):
@@ -28,5 +43,9 @@ struct LiveSearchRepository: SearchRepository {
 
 struct InMemorySearchRepository: SearchRepository {
     var response: SearchResponse = .init(results: [], addressSource: .ok)
-    func search(query: String, near coordinate: GeoCoordinate?) async throws -> SearchResponse { response }
+    func search(
+        query: String,
+        near coordinate: GeoCoordinate?,
+        bikeStationsOnly: Bool
+    ) async throws -> SearchResponse { response }
 }

@@ -5,6 +5,7 @@ import {
   transitRoutePatternStops,
   transitRoutes,
   stationFacts,
+  stationElevators,
   transitStopRoutes,
   transitStops,
   type AccessibilityStationFactCondition,
@@ -112,6 +113,11 @@ export function selectStationsInArea(area: StationsInAreaInput) {
       accessibilityDetail: networkAccessibilityFacts.detail,
       toiletStopId: networkToiletFacts.stopId,
       toiletDetail: networkToiletFacts.detail,
+      hasElevators: sql<boolean>`EXISTS (
+        SELECT 1
+        FROM ${stationElevators}
+        WHERE ${stationElevators.stopId} = ${transitStops.id}
+      )`,
       routes: sql<RouteBadgeRow[]>`json_agg(DISTINCT jsonb_build_object(
         'id', ${transitRoutes.id},
         'shortName', ${transitRoutes.shortName},
