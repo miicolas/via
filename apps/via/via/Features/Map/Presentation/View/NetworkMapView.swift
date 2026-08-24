@@ -102,6 +102,10 @@ struct NetworkMapView: View {
             pointsOfInterest: .excludingAll
           )
         )
+        .mapControls {
+          MapCompass(scope: mapScope)
+          MapUserLocationButton(scope: mapScope)
+        }
         .animation(
           reduceMotion ? nil : .smooth(duration: 0.18),
           value: viewModel.state.snapshot.stations
@@ -130,14 +134,6 @@ struct NetworkMapView: View {
             phase: .ended
           )
         }
-        .overlay(alignment: .topTrailing) {
-          MapControlClusterView(
-            filter: $viewModel.stationFilter,
-            mapScope: mapScope
-          )
-          .padding(.top, geometry.safeAreaInsets.top + 8)
-          .padding(.trailing, geometry.safeAreaInsets.trailing + 8)
-        }
 
         NetworkMapStatusView(
           loading: viewModel.state.loading,
@@ -165,6 +161,14 @@ struct NetworkMapView: View {
         }
       }
       .mapScope(mapScope)
+      // Outside the ZStack rather than an overlay on the Map: the status view
+      // and the empty states are later siblings, and a full-width sibling drawn
+      // above the map would otherwise take the taps meant for this button.
+      .overlay(alignment: .topLeading) {
+        StationMapFilterMenu(filter: $viewModel.stationFilter)
+          .padding(.top, geometry.safeAreaInsets.top + 8)
+          .padding(.leading, geometry.safeAreaInsets.leading + 8)
+      }
     }
   }
 
