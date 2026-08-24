@@ -56,13 +56,29 @@ export const addressSearchResultSchema = z.object({
   context: z.string(),
   coordinate: coordinateSchema,
   distanceMeters: z.number().optional(),
-  /** Present when this coordinate is a live Vélib' station rather than a BAN address. */
-  bikeStation: bikeStationAvailabilitySchema.optional(),
+});
+
+/**
+ * A Vélib' dock. Its own member of the union rather than an address carrying a
+ * flag: every screen that switches on a result is then forced by the compiler
+ * to say what a dock looks like, instead of silently rendering it as a street.
+ */
+export const bikeStationSearchResultSchema = z.object({
+  kind: z.literal('bikeStation'),
+  /** The GBFS station id, as `BikeStation.id`. */
+  id: z.string(),
+  name: z.string(),
+  coordinate: coordinateSchema,
+  distanceMeters: z.number().optional(),
+  capacity: z.int().min(0),
+  /** Absent when the status feed has no entry for this dock. */
+  availability: bikeStationAvailabilitySchema.optional(),
 });
 
 export const searchResultSchema = z.discriminatedUnion('kind', [
   stationSearchResultSchema,
   addressSearchResultSchema,
+  bikeStationSearchResultSchema,
 ]);
 
 export const searchResponseSchema = z.object({

@@ -3,13 +3,15 @@ import Foundation
 struct InMemoryNetworkRepository: NetworkRepository {
     var network: TransitNetwork = .init(routes: [], stations: [])
     var area: StationsArea = .init(stations: [], routes: [])
+    var bikeArea: BikeStationsArea = .init()
 
     func railMap() async throws -> TransitNetwork { network }
     func viewport(in bounds: GeoBounds) async throws -> StationsArea { area }
+    func bikeStations(in bounds: GeoBounds) async throws -> BikeStationsArea { bikeArea }
 }
 
 extension InMemoryNetworkRepository {
-    static let mapPreview = InMemoryNetworkRepository(area: .mapPreview)
+    static let mapPreview = InMemoryNetworkRepository(area: .mapPreview, bikeArea: .mapPreview)
 }
 
 extension StationsArea {
@@ -116,25 +118,28 @@ extension StationsArea {
                     routeIDs: [metro7.id]
                 ),
             ],
-            routes: routes,
-            bikeStations: [
-                BikeStation(
-                    id: "preview:velib:hotel-de-ville",
-                    stationCode: "4015",
-                    name: "Place de l’Hôtel de Ville",
-                    coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3515),
-                    capacity: 35,
-                    availability: BikeStationAvailability(
-                        mechanicalBikes: 8,
-                        electricBikes: 5,
-                        docks: 22,
-                        isInstalled: true,
-                        isRenting: true,
-                        isReturning: true,
-                        lastReportedAt: .now
-                    )
-                )
-            ]
+            routes: routes
         )
     }()
+}
+
+extension BikeStationsArea {
+    static let mapPreview = BikeStationsArea(stations: [
+        BikeStation(
+            id: "preview-hotel-de-ville",
+            stationCode: "4015",
+            name: "Place de l’Hôtel de Ville",
+            coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3515),
+            capacity: 35,
+            availability: BikeStationAvailability(
+                mechanicalBikes: 8,
+                electricBikes: 5,
+                docks: 22,
+                isInstalled: true,
+                isRenting: true,
+                isReturning: true,
+                lastReportedAt: .now
+            )
+        )
+    ])
 }

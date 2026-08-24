@@ -152,7 +152,7 @@ struct SavedDestinationEditorView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(draft.result.name)
                     .font(.headline)
-                Text(draft.result.savedDestinationContext)
+                Text(draft.result.subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -188,16 +188,5 @@ struct SavedDestinationEditorView: View {
     private func deleteAndClose() {
         onDelete?()
         onClose()
-    }
-}
-
-private extension SearchResult {
-    var savedDestinationContext: String {
-        switch self {
-        case .station:
-            "Station"
-        case .address(let address):
-            address.subtitle
-        }
     }
 }

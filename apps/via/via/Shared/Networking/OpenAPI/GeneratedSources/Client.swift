@@ -1454,6 +1454,96 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// Les stations Vélib’ d’une zone
+    ///
+    /// Les stations Vélib’ d’une petite boîte englobante, avec leur inventaire du moment. Même découpage en tuiles que `stationsInArea`, mais une fraîcheur à la minute : la couche est optionnelle côté client et ne doit pas rythmer le cache des stations.
+    ///
+    /// - Remark: HTTP `GET /network/bike-stations`.
+    /// - Remark: Generated from `#/paths//network/bike-stations/get(network.bikeStationsInArea)`.
+    internal func network_period_bikeStationsInArea(_ input: Operations.network_period_bikeStationsInArea.Input) async throws -> Operations.network_period_bikeStationsInArea.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.network_period_bikeStationsInArea.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/network/bike-stations",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "minLatitude",
+                    value: input.query.minLatitude
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "maxLatitude",
+                    value: input.query.maxLatitude
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "minLongitude",
+                    value: input.query.minLongitude
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "maxLongitude",
+                    value: input.query.maxLongitude
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.network_period_bikeStationsInArea.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.network_period_bikeStationsInArea.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
     /// Recherche unifiée
     ///
     /// Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.

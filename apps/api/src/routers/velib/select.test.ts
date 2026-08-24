@@ -37,9 +37,10 @@ describe('Vélib station selection', () => {
       { latitude: 48.8566, longitude: 2.3522 }
     );
 
-    expect(result?.id).toBe('velib:1');
-    expect(result?.context).toBe('Station Vélib’');
-    expect(result?.bikeStation?.electricBikes).toBe(3);
+    expect(result?.kind).toBe('bikeStation');
+    expect(result?.id).toBe('1');
+    expect(result?.capacity).toBe(35);
+    expect(result?.availability?.electricBikes).toBe(3);
   });
 
   test('map selection stays inside the requested tile', () => {

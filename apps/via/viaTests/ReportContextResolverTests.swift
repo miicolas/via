@@ -171,4 +171,8 @@ private struct FailingReportNetworkRepository: NetworkRepository {
     func viewport(in bounds: GeoBounds) async throws -> StationsArea {
         throw error
     }
+
+    func bikeStations(in bounds: GeoBounds) async throws -> BikeStationsArea {
+        throw error
+    }
 }

@@ -123,15 +123,22 @@ final class NetworkViewModelTests: XCTestCase {
         )
         let repository = NetworkRepositorySpy(
             network: network(),
-            area: StationsArea(stations: [], routes: [], bikeStations: [bike])
+            area: StationsArea(stations: [], routes: [])
         )
+        await repository.setBikeArea(BikeStationsArea(stations: [bike]))
         let model = NetworkViewModel(repository: repository)
 
         model.viewportChanged(to: viewport(), phase: .ended)
         await waitUntil { model.state.loading == .loaded }
         XCTAssertTrue(model.state.snapshot.stations.isEmpty)
 
+        // The docks ride their own route: nothing is fetched for a layer that
+        // is off, and turning it on asks for them straight away.
+        let idleBikeCalls = await repository.bikeCallCount
+        XCTAssertEqual(idleBikeCalls, 0)
+
         model.stationFilter.criteria = [.bikeStations]
+        await waitUntil { !model.state.snapshot.stations.isEmpty }
 
         XCTAssertEqual(model.state.snapshot.stations.map(\.bikeStation), [bike])
         let viewportCalls = await repository.viewportCallCount
@@ -399,6 +406,7 @@ final class NetworkViewModelTests: XCTestCase {
 private actor NetworkRepositorySpy: NetworkRepository {
     private let network: TransitNetwork
     private var area: StationsArea
+    private var bikeArea = BikeStationsArea()
     private var viewportError: ViaError?
     private var shouldSuspendNextViewport = false
     private var suspendedContinuation: CheckedContinuation<Void, Never>?
@@ -425,6 +433,17 @@ private actor NetworkRepositorySpy: NetworkRepository {
         }
         if let responseError { throw responseError }
         return response
+    }
+
+    private(set) var bikeCallCount = 0
+
+    func bikeStations(in bounds: GeoBounds) async throws -> BikeStationsArea {
+        bikeCallCount += 1
+        return bikeArea
+    }
+
+    func setBikeArea(_ bikeArea: BikeStationsArea) {
+        self.bikeArea = bikeArea
     }
 
     func setArea(_ area: StationsArea) {

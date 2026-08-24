@@ -87,11 +87,6 @@ describe('toStationsInArea', () => {
   });
 
   test('an empty area yields empty collections', () => {
-    expect(toStationsInArea([])).toEqual({
-      stations: [],
-      routes: [],
-      bikeStations: [],
-      sources: { velib: 'ok' },
-    });
+    expect(toStationsInArea([])).toEqual({ stations: [], routes: [] });
   });
 });

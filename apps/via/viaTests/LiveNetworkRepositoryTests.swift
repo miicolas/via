@@ -97,6 +97,10 @@ private actor NetworkRemoteSpy: NetworkRemote {
         TransitNetwork(routes: [], stations: [])
     }
 
+    func bikeStationsTile(in bounds: GeoBounds) async throws -> BikeStationsArea {
+        BikeStationsArea()
+    }
+
     func stationsTile(in bounds: GeoBounds) async throws -> StationsArea {
         tileCalls.append(bounds)
         if failing { throw ViaError.transport }

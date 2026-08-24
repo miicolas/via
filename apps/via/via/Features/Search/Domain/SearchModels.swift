@@ -31,33 +31,63 @@ struct AddressSearchResult: Sendable, Hashable, Identifiable {
     let context: String
     let coordinate: GeoCoordinate
     let distanceMeters: Double?
-    let bikeStation: BikeStationAvailability?
 
     init(
         id: String,
         name: String,
         context: String,
         coordinate: GeoCoordinate,
-        distanceMeters: Double?,
-        bikeStation: BikeStationAvailability? = nil
+        distanceMeters: Double?
     ) {
         self.id = id
         self.name = name
         self.context = context
         self.coordinate = coordinate
         self.distanceMeters = distanceMeters
-        self.bikeStation = bikeStation
     }
 
-    var isBikeStation: Bool {
-        id.hasPrefix(BikeStation.resultIDPrefix)
-    }
-
-    /// The one line under the name. The producer already words it — the API
-    /// and `BikeStation.searchResult` both send "Station Vélib’" — so no
-    /// caller re-derives it from `isBikeStation`.
+    /// The one line under the name, in the API's own wording when it sent one.
     var subtitle: String {
         context.isEmpty ? "Adresse" : context
+    }
+}
+
+/// A Vélib' dock as a search result. Its own type, not an address carrying a
+/// flag: every `switch` over `SearchResult` is then made to say what a dock
+/// looks like instead of silently drawing it as a street.
+struct BikeStationSearchResult: Sendable, Hashable, Identifiable {
+    let id: String
+    let name: String
+    let coordinate: GeoCoordinate
+    let distanceMeters: Double?
+    let capacity: Int
+    let availability: BikeStationAvailability?
+
+    init(
+        id: String,
+        name: String,
+        coordinate: GeoCoordinate,
+        distanceMeters: Double? = nil,
+        capacity: Int = 0,
+        availability: BikeStationAvailability? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.coordinate = coordinate
+        self.distanceMeters = distanceMeters
+        self.capacity = capacity
+        self.availability = availability
+    }
+
+    /// The wording is the client's now: the dock's kind is on the wire, the
+    /// French for it is not.
+    static let subtitle = "Station Vélib’"
+
+    /// "4 vélos · 22 bornettes", or the plain label when the feed is silent.
+    var inventoryDetail: String {
+        guard let availability else { return Self.subtitle }
+        let bikes = availability.totalBikes
+        return "\(bikes) vélo\(bikes > 1 ? "s" : "") · \(availability.docks) bornette\(availability.docks > 1 ? "s" : "")"
     }
 }
 
@@ -78,6 +108,7 @@ enum SearchResultID {
 enum SearchResult: Sendable, Hashable, Identifiable {
     case station(StationSearchResult)
     case address(AddressSearchResult)
+    case bikeStation(BikeStationSearchResult)
 
     var id: String {
         switch self {
@@ -85,6 +116,8 @@ enum SearchResult: Sendable, Hashable, Identifiable {
             SearchResultID.encode(kind: .station, rawID: station.id.rawValue)
         case .address(let address):
             SearchResultID.encode(kind: .address, rawID: address.id)
+        case .bikeStation(let bike):
+            SearchResultID.encode(kind: .bikeStation, rawID: bike.id)
         }
     }
 
@@ -92,6 +125,7 @@ enum SearchResult: Sendable, Hashable, Identifiable {
         switch self {
         case .station(let station): station.name
         case .address(let address): address.name
+        case .bikeStation(let bike): bike.name
         }
     }
 
@@ -99,6 +133,28 @@ enum SearchResult: Sendable, Hashable, Identifiable {
         switch self {
         case .station(let station): station.coordinate
         case .address(let address): address.coordinate
+        case .bikeStation(let bike): bike.coordinate
+        }
+    }
+
+    /// The line under the name, wherever a result is listed.
+    var subtitle: String {
+        switch self {
+        case .station(let station):
+            let routes = station.routes.prefix(3).map(\.shortName).joined(separator: " · ")
+            return routes.isEmpty ? "Station" : routes
+        case .address(let address):
+            return address.subtitle
+        case .bikeStation(let bike):
+            return bike.inventoryDetail
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .station(let station): station.routes.first?.mode.chipSystemImage ?? "tram.fill"
+        case .address: "mappin.and.ellipse"
+        case .bikeStation: "bicycle"
         }
     }
 
@@ -106,6 +162,7 @@ enum SearchResult: Sendable, Hashable, Identifiable {
         switch self {
         case .station: .station
         case .address: .address
+        case .bikeStation: .bikeStation
         }
     }
 }
@@ -160,7 +217,7 @@ struct SearchResponse: Sendable, Hashable {
 }
 
 struct RecentSearch: Codable, Sendable, Hashable, Identifiable {
-    enum Kind: String, Codable, Sendable { case station, address }
+    enum Kind: String, Codable, Sendable { case station, address, bikeStation }
 
     let id: String
     let kind: Kind
@@ -197,6 +254,9 @@ struct RecentSearch: Codable, Sendable, Hashable, Identifiable {
         case .address(let address):
             kind = .address
             context = address.context
+        case .bikeStation:
+            kind = .bikeStation
+            context = BikeStationSearchResult.subtitle
         }
     }
 }
@@ -246,6 +306,14 @@ extension RecentSearch {
                 context: context ?? "",
                 coordinate: coordinate,
                 distanceMeters: nil
+            ))
+        case .bikeStation:
+            // A recent holds a place, not an inventory: the dock's counts are
+            // whatever the feed says next time it is opened.
+            .bikeStation(BikeStationSearchResult(
+                id: resultIdentifier,
+                name: name,
+                coordinate: coordinate
             ))
         }
     }

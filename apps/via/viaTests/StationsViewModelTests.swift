@@ -509,6 +509,10 @@ private actor ScriptedNetworkRepository: NetworkRepository {
         TransitNetwork(routes: [], stations: [])
     }
 
+    func bikeStations(in bounds: GeoBounds) async throws -> BikeStationsArea {
+        BikeStationsArea()
+    }
+
     func viewport(in bounds: GeoBounds) async throws -> StationsArea {
         guard !results.isEmpty else {
             return StationsArea(stations: [], routes: [])

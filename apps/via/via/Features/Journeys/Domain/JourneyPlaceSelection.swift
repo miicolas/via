@@ -98,6 +98,15 @@ enum JourneyPlaceSelection: Sendable, Hashable, Identifiable {
                 context: address.context,
                 coordinate: address.coordinate
             )
+        case .bikeStation(let bike):
+            // A dock is somewhere you walk to: it plans as an address, its own
+            // result kind being about how it is drawn, not how it is routed.
+            self = .address(
+                id: bike.id,
+                name: bike.name,
+                context: BikeStationSearchResult.subtitle,
+                coordinate: bike.coordinate
+            )
         }
     }
 

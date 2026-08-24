@@ -1,12 +1,13 @@
 import Foundation
 import OSLog
 
-/// What the tiled station cache needs from the API — one method per payload.
-/// A seam so `LiveNetworkRepository`'s caching behavior is testable with an
-/// in-memory remote instead of a stubbed HTTP stack.
+/// What the tiled caches need from the API — one method per payload. A seam so
+/// `LiveNetworkRepository`'s caching behavior is testable with an in-memory
+/// remote instead of a stubbed HTTP stack.
 protocol NetworkRemote: Sendable {
     func railMap() async throws -> TransitNetwork
     func stationsTile(in bounds: GeoBounds) async throws -> StationsArea
+    func bikeStationsTile(in bounds: GeoBounds) async throws -> BikeStationsArea
 }
 
 struct APINetworkRemote: NetworkRemote {
@@ -42,34 +43,52 @@ struct APINetworkRemote: NetworkRemote {
             }
         }
     }
+
+    func bikeStationsTile(in bounds: GeoBounds) async throws -> BikeStationsArea {
+        try await transport.perform("bike_stations_in_area") { client in
+            let input = Operations.network_period_bikeStationsInArea.Input(query: .init(
+                minLatitude: bounds.minLatitude,
+                maxLatitude: bounds.maxLatitude,
+                minLongitude: bounds.minLongitude,
+                maxLongitude: bounds.maxLongitude
+            ))
+            switch try await client.network_period_bikeStationsInArea(input) {
+            case .ok(let response):
+                return try transport.convert(
+                    response.body.json,
+                    to: BikeStationsAreaDTO.self
+                ).domain
+            case .undocumented(let statusCode, _):
+                throw APITransport.error(for: statusCode)
+            }
+        }
+    }
 }
 
 actor LiveNetworkRepository: NetworkRepository {
-    /// Above this many visible tiles the viewport is zoomed out past the
-    /// station threshold, so warming neighbours would be wasted work.
-    private static let prefetchableVisibleTileCount = 9
-    private static let prefetchTileLimit = 16
-
-    private struct CachedTile {
-        let area: StationsArea
-        let loadedAt: ContinuousClock.Instant
-    }
-
     private let remote: any NetworkRemote
-    /// How long a failed tile stays quiet before it may be fetched again.
-    /// Without it, a failing tile is retried on every map gesture, forever.
-    private let retryCooldown: Duration
-    private let clock = ContinuousClock()
-
-    private var cache: [ViewportTile: CachedTile] = [:]
-    private var failedTiles: [ViewportTile: ContinuousClock.Instant] = [:]
-    private var inFlight: [ViewportTile: Task<StationsArea?, Never>] = [:]
+    private let stations: ViewportTileCache<StationsArea>
+    private let bikes: ViewportTileCache<BikeStationsArea>
     private var railMapTask: Task<TransitNetwork, Error>?
-    private var lastAssembly: (tiles: Set<ViewportTile>, area: StationsArea)?
 
     init(remote: any NetworkRemote, retryCooldown: Duration = .seconds(120)) {
         self.remote = remote
-        self.retryCooldown = retryCooldown
+        // Reference data: a fetched tile stands until the app is relaunched.
+        stations = ViewportTileCache(
+            freshness: nil,
+            retryCooldown: retryCooldown,
+            empty: StationsArea(stations: [], routes: []),
+            fetch: { try await remote.stationsTile(in: $0) },
+            merge: Self.mergeStations
+        )
+        // Dock counts: a tile is worth a minute, and no longer.
+        bikes = ViewportTileCache(
+            freshness: BikeStation.freshness,
+            retryCooldown: retryCooldown,
+            empty: BikeStationsArea(),
+            fetch: { try await remote.bikeStationsTile(in: $0) },
+            merge: Self.mergeBikeStations
+        )
     }
 
     init(transport: APITransport) {
@@ -90,108 +109,46 @@ actor LiveNetworkRepository: NetworkRepository {
     }
 
     func viewport(in bounds: GeoBounds) async throws -> StationsArea {
-        let visibleTiles = ViewportTile.covering(bounds)
-        let fetchableTiles = visibleTiles.filter { needsRefresh($0) && !isCoolingDown($0) }
-        if fetchableTiles.isEmpty, let lastAssembly, lastAssembly.tiles == visibleTiles {
-            prefetchNeighbours(of: visibleTiles)
-            return lastAssembly.area
-        }
+        try await stations.value(in: bounds)
+    }
 
-        for task in fetchableTiles.map({ tileTask($0) }) {
-            _ = await task.value
-        }
-        try Task.checkCancellation()
+    func bikeStations(in bounds: GeoBounds) async throws -> BikeStationsArea {
+        try await bikes.value(in: bounds)
+    }
 
+    /// Tiles overlap, so the same station can arrive twice; the badge list is
+    /// deduplicated across the whole area rather than per tile.
+    private static func mergeStations(_ areas: [StationsArea]) -> StationsArea {
         var stationsByID: [StationID: NetworkStation] = [:]
         var routesByID: [RouteID: RouteBadge] = [:]
-        var bikeStationsByID: [String: BikeStation] = [:]
-        var bikeSourceAvailable = true
-        for tile in visibleTiles {
-            guard let area = cache[tile]?.area else { continue }
+        for area in areas {
             area.stations.forEach { stationsByID[$0.id] = $0 }
             area.routes.forEach { routesByID[$0.id] = $0 }
-            area.bikeStations.forEach { bikeStationsByID[$0.id] = $0 }
-            bikeSourceAvailable = bikeSourceAvailable && area.bikeSourceAvailable
         }
-
-        let area = StationsArea(
-            stations: stationsByID.values.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending },
-            routes: routesByID.values.sorted { $0.shortName.localizedStandardCompare($1.shortName) == .orderedAscending },
-            bikeStations: bikeStationsByID.values.sorted {
+        return StationsArea(
+            stations: stationsByID.values.sorted {
                 $0.name.localizedStandardCompare($1.name) == .orderedAscending
             },
-            bikeSourceAvailable: bikeSourceAvailable
+            routes: routesByID.values.sorted {
+                $0.shortName.localizedStandardCompare($1.shortName) == .orderedAscending
+            }
         )
-        lastAssembly = (tiles: visibleTiles, area: area)
-        prefetchNeighbours(of: visibleTiles)
-        return area
     }
 
-    /// One shared fetch per tile: concurrent viewports (the map and the
-    /// nearest-station flow overlap constantly) await the same task, and a
-    /// caller's cancellation doesn't abort a fetch someone else may still cache.
-    private func tileTask(
-        _ tile: ViewportTile,
-        priority: TaskPriority? = nil
-    ) -> Task<StationsArea?, Never> {
-        if let existing = inFlight[tile] { return existing }
-        let task = Task(priority: priority) { () async -> StationsArea? in
-            defer { inFlight[tile] = nil }
-            do {
-                guard tile.bounds.isValid else {
-                    throw ViaError.invalidRequest("viewport")
-                }
-                let area = try await remote.stationsTile(in: tile.bounds)
-                cache[tile] = CachedTile(area: area, loadedAt: clock.now)
-                failedTiles[tile] = nil
-                return area
-            } catch is CancellationError {
-                return nil
-            } catch {
-                failedTiles[tile] = clock.now
-                AppLog.network.error("Viewport tile failed: \(String(describing: error), privacy: .private(mask: .hash))")
-                return nil
-            }
+    /// One failed tile means the feed is doubtful for the whole area: the map
+    /// says so rather than drawing a partial network as if it were complete.
+    private static func mergeBikeStations(_ areas: [BikeStationsArea]) -> BikeStationsArea {
+        var stationsByID: [String: BikeStation] = [:]
+        var sourceAvailable = true
+        for area in areas {
+            area.stations.forEach { stationsByID[$0.id] = $0 }
+            sourceAvailable = sourceAvailable && area.sourceAvailable
         }
-        inFlight[tile] = task
-        return task
-    }
-
-    private func isCoolingDown(_ tile: ViewportTile) -> Bool {
-        guard let failedAt = failedTiles[tile] else { return false }
-        if clock.now - failedAt < retryCooldown { return true }
-        failedTiles[tile] = nil
-        return false
-    }
-
-    private func needsRefresh(_ tile: ViewportTile) -> Bool {
-        guard let cached = cache[tile] else { return true }
-        return clock.now - cached.loadedAt >= BikeStation.freshness
-    }
-
-    /// Warms the ring of tiles around the viewport at background priority, so
-    /// the next pan lands on cached data instead of a request.
-    private func prefetchNeighbours(of visibleTiles: Set<ViewportTile>) {
-        guard !visibleTiles.isEmpty,
-              visibleTiles.count <= Self.prefetchableVisibleTileCount else { return }
-
-        var ring: Set<ViewportTile> = []
-        for tile in visibleTiles {
-            for latitudeOffset in -1...1 {
-                for longitudeOffset in -1...1 {
-                    ring.insert(ViewportTile(
-                        latitudeIndex: tile.latitudeIndex + latitudeOffset,
-                        longitudeIndex: tile.longitudeIndex + longitudeOffset
-                    ))
-                }
-            }
-        }
-
-        let candidates = ring.subtracting(visibleTiles).filter {
-            cache[$0] == nil && inFlight[$0] == nil && !isCoolingDown($0)
-        }
-        for tile in candidates.prefix(Self.prefetchTileLimit) {
-            _ = tileTask(tile, priority: .utility)
-        }
+        return BikeStationsArea(
+            stations: stationsByID.values.sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            },
+            sourceAvailable: sourceAvailable
+        )
     }
 }

@@ -2,6 +2,7 @@ import * as z from 'zod';
 
 import {
   addressSearchResultSchema,
+  bikeStationSearchResultSchema,
   searchInputSchema,
   searchResponseSchema,
   searchResultSchema,
@@ -11,5 +12,6 @@ import {
 export type SearchInput = z.infer<typeof searchInputSchema>;
 export type StationSearchResult = z.infer<typeof stationSearchResultSchema>;
 export type AddressSearchResult = z.infer<typeof addressSearchResultSchema>;
+export type BikeStationSearchResult = z.infer<typeof bikeStationSearchResultSchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;

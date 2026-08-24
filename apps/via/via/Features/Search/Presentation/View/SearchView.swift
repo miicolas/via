@@ -487,8 +487,8 @@ struct SearchView: View {
       HStack(spacing: 10) {
         SearchInputToken(
           title: destination.name,
-          subtitle: destination.searchTokenSubtitle,
-          systemImage: destination.searchTokenSystemImage,
+          subtitle: destination.subtitle,
+          systemImage: destination.systemImage,
           accessibilityLabel: "Destination \(destination.name)",
           expands: true,
           action: viewModel.wrappedValue.editDestination,
@@ -551,27 +551,6 @@ struct SearchView: View {
   }
 
   private var destinationInputID: String { "search-destination-input" }
-}
-
-extension SearchResult {
-  fileprivate var searchTokenSubtitle: String? {
-    switch self {
-    case .station(let station):
-      let routes = station.routes.prefix(3).map(\.shortName).joined(separator: " · ")
-      return routes.isEmpty ? "Station" : routes
-    case .address(let address):
-      return address.subtitle
-    }
-  }
-
-  fileprivate var searchTokenSystemImage: String {
-    switch self {
-    case .station(let station):
-      station.routes.first?.mode.chipSystemImage ?? "tram.fill"
-    case .address(let address):
-      address.isBikeStation ? "bicycle" : "mappin.and.ellipse"
-    }
-  }
 }
 
 #Preview("Destination") {

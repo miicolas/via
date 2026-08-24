@@ -111,6 +111,18 @@ export const stationsInAreaSchema = z.object({
   stations: z.array(networkStationSchema),
   /** The badges the stations' `routeIds` point to, deduplicated. */
   routes: z.array(routeBadgeSchema),
+});
+
+/**
+ * Vélib' docks in the same tile as `stationsInArea`, on their own route.
+ *
+ * They share the viewport but not the clock: a dock count is a minute old at
+ * most while stations and lines change at GTFS import. Riding in one payload
+ * forced the whole tile down to bike cadence — a day-long HTTP cache traded
+ * away, and ~100 KB of docks sent to every client for a layer that is off by
+ * default.
+ */
+export const bikeStationsInAreaSchema = z.object({
   /** Vélib' stations stay distinct from transit stops and never own route ids. */
   bikeStations: z.array(bikeStationSchema),
   sources: z.object({

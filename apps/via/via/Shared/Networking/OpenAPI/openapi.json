@@ -4133,8 +4133,52 @@
                                     },
                                     "distanceMeters": {
                                       "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "id",
+                                    "name",
+                                    "context",
+                                    "coordinate"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "bikeStation"
                                     },
-                                    "bikeStation": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    },
+                                    "distanceMeters": {
+                                      "type": "number"
+                                    },
+                                    "capacity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "availability": {
                                       "type": "object",
                                       "properties": {
                                         "mechanicalBikes": {
@@ -4180,8 +4224,8 @@
                                     "kind",
                                     "id",
                                     "name",
-                                    "context",
-                                    "coordinate"
+                                    "coordinate",
+                                    "capacity"
                                   ]
                                 }
                               ]
@@ -4400,8 +4444,52 @@
                                     },
                                     "distanceMeters": {
                                       "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "id",
+                                    "name",
+                                    "context",
+                                    "coordinate"
+                                  ]
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "const": "bikeStation"
                                     },
-                                    "bikeStation": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    },
+                                    "coordinate": {
+                                      "type": "object",
+                                      "properties": {
+                                        "latitude": {
+                                          "type": "number"
+                                        },
+                                        "longitude": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "latitude",
+                                        "longitude"
+                                      ]
+                                    },
+                                    "distanceMeters": {
+                                      "type": "number"
+                                    },
+                                    "capacity": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 9007199254740991
+                                    },
+                                    "availability": {
                                       "type": "object",
                                       "properties": {
                                         "mechanicalBikes": {
@@ -4447,8 +4535,8 @@
                                     "kind",
                                     "id",
                                     "name",
-                                    "context",
-                                    "coordinate"
+                                    "coordinate",
+                                    "capacity"
                                   ]
                                 }
                               ]
@@ -6885,7 +6973,85 @@
                           "textColor"
                         ]
                       }
-                    },
+                    }
+                  },
+                  "required": [
+                    "stations",
+                    "routes"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/bike-stations": {
+      "get": {
+        "operationId": "network.bikeStationsInArea",
+        "summary": "Les stations Vélib’ d’une zone",
+        "description": "Les stations Vélib’ d’une petite boîte englobante, avec leur inventaire du moment. Même découpage en tuiles que `stationsInArea`, mais une fraîcheur à la minute : la couche est optionnelle côté client et ne doit pas rythmer le cache des stations.",
+        "tags": [
+          "network"
+        ],
+        "parameters": [
+          {
+            "name": "minLatitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "maxLatitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "minLongitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          },
+          {
+            "name": "maxLongitude",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
                     "bikeStations": {
                       "type": "array",
                       "items": {
@@ -6987,8 +7153,6 @@
                     }
                   },
                   "required": [
-                    "stations",
-                    "routes",
                     "bikeStations",
                     "sources"
                   ]
@@ -7211,8 +7375,52 @@
                               },
                               "distanceMeters": {
                                 "type": "number"
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "id",
+                              "name",
+                              "context",
+                              "coordinate"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "const": "bikeStation"
                               },
-                              "bikeStation": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "coordinate": {
+                                "type": "object",
+                                "properties": {
+                                  "latitude": {
+                                    "type": "number"
+                                  },
+                                  "longitude": {
+                                    "type": "number"
+                                  }
+                                },
+                                "required": [
+                                  "latitude",
+                                  "longitude"
+                                ]
+                              },
+                              "distanceMeters": {
+                                "type": "number"
+                              },
+                              "capacity": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "availability": {
                                 "type": "object",
                                 "properties": {
                                   "mechanicalBikes": {
@@ -7258,8 +7466,8 @@
                               "kind",
                               "id",
                               "name",
-                              "context",
-                              "coordinate"
+                              "coordinate",
+                              "capacity"
                             ]
                           }
                         ]

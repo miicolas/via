@@ -1,3 +1,4 @@
+import type { BuildConfig, DeployConfig } from "railway/iac";
 import {
   defineRailway,
   fn,
@@ -115,29 +116,41 @@ export default defineRailway(() => {
     },
   });
 
+  // Every worker cron ships the same package behind the same typecheck and the
+  // same migration step. They were three copies until their watch patterns
+  // drifted and a cron quietly stopped rebuilding on a contract change, so the
+  // parts that must not differ live here and only the schedule and entrypoint
+  // stay at the call site.
+  const workerCronBuild = {
+    buildCommand: "bun run --filter=@via/worker typecheck",
+    buildEnvironment: "V3",
+    builder: "RAILPACK",
+    watchPatterns: [
+      "/apps/worker/**",
+      "/packages/contract/**",
+      "/packages/db/**",
+      "/package.json",
+      "/bun.lock",
+      "/turbo.json",
+      "/patches/**",
+    ],
+  } satisfies BuildConfig;
+
+  const workerCronDeploy = (cronSchedule: string) =>
+    ({
+      cronSchedule,
+      preDeployCommand: ["bun --cwd packages/db ./node_modules/.bin/drizzle-kit migrate"],
+      restartPolicyType: "NEVER",
+    }) satisfies DeployConfig;
+
   const viaToiletsCron = service("@via/toilets-cron", {
     source: via,
     replicas: 1,
-    build: {
-      buildCommand: "bun run --filter=@via/worker typecheck",
-      buildEnvironment: "V3",
-      builder: "RAILPACK",
-      watchPatterns: [
-        "/apps/worker/**",
-        "/packages/db/**",
-        "/package.json",
-        "/bun.lock",
-        "/turbo.json",
-        "/patches/**",
-        "/railway.toilets.json",
-      ],
-    },
+    build: workerCronBuild,
     start: "bun apps/worker/src/toilets/cli.ts",
     deploy: {
-      cronSchedule: "17 3 * * *",
+      ...workerCronDeploy("17 3 * * *"),
       ipv6EgressEnabled: false,
-      preDeployCommand: ["bun --cwd packages/db ./node_modules/.bin/drizzle-kit migrate"],
-      restartPolicyType: "NEVER",
     },
     env: {
       DATABASE_URL: preserve(),
@@ -171,26 +184,13 @@ export default defineRailway(() => {
 
   const viaGtfsCron = fn("@via/gtfs-cron", {
     source: via,
-    build: {
-      buildCommand: "bun run --filter=@via/worker typecheck",
-      buildEnvironment: "V3",
-      builder: "RAILPACK",
-      watchPatterns: [
-        "/apps/worker/**",
-        "/packages/db/**",
-        "/package.json",
-        "/bun.lock",
-        "/turbo.json",
-      ],
-    },
+    build: workerCronBuild,
     start: "bun apps/worker/src/prim/cli.ts",
     deploy: {
       // Runs after IDFM's 08:00, 13:00 and 17:00 publication windows.
       // Railway schedules are UTC-only.
-      cronSchedule: "30 18 * * *",
+      ...workerCronDeploy("30 18 * * *"),
       ipv6EgressEnabled: false,
-      preDeployCommand: ["bun --cwd packages/db ./node_modules/.bin/drizzle-kit migrate"],
-      restartPolicyType: "NEVER",
     },
     env: {
       DATABASE_URL: PostGIS.env.DATABASE_URL,
@@ -202,26 +202,10 @@ export default defineRailway(() => {
   const viaElevatorsCron = fn("@via/elevators-cron", {
     source: via,
     configFile: "/apps/worker/railway.elevators.json",
-    build: {
-      buildCommand: "bun run --filter=@via/worker typecheck",
-      buildEnvironment: "V3",
-      builder: "RAILPACK",
-      watchPatterns: [
-        "/apps/worker/**",
-        "/packages/contract/**",
-        "/packages/db/**",
-        "/package.json",
-        "/bun.lock",
-        "/turbo.json",
-      ],
-    },
+    build: workerCronBuild,
     start: "bun apps/worker/src/elevators/cli.ts",
-    deploy: {
-      // 09:00, 14:00 and 18:00 Paris summer time; Railway cron is UTC-only.
-      cronSchedule: "0 7,12,16 * * *",
-      preDeployCommand: ["bun --cwd packages/db ./node_modules/.bin/drizzle-kit migrate"],
-      restartPolicyType: "NEVER",
-    },
+    // 09:00, 14:00 and 18:00 Paris summer time; Railway cron is UTC-only.
+    deploy: workerCronDeploy("0 7,12,16 * * *"),
     env: {
       DATABASE_URL: PostGIS.env.DATABASE_URL,
       // This is the PRIM "Données statiques" token, not the realtime API token.

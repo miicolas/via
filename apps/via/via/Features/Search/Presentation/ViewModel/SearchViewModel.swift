@@ -55,7 +55,7 @@ enum SearchDepartureSelection: Sendable, Hashable {
     case .saved(let place):
       place.name == place.role.displayTitle ? "Lieu enregistré" : place.name
     case .manual(let result):
-      result.departureSearchSubtitle
+      result.subtitle
     }
   }
 
@@ -598,10 +598,7 @@ final class SearchViewModel {
 
   var visibleRecentSearches: [RecentSearch] {
     guard filters.bikeStationsOnly else { return recentSearches }
-    return recentSearches.filter { recent in
-      guard case .address(let address) = recent.searchResult else { return false }
-      return address.isBikeStation
-    }
+    return recentSearches.filter { $0.kind == .bikeStation }
   }
 
   func updateQuery(_ value: String) {
@@ -1055,17 +1052,3 @@ final class SearchViewModel {
   }
 }
 
-extension SearchResult {
-  fileprivate var departureSearchSubtitle: String? {
-    switch self {
-    case .station(let station):
-      guard !station.routes.isEmpty else { return "Station" }
-      return station.routes
-        .prefix(3)
-        .map(\.shortName)
-        .joined(separator: " · ")
-    case .address(let address):
-      return address.subtitle
-    }
-  }
-}
