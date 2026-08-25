@@ -7,7 +7,6 @@ struct JourneyTimelineSectionView: View {
     let progress: JourneyProgress?
     let cursor: JourneyTimelineCursor?
     let isCursorLive: Bool
-    let isHighlighted: Bool
     @Binding var isExpanded: Bool
     var departureChoicesGroup: JourneyDepartureChoiceGroup?
     var isDepartureChoicesLoading = false
@@ -16,7 +15,6 @@ struct JourneyTimelineSectionView: View {
     var canSelectDepartures = false
     var onSelectDeparture: ((JourneyDepartureChoice) -> Void)?
     var onRetryDepartures: (() -> Void)?
-    var onSelect: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,7 +32,6 @@ struct JourneyTimelineSectionView: View {
                     state: JourneyTimeline.state(of: node, progress: progress),
                     cursorFraction: cursor?.nodeID == node.id ? cursor?.fraction : nil,
                     isCursorLive: isCursorLive,
-                    isHighlighted: isHighlighted,
                     isExpanded: $isExpanded,
                     departureChoicesGroup: departureChoicesGroup,
                     isDepartureChoicesLoading: isDepartureChoicesLoading,
@@ -42,8 +39,7 @@ struct JourneyTimelineSectionView: View {
                     departureChoicesError: departureChoicesError,
                     canSelectDepartures: canSelectDepartures,
                     onSelectDeparture: onSelectDeparture,
-                    onRetryDepartures: onRetryDepartures,
-                    onSelect: onSelect
+                    onRetryDepartures: onRetryDepartures
                 )
                 .id(node.id)
             }

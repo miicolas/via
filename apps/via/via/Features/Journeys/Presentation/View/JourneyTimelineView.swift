@@ -18,8 +18,6 @@ struct JourneyTimelineView: View {
     let journey: Journey
     var mode: Mode = .plan
     @Binding var expandedSectionIDs: Set<String>
-    var highlightedSectionID: String?
-    var onSelectSection: ((String) -> Void)?
     var departureChoices: JourneyDepartureChoicesModel?
     var revisableSectionIDs: Set<String> = []
     var onSelectDeparture: ((JourneyDepartureChoice, String) -> Void)?
@@ -46,8 +44,6 @@ struct JourneyTimelineView: View {
                     progress: mode.progress,
                     cursor: cursor,
                     isCursorLive: mode.progress?.isLocationDerived == true,
-                    isHighlighted: group.isSelectable
-                        && highlightedSectionID == group.sectionID,
                     isExpanded: binding(for: group.sectionID),
                     departureChoicesGroup: departureChoices?.groupsBySectionID[group.sectionID],
                     isDepartureChoicesLoading: departureChoices?.isRefreshing == true,
@@ -57,16 +53,12 @@ struct JourneyTimelineView: View {
                     onSelectDeparture: onSelectDeparture.map { select in
                         { choice in select(choice, group.sectionID) }
                     },
-                    onRetryDepartures: onRetryDepartures,
-                    onSelect: group.isSelectable
-                        ? onSelectSection.map { select in { select(group.sectionID) } }
-                        : nil
+                    onRetryDepartures: onRetryDepartures
                 )
                 .simultaneousGesture(swipeGesture(for: group))
             }
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: mode)
-        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: highlightedSectionID)
         .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: expandedSectionIDs)
         .sensoryFeedback(.selection, trigger: expandedSectionIDs)
     }

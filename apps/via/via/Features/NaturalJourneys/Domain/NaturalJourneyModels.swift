@@ -117,18 +117,6 @@ struct RouteIntent: Sendable, Hashable {
         return copy
     }
 
-    func replacingImplicitOrigin(with query: String) -> Self {
-        guard case .currentLocation = origin,
-              !originWasExplicit
-        else {
-            return self
-        }
-        var copy = self
-        copy.origin = .place(query: query)
-        copy.originWasExplicit = true
-        return copy
-    }
-
     func replacingRequestedAt(_ date: Date) -> Self {
         var copy = self
         copy.requestedAt = date

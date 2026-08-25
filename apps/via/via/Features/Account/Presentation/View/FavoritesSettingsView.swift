@@ -8,6 +8,7 @@ struct FavoritesSettingsView: View {
     let searchViewModel: SearchViewModel
     var focus: FavoritesFocus? = nil
 
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmClearAll = false
     @State private var editMode: EditMode = .inactive
@@ -155,6 +156,13 @@ struct FavoritesSettingsView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
         .environment(\.editMode, $editMode)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Fermer", systemImage: "xmark", role: .close) {
+                    dismiss()
+                }
+                .labelStyle(.iconOnly)
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Ajouter une destination", systemImage: "plus") {
                     selectionContext = .destination
