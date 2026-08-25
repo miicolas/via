@@ -6,11 +6,12 @@ import {
   type NaturalJourneyInterpretation,
   type SearchResult,
   journeyModeSchema,
+  journeyTimeAnchorSchema,
 } from '@via/contract';
 import * as z from 'zod';
 
 import type { JourneyPlanner } from '../journeys/service';
-import type { HandleRegistry } from './handles';
+import type { HandleRegistry, PlanEntry } from './handles';
 import type { ResponsesToolDefinition } from './openai-transport';
 
 /** Server-enforced call budget: the model gets two lookups and one calculation. */
@@ -48,10 +49,44 @@ export type Toolset = {
   counters: ToolCounters;
   /** True once the model overran a budget or referenced an unknown handle. */
   guardrailTriggered: () => boolean;
+  /**
+   * The plan minted by this run when it can stand as the answer on its own —
+   * status ready with at least one journey. An empty or degraded plan stays
+   * null so the model keeps the last word (it may answer `unsupported`).
+   */
+  completedPlan: () => PlanEntry | null;
 };
 
-const HOME_TOKENS = new Set(['maison', 'home', 'chez moi', 'à la maison']);
-const WORK_TOKENS = new Set(['travail', 'boulot', 'bureau', 'work', 'au travail']);
+/**
+ * Mirrors the on-device resolver's tokens (`OnDeviceNaturalJourneyService`):
+ * the server is the fallback for the very same phrases, so the two lists and
+ * their normalization must agree or the same words resolve differently
+ * depending on which parser ran. Tokens are stored accent-stripped, the form
+ * {@link normalizeFavoriteToken} produces.
+ */
+const HOME_TOKENS = new Set(['maison', 'la maison', 'a la maison', 'chez moi', 'home']);
+const WORK_TOKENS = new Set([
+  'travail',
+  'le travail',
+  'au travail',
+  'boulot',
+  'le boulot',
+  'bureau',
+  'le bureau',
+  'au bureau',
+  'work',
+]);
+
+/** The accent-insensitive fold `OnDevicePlaceResolver.normalize` applies on device. */
+function normalizeFavoriteToken(query: string): string {
+  return query
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .replace(/[-‐‑‒–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
 
 const searchArgsSchema = z.object({ query: z.string().trim().min(1).max(200) });
 
@@ -62,21 +97,21 @@ const planArgsSchema = z.object({
   ]),
   destination: z.object({ handle: z.string().min(1) }),
   datetimeRepresents: z.enum(['departure', 'arrival']).default('departure'),
+  timeAnchor: journeyTimeAnchorSchema.optional(),
   requestedAt: z.string().optional(),
   requiredModes: z.array(journeyModeSchema).max(3).optional(),
   excludedModes: z.array(journeyModeSchema).max(3).optional(),
   preferredModes: z.array(journeyModeSchema).max(3).optional(),
 });
 
-const MODES_JSON_SCHEMA = {
-  type: 'array',
-  items: { type: 'string', enum: journeyModeSchema.options },
-  maxItems: 3,
-} as const;
+/** Keep the model-facing schema derived from the runtime parser. */
+const searchArgsJSONSchema = z.toJSONSchema(searchArgsSchema, { target: 'openai' });
+const planArgsJSONSchema = z.toJSONSchema(planArgsSchema, { target: 'openai' });
 
 export function createToolset(config: ToolsetConfig): Toolset {
   const counters: ToolCounters = { searchPlaces: 0, planJourneys: 0 };
   let guardrail = false;
+  let readyPlan: PlanEntry | null = null;
 
   const definitions: ResponsesToolDefinition[] = [
     {
@@ -87,17 +122,7 @@ export function createToolset(config: ToolsetConfig): Toolset {
         'Accepte aussi "maison"/"travail". La position actuelle n’a pas besoin de recherche : ' +
         'utilise origin.kind="current_location" dans plan_journeys.',
       strict: false,
-      parameters: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'Nom du lieu à résoudre, ou "maison"/"travail".',
-          },
-        },
-        required: ['query'],
-        additionalProperties: false,
-      },
+      parameters: searchArgsJSONSchema,
     },
     {
       type: 'function',
@@ -106,41 +131,7 @@ export function createToolset(config: ToolsetConfig): Toolset {
         'Calcule les itinéraires Via depuis une origine (handle ou position actuelle) vers une ' +
         'destination désignée uniquement par un handle issu de search_places. Aucune coordonnée libre.',
       strict: false,
-      parameters: {
-        type: 'object',
-        properties: {
-          origin: {
-            description: 'Origine : position actuelle ou handle de lieu.',
-            anyOf: [
-              {
-                type: 'object',
-                properties: { kind: { const: 'current_location' } },
-                required: ['kind'],
-                additionalProperties: false,
-              },
-              {
-                type: 'object',
-                properties: { kind: { const: 'handle' }, handle: { type: 'string' } },
-                required: ['kind', 'handle'],
-                additionalProperties: false,
-              },
-            ],
-          },
-          destination: {
-            type: 'object',
-            properties: { handle: { type: 'string' } },
-            required: ['handle'],
-            additionalProperties: false,
-          },
-          datetimeRepresents: { type: 'string', enum: ['departure', 'arrival'] },
-          requestedAt: { type: 'string', description: 'ISO 8601 ou "now".' },
-          requiredModes: MODES_JSON_SCHEMA,
-          excludedModes: MODES_JSON_SCHEMA,
-          preferredModes: MODES_JSON_SCHEMA,
-        },
-        required: ['origin', 'destination', 'datetimeRepresents'],
-        additionalProperties: false,
-      },
+      parameters: planArgsJSONSchema,
     },
   ];
 
@@ -219,6 +210,7 @@ export function createToolset(config: ToolsetConfig): Toolset {
       limit: JOURNEY_LIMIT,
       requestedAt: requestedAt.toISOString(),
       datetimeRepresents: args.datetimeRepresents,
+      timeAnchor: args.timeAnchor,
       requiredModes,
       excludedModes,
       preferredModes,
@@ -237,12 +229,16 @@ export function createToolset(config: ToolsetConfig): Toolset {
       destinationResult,
       requestedAt: requestedAt.toISOString(),
       datetimeRepresents: args.datetimeRepresents,
+      timeAnchor: args.timeAnchor,
       requiredModes,
       excludedModes,
       preferredModes,
     };
 
     const planHandle = config.registry.registerPlan({ interpretation, journeys });
+    if (journeys.status === 'ready' && journeys.journeys.length > 0) {
+      readyPlan = { interpretation, journeys };
+    }
     return toolResult({
       planHandle,
       status: journeys.status,
@@ -254,6 +250,7 @@ export function createToolset(config: ToolsetConfig): Toolset {
     definitions,
     counters,
     guardrailTriggered: () => guardrail,
+    completedPlan: () => readyPlan,
     runTool: async (name, rawArguments) => {
       if (name === 'search_places') return runSearch(rawArguments);
       if (name === 'plan_journeys') return runPlan(rawArguments);
@@ -309,7 +306,7 @@ function resolveFavorite(
   query: string,
   favorites: ToolsetConfig['favorites']
 ): SearchResult | undefined {
-  const token = query.trim().toLowerCase();
+  const token = normalizeFavoriteToken(query);
   if (favorites?.home && HOME_TOKENS.has(token)) return favorites.home;
   if (favorites?.work && WORK_TOKENS.has(token)) return favorites.work;
   return undefined;

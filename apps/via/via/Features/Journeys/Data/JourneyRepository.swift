@@ -27,7 +27,10 @@ struct LiveJourneyRepository: JourneyRepository {
                 preferredModes: Self.modeList(request.preferredModes),
                 requiresAccessibleStations: request.requiresAccessibleStations,
                 requiresOperationalElevators: request.requiresOperationalElevators,
-                originStationId: request.originStationID?.rawValue
+                originStationId: request.originStationID?.rawValue,
+                timeAnchor: request.timeAnchor.flatMap {
+                    Query.timeAnchorPayload(rawValue: $0.rawValue)
+                }
             ))
             switch try await client.journeys_period_plan(input) {
             case .ok(let response):

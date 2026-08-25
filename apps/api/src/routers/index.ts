@@ -8,10 +8,12 @@ import { createGtfsJourneyPlanner } from './journeys/gtfs/loader';
 import { createIdfmJourneyPlanner } from './journeys/idfm/client';
 import { loadJourneyShapes } from './journeys/idfm/shape-loader';
 import { createJourneysRouter } from './journeys/router';
+import { withLastDeparture } from './journeys/last-departure';
 import { createJourneyPlanner } from './journeys/service';
 import { createJourneyDepartureChoicesModule } from './journeys/departure-choices';
 import { linesRouter } from './lines/router';
 import { createNaturalJourneysRouter } from './natural-journeys/router';
+import { readNaturalJourneyFavorites } from './natural-journeys/favorites';
 import { createOpenAiResponsesTransport } from './natural-journeys/openai-transport';
 import { createNaturalJourneyService } from './natural-journeys/service';
 import { networkRouter } from './network/router';
@@ -26,7 +28,7 @@ import {
   transitStationSnapshotCacheKey,
 } from './departures/network-version';
 
-const journeyPlanner = createJourneyPlanner({
+const baseJourneyPlanner = createJourneyPlanner({
   redis,
   idfm: env.API_KEY_PRISM_IDFM
     ? createIdfmJourneyPlanner({
@@ -45,6 +47,14 @@ const journeyPlanner = createJourneyPlanner({
   reports: createDatabaseJourneyReportOverlay(),
 });
 
+/**
+ * « Dernier train » : the decorator answers `timeAnchor: 'last_of_day'` with
+ * an arrival-at-end-of-service plan verified against the GTFS timetable; every
+ * other input passes straight through. All consumers share it so the journeys
+ * route and the natural-language agents speak the same planner.
+ */
+const journeyPlanner = withLastDeparture(baseJourneyPlanner);
+
 const naturalJourneyService = createNaturalJourneyService({
   redis,
   planner: journeyPlanner,
@@ -52,6 +62,7 @@ const naturalJourneyService = createNaturalJourneyService({
     const { results, banAvailable } = await searchPlaces(query, options);
     return { results, banAvailable };
   },
+  readFavorites: readNaturalJourneyFavorites,
   // Null adapter when no key: the service answers the recoverable double-failure
   // and the key stays confined to this backend, never shipped to the app.
   transport: env.OPENAI_API_KEY
@@ -63,6 +74,7 @@ const naturalJourneyService = createNaturalJourneyService({
   clock: { now: () => new Date() },
   config: {
     model: env.OPENAI_MODEL,
+    reasoningEffort: env.OPENAI_REASONING_EFFORT,
     timeoutMs: env.OPENAI_TIMEOUT_MS,
     personalLimit: env.OPENAI_PERSONAL_LIMIT,
     personalWindowSeconds: env.OPENAI_PERSONAL_WINDOW_SECONDS,

@@ -3,17 +3,21 @@ import * as z from 'zod';
 import type { ResponsesTextFormat } from './openai-transport';
 
 /** Bumped whenever the prompt or output contract changes; logged with every metric. */
-export const PROMPT_VERSION = 'natural-journeys-openai/2026-08-v1';
+export const PROMPT_VERSION = 'natural-journeys-openai/2026-08-v2';
 
 export const SYSTEM_PROMPT = [
   "Tu es l'orchestrateur de recherche d'itinéraire de Via, en Île-de-France.",
   "Via est l'autorité des lieux, horaires, trajets et classements : tu n'inventes jamais un lieu, une ligne, un horaire ni un itinéraire.",
   '',
-  'Déroulé imposé :',
-  '1. Résous chaque lieu mentionné avec search_places (station, adresse, ou "maison"/"travail").',
+  'Déroulé imposé — chaque tour compte, va au plus court :',
+  '1. Résous TOUS les lieux mentionnés dans un même tour : émets les appels search_places',
+  '   en parallèle (station, adresse, ou "maison"/"travail").',
   "   La position actuelle n'a pas besoin de recherche : utilise origin.kind=\"current_location\".",
   '2. Appelle plan_journeys une seule fois avec les handles obtenus et une intention structurée.',
-  '3. Termine par le message structuré : outcome="ready" et le planHandle renvoyé par plan_journeys.',
+  '   « Le dernier train/métro/RER/bus » se demande avec timeAnchor="last_of_day", sans requestedAt.',
+  '   Quand ce calcul renvoie des trajets, le serveur conclut de lui-même : tu as terminé.',
+  '3. Le message structuré ne sert que lorsque tu ne peux pas planifier : outcome="unsupported",',
+  '   ou outcome="ready" si plan_journeys a répondu sans trajets et que tu veux quand même livrer son planHandle.',
   '',
   'Limites strictes appliquées côté serveur :',
   '- Au maximum deux appels à search_places et un seul appel à plan_journeys.',

@@ -37,7 +37,7 @@ struct AIOnboardingCard: View {
                 .accessibilityHint("Ouvre le champ de recherche en langage naturel")
 
             Label(
-                "La demande est traitée sur cet iPhone et n’est envoyée à aucun service d’IA externe.",
+                "La demande est comprise sur cet iPhone quand c’est possible, sinon par le serveur sécurisé de Metyro.",
                 systemImage: "lock.shield.fill",
             )
             .font(.footnote)

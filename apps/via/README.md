@@ -23,8 +23,8 @@ bun run check:openapi
 
 La commande part du contrat TypeScript, produit les snapshots OpenAPI versionnés, puis régénère `GeneratedSources`.
 
-La recherche en langage naturel utilise Foundation Models uniquement sur l’appareil pour extraire une demande structurée en français. Le modèle ne rédige aucune réponse. Le géocodage et le calcul d’itinéraire restent servis par `/api/search` et `/api/journeys`.
+La recherche en langage naturel utilise Foundation Models sur l’appareil d’abord pour extraire une demande structurée en français. Le modèle ne rédige aucune réponse. Le géocodage et le calcul d’itinéraire restent servis par `/api/search` et `/api/journeys`.
 
-Il n’existe aucun fallback LLM serveur : les appareils non éligibles conservent la recherche classique. Apple Intelligence désactivée ou en téléchargement reçoit un état explicatif ; un appareil non éligible ou une langue non prise en charge masque les accès IA.
+Quand le modèle local est indisponible ou échoue pour une raison système, la soumission initiale passe par `POST /api/natural-journeys` (agent serveur borné, voir ADR-0004) ; les clarifications restent traitées sur l’appareil, et une phrase refusée par le modèle local n’est jamais transmise au serveur.
 
 Les URL se règlent dans `Configuration/*.xcconfig`. Une archive Release échoue tant que l’URL de production utilise le domaine `.invalid`.

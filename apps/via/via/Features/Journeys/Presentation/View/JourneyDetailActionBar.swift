@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// A single unmistakable journey action with the reminder kept as a secondary
-/// icon. Starting or resuming a live journey uses green, matching the reference
-/// while preserving Via's full-width primary-action behavior.
+/// icon. Starting a journey uses Via blue; resuming a live journey keeps the
+/// green live-state cue while preserving the full-width primary action.
 struct JourneyDetailActionBar: View {
     let isActivating: Bool
     let isReminderScheduled: Bool
@@ -27,7 +27,7 @@ struct JourneyDetailActionBar: View {
                                     .tint(.white)
                             }
 
-                            Text(buttonTitle(for: action))
+                            Text(action.displayTitle)
                                 .font(.headline)
                         }
                     }
@@ -64,13 +64,10 @@ struct JourneyDetailActionBar: View {
         }
     }
 
-    private func buttonTitle(for action: JourneyActivationAction) -> String {
-        action == .go ? "GO" : action.title
-    }
-
     private func tint(for action: JourneyActivationAction) -> Color? {
         switch action {
-        case .go, .resume: .green
+        case .go: .blue
+        case .resume: .green
         case .plan, .planned, .active: nil
         }
     }

@@ -2056,6 +2056,19 @@
             },
             "allowEmptyValue": true,
             "allowReserved": true
+          },
+          {
+            "name": "timeAnchor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "last_of_day"
+              ],
+              "type": "string"
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
           }
         ],
         "responses": {
@@ -4555,6 +4568,12 @@
                               "enum": [
                                 "departure",
                                 "arrival"
+                              ],
+                              "type": "string"
+                            },
+                            "timeAnchor": {
+                              "enum": [
+                                "last_of_day"
                               ],
                               "type": "string"
                             },

@@ -1,4 +1,4 @@
-import type { NaturalJourneyInput, NaturalJourneyResult } from '@via/contract';
+import type { NaturalJourneyInput, NaturalJourneyResult, SearchResult } from '@via/contract';
 
 import type { RedisClient } from '../../redis';
 import { tryConsumePersonalBudget } from '../journeys/rate-limit';
@@ -13,7 +13,7 @@ import {
   computeCostUsd,
   recordNaturalJourneyMetric,
 } from './metrics';
-import type { OpenAiResponsesTransport } from './openai-transport';
+import type { OpenAiResponsesTransport, ReasoningEffort } from './openai-transport';
 import { PROMPT_VERSION } from './prompt';
 import { safetyIdentifier } from './safety-identifier';
 import { type PlaceSearcher, createToolset } from './tools';
@@ -26,6 +26,8 @@ const RATE_LIMIT_PREFIX = 'openai:natural:person';
 
 export type NaturalJourneyServiceConfig = {
   model: string;
+  /** Per-turn thinking budget; env-tunable so a quality regression rolls back without a deploy. */
+  reasoningEffort: ReasoningEffort;
   timeoutMs: number;
   personalLimit: number;
   personalWindowSeconds: number;
@@ -43,13 +45,23 @@ export type NaturalJourneyServiceDeps = {
   transport: OpenAiResponsesTransport | null;
   clock: { now: () => Date };
   config: NaturalJourneyServiceConfig;
+  /**
+   * The account's Home/Work slots, so « maison »/« travail » resolve without a
+   * search. Absent (or failing) reads degrade to the plain text search.
+   */
+  readFavorites?: (userId: string) => Promise<{ home?: SearchResult; work?: SearchResult }>;
   /** Overridable so tests can drive breaker state directly. */
   breaker?: CircuitBreaker;
   /** Metric sink; defaults to the privacy-safe console recorder. */
   recordMetric?: (metric: NaturalJourneyMetric) => void;
 };
 
-export type NaturalJourneySubmitContext = { identity: string; signal?: AbortSignal };
+export type NaturalJourneySubmitContext = {
+  identity: string;
+  /** Present only for signed-in submissions; favorites need the account, not the IP hash. */
+  userId?: string;
+  signal?: AbortSignal;
+};
 
 export type NaturalJourneyService = {
   submit: (
@@ -94,13 +106,20 @@ export function createNaturalJourneyService(deps: NaturalJourneyServiceDeps): Na
         return unavailable();
       }
 
-      const personal = await tryConsumePersonalBudget(redis, {
-        keyPrefix: RATE_LIMIT_PREFIX,
-        identity: context.identity,
-        limit: config.personalLimit,
-        windowSeconds: config.personalWindowSeconds,
-        now: clock.now(),
-      });
+      // The favorites read rides alongside the rate-limit round trip; a
+      // failure there must never cost the submission, only the shortcut.
+      const [personal, favorites] = await Promise.all([
+        tryConsumePersonalBudget(redis, {
+          keyPrefix: RATE_LIMIT_PREFIX,
+          identity: context.identity,
+          limit: config.personalLimit,
+          windowSeconds: config.personalWindowSeconds,
+          now: clock.now(),
+        }),
+        context.userId && deps.readFavorites
+          ? deps.readFavorites(context.userId).catch(() => undefined)
+          : Promise.resolve(undefined),
+      ]);
       if (!personal.allowed) {
         emit('rate-limited');
         return unavailable();
@@ -113,6 +132,7 @@ export function createNaturalJourneyService(deps: NaturalJourneyServiceDeps): Na
         searchPlaces,
         planner,
         currentLocation: currentLocationOf(input),
+        favorites,
         identity: context.identity,
         defaultRequestedAt: temporalContext(input, now),
         now,
@@ -129,6 +149,7 @@ export function createNaturalJourneyService(deps: NaturalJourneyServiceDeps): Na
           safetyIdentifier: safetyIdentifier(context.identity, config.safetySecret),
           userMessage: buildUserMessage(input, now),
           timeoutMs: config.timeoutMs,
+          reasoningEffort: config.reasoningEffort,
           signal: context.signal ?? NEVER_ABORT,
         });
       } catch (error) {

@@ -14,6 +14,7 @@ struct JourneyDetailView: View {
     let onUpdateTime: (Date, JourneyDatetimeRepresents) async throws -> Void
     var prefersGoAction = false
     var prefersPlanAction = false
+    var isCompact = false
     let onHighlightSection: (String?) -> Void
     let onExpandMap: () -> Void
 
@@ -77,6 +78,10 @@ struct JourneyDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // The compact summary lives in the sheet container; keep this scroll
+        // content out of the peek while leaving the action bar available.
+        .opacity(isCompact ? 0 : 1)
+        .accessibilityHidden(isCompact)
         .scrollIndicators(.hidden)
         .background(Color(uiColor: .systemBackground))
         .navigationBarTitleDisplayMode(.inline)
@@ -196,11 +201,12 @@ struct JourneyDetailView: View {
             isActivationExplanationPresented = true
         case .plan:
             perform {
-                let didPlan = await plannedJourneyDraftModel.plan(
+                let didPlan = await JourneyActivation.plan(
                     journey: journey,
                     destination: destination,
                     source: source,
-                    planningPolicy: planningPolicy
+                    planningPolicy: planningPolicy,
+                    draftModel: plannedJourneyDraftModel
                 )
                 isDraftErrorPresented = !didPlan
             }
@@ -218,44 +224,29 @@ struct JourneyDetailView: View {
     private func saveReminder(
         _ leadTime: JourneyNotificationPreferences.DepartureLeadTime
     ) async -> String? {
-        if journeyNotificationCoordinator.preferences.departureLeadTime != leadTime {
-            await journeyNotificationCoordinator.updateDepartureLeadTime(leadTime)
-            guard journeyNotificationCoordinator.preferences.departureLeadTime == leadTime else {
-                return journeyNotificationCoordinator.lastError
-            }
-        }
-
-        if !isReminderScheduled {
-            await journeyNotificationCoordinator.scheduleReminder(
-                for: journey,
-                destination: destination,
-                source: source,
-                planningPolicy: planningPolicy
-            )
-        }
-
-        return journeyNotificationCoordinator.lastError
+        await JourneyReminderEditing.save(
+            journey: journey,
+            destination: destination,
+            source: source,
+            planningPolicy: planningPolicy,
+            leadTime: leadTime,
+            coordinator: journeyNotificationCoordinator
+        )
     }
 
     private func cancelReminder() async -> String? {
-        await journeyNotificationCoordinator.cancelReminder()
-        return journeyNotificationCoordinator.lastError
+        await JourneyReminderEditing.cancel(coordinator: journeyNotificationCoordinator)
     }
 
     private func go(allowsBackgroundTracking: Bool) {
         perform {
-            if plannedJourneyDraftModel.draft?.journey.id == journey.id {
-                await plannedJourneyDraftModel.launch(
-                    using: activeJourneyModel,
-                    allowsBackgroundTracking: allowsBackgroundTracking
-                )
-                return
-            }
-            await activeJourneyModel.go(
+            await JourneyActivation.go(
                 journey: journey,
                 destination: destination,
                 source: source,
                 planningPolicy: planningPolicy,
+                activeJourneyModel: activeJourneyModel,
+                plannedJourneyDraftModel: plannedJourneyDraftModel,
                 allowsBackgroundTracking: allowsBackgroundTracking
             )
         }

@@ -1,3 +1,4 @@
+import { incrementFixedWindow } from '../../http/redis-rate-limit';
 import type { RedisClient } from '../../redis';
 
 const DAY_SECONDS = 24 * 60 * 60;
@@ -17,8 +18,7 @@ const DAILY_VOTES_PER_ADDRESS = 24;
 export async function withinCityVoteQuota(redis: RedisClient, voterHash: string) {
   try {
     const key = `city-demand:day:${voterHash}`;
-    const votes = await redis.incr(key);
-    if (votes === 1) await redis.expire(key, DAY_SECONDS);
+    const votes = await incrementFixedWindow(redis, key, DAY_SECONDS);
     return votes <= DAILY_VOTES_PER_ADDRESS;
   } catch {
     return true;

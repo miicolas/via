@@ -115,7 +115,8 @@ struct SettingsView: View {
                     NavigationLink {
                         FavoritesSettingsView(
                             accountModel: accountModel,
-                            routesModel: favoriteRoutesModel
+                            routesModel: favoriteRoutesModel,
+                            searchViewModel: searchViewModel
                         )
                     } label: {
                         SettingsRow(

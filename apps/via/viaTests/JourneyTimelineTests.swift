@@ -233,6 +233,10 @@ final class JourneyTimelineTests: XCTestCase {
     }
 
     func testJourneyActionSymbolsCoverEveryState() {
+        XCTAssertEqual(JourneyActivationAction.go.title, "GO")
+        XCTAssertEqual(JourneyActivationAction.goTitleVariants.count, 6)
+        XCTAssertTrue(JourneyActivationAction.goTitleVariants.contains("GO"))
+        XCTAssertTrue(JourneyActivationAction.goTitleVariants.contains(JourneyActivationAction.go.displayTitle))
         XCTAssertEqual(JourneyActivationAction.go.systemImage, "location.fill")
         XCTAssertEqual(JourneyActivationAction.plan.systemImage, "calendar.badge.plus")
         XCTAssertEqual(JourneyActivationAction.planned.systemImage, "calendar.badge.checkmark")

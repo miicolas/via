@@ -4,6 +4,7 @@ import {
   journeyDatetimeRepresentsSchema,
   journeyDestinationSchema,
   journeyModeSchema,
+  journeyTimeAnchorSchema,
   journeysResponseSchema,
 } from '../journeys/schema';
 import { searchResultSchema } from '../search/schema';
@@ -44,6 +45,8 @@ export const naturalJourneyInterpretationSchema = z.object({
   destinationResult: searchResultSchema,
   requestedAt: z.iso.datetime({ offset: true }),
   datetimeRepresents: journeyDatetimeRepresentsSchema,
+  /** Present when the phrase asked for the last service of the day. */
+  timeAnchor: journeyTimeAnchorSchema.optional(),
   requiredModes: z.array(journeyModeSchema),
   excludedModes: z.array(journeyModeSchema),
   preferredModes: z.array(journeyModeSchema),

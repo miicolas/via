@@ -27,7 +27,6 @@ struct SearchView: View {
   @State private var isNaturalDatePickerPresented = false
   @State private var isNaturalOptionsPresented = false
   @State private var isAccessibilityInfoPresented = false
-  @State private var isClearRecentsConfirmationPresented = false
   @State private var isReminderErrorPresented = false
 
   init(
@@ -136,18 +135,6 @@ struct SearchView: View {
         elevatorSource: viewModel.elevatorSource
       )
     }
-    .confirmationDialog(
-      "Effacer les recherches récentes ?",
-      isPresented: $isClearRecentsConfirmationPresented,
-      titleVisibility: .visible,
-    ) {
-      Button("Effacer les recherches récentes", role: .destructive) {
-        viewModel.clearRecentSearches()
-      }
-      Button("Annuler", role: .cancel) {}
-    } message: {
-      Text("Cette action supprime les destinations enregistrées sur cet appareil.")
-    }
     .alert("Rappel non modifié", isPresented: $isReminderErrorPresented) {
       if journeyNotificationCoordinator.authorizationStatus == .denied {
         Button("Ouvrir les réglages iOS") {
@@ -213,12 +200,15 @@ struct SearchView: View {
           .fontWeight(.semibold)
           .lineLimit(1)
           .truncationMode(.tail)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .layoutPriority(-1)
 
         Image(systemName: "chevron.down")
           .font(.caption.weight(.bold))
           .foregroundStyle(.primary)
           .fixedSize()
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
     }
     .accessibilityLabel("Point de départ")
     .accessibilityValue(viewModel.wrappedValue.selectedDeparture.title)
@@ -293,39 +283,19 @@ struct SearchView: View {
       }
 
       if viewModel.wrappedValue.showsRecentSearches {
-        Section {
-          ForEach(viewModel.wrappedValue.visibleRecentSearches) { recent in
-            SearchResultRow(
-              result: recent.searchResult,
-              accessibilityHint: isSelectingSavedDestination
-                ? "Choisit cette destination comme favori"
-                : "Relance un trajet vers cette destination",
-            ) {
-              selectResult(recent.searchResult, viewModel: viewModel.wrappedValue)
-            } onDelete: {
-              viewModel.wrappedValue.removeRecentSearch(id: recent.id)
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-              Button("Supprimer", systemImage: "trash", role: .destructive) {
-                viewModel.wrappedValue.removeRecentSearch(id: recent.id)
-              }
-              .labelStyle(.iconOnly)
-            }
-          }
-        } header: {
-          HStack {
-            Text("Récentes")
-
-            Spacer()
-
-            Button("Tout effacer", systemImage: "trash", role: .destructive) {
-              isClearRecentsConfirmationPresented = true
-            }
-            .labelStyle(.iconOnly)
-            .frame(minWidth: 44, minHeight: 44)
-            .accessibilityHint("Demande confirmation avant de supprimer tout l’historique local")
-          }
-        }
+        RecentSearchesSection(
+          searches: viewModel.wrappedValue.visibleRecentSearches,
+          accessibilityHint: isSelectingSavedDestination
+            ? "Choisit cette destination comme favori"
+            : "Relance un trajet vers cette destination",
+          onSelect: { recent in
+            selectResult(recent.searchResult, viewModel: viewModel.wrappedValue)
+          },
+          onRemove: { recent in
+            viewModel.wrappedValue.removeRecentSearch(id: recent.id)
+          },
+          onClear: viewModel.wrappedValue.clearRecentSearches,
+        )
       }
 
       if viewModel.wrappedValue.loadState != .idle {
@@ -399,26 +369,22 @@ struct SearchView: View {
               guard let destination = viewModel.wrappedValue.journeyDestination else { return }
               let source = viewModel.wrappedValue.journeyResult?.source
               Task {
-                if journeyNotificationCoordinator.preferences.departureLeadTime != leadTime {
-                  await journeyNotificationCoordinator.updateDepartureLeadTime(leadTime)
-                  guard journeyNotificationCoordinator.preferences.departureLeadTime == leadTime
-                  else {
-                    isReminderErrorPresented = true
-                    return
-                  }
-                }
-                await journeyNotificationCoordinator.scheduleReminder(
-                  for: journey,
+                _ = await JourneyReminderEditing.save(
+                  journey: journey,
                   destination: destination,
                   source: source,
-                  planningPolicy: viewModel.wrappedValue.journeyPlanningPolicy
+                  planningPolicy: viewModel.wrappedValue.journeyPlanningPolicy,
+                  leadTime: leadTime,
+                  coordinator: journeyNotificationCoordinator
                 )
                 isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
               }
             },
             onCancelReminder: {
               Task {
-                await journeyNotificationCoordinator.cancelReminder()
+                _ = await JourneyReminderEditing.cancel(
+                  coordinator: journeyNotificationCoordinator
+                )
                 isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
               }
             },

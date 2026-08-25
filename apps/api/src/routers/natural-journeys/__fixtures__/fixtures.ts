@@ -40,6 +40,7 @@ export const JOURNEYS: JourneysResponse = {
 
 export const CONFIG: NaturalJourneyServiceConfig = {
   model: 'gpt-5.6-luna',
+  reasoningEffort: 'minimal',
   timeoutMs: 8_000,
   personalLimit: 20,
   personalWindowSeconds: 900,
@@ -52,6 +53,20 @@ export function toolCallTurn(name: string, args: unknown, callId = 'call_1'): Re
   return {
     id: 'resp',
     functionCalls: [{ callId, name, arguments: JSON.stringify(args) }],
+    outputText: '',
+    usage: USAGE,
+  };
+}
+
+/** One assistant turn carrying several parallel function calls. */
+export function toolCallsTurn(calls: Array<{ name: string; args: unknown }>): ResponsesTurn {
+  return {
+    id: 'resp',
+    functionCalls: calls.map((call, index) => ({
+      callId: `call_${index + 1}`,
+      name: call.name,
+      arguments: JSON.stringify(call.args),
+    })),
     outputText: '',
     usage: USAGE,
   };

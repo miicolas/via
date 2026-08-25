@@ -27,6 +27,8 @@ struct RouteIntent: Sendable, Hashable {
     private(set) var destinationQuery: String?
     private(set) var requestedAt: Date?
     private(set) var datetimeRepresents: TimeMeaning
+    /// « Le dernier train de la journée » — no instant to carry, the anchor is the service day's end.
+    private(set) var timeAnchor: JourneyTimeAnchor?
     private(set) var requiredModes: Set<TransitMode>
     private(set) var excludedModes: Set<TransitMode>
     private(set) var preferredModes: Set<TransitMode>
@@ -42,6 +44,7 @@ struct RouteIntent: Sendable, Hashable {
         destinationQuery: String?,
         requestedAt: Date?,
         datetimeRepresents: TimeMeaning,
+        timeAnchor: JourneyTimeAnchor? = nil,
         requiredModes: Set<TransitMode>,
         excludedModes: Set<TransitMode>,
         preferredModes: Set<TransitMode>,
@@ -56,6 +59,7 @@ struct RouteIntent: Sendable, Hashable {
         self.destinationQuery = destinationQuery
         self.requestedAt = requestedAt
         self.datetimeRepresents = datetimeRepresents
+        self.timeAnchor = timeAnchor
         self.requiredModes = requiredModes
         self.excludedModes = excludedModes
         self.preferredModes = preferredModes
@@ -188,6 +192,8 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
     let destinationResult: SearchResult
     let requestedAt: Date
     let datetimeRepresents: JourneyDatetimeRepresents
+    /// Present when the phrase asked for the last service of the day.
+    let timeAnchor: JourneyTimeAnchor?
     let requiredModes: Set<TransitMode>
     let excludedModes: Set<TransitMode>
     let preferredModes: Set<TransitMode>
@@ -199,6 +205,7 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
         destinationResult: SearchResult,
         requestedAt: Date,
         datetimeRepresents: JourneyDatetimeRepresents,
+        timeAnchor: JourneyTimeAnchor? = nil,
         requiredModes: Set<TransitMode>,
         excludedModes: Set<TransitMode>,
         preferredModes: Set<TransitMode>,
@@ -209,6 +216,7 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
         self.destinationResult = destinationResult
         self.requestedAt = requestedAt
         self.datetimeRepresents = datetimeRepresents
+        self.timeAnchor = timeAnchor
         self.requiredModes = requiredModes
         self.excludedModes = excludedModes
         self.preferredModes = preferredModes
@@ -220,6 +228,7 @@ struct NaturalJourneyCriteria: Sendable, Hashable {
     var destinationResult: SearchResult
     var requestedAt: Date
     var datetimeRepresents: JourneyDatetimeRepresents
+    var timeAnchor: JourneyTimeAnchor?
     var requiredModes: Set<TransitMode>
     var excludedModes: Set<TransitMode>
     var preferredModes: Set<TransitMode>
@@ -229,6 +238,7 @@ struct NaturalJourneyCriteria: Sendable, Hashable {
         destinationResult = interpretation.destinationResult
         requestedAt = interpretation.requestedAt
         datetimeRepresents = interpretation.datetimeRepresents
+        timeAnchor = interpretation.timeAnchor
         requiredModes = interpretation.requiredModes
         excludedModes = interpretation.excludedModes
         preferredModes = interpretation.preferredModes

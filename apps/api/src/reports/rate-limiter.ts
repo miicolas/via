@@ -1,3 +1,4 @@
+import { incrementFixedWindow } from '../http/redis-rate-limit';
 import type { RedisClient } from '../redis';
 import type { ReportCategory, ReportScopeKind } from './status-resolver';
 
@@ -29,19 +30,21 @@ export async function enforceReportWriteLimits(redis: RedisClient, input: LimitI
     const claimed = await redis.set(`reports:cooldown:${subject}`, '1', { nx: true, ex: 5 * 60 });
     if (!claimed) throw new ReportRateLimitError('cooldown');
 
-    const userCount = await incrementWindow(redis, `reports:hour:user:${input.userId}`);
+    const userCount = await incrementFixedWindow(
+      redis,
+      `reports:hour:user:${input.userId}`,
+      HOUR_SECONDS
+    );
     if (userCount > 10) throw new ReportRateLimitError('user');
 
-    const ipCount = await incrementWindow(redis, `reports:hour:ip:${input.ipHash}`);
+    const ipCount = await incrementFixedWindow(
+      redis,
+      `reports:hour:ip:${input.ipHash}`,
+      HOUR_SECONDS
+    );
     if (ipCount > 1_000) throw new ReportRateLimitError('ip');
   } catch (error) {
     if (error instanceof ReportRateLimitError) throw error;
     throw new ReportRateLimitError('unavailable');
   }
-}
-
-async function incrementWindow(redis: RedisClient, key: string) {
-  const count = await redis.incr(key);
-  if (count === 1) await redis.expire(key, HOUR_SECONDS);
-  return count;
 }

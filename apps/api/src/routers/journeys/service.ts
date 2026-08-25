@@ -35,8 +35,6 @@ export type GtfsJourneyPlanner = {
 /** GTFS answers change with the timetable minute; IDFM ones track realtime a bit longer. */
 const GTFS_TTL_SECONDS = 30;
 const IDFM_TTL_SECONDS = 45;
-/** Keep Postgres dynamic shared-memory use bounded during the GTFS fallback. */
-const gtfsPlanGate = createAsyncGate(1);
 
 export type JourneyPlanningConfig = {
   personalLimit: number;
@@ -53,6 +51,30 @@ type JourneyPlannerDependencies = {
   config: JourneyPlanningConfig;
   /** Volatile community state is deliberately applied after the planner cache. */
   reports?: JourneyReportOverlay;
+  /** Enrichment seams stay injectable so planner tests do not need Postgres. */
+  annotators?: JourneyPlannerAnnotators;
+  /** The default gate is per planner instance, not hidden global state. */
+  gtfsPlanGate?: AsyncGate;
+};
+
+type AsyncGate = {
+  run<T>(work: () => Promise<T>): Promise<T>;
+};
+
+export type JourneyPlannerAnnotators = {
+  annotateAccessibleJourneys: typeof annotateAccessibleJourneys;
+  filterAndAnnotateAccessibleJourneys: typeof filterAndAnnotateAccessibleJourneys;
+  annotatePeakJourneys: typeof annotatePeakJourneys;
+  annotateWayfinding: typeof annotateWayfinding;
+  applyOperationalElevatorConstraint: typeof applyOperationalElevatorConstraint;
+};
+
+const defaultJourneyAnnotators: JourneyPlannerAnnotators = {
+  annotateAccessibleJourneys,
+  filterAndAnnotateAccessibleJourneys,
+  annotatePeakJourneys,
+  annotateWayfinding,
+  applyOperationalElevatorConstraint,
 };
 
 export type JourneyReportOverlay = {
@@ -80,6 +102,8 @@ export function createJourneyPlanner({
   clock,
   config,
   reports,
+  annotators = defaultJourneyAnnotators,
+  gtfsPlanGate = createAsyncGate(1),
 }: JourneyPlannerDependencies): JourneyPlanner {
   return {
     plan: async (input, { identity, signal }) => {
@@ -102,7 +126,15 @@ export function createJourneyPlanner({
       });
 
       const gtfsFallback = async () => ({
-        value: await planWithGtfsConstraint(gtfs, input, requestedAt, now, signal),
+        value: await planWithGtfsConstraint(
+          gtfs,
+          input,
+          requestedAt,
+          now,
+          annotators,
+          gtfsPlanGate,
+          signal
+        ),
         ttlSeconds: GTFS_TTL_SECONDS,
       });
 
@@ -143,7 +175,7 @@ export function createJourneyPlanner({
           return gtfsFallback();
         }
 
-        let realtime = await planWithIdfm(idfm, input, requestedAt, now, signal);
+        let realtime = await planWithIdfm(idfm, input, requestedAt, now, annotators, signal);
         if (
           realtime?.status === 'ready' &&
           input.preferredModes?.length &&
@@ -164,6 +196,7 @@ export function createJourneyPlanner({
               },
               requestedAt,
               now,
+              annotators,
               signal
             );
             if (preferredOnly?.journeys.length) {
@@ -174,24 +207,35 @@ export function createJourneyPlanner({
                 },
                 'idfm-realtime',
                 now,
-                input
+                input,
+                annotators
               );
             }
           }
         }
         return {
-          value: realtime ?? (await planWithGtfsConstraint(gtfs, input, requestedAt, now, signal)),
+          value:
+            realtime ??
+            (await planWithGtfsConstraint(
+              gtfs,
+              input,
+              requestedAt,
+              now,
+              annotators,
+              gtfsPlanGate,
+              signal
+            )),
           ttlSeconds: IDFM_TTL_SECONDS,
         };
       };
 
       const response = await valueThroughCache<JourneysResponse>(redis, cacheKey, async () => {
         const { value, ttlSeconds } = await planned();
-        const constrained = await applyOperationalElevatorConstraint(value, input);
+        const constrained = await annotators.applyOperationalElevatorConstraint(value, input);
         return {
           value: {
             ...constrained,
-            journeys: await annotateWayfinding(
+            journeys: await annotators.annotateWayfinding(
               constrained.journeys,
               input.destination.coordinate
             ),
@@ -217,15 +261,18 @@ async function planWithIdfm(
   input: JourneyInput,
   requestedAt: Date,
   now: Date,
+  annotators: JourneyPlannerAnnotators,
   signal?: AbortSignal
 ): Promise<JourneysResponse | null> {
   try {
     const response = await idfm.plan(input, requestedAt, signal);
     if (!response) return null;
-    if (!input.requiresAccessibleStations) return qualify(response, 'idfm-realtime', now, input);
+    if (!input.requiresAccessibleStations) {
+      return qualify(response, 'idfm-realtime', now, input, annotators);
+    }
     // IDFM has already applied `wheelchair=true`. Missing local rail aliases
     // must not erase a valid, potentially longer bus or tram alternative.
-    const journeys = await annotateAccessibleJourneys(response.journeys);
+    const journeys = await annotators.annotateAccessibleJourneys(response.journeys);
     const status: PlannedJourneys['status'] = response.status === 'unavailable'
       ? 'unavailable'
       : journeys.length > 0
@@ -240,7 +287,8 @@ async function planWithIdfm(
       },
       'idfm-realtime',
       now,
-      input
+      input,
+      annotators
     );
   } catch (cause) {
     console.error('[journeys] planificateur IDFM indisponible', cause);
@@ -253,6 +301,7 @@ async function planWithGtfs(
   input: JourneyInput,
   requestedAt: Date,
   now: Date,
+  annotators: JourneyPlannerAnnotators,
   signal?: AbortSignal
 ): Promise<JourneysResponse> {
   try {
@@ -260,7 +309,8 @@ async function planWithGtfs(
       await gtfs.plan(input, requestedAt, signal),
       'gtfs-theoretical',
       now,
-      input
+      input,
+      annotators
     );
   } catch (cause) {
     console.error('[journeys] planificateur GTFS indisponible', cause);
@@ -273,13 +323,15 @@ async function planWithGtfsConstraint(
   input: JourneyInput,
   requestedAt: Date,
   now: Date,
+  annotators: JourneyPlannerAnnotators,
+  gtfsPlanGate: AsyncGate,
   signal?: AbortSignal
 ) {
   return gtfsPlanGate.run(async () => {
-    const response = await planWithGtfs(gtfs, input, requestedAt, now, signal);
+    const response = await planWithGtfs(gtfs, input, requestedAt, now, annotators, signal);
     if (!input.requiresAccessibleStations) return response;
     if (response.status === 'unavailable') return response;
-    const journeys = await filterAndAnnotateAccessibleJourneys(response.journeys);
+    const journeys = await annotators.filterAndAnnotateAccessibleJourneys(response.journeys);
     return finalizePlan(response, journeys, input);
   });
 }
@@ -288,14 +340,15 @@ async function qualify(
   response: PlannedJourneys,
   source: NonNullable<JourneysResponse['source']>,
   now: Date,
-  input: JourneyInput
+  input: JourneyInput,
+  annotators: JourneyPlannerAnnotators
 ): Promise<JourneysResponse> {
   const filtered = response.journeys.filter(
     (journey) =>
       matchesModePolicy(journey, input) &&
       (input.datetimeRepresents !== 'arrival' || new Date(journey.departureAt) >= now)
   );
-  const annotated = await annotatePeakJourneys(filtered);
+  const annotated = await annotators.annotatePeakJourneys(filtered);
   const journeys = rankPreferredJourney(annotated, input.preferredModes ?? []);
   return {
     ...finalizePlan(response, journeys, input),

@@ -257,8 +257,7 @@ struct JourneySummaryCard: View {
   }
 
   private var isBikeOnly: Bool {
-    journey.sections.contains { $0.kind == .bike }
-      && journey.sections.allSatisfy { $0.kind == .bike || $0.kind == .walk }
+    JourneyShape.of(journey).isBikeOnly
   }
 
   private var maximumVisibleRouteBadges: Int {

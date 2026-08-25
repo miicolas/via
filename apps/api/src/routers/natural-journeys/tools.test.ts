@@ -79,6 +79,50 @@ describe('search_places tool', () => {
     expect(parsed.places).toHaveLength(1);
     expect(registry.resolvePlace(parsed.places[0].handle)).toEqual(home);
   });
+
+  test('resolves the Work favorite when present', async () => {
+    const work: SearchResult = { ...ADDRESS, id: 'work', name: 'Bureau' };
+    const { toolset, registry } = buildToolset({ favorites: { work } });
+    const parsed = await call(toolset, 'search_places', { query: 'au travail' });
+
+    expect(parsed.places).toHaveLength(1);
+    expect(registry.resolvePlace(parsed.places[0].handle)).toEqual(work);
+  });
+
+  test('matches favorites accent-insensitively, like the on-device resolver', async () => {
+    const home: SearchResult = { ...ADDRESS, id: 'home', name: 'Chez moi' };
+    const work: SearchResult = { ...ADDRESS, id: 'work', name: 'Bureau' };
+    const { toolset, registry } = buildToolset({ favorites: { home, work } });
+
+    const accented = await call(toolset, 'search_places', { query: 'À la maison' });
+    expect(registry.resolvePlace(accented.places[0].handle)).toEqual(home);
+
+    const office = await call(toolset, 'search_places', { query: 'au bureau' });
+    expect(registry.resolvePlace(office.places[0].handle)).toEqual(work);
+  });
+
+  test('timeAnchor rides through to the planner input and the interpretation', async () => {
+    const { toolset, planner } = buildToolset();
+    await call(toolset, 'search_places', { query: 'La Défense' });
+
+    const parsed = await call(toolset, 'plan_journeys', {
+      origin: { kind: 'current_location' },
+      destination: { handle: 'place_1' },
+      datetimeRepresents: 'departure',
+      timeAnchor: 'last_of_day',
+    });
+
+    expect(parsed.ok).toBe(true);
+    expect(planner.calls[0]!.input.timeAnchor).toBe('last_of_day');
+  });
+
+  test('a non-favorite query still goes through the real search', async () => {
+    const home: SearchResult = { ...ADDRESS, id: 'home', name: 'Chez moi' };
+    const { toolset, searcher } = buildToolset({ favorites: { home } });
+    await call(toolset, 'search_places', { query: 'Châtelet' });
+
+    expect(searcher.queries).toEqual(['Châtelet']);
+  });
 });
 
 describe('plan_journeys tool', () => {

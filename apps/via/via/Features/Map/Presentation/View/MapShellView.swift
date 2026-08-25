@@ -49,9 +49,12 @@ struct MapShellView: View {
   @State private var isLargeScreen: Bool = false
   // The reference opens with the map still visible above the content sheet.
   @State private var activeDetent: PresentationDetent = .fraction(0.45)
+  /// Where the sheet rested before a natural-search panel raised it.
+  @State private var detentBeforeNaturalPanel: PresentationDetent?
   @State private var detailSheetDetent: PresentationDetent = .height(80)
   @State private var accountSheetDestination: AccountSheetDestination?
   @State private var accountSheetDetent: PresentationDetent = .height(80)
+  @State private var favoritesFocus: FavoritesFocus?
   // Journey details use one stacked sheet slot above the tab sheet.
   @State private var searchSheetDestination: SearchSheetDestination?
   @State private var journeySheetDetent: PresentationDetent = .large
@@ -203,45 +206,36 @@ struct MapShellView: View {
       if destination == nil { journeySheetDetent = expandedDetent }
     }
     .onChange(of: activeTab) { oldValue, newValue in
-      if newValue == .search, oldValue != .search {
+      if newValue == .search, oldValue != .search, oldValue != .report {
         // Signaler is reached *from* search (the guidance panel's
         // report button) and search comes back on its own for the
         // running journey, so remembering it sent closing search
         // straight back into the report form.
-        if oldValue != .report {
-          previousTab = oldValue
-        }
-        activeDetent = activeJourneyModel.hasSurface ? guidanceDetent : expandedDetent
-      } else if newValue == .report, oldValue != .report {
-        activeDetent = isLargeScreen ? .fraction(0.97) : .large
-      } else if oldValue == .search, newValue != .search {
-        activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
-      } else if oldValue == .report, newValue != .report {
-        activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
+        previousTab = oldValue
+      }
+      if let detent = MapShellPresentation.detentAfterTabChange(
+        from: oldValue,
+        to: newValue,
+        isLargeScreen: isLargeScreen,
+        hasJourneySurface: activeJourneyModel.hasSurface
+      ) {
+        activeDetent = detent
       }
     }
     .onGeometryChange(for: Bool.self) {
       $0.size.width > 600
     } action: { newValue in
       // Remap detents before the size class flips so the sheet lands on a valid one.
-      if newValue && activeDetent != collapsedDetent {
-        activeDetent = .fraction(0.97)
-      } else if !newValue && activeDetent == .fraction(0.97) {
-        activeDetent = .fraction(0.45)
-      }
-
-      if newValue && detailSheetDetent != .height(80) {
-        detailSheetDetent = .fraction(0.97)
-      } else if !newValue && detailSheetDetent == .fraction(0.97) {
-        detailSheetDetent = .large
-      }
-
-      if newValue && journeySheetDetent != journeyPeekDetent {
-        journeySheetDetent = .fraction(0.97)
-      } else if !newValue && journeySheetDetent == .fraction(0.97) {
-        journeySheetDetent = .large
-      }
-
+      let remapped = MapShellPresentation.remapDetents(
+        .init(active: activeDetent, detail: detailSheetDetent, journey: journeySheetDetent),
+        isLargeScreen: newValue,
+        collapsed: collapsedDetent,
+        journeyPeek: journeyPeekDetent,
+        detailCollapsed: .height(DetailSheetPresentation.collapsedHeight)
+      )
+      activeDetent = remapped.active
+      detailSheetDetent = remapped.detail
+      journeySheetDetent = remapped.journey
       isLargeScreen = newValue
     }
     .task(id: authSessionViewModel.session?.user.id) {
@@ -259,6 +253,42 @@ struct MapShellView: View {
     }
     .onOpenURL { url in
       route(url)
+    }
+    .onChange(of: searchViewModel.naturalSearchState) { oldState, newState in
+      // A question or an answer needs room the collapsed sheet does not have;
+      // the detent it interrupted comes back once the conversation moves on.
+      let wasPanel = NaturalJourneyPresentationPolicy.showsPanel(oldState)
+      let isPanel = NaturalJourneyPresentationPolicy.showsPanel(newState)
+      switch MapShellPresentation.naturalPanelTransition(
+        wasVisible: wasPanel,
+        isVisible: isPanel
+      ) {
+      case .present:
+        detentBeforeNaturalPanel = activeDetent
+        activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
+      case .dismiss:
+        if let detentBeforeNaturalPanel {
+          activeDetent = detentBeforeNaturalPanel
+        }
+        detentBeforeNaturalPanel = nil
+      case nil:
+        break
+      }
+    }
+    .aiScreenGlow(naturalGlowIntensity)
+  }
+
+  /// The Siri-style edge light: quiet while the traveller types, swelling
+  /// while Metyro thinks, and absent when a panel needs the attention.
+  private var naturalGlowIntensity: AIScreenGlowView.Intensity? {
+    switch searchViewModel.naturalSearchState {
+    case .input:
+      .ambient
+    case .loading:
+      .thinking
+    case .dismissed, .onboarding, .clarification, .decision, .unsupported, .availability,
+      .failed:
+      nil
     }
   }
 
@@ -321,105 +351,33 @@ struct MapShellView: View {
   private func selectSavedDestinationResult(_ result: SearchResult) {
     guard let context = savedDestinationSelectionContext else { return }
     savedDestinationSelectionContext = nil
-
-    if case .replacement(let draft) = context {
-      let editedDestinationID = draft.existingDestination?.destinationID
-      let editedPlaceID: String? = switch draft.target {
-      case .place(_, let existing): existing?.id
-      case .destination(_): nil
-      }
-
-      if let place = accountModel.savedPlace(for: result), place.id != editedPlaceID {
-        presentPlaceEditor(place)
-        return
-      }
-      if let destination = accountModel.savedDestination(for: result),
-         destination.destinationID != editedDestinationID {
-        presentDestinationEditor(destination)
-        return
-      }
-      savedDestinationDraft = draft.replacingResult(result)
-      return
-    }
-
-    if let place = accountModel.savedPlace(for: result) {
-      presentPlaceEditor(place)
-      return
-    }
-    if let destination = accountModel.savedDestination(for: result) {
-      presentDestinationEditor(destination)
-      return
-    }
-
-    switch context {
-    case .place(let role):
-      savedDestinationDraft = SavedDestinationDraft(
-        target: .place(role, existing: nil),
-        result: result,
-        label: role.displayTitle,
-        systemImage: role.systemImage
-      )
-    case .destination:
-      savedDestinationDraft = SavedDestinationDraft(
-        target: .destination(existing: nil),
-        result: result,
-        label: result.name,
-        systemImage: SavedDestinationSymbols.suggestion(for: result)
-      )
-    case .replacement:
-      break
-    }
+    savedDestinationDraft = SavedDestinationEditing.draft(
+      for: result,
+      context: context,
+      in: accountModel
+    )
   }
 
   private func presentEditor(_ result: SearchResult) {
     returnsToPreviousTabAfterSavingDestination = false
-    if let place = accountModel.savedPlace(for: result) {
-      presentPlaceEditor(place)
-    } else if let destination = accountModel.savedDestination(for: result) {
-      presentDestinationEditor(destination)
-    } else {
-      savedDestinationDraft = SavedDestinationDraft(
-        target: .destination(existing: nil),
-        result: result,
-        label: result.name,
-        systemImage: SavedDestinationSymbols.suggestion(for: result)
-      )
-    }
+    savedDestinationDraft = SavedDestinationEditing.draft(for: result, in: accountModel)
   }
 
   private func presentPlaceEditor(_ place: SavedPlace) {
-    savedDestinationDraft = SavedDestinationDraft(
-      target: .place(place.role, existing: place),
-      result: place.searchResult,
-      label: place.role.displayTitle,
-      systemImage: SavedDestinationSymbols.resolved(
-        place.systemImage,
-        fallback: place.role.systemImage
-      )
-    )
+    savedDestinationDraft = SavedDestinationEditing.draft(editing: place)
   }
 
   private func presentDestinationEditor(_ destination: SavedDestination) {
-    savedDestinationDraft = SavedDestinationDraft(
-      target: .destination(existing: destination),
-      result: destination.searchResult,
-      label: destination.label,
-      systemImage: SavedDestinationSymbols.resolved(destination.systemImage)
-    )
+    savedDestinationDraft = SavedDestinationEditing.draft(editing: destination)
   }
 
   private func save(draft: SavedDestinationDraft, label: String, systemImage: String) {
-    switch draft.target {
-    case .place(let role, _):
-      accountModel.setPlace(draft.result, role: role, systemImage: systemImage)
-    case .destination(let existing):
-      accountModel.saveDestination(
-        draft.result,
-        label: label,
-        systemImage: systemImage,
-        editing: existing
-      )
-    }
+    SavedDestinationEditing.save(
+      draft,
+      label: label,
+      systemImage: systemImage,
+      in: accountModel
+    )
 
     if returnsToPreviousTabAfterSavingDestination {
       searchViewModel.resetSearch()
@@ -429,14 +387,7 @@ struct MapShellView: View {
   }
 
   private func deleteAction(for draft: SavedDestinationDraft) -> (() -> Void)? {
-    switch draft.target {
-    case .place(let role, let existing):
-      guard existing != nil else { return nil }
-      return { accountModel.removePlace(for: role) }
-    case .destination(let existing):
-      guard let existing else { return nil }
-      return { accountModel.removeDestination(id: existing.id) }
-    }
+    SavedDestinationEditing.deleteAction(for: draft, in: accountModel)
   }
 
   private func routePendingNotificationIfNeeded() {
@@ -445,45 +396,24 @@ struct MapShellView: View {
   }
 
   private func route(_ url: URL) {
-    guard url.scheme == "via", let host = url.host else { return }
-    if host == "notifications" {
-      presentAccountSheet(.notifications)
-      return
-    }
+    guard let route = MapRoute(url: url) else { return }
 
-    let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-    if host == "line" {
-      guard let routeID = queryItems.first(where: { $0.name == "routeId" })?.value else { return }
+    switch route {
+    case .notifications:
+      presentAccountSheet(.notifications)
+    case .line(let routeID):
       activeTab = .lines
-      linesViewModel.requestRoute(RouteID(rawValue: routeID))
-      return
-    }
-    if host == "station" {
-      guard let stationID = queryItems.first(where: { $0.name == "stationId" })?.value else {
-        return
-      }
+      linesViewModel.requestRoute(routeID)
+    case .station(let stationID):
       activeTab = .stations
-      if let item = networkViewModel.stationMapItem(for: StationID(rawValue: stationID)) {
+      if let item = networkViewModel.stationMapItem(for: stationID) {
         presentStation(item)
       }
-      return
-    }
-    guard host == "journey" else { return }
-    let pathComponents = url.pathComponents.filter { $0 != "/" }
-    let journeyID =
-      queryItems
-      .first(where: { $0.name == "journeyId" })?.value
-      .map(JourneyID.init(rawValue:))
-      ?? pathComponents.first
-      .map(JourneyID.init(rawValue:))
-    let mode = queryItems.first(where: { $0.name == "mode" })?.value
-
-    if mode == "reminder", let journeyID {
+    case .scheduledJourney(let journeyID):
       Task { await routeScheduledJourney(journeyID) }
-      return
+    case .activeJourney(let journeyID):
+      Task { await routeActiveJourney(journeyID) }
     }
-    guard mode == "active", let journeyID else { return }
-    Task { await routeActiveJourney(journeyID) }
   }
 
   private func routeActiveJourney(_ journeyID: JourneyID) async {
@@ -549,11 +479,11 @@ struct MapShellView: View {
           onOpenProfile: { presentAccountSheet(.profile) },
           onOpenSettings: { presentAccountSheet(.settings) },
           onOpenSavedDestination: openJourney,
-          onConfigurePlace: { beginSavedDestinationSelection(.place($0)) },
-          onAddSavedDestination: { beginSavedDestinationSelection(.destination) },
+          onConfigurePlace: { presentFavorites(focus: .place($0)) },
+          onAddSavedDestination: { presentFavorites(focus: .addDestination) },
           onEditPlace: presentPlaceEditor,
           onEditSavedDestination: presentDestinationEditor,
-          onManageSavedDestinations: { presentAccountSheet(.favorites) }
+          onManageSavedDestinations: { presentFavorites(focus: nil) }
         )
         .sheetTabBarVisibility()
       } label: {
@@ -632,7 +562,7 @@ struct MapShellView: View {
         }
       )
     }
-    .sheet(item: $accountSheetDestination) { destination in
+    .sheet(item: $accountSheetDestination, onDismiss: { favoritesFocus = nil }) { destination in
       switch destination {
       case .profile:
         // The editor sizes the sheet to its own form rather than
@@ -670,7 +600,9 @@ struct MapShellView: View {
         NavigationStack {
           FavoritesSettingsView(
             accountModel: accountModel,
-            routesModel: favoriteRoutesModel
+            routesModel: favoriteRoutesModel,
+            searchViewModel: searchViewModel,
+            focus: favoritesFocus
           )
         }
         .detailSheetPresentation(
@@ -763,14 +695,68 @@ struct MapShellView: View {
 
   private var displayedJourneyPresentation: JourneyMapPresentation? {
     activeJourneyModel.mapPresentation
-      ?? plannedJourneyPresentation
-      ?? ((activeTab == .search || isJourneySheetUp) ? searchViewModel.mapPresentation : nil)
+      ?? journeyContext.map { JourneyMapPresentation(journey: $0.journey) }
   }
 
-  private var plannedJourneyPresentation: JourneyMapPresentation? {
-    guard case .plannedJourney = searchSheetDestination,
-          let journey = plannedJourneyDraftModel.draft?.journey else { return nil }
-    return JourneyMapPresentation(journey: journey)
+  private var journeyContext: JourneyContext? {
+    let search: JourneyContext? = if activeTab == .search || isJourneySheetUp,
+                                    let journey = searchViewModel.selectedJourney,
+                                    let destination = searchViewModel.journeyDestination {
+      JourneyContext(
+        journey: journey,
+        destination: destination,
+        source: searchViewModel.journeyResult?.source,
+        planningPolicy: searchViewModel.journeyPlanningPolicy
+      )
+    } else {
+      nil
+    }
+
+    let planned: JourneyContext? = if case .plannedJourney = searchSheetDestination,
+                                      let draft = plannedJourneyDraftModel.draft {
+      JourneyContext(
+        journey: draft.journey,
+        destination: draft.destination,
+        source: draft.source,
+        planningPolicy: draft.planningPolicy
+      )
+    } else {
+      nil
+    }
+
+    let reminder: JourneyContext? = if case .scheduledJourney(let journeyID) = searchSheetDestination,
+                                       let reminder = journeyNotificationCoordinator.reminder(for: journeyID) {
+      JourneyContext(
+        journey: reminder.journey,
+        destination: reminder.destination,
+        source: reminder.source,
+        planningPolicy: reminder.planningPolicy
+      )
+    } else {
+      nil
+    }
+
+    let journeyID = searchViewModel.selectedJourneyID
+      ?? activeJourneyModel.journey?.id
+      ?? activeJourneyModel.arrival?.journeyID
+      ?? planned?.journey.id
+      ?? reminder?.journey.id
+
+    guard let journeyID else { return nil }
+    return JourneyContextResolver.resolve(
+      journeyID: journeyID,
+      active: activeJourneyModel.session.map {
+        JourneyContext(
+          journey: $0.journey,
+          destination: $0.destination,
+          source: $0.source,
+          planningPolicy: $0.planningPolicy
+        )
+      },
+      reminder: reminder,
+      planned: planned,
+      search: search
+    )
   }
 
   private var displayedHighlightedSectionID: String? {
@@ -782,6 +768,13 @@ struct MapShellView: View {
   private func presentAccountSheet(_ destination: AccountSheetDestination) {
     accountSheetDetent = isLargeScreen ? .fraction(0.97) : .large
     accountSheetDestination = destination
+  }
+
+  /// Configuring a shortcut is a settings job, so the rail opens Favorites
+  /// rather than sending the user off to the search tab.
+  private func presentFavorites(focus: FavoritesFocus?) {
+    favoritesFocus = focus
+    presentAccountSheet(.favorites)
   }
 
   /// Frames the part of the journey that is still ahead when guidance is

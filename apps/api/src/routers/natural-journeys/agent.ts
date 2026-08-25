@@ -3,6 +3,7 @@ import type { JourneysResponse, NaturalJourneyInterpretation } from '@via/contra
 import type { HandleRegistry } from './handles';
 import type {
   OpenAiResponsesTransport,
+  ReasoningEffort,
   ResponsesInputItem,
   ResponsesUsage,
 } from './openai-transport';
@@ -12,6 +13,8 @@ import { MAX_PLANS, MAX_SEARCHES, type ToolCounters, type Toolset } from './tool
 const DEFAULT_UNSUPPORTED = "Je n'ai pas compris cette demande d'itinéraire.";
 /** Two lookups, one calculation, plus a little slack to read the tool errors and finalize. */
 const DEFAULT_MAX_TURNS = MAX_SEARCHES + MAX_PLANS + 2;
+/** Reasoning tokens included — generous for orchestration, fatal for a runaway. */
+const MAX_OUTPUT_TOKENS = 2_000;
 
 export type AgentResult =
   | { kind: 'ready'; interpretation: NaturalJourneyInterpretation; journeys: JourneysResponse }
@@ -38,6 +41,8 @@ export type AgentParams = {
   timeoutMs: number;
   /** External cancellation (client disconnect). Distinct from the timeout. */
   signal: AbortSignal;
+  /** How long the model may think per turn; this loop is orchestration, not prose. */
+  reasoningEffort?: ReasoningEffort;
   maxTurns?: number;
   /** Injectable clock so the deadline is testable without wall-time. */
   clock?: () => number;
@@ -59,6 +64,7 @@ export async function runNaturalJourneyAgent({
   userMessage,
   timeoutMs,
   signal,
+  reasoningEffort = 'minimal',
   maxTurns = DEFAULT_MAX_TURNS,
   clock = () => Date.now(),
 }: AgentParams): Promise<AgentRun> {
@@ -89,9 +95,12 @@ export async function runNaturalJourneyAgent({
           input,
           tools: toolset.definitions,
           text: { verbosity: 'low', format: FINAL_OUTPUT_FORMAT },
-          reasoning: { effort: 'low' },
+          reasoning: { effort: reasoningEffort },
           store: false,
           safety_identifier: safetyIdentifier,
+          // Reasoning tokens count against this cap; it guards against a
+          // runaway thinking turn, not against the (small) structured output.
+          max_output_tokens: MAX_OUTPUT_TOKENS,
         },
         turnSignal
       );
@@ -124,7 +133,8 @@ export async function runNaturalJourneyAgent({
       });
     }
 
-    // Echo the assistant's tool calls back into the transcript, then answer each.
+    // Echo the assistant's tool calls back into the transcript, then answer
+    // them all at once: two place searches must not queue behind each other.
     for (const call of turnResult.functionCalls) {
       input.push({
         type: 'function_call',
@@ -133,9 +143,22 @@ export async function runNaturalJourneyAgent({
         arguments: call.arguments,
       });
     }
-    for (const call of turnResult.functionCalls) {
-      const output = await toolset.runTool(call.name, call.arguments);
-      input.push({ type: 'function_call_output', call_id: call.callId, output });
+    const outputs = await Promise.all(
+      turnResult.functionCalls.map((call) => toolset.runTool(call.name, call.arguments))
+    );
+    turnResult.functionCalls.forEach((call, index) => {
+      input.push({ type: 'function_call_output', call_id: call.callId, output: outputs[index] });
+    });
+
+    // A minted plan with journeys is the answer: the model's closing message
+    // would only repeat the handle, so don't pay another round trip for it.
+    const plan = toolset.completedPlan();
+    if (plan) {
+      return finish({
+        kind: 'ready',
+        interpretation: plan.interpretation,
+        journeys: plan.journeys,
+      });
     }
   }
 

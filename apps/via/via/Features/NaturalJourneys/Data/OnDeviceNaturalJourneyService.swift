@@ -15,6 +15,9 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
     private let metricsNow: @Sendable () -> Date
     private let requiresAccessibleStations: @Sendable () -> Bool
     private let requiresOperationalElevators: @Sendable () -> Bool
+    /// The account's Home/Work slot, asked on demand: `AccountModel` lives on
+    /// the main actor while this service runs off it, hence the async closure.
+    private let favorites: @Sendable (SavedPlace.Role) async -> SearchResult?
 
     init(
         parser: any NaturalIntentParsing,
@@ -25,6 +28,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         metricsNow: @escaping @Sendable () -> Date = { .now },
         requiresAccessibleStations: @escaping @Sendable () -> Bool = { false },
         requiresOperationalElevators: @escaping @Sendable () -> Bool = { false },
+        favorites: @escaping @Sendable (SavedPlace.Role) async -> SearchResult? = { _ in nil },
     ) {
         self.parser = parser
         self.places = places
@@ -34,6 +38,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         self.metricsNow = metricsNow
         self.requiresAccessibleStations = requiresAccessibleStations
         self.requiresOperationalElevators = requiresOperationalElevators
+        self.favorites = favorites
     }
 
     func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
@@ -167,35 +172,39 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 decision: .unsupportedConstraints(draft.intent.unsupportedConstraints),
             )
         }
-        if draft.intent.dateWasExplicit, !draft.intent.timeWasExplicit {
-            return .needsClarification(
-                draft: draft,
-                fields: [.init(
-                    target: .time,
-                    question: "À quelle heure veux-tu voyager ?",
-                    candidates: [],
-                )],
-            )
-        }
-        if let requestedAt = draft.intent.requestedAt,
-           requestedAt < currentTime,
-           draft.intent.dateWasExplicit
-        {
-            return .needsDecision(draft: draft, decision: .pastDate(requestedAt))
-        }
-        if let requestedAt = draft.intent.requestedAt,
-           let alternate = draft.intent.alternateTimeConstraint
-        {
-            return .needsDecision(
-                draft: draft,
-                decision: .timeConflict(
-                    RouteTimeConstraint(
-                        requestedAt: requestedAt,
-                        meaning: draft.intent.datetimeRepresents.journeyMeaning,
+        // An anchored request (« le dernier train ») names a service, not an
+        // instant: there is no time to clarify, no past date, no conflict.
+        if draft.intent.timeAnchor == nil {
+            if draft.intent.dateWasExplicit, !draft.intent.timeWasExplicit {
+                return .needsClarification(
+                    draft: draft,
+                    fields: [.init(
+                        target: .time,
+                        question: "À quelle heure veux-tu voyager ?",
+                        candidates: [],
+                    )],
+                )
+            }
+            if let requestedAt = draft.intent.requestedAt,
+               requestedAt < currentTime,
+               draft.intent.dateWasExplicit
+            {
+                return .needsDecision(draft: draft, decision: .pastDate(requestedAt))
+            }
+            if let requestedAt = draft.intent.requestedAt,
+               let alternate = draft.intent.alternateTimeConstraint
+            {
+                return .needsDecision(
+                    draft: draft,
+                    decision: .timeConflict(
+                        RouteTimeConstraint(
+                            requestedAt: requestedAt,
+                            meaning: draft.intent.datetimeRepresents.journeyMeaning,
+                        ),
+                        alternate,
                     ),
-                    alternate,
-                ),
-            )
+                )
+            }
         }
 
         let resolved: DraftResolution
@@ -214,7 +223,11 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         }
 
         try Task.checkCancellation()
-        guard let requestedAt = draft.intent.requestedAt else {
+        // « Le dernier train » carries no instant: today's service day is the
+        // whole answer, so the reference time is simply now.
+        guard let requestedAt = draft.intent.requestedAt
+            ?? (draft.intent.timeAnchor != nil ? currentTime : nil)
+        else {
             return .needsClarification(
                 draft: draft,
                 fields: [.init(target: .time, question: "Pour quand ?", candidates: [])],
@@ -228,7 +241,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         guard let origin, let destinationResult = draft.destination else {
             return .unavailable(message: "J’ai besoin d’un point de départ pour calculer le trajet.")
         }
-        guard draft.intent.datetimeRepresents != .ambiguous else {
+        guard draft.intent.datetimeRepresents != .ambiguous || draft.intent.timeAnchor != nil else {
             return .needsClarification(
                 draft: draft,
                 fields: [.init(
@@ -241,18 +254,28 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
 
         let destination = JourneyPlaceSelection(destinationResult).journeyDestination
         let timeMeaning = draft.intent.datetimeRepresents.journeyMeaning
-        var journeyRequest = JourneyRequest(origin: origin, destination: destination)
-        journeyRequest.limit = 4
-        journeyRequest.requestedAt = requestedAt
-        journeyRequest.datetimeRepresents = timeMeaning
-        journeyRequest.requiredModes = draft.intent.requiredModes
-        journeyRequest.excludedModes = draft.intent.excludedModes
-        journeyRequest.preferredModes = draft.intent.preferredModes
-        journeyRequest.requiresAccessibleStations = requiresAccessibleStations()
-        journeyRequest.requiresOperationalElevators = requiresOperationalElevators()
-        if let origin = draft.origin, case let .station(station) = origin {
-            journeyRequest.originStationID = station.id
+        let policy = JourneyPlanningPolicy(
+            requiredModes: draft.intent.requiredModes,
+            excludedModes: draft.intent.excludedModes,
+            preferredModes: draft.intent.preferredModes,
+            requiresAccessibleStations: requiresAccessibleStations(),
+            requiresOperationalElevators: requiresOperationalElevators()
+        )
+        let originStationID: StationID? = if let origin = draft.origin,
+                                             case let .station(station) = origin {
+            station.id
+        } else {
+            nil
         }
+        let journeyRequest = JourneyRequest(
+            origin: origin,
+            destination: destination,
+            policy: policy,
+            requestedAt: requestedAt,
+            datetimeRepresents: timeMeaning,
+            timeAnchor: draft.intent.timeAnchor,
+            originStationID: originStationID
+        )
 
         let originLabel = switch draft.intent.origin {
         case .currentLocation: "Ta position"
@@ -265,6 +288,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             destinationResult: destinationResult,
             requestedAt: requestedAt,
             datetimeRepresents: timeMeaning,
+            timeAnchor: draft.intent.timeAnchor,
             requiredModes: draft.intent.requiredModes,
             excludedModes: draft.intent.excludedModes,
             preferredModes: draft.intent.preferredModes,
@@ -358,7 +382,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             ))
         }
 
-        if draft.intent.datetimeRepresents == .ambiguous {
+        if draft.intent.datetimeRepresents == .ambiguous, draft.intent.timeAnchor == nil {
             fields.append(.init(
                 target: .time,
                 question: "Tu veux partir ou arriver à cette heure ?",
@@ -381,7 +405,30 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         near currentLocation: GeoCoordinate?,
     ) async throws -> OnDevicePlaceResolution? {
         guard let query else { return nil }
+        // « chez moi » / « au bureau » name a saved place, not a geocodable
+        // one: the favorite answers directly and no search request leaves the
+        // device. An absent favorite falls through to the ordinary search.
+        if let role = Self.favoriteRole(for: query), let favorite = await favorites(role) {
+            return .resolved(favorite)
+        }
         return try await places.resolve(query, near: currentLocation)
+    }
+
+    /// Mirrors the server toolset's HOME/WORK tokens; the queries are compared
+    /// accent-insensitively so « à la maison » and « a la maison » both match.
+    private static let homeTokens: Set<String> = [
+        "maison", "la maison", "a la maison", "chez moi", "home",
+    ]
+    private static let workTokens: Set<String> = [
+        "travail", "le travail", "au travail", "boulot", "le boulot",
+        "bureau", "le bureau", "au bureau", "work",
+    ]
+
+    private static func favoriteRole(for query: String) -> SavedPlace.Role? {
+        let token = OnDevicePlaceResolver.normalize(query)
+        if homeTokens.contains(token) { return .home }
+        if workTokens.contains(token) { return .work }
+        return nil
     }
 
     private func verify(

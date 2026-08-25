@@ -5,11 +5,25 @@ import SwiftUI
 struct FavoritesSettingsView: View {
     let accountModel: AccountModel
     let routesModel: FavoriteRoutesModel
+    let searchViewModel: SearchViewModel
+    var focus: FavoritesFocus? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmClearAll = false
     @State private var editMode: EditMode = .inactive
     @State private var destinationPendingRemoval: SavedDestination?
+    @State private var selectionContext: SavedDestinationSelectionContext?
+    @State private var draft: SavedDestinationDraft?
+    @State private var pendingSelection: PendingSelection?
+    @State private var pendingReplacement: SavedDestinationDraft?
+    @State private var hasAppliedFocus = false
+
+    /// A result chosen in the search sheet, waiting for that sheet to finish
+    /// closing before the editor takes over.
+    private struct PendingSelection {
+        let result: SearchResult
+        let context: SavedDestinationSelectionContext
+    }
 
     private var favorites: [FavoriteStation] {
         accountModel.favorites
@@ -24,14 +38,28 @@ struct FavoritesSettingsView: View {
             Section {
                 ForEach(SavedPlace.Role.allCases) { role in
                     let place = accountModel.place(for: role)
-                    SavedDestinationSettingsRow(
-                        title: role.displayTitle,
-                        subtitle: place?.name ?? "À configurer",
-                        systemImage: SavedDestinationSymbols.resolved(
-                            place?.systemImage ?? role.systemImage,
-                            fallback: role.systemImage
-                        ),
-                        isConfigured: place != nil
+                    Button {
+                        if let place {
+                            draft = SavedDestinationEditing.draft(editing: place)
+                        } else {
+                            selectionContext = .place(role)
+                        }
+                    } label: {
+                        SavedDestinationSettingsRow(
+                            title: role.displayTitle,
+                            subtitle: place?.name ?? "À configurer",
+                            systemImage: SavedDestinationSymbols.resolved(
+                                place?.systemImage ?? role.systemImage,
+                                fallback: role.systemImage
+                            ),
+                            isConfigured: place != nil
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(
+                        place == nil
+                            ? "Choisit l’adresse de \(role.displayTitle)"
+                            : "Modifie cette adresse"
                     )
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         if place != nil {
@@ -44,12 +72,18 @@ struct FavoritesSettingsView: View {
                 }
 
                 ForEach(destinations) { destination in
-                    SavedDestinationSettingsRow(
-                        title: destination.label,
-                        subtitle: destination.name,
-                        systemImage: SavedDestinationSymbols.resolved(destination.systemImage),
-                        isConfigured: true
-                    )
+                    Button {
+                        draft = SavedDestinationEditing.draft(editing: destination)
+                    } label: {
+                        SavedDestinationSettingsRow(
+                            title: destination.label,
+                            subtitle: destination.name,
+                            systemImage: SavedDestinationSymbols.resolved(destination.systemImage),
+                            isConfigured: true
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Modifie ce favori")
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button("Supprimer", systemImage: "trash", role: .destructive) {
                             destinationPendingRemoval = destination
@@ -63,7 +97,14 @@ struct FavoritesSettingsView: View {
             } header: {
                 Text("Destinations")
             } footer: {
-                Text("Maison et Travail restent épinglés. Réorganise les autres destinations en mode édition.")
+                if destinations.isEmpty {
+                    EmptyStateHint(
+                        Text("Touchez \(Image(systemName: "plus")) pour enregistrer un lieu"),
+                        label: "Touchez le bouton plus pour enregistrer un lieu",
+                    )
+                } else {
+                    Text("Maison et Travail restent épinglés. Réorganise les autres destinations en mode édition.")
+                }
             }
 
             if favorites.isEmpty {
@@ -114,6 +155,19 @@ struct FavoritesSettingsView: View {
         .toolbarTitleDisplayMode(.inlineLarge)
         .environment(\.editMode, $editMode)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Ajouter une destination", systemImage: "plus") {
+                    selectionContext = .destination
+                }
+                .labelStyle(.iconOnly)
+                .disabled(hasReachedDestinationLimit)
+                .accessibilityHint(
+                    hasReachedDestinationLimit
+                        ? "La limite de favoris est atteinte"
+                        : "Recherche un lieu à enregistrer"
+                )
+            }
+
             if !favorites.isEmpty || !destinations.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -139,6 +193,42 @@ struct FavoritesSettingsView: View {
         }
         .onChange(of: favorites.isEmpty) { _, isEmpty in
             if isEmpty { editMode = .inactive }
+        }
+        .onAppear(perform: applyFocus)
+        // The search hands over to the editor, and the editor can hand back
+        // to the search. Each handover waits for `onDismiss` — presenting the
+        // next sheet while the current one is still closing loses it.
+        .sheet(item: $selectionContext, onDismiss: presentPendingDraft) { context in
+            SavedDestinationSearchView(
+                viewModel: searchViewModel,
+                title: context.searchTitle,
+                onSelect: { result in
+                    pendingSelection = PendingSelection(result: result, context: context)
+                }
+            )
+        }
+        .sheet(item: $draft, onDismiss: presentPendingReplacement) { draft in
+            SavedDestinationEditorView(
+                draft: draft,
+                onSave: { label, systemImage in
+                    SavedDestinationEditing.save(
+                        draft,
+                        label: label,
+                        systemImage: systemImage,
+                        in: accountModel
+                    )
+                    self.draft = nil
+                },
+                onChangeDestination: { label, systemImage in
+                    var replacement = draft
+                    replacement.label = label
+                    replacement.systemImage = systemImage
+                    pendingReplacement = replacement
+                    self.draft = nil
+                },
+                onDelete: SavedDestinationEditing.deleteAction(for: draft, in: accountModel),
+                onClose: { self.draft = nil }
+            )
         }
         .confirmationDialog(
             "Supprimer tous les favoris ?",
@@ -166,6 +256,45 @@ struct FavoritesSettingsView: View {
                 destinationPendingRemoval = nil
             }
         }
+    }
+
+    private var hasReachedDestinationLimit: Bool {
+        destinations.count >= AccountLocalSnapshot.destinationLimit
+    }
+
+    /// Opens straight onto whatever the user tapped to get here — an empty
+    /// Maison capsule, or the "+" of the shortcut rail.
+    private func applyFocus() {
+        guard !hasAppliedFocus, let focus else { return }
+        hasAppliedFocus = true
+
+        switch focus {
+        case .place(let role):
+            if let place = accountModel.place(for: role) {
+                draft = SavedDestinationEditing.draft(editing: place)
+            } else {
+                selectionContext = .place(role)
+            }
+        case .addDestination:
+            guard !hasReachedDestinationLimit else { return }
+            selectionContext = .destination
+        }
+    }
+
+    private func presentPendingDraft() {
+        guard let pending = pendingSelection else { return }
+        pendingSelection = nil
+        draft = SavedDestinationEditing.draft(
+            for: pending.result,
+            context: pending.context,
+            in: accountModel
+        )
+    }
+
+    private func presentPendingReplacement() {
+        guard let replacement = pendingReplacement else { return }
+        pendingReplacement = nil
+        selectionContext = .replacement(replacement)
     }
 
     private func remove(_ favorite: FavoriteStation) {
@@ -214,6 +343,11 @@ struct FavoritesSettingsView: View {
             accountModel: accountModel,
             routesModel: FavoriteRoutesModel(
                 networkRepository: InMemoryNetworkRepository.mapPreview
+            ),
+            searchViewModel: SearchViewModel(
+                repository: InMemorySearchRepository.preview,
+                journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+                locationModel: LocationModel(adapter: InMemoryLocationAdapter())
             )
         )
     }

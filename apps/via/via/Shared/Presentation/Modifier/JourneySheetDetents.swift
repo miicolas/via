@@ -2,9 +2,9 @@ import SwiftUI
 
 /// Peek heights of the journey sheet, shared with whoever drives its detent.
 enum JourneySheetDetents {
-    /// The closed journey detail keeps the navigation header and its primary
-    /// action visible while leaving the map readable above the sheet.
-    static let detailPeekHeight: CGFloat = 160
+    /// The closed journey detail keeps a compact route summary, navigation
+    /// controls and its primary action visible while leaving the map readable.
+    static let detailPeekHeight: CGFloat = 240
 
     /// While guidance runs the peek hosts the compact strip instead of a
     /// squashed navigation stack, so it needs the same room the tab sheet gives

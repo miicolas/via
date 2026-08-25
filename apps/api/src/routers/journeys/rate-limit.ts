@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { incrementFixedWindow } from '../../http/redis-rate-limit';
 import type { RedisClient } from '../../redis';
 
 export type PersonalBudgetDecision = { allowed: boolean; count: number; key: string };
@@ -23,8 +24,7 @@ export async function tryConsumePersonalBudget(
 ): Promise<PersonalBudgetDecision> {
   const bucket = Math.floor(now.getTime() / 1_000 / windowSeconds);
   const key = `${keyPrefix}:${identityFingerprint(identity)}:${bucket}`;
-  const count = await redis.incr(key);
-  if (count === 1) await redis.expire(key, windowSeconds + 60);
+  const count = await incrementFixedWindow(redis, key, windowSeconds + 60);
   return { allowed: count <= limit, count, key };
 }
 

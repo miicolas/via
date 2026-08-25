@@ -9,12 +9,29 @@ enum JourneyActivationAction: String, Sendable, Equatable {
 
     var title: String {
         switch self {
-        case .go: "Go"
+        case .go: "GO"
         case .plan: "Prévoir"
         case .planned: "Trajet prévu"
         case .resume: "Reprendre"
         case .active: "Trajet actif"
         }
+    }
+
+    static let goTitleVariants = [
+        "GO",
+        "En route",
+        "C’est parti",
+        "On y va",
+        "Lancer",
+        "Démarrer",
+    ]
+
+    /// Picked once per launch: two surfaces can show the Go action at the same
+    /// time, and they must show the same verb.
+    static let launchGoTitle = goTitleVariants.randomElement() ?? "GO"
+
+    var displayTitle: String {
+        self == .go ? Self.launchGoTitle : title
     }
 }
 
@@ -30,6 +47,7 @@ struct JourneySectionSchedule: Sendable, Hashable, Identifiable {
 
 enum ActiveJourneyRules {
     static let imminentDepartureInterval: TimeInterval = 10 * 60
+    static let futureJourneyRequestTolerance: TimeInterval = 60
     static let standardMonitoringInterval: TimeInterval = 2 * 60
     static let transitionMonitoringInterval: TimeInterval = 30
     static let transitionWindow: TimeInterval = 2 * 60
@@ -48,9 +66,22 @@ enum ActiveJourneyRules {
             : .plan
     }
 
-    /// Resolves the detail screen's context without letting a planned origin
-    /// accidentally start live guidance. An existing active session always
-    /// wins; opening the saved draft explicitly turns it back into Go.
+    /// A search made for "now" should be started immediately, even when the
+    /// first available service leaves later. Planning is reserved for an
+    /// explicitly future request; a minute of tolerance absorbs DatePicker's
+    /// seconds and keeps the action from feeling arbitrary at the boundary.
+    static func isFutureJourneyRequest(
+        requestedAt: Date?,
+        at now: Date
+    ) -> Bool {
+        guard let requestedAt else { return false }
+        return requestedAt.timeIntervalSince(now) > futureJourneyRequestTolerance
+    }
+
+    /// Resolves the detail screen's context without letting a future-search
+    /// preference override a departure that is already ready to start. An
+    /// existing active session always wins; opening the saved draft explicitly
+    /// turns it back into Go.
     static func detailAction(
         activeAction: JourneyActivationAction,
         isPlanned: Bool,
@@ -62,7 +93,7 @@ enum ActiveJourneyRules {
         }
         if prefersGo { return .go }
         if isPlanned { return .planned }
-        if prefersPlan { return .plan }
+        if prefersPlan, activeAction == .plan { return .plan }
         return activeAction
     }
 

@@ -18,7 +18,7 @@ final class ActiveJourneyRulesTests: XCTestCase {
         )
     }
 
-    func testManualOriginOffersPlanEvenWhenDepartureIsImminent() {
+    func testPlanPreferenceDoesNotOverrideAnImminentDeparture() {
         XCTAssertEqual(
             ActiveJourneyRules.detailAction(
                 activeAction: .go,
@@ -26,7 +26,44 @@ final class ActiveJourneyRulesTests: XCTestCase {
                 prefersGo: false,
                 prefersPlan: true
             ),
+            .go
+        )
+    }
+
+    func testFutureIntentCanStillOfferPlan() {
+        XCTAssertEqual(
+            ActiveJourneyRules.detailAction(
+                activeAction: .plan,
+                isPlanned: false,
+                prefersGo: false,
+                prefersPlan: true
+            ),
             .plan
+        )
+    }
+
+    func testPlanningFollowsTheRequestedTimeInsteadOfTheJourneyDeparture() {
+        XCTAssertFalse(
+            ActiveJourneyRules.isFutureJourneyRequest(
+                requestedAt: nil,
+                at: referenceDate
+            )
+        )
+        XCTAssertFalse(
+            ActiveJourneyRules.isFutureJourneyRequest(
+                requestedAt: referenceDate.addingTimeInterval(
+                    ActiveJourneyRules.futureJourneyRequestTolerance
+                ),
+                at: referenceDate
+            )
+        )
+        XCTAssertTrue(
+            ActiveJourneyRules.isFutureJourneyRequest(
+                requestedAt: referenceDate.addingTimeInterval(
+                    ActiveJourneyRules.futureJourneyRequestTolerance + 1
+                ),
+                at: referenceDate
+            )
         )
     }
 

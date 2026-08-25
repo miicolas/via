@@ -82,6 +82,7 @@ struct NaturalJourneyPreservedCriteriaView: View {
             time = NaturalJourneyCriteria.timeLabel(
                 criteria.requestedAt,
                 represents: criteria.datetimeRepresents,
+                anchor: criteria.timeAnchor,
             )
             hasRequiredModes = !criteria.requiredModes.isEmpty
             hasExcludedModes = !criteria.excludedModes.isEmpty
@@ -95,9 +96,11 @@ struct NaturalJourneyPreservedCriteriaView: View {
             case let .place(query): draft.origin?.name ?? query
             }
             destination = draft.destination?.name ?? intent.destinationQuery
-            time = intent.requestedAt.map {
-                NaturalJourneyCriteria.timeLabel($0, represents: intent.datetimeRepresents.journeyMeaning)
-            }
+            time = NaturalJourneyCriteria.timeLabel(
+                intent.requestedAt,
+                represents: intent.datetimeRepresents.journeyMeaning,
+                anchor: intent.timeAnchor,
+            )
             hasRequiredModes = !intent.requiredModes.isEmpty
             hasExcludedModes = !intent.excludedModes.isEmpty
             hasPreferredModes = !intent.preferredModes.isEmpty

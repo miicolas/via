@@ -165,12 +165,21 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1).optional(),
   /** OpenAI presents gpt-5.6-luna as its high-volume GPT-5.6 model; override per env. */
   OPENAI_MODEL: z.string().min(1).default("gpt-5.6-luna"),
-  /** Global per-submission timeout. The plan mandates no automatic retry. */
+  /**
+   * Global per-submission timeout. The plan mandates no automatic retry. The
+   * iOS URLSession gives up at 15 s, so this stays below it — a server still
+   * working past the client's deadline is pure waste.
+   */
   OPENAI_TIMEOUT_MS: z
     .string()
-    .default("8000")
+    .default("13000")
     .transform(Number)
     .pipe(z.number().int().min(1_000).max(60_000)),
+  /**
+   * Per-turn thinking budget of the orchestration agent. `minimal` keeps the
+   * tool loop fast; raise it by env if the model starts mis-planning.
+   */
+  OPENAI_REASONING_EFFORT: z.enum(["minimal", "low", "medium"]).default("minimal"),
   /** Per-person fallback ceiling: 20 submissions per 15-minute window. */
   OPENAI_PERSONAL_LIMIT: z
     .string()

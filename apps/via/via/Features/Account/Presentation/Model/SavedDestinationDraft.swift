@@ -50,8 +50,32 @@ struct SavedDestinationDraft: Identifiable, Sendable {
     }
 }
 
-enum SavedDestinationSelectionContext: Sendable {
+enum SavedDestinationSelectionContext: Sendable, Identifiable {
     case place(SavedPlace.Role)
     case destination
     case replacement(SavedDestinationDraft)
+
+    var id: String {
+        switch self {
+        case .place(let role): "place-\(role.rawValue)"
+        case .destination: "destination"
+        case .replacement(let draft): "replacement-\(draft.id.uuidString)"
+        }
+    }
+
+    /// What the address search is being opened for, as a sheet title.
+    var searchTitle: String {
+        switch self {
+        case .place(let role): role.displayTitle
+        case .destination: "Nouveau favori"
+        case .replacement(let draft): draft.role?.displayTitle ?? draft.label
+        }
+    }
+}
+
+/// What the Favorites settings should open on when it is presented from a
+/// shortcut the user tapped elsewhere.
+enum FavoritesFocus: Sendable, Equatable {
+    case place(SavedPlace.Role)
+    case addDestination
 }
