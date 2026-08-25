@@ -39,6 +39,31 @@ final class OnDevicePlaceResolverTests: XCTestCase {
         XCTAssertEqual(resolution, .ambiguous(Array(candidates.prefix(5))))
     }
 
+    func testUniqueCloseMunicipalityResolvesAOneCharacterTypo() async throws {
+        let expected = address("saint-germain", "Saint-Germain-en-Laye")
+        let resolver = resolver(results: [
+            expected,
+            address("saint-leger", "Rue Saint Léger"),
+            address("pontel", "Rue du Pontel"),
+        ])
+
+        let resolution = try await resolver.resolve("saint germain en lay", near: nil)
+
+        XCTAssertEqual(resolution, .resolved(expected))
+    }
+
+    func testTwoEquallyCloseCandidatesRemainAmbiguous() async throws {
+        let candidates = [
+            station("gare-du-nord", "Gare du Nord"),
+            station("gare-du-nors", "Gare du Nors"),
+        ]
+        let resolver = resolver(results: candidates)
+
+        let resolution = try await resolver.resolve("Gare du Nor", near: nil)
+
+        XCTAssertEqual(resolution, .ambiguous(candidates))
+    }
+
     func testExplicitAddressUsesTheUniqueAddressCandidate() async throws {
         let expected = address("rivoli", "12 rue de Rivoli")
         let resolver = resolver(results: [station("rivoli", "Rivoli"), expected])

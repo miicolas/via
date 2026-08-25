@@ -30,26 +30,52 @@ struct NaturalJourneyClarificationView: View {
             : .arrival)
     }
 
+    @ViewBuilder
     var body: some View {
-        EmptyStateView(
-            .ai(
-                systemImage: "questionmark.bubble",
-                title: "Un détail manque",
-                message: field.question,
-            ),
-        ) {
-            if field.target == .time {
-                timeChoices
-            } else if field.candidates.isEmpty {
-                Text("Aucune proposition fiable n’a été trouvée.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+        if field.target != .time, field.candidates.isEmpty {
+            EmptyStateView(
+                .ai(
+                    systemImage: "location.slash",
+                    title: "Lieu introuvable",
+                    message: "Aucune proposition fiable n’a été trouvée.",
+                ),
+            ) {
                 Button("Modifier la demande", systemImage: "pencil", action: onModify)
                     .naturalJourneyPrimaryAction()
-            } else {
-                placeChoices
             }
+        } else {
+            VStack(alignment: .leading, spacing: 16) {
+                header
+
+                if field.target == .time {
+                    timeChoices
+                } else {
+                    placeChoices
+                }
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "questionmark.bubble.fill")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Color.aiAccent)
+                .frame(width: 40, height: 40)
+                .glassEffect(.regular.tint(Color.aiSurface), in: .circle)
+                .accessibilityHidden(true)
+
+            Text(field.question)
+                .font(.title3.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+
+            Button("Modifier la demande", systemImage: "pencil", action: onModify)
+                .labelStyle(.iconOnly)
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, height: 44)
         }
     }
 
@@ -85,10 +111,15 @@ struct NaturalJourneyClarificationView: View {
     }
 
     private var placeChoices: some View {
-        VStack(spacing: 8) {
-            ForEach(field.candidates) { candidate in
+        VStack(spacing: 0) {
+            ForEach(Array(field.candidates.enumerated()), id: \.element.id) { index, candidate in
                 SearchResultRow(result: candidate, accessibilityHint: "Choisir ce lieu") {
                     onResolvePlace(candidate)
+                }
+
+                if index < field.candidates.count - 1 {
+                    Divider()
+                        .padding(.leading, 46)
                 }
             }
         }

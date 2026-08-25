@@ -78,7 +78,6 @@ struct JourneySheetView: View {
                         prefersGoAction: !shouldPlanOpenedJourney,
                         prefersPlanAction: shouldPlanOpenedJourney,
                         isCompact: showsCompactJourney,
-                        onHighlightSection: searchViewModel.highlightJourneySection,
                         onExpandMap: onExpandMap,
                     )
                     .navigationDestination(isPresented: guidanceBinding) {

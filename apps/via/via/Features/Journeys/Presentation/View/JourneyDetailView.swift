@@ -15,11 +15,9 @@ struct JourneyDetailView: View {
     var prefersGoAction = false
     var prefersPlanAction = false
     var isCompact = false
-    let onHighlightSection: (String?) -> Void
     let onExpandMap: () -> Void
 
     @State private var expandedSectionIDs: Set<String> = []
-    @State private var highlightedSectionID: String?
     @State private var isActivationExplanationPresented = false
     @State private var isActivating = false
     @State private var isReminderSheetPresented = false
@@ -60,7 +58,6 @@ struct JourneyDetailView: View {
                     journey: journey,
                     progress: nil,
                     expandedSectionIDs: $expandedSectionIDs,
-                    highlightedSectionID: highlightedSectionID,
                     departureChoices: departureChoicesModel,
                     revisableSectionIDs: ActiveJourneyRules.revisableSectionIDs(
                         in: journey,
@@ -68,7 +65,6 @@ struct JourneyDetailView: View {
                         isTracking: false,
                         at: .now
                     ),
-                    onSelectSection: selectSection,
                     onSelectDeparture: onSelectDeparture,
                     onRetryDepartures: { Task { await onRetryDepartures() } }
                 )
@@ -130,12 +126,6 @@ struct JourneyDetailView: View {
                     ?? "Le trajet n’a pas pu être enregistré sur cet appareil."
             )
         }
-        .onAppear {
-            onHighlightSection(highlightedSectionID)
-        }
-        .onDisappear {
-            onHighlightSection(nil)
-        }
     }
 
     private var isPlannedDraft: Bool {
@@ -185,13 +175,7 @@ struct JourneyDetailView: View {
         }
     }
 
-    private func selectSection(_ sectionID: String) {
-        highlightedSectionID = sectionID
-        onHighlightSection(sectionID)
-    }
-
     private func expandMap() {
-        onHighlightSection(highlightedSectionID)
         onExpandMap()
     }
 

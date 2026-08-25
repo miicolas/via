@@ -7,7 +7,6 @@ struct JourneyTimelineNodeRow: View {
     let state: JourneyTimelineNodeState
     var cursorFraction: Double?
     var isCursorLive = false
-    var isHighlighted = false
     @Binding var isExpanded: Bool
     var departureChoicesGroup: JourneyDepartureChoiceGroup?
     var isDepartureChoicesLoading = false
@@ -16,7 +15,6 @@ struct JourneyTimelineNodeRow: View {
     var canSelectDepartures = false
     var onSelectDeparture: ((JourneyDepartureChoice) -> Void)?
     var onRetryDepartures: (() -> Void)?
-    var onSelect: (() -> Void)?
 
     private static let timeColumnWidth: CGFloat = 68
 
@@ -39,7 +37,7 @@ struct JourneyTimelineNodeRow: View {
         } else if case .board(_, let route, _, _, _) = node.kind,
                   showsDepartureChoices {
             VStack(alignment: .leading, spacing: 0) {
-                selectableRow
+                row
 
                 JourneyDepartureChoicesView(
                     route: route,
@@ -56,23 +54,14 @@ struct JourneyTimelineNodeRow: View {
                 .padding(.bottom, 12)
             }
         } else {
-            selectableRow
+            row
         }
     }
 
-    @ViewBuilder
-    private var selectableRow: some View {
-        if let onSelect {
-            Button(action: onSelect) { rowBody }
-                .buttonStyle(.plain)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(accessibilityLabel)
-                .accessibilityAddTraits(state == .current ? [.isSelected] : [])
-        } else {
-            rowBody
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(accessibilityLabel)
-        }
+    private var row: some View {
+        rowBody
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityLabel)
     }
 
     private var showsDepartureChoices: Bool {
@@ -287,7 +276,6 @@ struct JourneyTimelineNodeRow: View {
         .buttonStyle(.plain)
         .accessibilityLabel(stopCountTitle(hiddenStopCount))
         .accessibilityHint(isExpanded ? "Masque les stations" : "Affiche toutes les stations")
-        .accessibilityAddTraits(isHighlighted ? [.isSelected] : [])
     }
 
     private func hiddenStopCount(in intermediate: [JourneyStop]) -> Int {

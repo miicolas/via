@@ -6,6 +6,24 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(Self.corpus.count, 100)
     }
 
+    func testGeneratedReformulationIsTrimmedAndBounded() {
+        let reformulation = GeneratedJourneyReformulation(
+            query: "  Aller de Châtelet à Nation demain matin  ",
+        )
+
+        XCTAssertEqual(
+            reformulation.validatedQuery(),
+            "Aller de Châtelet à Nation demain matin",
+        )
+        XCTAssertNil(
+            GeneratedJourneyReformulation(query: "   ").validatedQuery(),
+        )
+        XCTAssertNil(
+            GeneratedJourneyReformulation(query: String(repeating: "a", count: 501))
+                .validatedQuery(),
+        )
+    }
+
     func testRuntimeFailureStaysInsideTheNaturalIntentErrorContract() async throws {
         let parser = FoundationModelsIntentParser()
         try XCTSkipUnless(
@@ -45,6 +63,30 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         XCTAssertTrue(intent.originWasExplicit)
         XCTAssertEqual(intent.destinationQuery?.lowercased(), "orly")
         XCTAssertEqual(intent.excludedModes, [.rer])
+    }
+
+    func testReformulationKeepsAnInvertedExplicitOriginGrounded() async throws {
+        let parser = FoundationModelsIntentParser()
+        try XCTSkipUnless(
+            parser.availability == .available,
+            "Foundation Models français indisponible sur cet appareil ou ce simulateur",
+        )
+        let now = try XCTUnwrap(ISO8601.parse("2026-08-25T22:40:00+02:00"))
+
+        let intent = try await parser.parseIntent(
+            "demain matin à auber depuis saint germain en lay",
+            now: now,
+        )
+
+        guard case let .place(originQuery) = intent.origin else {
+            return XCTFail("Saint-Germain-en-Laye doit rester l’origine explicite")
+        }
+        XCTAssertTrue(
+            OnDevicePlaceResolver.normalize(originQuery).hasPrefix("saint germain en lay"),
+            "La reformulation a remplacé l’origine par \(originQuery)",
+        )
+        XCTAssertEqual(intent.destinationQuery?.lowercased(), "auber")
+        XCTAssertTrue(intent.originWasExplicit)
     }
 
     func testAnnotatedFrenchJourneyCorpus() async throws {
