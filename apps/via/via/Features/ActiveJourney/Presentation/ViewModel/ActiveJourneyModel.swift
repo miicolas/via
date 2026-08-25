@@ -636,15 +636,13 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         }
         recalculationState = .checking
 
-        var request = JourneyRequest(origin: coordinate, destination: session.destination)
-        request.limit = 4
-        request.requestedAt = now()
-        request.datetimeRepresents = .departure
-        request.requiredModes = session.planningPolicy.requiredModes
-        request.excludedModes = session.planningPolicy.excludedModes
-        request.preferredModes = session.planningPolicy.preferredModes
-        request.requiresAccessibleStations = session.planningPolicy.requiresAccessibleStations
-        request.requiresOperationalElevators = session.planningPolicy.requiresOperationalElevators
+        let request = JourneyRequest(
+            origin: coordinate,
+            destination: session.destination,
+            policy: session.planningPolicy,
+            requestedAt: now(),
+            datetimeRepresents: .departure
+        )
 
         do {
             let result = try await journeyRepository.plan(request)
@@ -828,26 +826,17 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         let detail: String?
 
         switch section.kind {
-        case .walk:
-            title = "Marchez jusqu’à \(section.to.name)"
-            detail = section.durationSeconds > 0
-                ? JourneyFormatting.duration(section.durationSeconds)
-                : nil
-        case .bike:
-            title = "Pédalez jusqu’à \(section.to.name)"
-            detail = section.durationSeconds > 0
-                ? JourneyFormatting.duration(section.durationSeconds)
-                : nil
-        case .wait:
-            title = "Patientez à \(section.from.name)"
-            detail = section.durationSeconds > 0
-                ? JourneyFormatting.duration(section.durationSeconds)
-                : nil
-        case .transfer:
-            title = "Rejoignez \(section.to.name)"
-            detail = section.durationSeconds > 0
-                ? "Correspondance · \(JourneyFormatting.duration(section.durationSeconds))"
-                : "Correspondance"
+        case .walk, .bike, .wait, .transfer:
+            title = JourneySectionNarration.movementSentence(for: section, voice: .guidance)
+            detail = if section.kind == .transfer {
+                section.durationSeconds > 0
+                    ? "Correspondance · \(JourneyFormatting.duration(section.durationSeconds))"
+                    : "Correspondance"
+            } else {
+                section.durationSeconds > 0
+                    ? JourneyFormatting.duration(section.durationSeconds)
+                    : nil
+            }
         case .transit:
             title = section.route.map { "Prenez \($0.longName)" } ?? "Prenez le transport"
             let direction = section.direction.map { "Direction \($0)" }

@@ -369,26 +369,22 @@ struct SearchView: View {
               guard let destination = viewModel.wrappedValue.journeyDestination else { return }
               let source = viewModel.wrappedValue.journeyResult?.source
               Task {
-                if journeyNotificationCoordinator.preferences.departureLeadTime != leadTime {
-                  await journeyNotificationCoordinator.updateDepartureLeadTime(leadTime)
-                  guard journeyNotificationCoordinator.preferences.departureLeadTime == leadTime
-                  else {
-                    isReminderErrorPresented = true
-                    return
-                  }
-                }
-                await journeyNotificationCoordinator.scheduleReminder(
-                  for: journey,
+                _ = await JourneyReminderEditing.save(
+                  journey: journey,
                   destination: destination,
                   source: source,
-                  planningPolicy: viewModel.wrappedValue.journeyPlanningPolicy
+                  planningPolicy: viewModel.wrappedValue.journeyPlanningPolicy,
+                  leadTime: leadTime,
+                  coordinator: journeyNotificationCoordinator
                 )
                 isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
               }
             },
             onCancelReminder: {
               Task {
-                await journeyNotificationCoordinator.cancelReminder()
+                _ = await JourneyReminderEditing.cancel(
+                  coordinator: journeyNotificationCoordinator
+                )
                 isReminderErrorPresented = journeyNotificationCoordinator.lastError != nil
               }
             },

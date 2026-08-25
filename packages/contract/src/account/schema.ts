@@ -66,72 +66,78 @@ export const transportPreferencesSchema = z.object({
   updatedAt: z.iso.datetime({ offset: true }),
 });
 
-export const accountSyncOperationSchema = z
-  .object({
-    operationId: z.uuid(),
-    kind: z.enum([
-      'favorite.upsert',
-      'favorite.remove',
-      'recent.upsert',
-      'recent.remove',
-      'recent.clear',
-      'preferences.set',
-      'place.upsert',
-      'place.remove',
-      'destination.upsert',
-      'destination.remove',
-      'notifications.preferences.set',
-      'notifications.schedule.upsert',
-      'notifications.schedule.remove',
-      'notifications.alert.upsert',
-      'notifications.alert.remove',
-    ]),
-    occurredAt: z.iso.datetime({ offset: true }),
-    station: favoriteStationSchema.optional(),
-    stationId: z.string().min(1).max(300).optional(),
-    recentId: z.string().min(1).max(500).optional(),
-    recent: accountRecentSearchSchema.optional(),
-    preferences: transportPreferencesSchema.optional(),
-    place: accountPlaceSchema.optional(),
-    placeId: z.string().min(1).max(500).optional(),
-    destination: savedDestinationSchema.optional(),
-    destinationId: z.uuid().optional(),
-    notificationPreferences: notificationPreferencesSchema.optional(),
-    schedule: notificationScheduleSchema.optional(),
-    scheduleId: z.string().min(1).max(128).optional(),
-    alertSubscription: notificationAlertSubscriptionSchema.optional(),
-    alertSubscriptionId: z.string().min(1).max(128).optional(),
-  })
-  .superRefine((operation, context) => {
-    const valid =
-      (operation.kind === 'favorite.upsert' && operation.station !== undefined) ||
-      (operation.kind === 'favorite.remove' && operation.stationId !== undefined) ||
-      (operation.kind === 'recent.upsert' && operation.recent !== undefined) ||
-      (operation.kind === 'recent.remove' && operation.recentId !== undefined) ||
-      operation.kind === 'recent.clear' ||
-      (operation.kind === 'preferences.set' && operation.preferences !== undefined) ||
-      (operation.kind === 'place.upsert' && operation.place !== undefined) ||
-      (operation.kind === 'place.remove' && operation.placeId !== undefined) ||
-      (operation.kind === 'destination.upsert' && operation.destination !== undefined) ||
-      (operation.kind === 'destination.remove' && operation.destinationId !== undefined) ||
-      (operation.kind === 'notifications.preferences.set' &&
-        operation.notificationPreferences !== undefined) ||
-      (operation.kind === 'notifications.schedule.upsert' &&
-        operation.schedule !== undefined) ||
-      (operation.kind === 'notifications.schedule.remove' &&
-        operation.scheduleId !== undefined) ||
-      (operation.kind === 'notifications.alert.upsert' &&
-        operation.alertSubscription !== undefined) ||
-      (operation.kind === 'notifications.alert.remove' &&
-        operation.alertSubscriptionId !== undefined);
+const accountSyncOperationBaseSchema = z.object({
+  operationId: z.uuid(),
+  occurredAt: z.iso.datetime({ offset: true }),
+});
 
-    if (!valid) {
-      context.addIssue({
-        code: 'custom',
-        message: `Payload absent pour l’opération ${operation.kind}`,
-      });
-    }
-  });
+/**
+ * Each operation carries exactly the payload its command can apply. Keeping
+ * the command and payload together gives API handlers a typed state machine:
+ * a newly added operation cannot compile until both its contract branch and
+ * its applier are present.
+ */
+export const accountSyncOperationSchema = z.discriminatedUnion('kind', [
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('favorite.upsert'),
+    station: favoriteStationSchema,
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('favorite.remove'),
+    stationId: z.string().min(1).max(300),
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('recent.upsert'),
+    recent: accountRecentSearchSchema,
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('recent.remove'),
+    recentId: z.string().min(1).max(500),
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('recent.clear'),
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('preferences.set'),
+    preferences: transportPreferencesSchema,
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('place.upsert'),
+    place: accountPlaceSchema,
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('place.remove'),
+    placeId: z.string().min(1).max(500),
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('destination.upsert'),
+    destination: savedDestinationSchema,
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('destination.remove'),
+    destinationId: z.uuid(),
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('notifications.preferences.set'),
+    notificationPreferences: notificationPreferencesSchema,
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('notifications.schedule.upsert'),
+    schedule: notificationScheduleSchema,
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('notifications.schedule.remove'),
+    scheduleId: z.string().min(1).max(128),
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('notifications.alert.upsert'),
+    alertSubscription: notificationAlertSubscriptionSchema,
+  }),
+  accountSyncOperationBaseSchema.extend({
+    kind: z.literal('notifications.alert.remove'),
+    alertSubscriptionId: z.string().min(1).max(128),
+  }),
+]);
 
 export const accountSyncInputSchema = z.object({
   operations: z.array(accountSyncOperationSchema).max(100),

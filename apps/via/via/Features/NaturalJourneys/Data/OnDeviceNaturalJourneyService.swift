@@ -254,19 +254,28 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
 
         let destination = JourneyPlaceSelection(destinationResult).journeyDestination
         let timeMeaning = draft.intent.datetimeRepresents.journeyMeaning
-        var journeyRequest = JourneyRequest(origin: origin, destination: destination)
-        journeyRequest.limit = 4
-        journeyRequest.requestedAt = requestedAt
-        journeyRequest.datetimeRepresents = timeMeaning
-        journeyRequest.timeAnchor = draft.intent.timeAnchor
-        journeyRequest.requiredModes = draft.intent.requiredModes
-        journeyRequest.excludedModes = draft.intent.excludedModes
-        journeyRequest.preferredModes = draft.intent.preferredModes
-        journeyRequest.requiresAccessibleStations = requiresAccessibleStations()
-        journeyRequest.requiresOperationalElevators = requiresOperationalElevators()
-        if let origin = draft.origin, case let .station(station) = origin {
-            journeyRequest.originStationID = station.id
+        let policy = JourneyPlanningPolicy(
+            requiredModes: draft.intent.requiredModes,
+            excludedModes: draft.intent.excludedModes,
+            preferredModes: draft.intent.preferredModes,
+            requiresAccessibleStations: requiresAccessibleStations(),
+            requiresOperationalElevators: requiresOperationalElevators()
+        )
+        let originStationID: StationID? = if let origin = draft.origin,
+                                             case let .station(station) = origin {
+            station.id
+        } else {
+            nil
         }
+        let journeyRequest = JourneyRequest(
+            origin: origin,
+            destination: destination,
+            policy: policy,
+            requestedAt: requestedAt,
+            datetimeRepresents: timeMeaning,
+            timeAnchor: draft.intent.timeAnchor,
+            originStationID: originStationID
+        )
 
         let originLabel = switch draft.intent.origin {
         case .currentLocation: "Ta position"

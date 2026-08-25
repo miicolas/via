@@ -3,6 +3,8 @@ import { stationHourProfiles, transitStops } from '@via/db/schema';
 import { inArray } from 'drizzle-orm';
 
 import { asString, fetchOpenDataJson } from '../idfm/referential';
+import { bumpTransitNetworkCacheVersion } from '../network-cache-version';
+import { replaceSnapshot } from '../snapshot-importer';
 
 const DATASET_ID = 'validations-reseau-ferre-profils-horaires-par-jour-type-4eme-trimestre';
 const DATASET_EXPORT =
@@ -142,27 +144,29 @@ export async function refreshStationPeakSnapshot(): Promise<StationPeakImportRes
     };
   }
 
-  const parsedRows = parseStationPeakRows(sourcePayload);
-  if (parsedRows.length === 0) throw new Error('Station peak source has no usable rows');
-
-  const sourceStopIDs = [...new Set(parsedRows.map((row) => row.stopId))];
-  const existingStops = await db
-    .select({ id: transitStops.id })
-    .from(transitStops)
-    .where(inArray(transitStops.id, sourceStopIDs));
-  const importedAt = new Date();
-  const rows = completeStationPeakRows(
-    parsedRows,
-    existingStops.map((row) => row.id),
-    sourceUpdatedAtDate,
-    importedAt
-  );
-
-  await db.transaction(async (tx) => {
-    await tx.delete(stationHourProfiles);
-    for (let start = 0; start < rows.length; start += INSERT_BATCH) {
-      await tx.insert(stationHourProfiles).values(rows.slice(start, start + INSERT_BATCH));
-    }
+  const { rows, importedAt } = await replaceSnapshot({
+    prepare: async (importedAt) => {
+      const parsedRows = parseStationPeakRows(sourcePayload);
+      const sourceStopIDs = [...new Set(parsedRows.map((row) => row.stopId))];
+      const existingStops = await db
+        .select({ id: transitStops.id })
+        .from(transitStops)
+        .where(inArray(transitStops.id, sourceStopIDs));
+      return completeStationPeakRows(
+        parsedRows,
+        existingStops.map((row) => row.id),
+        sourceUpdatedAtDate,
+        importedAt
+      );
+    },
+    emptyMessage: 'Station peak source has no usable rows or does not match the transit network',
+    onCommit: bumpTransitNetworkCacheVersion,
+    write: async (tx, rows) => {
+      await tx.delete(stationHourProfiles);
+      for (let start = 0; start < rows.length; start += INSERT_BATCH) {
+        await tx.insert(stationHourProfiles).values(rows.slice(start, start + INSERT_BATCH));
+      }
+    },
   });
 
   return {

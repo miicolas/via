@@ -3,6 +3,8 @@ import { stationElevators, transitStops } from '@via/db/schema';
 import { inArray } from 'drizzle-orm';
 
 import { parseElevatorRows } from './parse-elevators';
+import { bumpTransitNetworkCacheVersion } from '../network-cache-version';
+import { replaceSnapshot } from '../snapshot-importer';
 
 const DEFAULT_DATASET_URL =
   'https://data.iledefrance-mobilites.fr/api/explore/v2.1/catalog/datasets/etat-des-ascenseurs/exports/json';
@@ -18,35 +20,32 @@ export type ElevatorImportResult = {
 
 /** Downloads and atomically replaces the current PRIM elevator snapshot. */
 export async function refreshElevatorSnapshot(): Promise<ElevatorImportResult> {
-  const payload = await fetchElevatorDataset();
-  const sourceRows = parseElevatorRows(payload);
-  if (sourceRows.length === 0) {
-    throw new Error('Elevator source has no usable rows; previous snapshot was preserved');
-  }
-
-  const sourceStopIDs = [...new Set(sourceRows.map((row) => row.stopId))];
-  const existingStops = await db
-    .select({ id: transitStops.id })
-    .from(transitStops)
-    .where(inArray(transitStops.id, sourceStopIDs));
-  const existing = new Set(existingStops.map((row) => row.id));
-  const rows = sourceRows.filter((row) => existing.has(row.stopId));
-  if (rows.length === 0) {
-    throw new Error('Elevator source does not match the transit network');
-  }
-
-  const importedAt = new Date();
-  await db.transaction(async (tx) => {
-    await tx.delete(stationElevators);
-    for (let start = 0; start < rows.length; start += INSERT_BATCH) {
-      await tx.insert(stationElevators).values(
-        rows.slice(start, start + INSERT_BATCH).map((row) => ({
-          ...row,
-          source: SOURCE,
-          importedAt,
-        }))
-      );
-    }
+  const { rows, importedAt } = await replaceSnapshot({
+    prepare: async () => {
+      const payload = await fetchElevatorDataset();
+      const sourceRows = parseElevatorRows(payload);
+      const sourceStopIDs = [...new Set(sourceRows.map((row) => row.stopId))];
+      const existingStops = await db
+        .select({ id: transitStops.id })
+        .from(transitStops)
+        .where(inArray(transitStops.id, sourceStopIDs));
+      const existing = new Set(existingStops.map((row) => row.id));
+      return sourceRows.filter((row) => existing.has(row.stopId));
+    },
+    emptyMessage: 'Elevator source has no usable rows or does not match the transit network',
+    onCommit: bumpTransitNetworkCacheVersion,
+    write: async (tx, rows, importedAt) => {
+      await tx.delete(stationElevators);
+      for (let start = 0; start < rows.length; start += INSERT_BATCH) {
+        await tx.insert(stationElevators).values(
+          rows.slice(start, start + INSERT_BATCH).map((row) => ({
+            ...row,
+            source: SOURCE,
+            importedAt,
+          }))
+        );
+      }
+    },
   });
 
   const sourceUpdatedAt = rows.reduce<Date | null>((latest, row) => {

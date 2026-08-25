@@ -14,6 +14,8 @@ import {
   readStopAreaParents,
   viaId,
 } from '../idfm/referential';
+import { bumpTransitNetworkCacheVersion } from '../network-cache-version';
+import { replaceSnapshot } from '../snapshot-importer';
 
 type AccessibilityRow = {
   stop_point_id?: unknown;
@@ -61,33 +63,35 @@ export async function refreshAccessibilitySnapshot() {
 
   if (sourceRows.length === 0) throw new Error('Accessibility source has no mappable rows');
 
-  const stopIDs = [...new Set(sourceRows.map((row) => row.stopId))];
-  const existingStops = await db
-    .select({ id: transitStops.id })
-    .from(transitStops)
-    .where(inArray(transitStops.id, stopIDs));
-  const existing = new Set(existingStops.map((row) => row.id));
-  const rowsByStopId = new Map(
-    sourceRows
-      .filter((row) => existing.has(row.stopId))
-      .map((row) => [row.stopId, row] as const)
-  );
-  const rows = [...rowsByStopId.values()];
-  if (rows.length === 0) throw new Error('Accessibility source does not match the transit network');
-
-  const importedAt = new Date();
-
-  await db.transaction(async (tx) => {
-    await tx.delete(stationFacts).where(eq(stationFacts.kind, 'accessibility'));
-    for (let start = 0; start < rows.length; start += 500) {
-      await tx.insert(stationFacts).values(
-        rows.slice(start, start + 500).map((row) => ({
-          ...row,
-          sourceUpdatedAt: sourceUpdatedAtDate,
-          importedAt,
-        }))
+  const { rows, importedAt } = await replaceSnapshot({
+    prepare: async () => {
+      const stopIDs = [...new Set(sourceRows.map((row) => row.stopId))];
+      const existingStops = await db
+        .select({ id: transitStops.id })
+        .from(transitStops)
+        .where(inArray(transitStops.id, stopIDs));
+      const existing = new Set(existingStops.map((row) => row.id));
+      const rowsByStopId = new Map(
+        sourceRows
+          .filter((row) => existing.has(row.stopId))
+          .map((row) => [row.stopId, row] as const)
       );
-    }
+      return [...rowsByStopId.values()];
+    },
+    emptyMessage: 'Accessibility source does not match the transit network',
+    onCommit: bumpTransitNetworkCacheVersion,
+    write: async (tx, rows, importedAt) => {
+      await tx.delete(stationFacts).where(eq(stationFacts.kind, 'accessibility'));
+      for (let start = 0; start < rows.length; start += 500) {
+        await tx.insert(stationFacts).values(
+          rows.slice(start, start + 500).map((row) => ({
+            ...row,
+            sourceUpdatedAt: sourceUpdatedAtDate,
+            importedAt,
+          }))
+        );
+      }
+    },
   });
 
   return {

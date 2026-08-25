@@ -33,7 +33,9 @@ struct ApplicationEntry: App {
 
     init() {
         let pushNotificationManager = PushNotificationManager.shared
-        let dependencies = Self.makeDependencies(pushNotificationManager: pushNotificationManager)
+        let dependencies = ApplicationDependencyFactory.make(
+            pushNotificationManager: pushNotificationManager
+        )
         journeyDepartureChoicesRepository = dependencies.journeyDepartureChoicesRepository
         // One filter and one nearby set for the whole shell: the map's
         // annotations and the Stations list are two views of it, and the
@@ -136,18 +138,13 @@ struct ApplicationEntry: App {
                 await preloadInitialData()
             }
             .task {
-                await authSessionViewModel.restore()
-                await journeyNotificationCoordinator.restore()
-                await pushNotificationManager.setNotificationsAuthorized(
-                    journeyNotificationCoordinator.isAuthorized
+                await ApplicationLifecycle.restore(
+                    authSessionViewModel: authSessionViewModel,
+                    journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    activeJourneyModel: activeJourneyModel,
+                    plannedJourneyDraftModel: plannedJourneyDraftModel,
+                    pushNotificationManager: pushNotificationManager
                 )
-                await pushNotificationManager.flush()
-            }
-            .task {
-                await activeJourneyModel.restore()
-            }
-            .task {
-                await plannedJourneyDraftModel.restore()
             }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
@@ -278,187 +275,4 @@ struct ApplicationEntry: App {
         }
     }
 
-    private static func makeDependencies(
-        pushNotificationManager: PushNotificationManager
-    ) -> Dependencies {
-        guard let configuration = try? AppConfiguration.bundled() else {
-            let accountModel = AccountModel(
-                remote: InMemoryAccountRemote(),
-                synchronizationEnabled: false,
-            )
-            accountModel.activateAnonymous()
-            let previewSession = StoredAuthSession(
-                bearerToken: "preview.token",
-                user: AuthUser(
-                    id: "preview",
-                    appleUserIdentifier: "preview",
-                    name: "Preview",
-                    email: "preview@example.com",
-                ),
-                expiresAt: .distantFuture,
-                lastValidatedAt: .now,
-            )
-
-            return Dependencies(
-                locationModel: LocationModel(
-                    adapter: InMemoryLocationAdapter(
-                        coordinate: GeoCoordinate(latitude: 48.8583, longitude: 2.3470),
-                    ),
-                ),
-                networkRepository: InMemoryNetworkRepository.mapPreview,
-                departuresRepository: InMemoryDeparturesRepository.stationsPreview,
-                searchRepository: InMemorySearchRepository.preview,
-                reportRepository: InMemoryReportRepository(),
-                activeJourneyStore: InMemoryActiveJourneyStore(),
-                plannedJourneyDraftStore: InMemoryPlannedJourneyDraftStore(),
-                activityManager: NoOpJourneyActivityManager(),
-                connectivityMonitor: InMemoryConnectivityMonitor(),
-                journeyRepository: PreferenceAwareJourneyRepository(
-                    base: InMemoryJourneyRepository(result: .mapPreview),
-                    account: accountModel,
-                ),
-                journeyDepartureChoicesRepository: InMemoryJourneyDepartureChoicesRepository.unavailable,
-                naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
-                naturalLanguageAvailability: { .available },
-                naturalJourneyMetrics: NoOpNaturalJourneyMetrics(),
-                lineStatusRepository: PreviewLineStatusRepository(),
-                accountModel: accountModel,
-                authSessionViewModel: AuthSessionViewModel(
-                    client: InMemoryAuthenticationClient(session: previewSession),
-                    vault: InMemoryAuthSessionVault(),
-                    account: accountModel,
-                    onAuthenticatedSessionEnded: {
-                        await pushNotificationManager.unregisterCurrentInstallation()
-                        await pushNotificationManager.setAuthenticated(false)
-                    },
-                ),
-                onboardingModel: OnboardingModel(),
-                onboardingProfileModel: OnboardingProfileModel(),
-                pushNotificationManager: pushNotificationManager,
-                journeyNotificationCoordinator: JourneyNotificationCoordinator(
-                    activeJourneyManager: pushNotificationManager
-                ),
-                notificationInboxRemote: NoOpNotificationInboxRemote(),
-            )
-        }
-
-        // Product endpoints remain usable anonymously; 401 events still invalidate a cached session.
-        let authSessionVault = KeychainAuthSessionVault(apiBaseURL: configuration.apiBaseURL)
-        let (unauthorizedEvents, unauthorizedContinuation) = AsyncStream<String>.makeStream()
-        let transport = APITransport(
-            baseURL: configuration.apiBaseURL,
-            authSessionVault: authSessionVault,
-            clientKey: configuration.apiClientKey,
-            onUnauthorized: { rejectedBearerToken in
-                unauthorizedContinuation.yield(rejectedBearerToken)
-            },
-        )
-        pushNotificationManager.configure(
-            configuration: configuration,
-            remote: LivePushNotificationRemote(transport: transport)
-        )
-        let accountModel = AccountModel(remote: LiveAccountRemote(transport: transport))
-        accountModel.activateAnonymous()
-        let journeyRepository = PreferenceAwareJourneyRepository(
-            base: LiveJourneyRepository(transport: transport),
-            account: accountModel,
-        )
-        let searchRepository = LiveSearchRepository(transport: transport)
-        let naturalIntentParser = FoundationModelsIntentParser()
-        let naturalJourneyMetrics = AppLogNaturalJourneyMetrics()
-        let onDeviceNaturalJourneyService = OnDeviceNaturalJourneyService(
-            parser: naturalIntentParser,
-            places: OnDevicePlaceResolver { query, coordinate in
-                return try await searchRepository.search(
-                    query: query,
-                    near: coordinate
-                )
-            },
-            journeys: journeyRepository,
-            metrics: naturalJourneyMetrics,
-            requiresAccessibleStations: {
-                UserDefaultsSearchFilterStore().load().requiresAccessibleStations
-            },
-            requiresOperationalElevators: {
-                UserDefaultsSearchFilterStore().load().requiresOperationalElevators
-            },
-            favorites: { role in
-                await MainActor.run { accountModel.place(for: role)?.searchResult }
-            },
-        )
-        let naturalJourneyRepository = HybridNaturalJourneyService(
-            onDevice: onDeviceNaturalJourneyService,
-            remote: RemoteNaturalJourneyService(transport: transport),
-            availability: { naturalIntentParser.availability },
-        )
-
-        return Dependencies(
-            locationModel: LocationModel(adapter: CoreLocationAdapter()),
-            networkRepository: LiveNetworkRepository(transport: transport),
-            departuresRepository: LiveDeparturesRepository(transport: transport),
-            searchRepository: searchRepository,
-            reportRepository: LiveReportRepository(transport: transport),
-            activeJourneyStore: UserDefaultsActiveJourneyStore(),
-            plannedJourneyDraftStore: UserDefaultsPlannedJourneyDraftStore(),
-            activityManager: JourneyActivityManager(),
-            connectivityMonitor: NetworkConnectivityMonitor(),
-            journeyRepository: journeyRepository,
-            journeyDepartureChoicesRepository: LiveJourneyDepartureChoicesRepository(
-                transport: transport
-            ),
-            naturalJourneyRepository: naturalJourneyRepository,
-            // With the server fallback wired in, the natural-language surface
-            // is reachable on every device; runtime failures still route to
-            // the availability guidance through the repository's errors.
-            naturalLanguageAvailability: { .available },
-            naturalJourneyMetrics: naturalJourneyMetrics,
-            lineStatusRepository: LiveLineStatusRepository(transport: transport),
-            accountModel: accountModel,
-            authSessionViewModel: AuthSessionViewModel(
-                client: BetterAuthClient(
-                    baseURL: configuration.apiBaseURL,
-                    clientKey: configuration.apiClientKey
-                ),
-                vault: authSessionVault,
-                account: accountModel,
-                unauthorizedEvents: unauthorizedEvents,
-                onAuthenticatedSessionEnded: {
-                    await pushNotificationManager.unregisterCurrentInstallation()
-                    await pushNotificationManager.setAuthenticated(false)
-                },
-            ),
-            onboardingModel: OnboardingModel(),
-            onboardingProfileModel: OnboardingProfileModel(),
-            pushNotificationManager: pushNotificationManager,
-            journeyNotificationCoordinator: JourneyNotificationCoordinator(
-                activeJourneyManager: pushNotificationManager
-            ),
-            notificationInboxRemote: LiveNotificationInboxRemote(transport: transport),
-        )
-    }
-
-    private struct Dependencies {
-        let locationModel: LocationModel
-        let networkRepository: any NetworkRepository
-        let departuresRepository: any DeparturesRepository
-        let searchRepository: any SearchRepository
-        let reportRepository: any ReportRepository
-        let activeJourneyStore: any ActiveJourneyStore
-        let plannedJourneyDraftStore: any PlannedJourneyDraftStoring
-        let activityManager: any JourneyActivityManaging
-        let connectivityMonitor: any ConnectivityMonitoring
-        let journeyRepository: any JourneyRepository
-        let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
-        let naturalJourneyRepository: any NaturalJourneyRepository
-        let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
-        let naturalJourneyMetrics: any NaturalJourneyMetricsRecording
-        let lineStatusRepository: any LineStatusRepository
-        let accountModel: AccountModel
-        let authSessionViewModel: AuthSessionViewModel
-        let onboardingModel: OnboardingModel
-        let onboardingProfileModel: OnboardingProfileModel
-        let pushNotificationManager: PushNotificationManager
-        let journeyNotificationCoordinator: JourneyNotificationCoordinator
-        let notificationInboxRemote: any NotificationInboxRemote
-    }
 }

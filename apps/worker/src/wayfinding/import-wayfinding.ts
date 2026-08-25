@@ -17,8 +17,10 @@ import {
   readStopAreaParents,
   viaId,
 } from '../idfm/referential';
+import { bumpTransitNetworkCacheVersion } from '../network-cache-version';
 import { mapBoardingPositions, mapExits, stationRouteKey } from './map-wayfinding';
 import { metersEastNorth, type TravelVector } from './quay-directions';
+import { replaceSnapshot } from '../snapshot-importer';
 
 const INSERT_BATCH = 500;
 
@@ -32,36 +34,42 @@ const INSERT_BATCH = 500;
  * snapshot that silently matches nothing.
  */
 export async function refreshWayfindingSnapshot() {
-  const { exitRows, positions, exitsUpdatedAt, positionsUpdatedAt } =
-    await buildWayfindingSnapshot();
+  const { rows: snapshot, importedAt } = await replaceSnapshot({
+    prepare: buildWayfindingSnapshot,
+    emptyMessage: 'No station exit matches the transit network',
+    isEmpty: (value) => value.exitRows.length === 0,
+    onCommit: bumpTransitNetworkCacheVersion,
+    write: async (
+      tx,
+      { exitRows, positions, exitsUpdatedAt, positionsUpdatedAt },
+      importedAt,
+    ) => {
+      // Positions first: they reference the exits about to be replaced.
+      await tx.delete(boardingPositions);
+      await tx.delete(stationExits);
 
-  const importedAt = new Date();
-  await db.transaction(async (tx) => {
-    // Positions first: they reference the exits about to be replaced.
-    await tx.delete(boardingPositions);
-    await tx.delete(stationExits);
-
-    for (let start = 0; start < exitRows.length; start += INSERT_BATCH) {
-      await tx.insert(stationExits).values(
-        exitRows
-          .slice(start, start + INSERT_BATCH)
-          .map((row) => ({ ...row, sourceUpdatedAt: exitsUpdatedAt, importedAt }))
-      );
-    }
-    for (let start = 0; start < positions.length; start += INSERT_BATCH) {
-      await tx.insert(boardingPositions).values(
-        positions
-          .slice(start, start + INSERT_BATCH)
-          .map((row) => ({ ...row, sourceUpdatedAt: positionsUpdatedAt, importedAt }))
-      );
-    }
+      for (let start = 0; start < exitRows.length; start += INSERT_BATCH) {
+        await tx.insert(stationExits).values(
+          exitRows
+            .slice(start, start + INSERT_BATCH)
+            .map((row) => ({ ...row, sourceUpdatedAt: exitsUpdatedAt, importedAt }))
+        );
+      }
+      for (let start = 0; start < positions.length; start += INSERT_BATCH) {
+        await tx.insert(boardingPositions).values(
+          positions
+            .slice(start, start + INSERT_BATCH)
+            .map((row) => ({ ...row, sourceUpdatedAt: positionsUpdatedAt, importedAt }))
+        );
+      }
+    },
   });
 
   return {
-    exits: exitRows.length,
-    positions: positions.length,
-    exitsUpdatedAt: exitsUpdatedAt?.toISOString(),
-    positionsUpdatedAt: positionsUpdatedAt?.toISOString(),
+    exits: snapshot.exitRows.length,
+    positions: snapshot.positions.length,
+    exitsUpdatedAt: snapshot.exitsUpdatedAt?.toISOString(),
+    positionsUpdatedAt: snapshot.positionsUpdatedAt?.toISOString(),
   };
 }
 

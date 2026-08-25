@@ -584,21 +584,16 @@ final class SearchViewModel {
       throw JourneyScheduleRevisionError.unavailable
     }
 
-    var request = JourneyRequest(
+    let request = JourneyRequest(
       origin: firstSection.from.coordinate,
-      destination: destination
+      destination: destination,
+      policy: policy,
+      requestedAt: requestedAt,
+      datetimeRepresents: represents,
+      originStationID: firstSection.kind == .transit
+        ? firstSection.stops.first?.stationID
+        : nil
     )
-    request.limit = 4
-    request.requestedAt = requestedAt
-    request.datetimeRepresents = represents
-    request.requiredModes = policy.requiredModes
-    request.excludedModes = policy.excludedModes
-    request.preferredModes = policy.preferredModes
-    request.requiresAccessibleStations = policy.requiresAccessibleStations
-    request.requiresOperationalElevators = policy.requiresOperationalElevators
-    if firstSection.kind == .transit {
-      request.originStationID = firstSection.stops.first?.stationID
-    }
 
     let result = try await journeyRepository.plan(request)
     switch result.status {
@@ -999,30 +994,45 @@ final class SearchViewModel {
 
       guard !Task.isCancelled else { return }
 
-      var request = JourneyRequest(
-        origin: origin,
-        destination: JourneyPlaceSelection(selectedDestination).journeyDestination,
+      var requestedAtForRequest: Date? = nil
+      var datetimeRepresentsForRequest: JourneyDatetimeRepresents? = nil
+      var timeAnchorForRequest: JourneyTimeAnchor? = nil
+      var policy = JourneyPlanningPolicy(
+        requiresAccessibleStations: filters.requiresAccessibleStations,
+        requiresOperationalElevators: filters.requiresOperationalElevators
       )
-      request.limit = 4
-      request.requiresAccessibleStations = filters.requiresAccessibleStations
-      request.requiresOperationalElevators = filters.requiresOperationalElevators
-      if case .manual(.station(let station)) = selectedDeparture {
-        request.originStationID = station.id
-      }
       if var criteria = naturalJourneyCriteria {
         criteria.originLabel = selectedDeparture.title
         criteria.destinationResult = selectedDestination
         naturalJourneyCriteria = criteria
-        request.requestedAt = criteria.requestedAt
-        request.datetimeRepresents = criteria.datetimeRepresents
-        request.timeAnchor = criteria.timeAnchor
-        request.requiredModes = criteria.requiredModes
-        request.excludedModes = criteria.excludedModes
-        request.preferredModes = criteria.preferredModes
+        requestedAtForRequest = criteria.requestedAt
+        datetimeRepresentsForRequest = criteria.datetimeRepresents
+        timeAnchorForRequest = criteria.timeAnchor
+        policy = JourneyPlanningPolicy(
+          requiredModes: criteria.requiredModes,
+          excludedModes: criteria.excludedModes,
+          preferredModes: criteria.preferredModes,
+          requiresAccessibleStations: filters.requiresAccessibleStations,
+          requiresOperationalElevators: filters.requiresOperationalElevators
+        )
       } else if let requestedAt {
-        request.requestedAt = requestedAt
-        request.datetimeRepresents = datetimeRepresents
+        requestedAtForRequest = requestedAt
+        datetimeRepresentsForRequest = datetimeRepresents
       }
+      let originStationID: StationID? = if case .manual(.station(let station)) = selectedDeparture {
+        station.id
+      } else {
+        nil
+      }
+      let request = JourneyRequest(
+        origin: origin,
+        destination: JourneyPlaceSelection(selectedDestination).journeyDestination,
+        policy: policy,
+        requestedAt: requestedAtForRequest,
+        datetimeRepresents: datetimeRepresentsForRequest,
+        timeAnchor: timeAnchorForRequest,
+        originStationID: originStationID
+      )
 
       do {
         let result = try await journeyRepository.plan(request)

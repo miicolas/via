@@ -101,7 +101,7 @@ struct JourneyCompactSummaryView: View {
     }
 
     private var primarySection: JourneySection? {
-        journey.sections.first { $0.kind != .wait && $0.kind != .transfer }
+        JourneyShape.primarySection(of: journey)
     }
 
     private var routeBadges: [RouteBadge] {

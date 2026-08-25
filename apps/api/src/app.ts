@@ -21,6 +21,7 @@ import { requestIPHash } from './http/ip-identity';
 import { clientCors, createClientGate } from './http/client-gate';
 import { cityDemandRouter } from './public/city-demand/router';
 import { env } from './env';
+import { RAIL_MAP_PATH, RAIL_MAP_RPC_PATH } from '@via/contract';
 
 const app = new Hono<AppEnv>();
 
@@ -90,8 +91,8 @@ app.use('/rpc/*', requireAuth);
  * serve the same procedure, so both get their own entry.
  */
 const railMapCache = versionedPayloadCache(() => transitNetworkCacheVersion(redis));
-app.use('/api/network/rail-map', railMapCache);
-app.use('/rpc/network/railMap', railMapCache);
+app.use(`/api${RAIL_MAP_PATH}`, railMapCache);
+app.use(`/rpc${RAIL_MAP_RPC_PATH}`, railMapCache);
 
 app.use('/api/*', etag());
 app.use('/rpc/*', etag());

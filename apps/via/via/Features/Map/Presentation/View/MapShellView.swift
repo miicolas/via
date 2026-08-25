@@ -206,45 +206,36 @@ struct MapShellView: View {
       if destination == nil { journeySheetDetent = expandedDetent }
     }
     .onChange(of: activeTab) { oldValue, newValue in
-      if newValue == .search, oldValue != .search {
+      if newValue == .search, oldValue != .search, oldValue != .report {
         // Signaler is reached *from* search (the guidance panel's
         // report button) and search comes back on its own for the
         // running journey, so remembering it sent closing search
         // straight back into the report form.
-        if oldValue != .report {
-          previousTab = oldValue
-        }
-        activeDetent = activeJourneyModel.hasSurface ? guidanceDetent : expandedDetent
-      } else if newValue == .report, oldValue != .report {
-        activeDetent = isLargeScreen ? .fraction(0.97) : .large
-      } else if oldValue == .search, newValue != .search {
-        activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
-      } else if oldValue == .report, newValue != .report {
-        activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
+        previousTab = oldValue
+      }
+      if let detent = MapShellPresentation.detentAfterTabChange(
+        from: oldValue,
+        to: newValue,
+        isLargeScreen: isLargeScreen,
+        hasJourneySurface: activeJourneyModel.hasSurface
+      ) {
+        activeDetent = detent
       }
     }
     .onGeometryChange(for: Bool.self) {
       $0.size.width > 600
     } action: { newValue in
       // Remap detents before the size class flips so the sheet lands on a valid one.
-      if newValue && activeDetent != collapsedDetent {
-        activeDetent = .fraction(0.97)
-      } else if !newValue && activeDetent == .fraction(0.97) {
-        activeDetent = .fraction(0.45)
-      }
-
-      if newValue && detailSheetDetent != .height(80) {
-        detailSheetDetent = .fraction(0.97)
-      } else if !newValue && detailSheetDetent == .fraction(0.97) {
-        detailSheetDetent = .large
-      }
-
-      if newValue && journeySheetDetent != journeyPeekDetent {
-        journeySheetDetent = .fraction(0.97)
-      } else if !newValue && journeySheetDetent == .fraction(0.97) {
-        journeySheetDetent = .large
-      }
-
+      let remapped = MapShellPresentation.remapDetents(
+        .init(active: activeDetent, detail: detailSheetDetent, journey: journeySheetDetent),
+        isLargeScreen: newValue,
+        collapsed: collapsedDetent,
+        journeyPeek: journeyPeekDetent,
+        detailCollapsed: .height(DetailSheetPresentation.collapsedHeight)
+      )
+      activeDetent = remapped.active
+      detailSheetDetent = remapped.detail
+      journeySheetDetent = remapped.journey
       isLargeScreen = newValue
     }
     .task(id: authSessionViewModel.session?.user.id) {
@@ -268,14 +259,20 @@ struct MapShellView: View {
       // the detent it interrupted comes back once the conversation moves on.
       let wasPanel = NaturalJourneyPresentationPolicy.showsPanel(oldState)
       let isPanel = NaturalJourneyPresentationPolicy.showsPanel(newState)
-      if isPanel, !wasPanel {
+      switch MapShellPresentation.naturalPanelTransition(
+        wasVisible: wasPanel,
+        isVisible: isPanel
+      ) {
+      case .present:
         detentBeforeNaturalPanel = activeDetent
         activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
-      } else if wasPanel, !isPanel {
+      case .dismiss:
         if let detentBeforeNaturalPanel {
           activeDetent = detentBeforeNaturalPanel
         }
         detentBeforeNaturalPanel = nil
+      case nil:
+        break
       }
     }
     .aiScreenGlow(naturalGlowIntensity)
@@ -399,45 +396,24 @@ struct MapShellView: View {
   }
 
   private func route(_ url: URL) {
-    guard url.scheme == "via", let host = url.host else { return }
-    if host == "notifications" {
-      presentAccountSheet(.notifications)
-      return
-    }
+    guard let route = MapRoute(url: url) else { return }
 
-    let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-    if host == "line" {
-      guard let routeID = queryItems.first(where: { $0.name == "routeId" })?.value else { return }
+    switch route {
+    case .notifications:
+      presentAccountSheet(.notifications)
+    case .line(let routeID):
       activeTab = .lines
-      linesViewModel.requestRoute(RouteID(rawValue: routeID))
-      return
-    }
-    if host == "station" {
-      guard let stationID = queryItems.first(where: { $0.name == "stationId" })?.value else {
-        return
-      }
+      linesViewModel.requestRoute(routeID)
+    case .station(let stationID):
       activeTab = .stations
-      if let item = networkViewModel.stationMapItem(for: StationID(rawValue: stationID)) {
+      if let item = networkViewModel.stationMapItem(for: stationID) {
         presentStation(item)
       }
-      return
-    }
-    guard host == "journey" else { return }
-    let pathComponents = url.pathComponents.filter { $0 != "/" }
-    let journeyID =
-      queryItems
-      .first(where: { $0.name == "journeyId" })?.value
-      .map(JourneyID.init(rawValue:))
-      ?? pathComponents.first
-      .map(JourneyID.init(rawValue:))
-    let mode = queryItems.first(where: { $0.name == "mode" })?.value
-
-    if mode == "reminder", let journeyID {
+    case .scheduledJourney(let journeyID):
       Task { await routeScheduledJourney(journeyID) }
-      return
+    case .activeJourney(let journeyID):
+      Task { await routeActiveJourney(journeyID) }
     }
-    guard mode == "active", let journeyID else { return }
-    Task { await routeActiveJourney(journeyID) }
   }
 
   private func routeActiveJourney(_ journeyID: JourneyID) async {
@@ -719,14 +695,68 @@ struct MapShellView: View {
 
   private var displayedJourneyPresentation: JourneyMapPresentation? {
     activeJourneyModel.mapPresentation
-      ?? plannedJourneyPresentation
-      ?? ((activeTab == .search || isJourneySheetUp) ? searchViewModel.mapPresentation : nil)
+      ?? journeyContext.map { JourneyMapPresentation(journey: $0.journey) }
   }
 
-  private var plannedJourneyPresentation: JourneyMapPresentation? {
-    guard case .plannedJourney = searchSheetDestination,
-          let journey = plannedJourneyDraftModel.draft?.journey else { return nil }
-    return JourneyMapPresentation(journey: journey)
+  private var journeyContext: JourneyContext? {
+    let search: JourneyContext? = if activeTab == .search || isJourneySheetUp,
+                                    let journey = searchViewModel.selectedJourney,
+                                    let destination = searchViewModel.journeyDestination {
+      JourneyContext(
+        journey: journey,
+        destination: destination,
+        source: searchViewModel.journeyResult?.source,
+        planningPolicy: searchViewModel.journeyPlanningPolicy
+      )
+    } else {
+      nil
+    }
+
+    let planned: JourneyContext? = if case .plannedJourney = searchSheetDestination,
+                                      let draft = plannedJourneyDraftModel.draft {
+      JourneyContext(
+        journey: draft.journey,
+        destination: draft.destination,
+        source: draft.source,
+        planningPolicy: draft.planningPolicy
+      )
+    } else {
+      nil
+    }
+
+    let reminder: JourneyContext? = if case .scheduledJourney(let journeyID) = searchSheetDestination,
+                                       let reminder = journeyNotificationCoordinator.reminder(for: journeyID) {
+      JourneyContext(
+        journey: reminder.journey,
+        destination: reminder.destination,
+        source: reminder.source,
+        planningPolicy: reminder.planningPolicy
+      )
+    } else {
+      nil
+    }
+
+    let journeyID = searchViewModel.selectedJourneyID
+      ?? activeJourneyModel.journey?.id
+      ?? activeJourneyModel.arrival?.journeyID
+      ?? planned?.journey.id
+      ?? reminder?.journey.id
+
+    guard let journeyID else { return nil }
+    return JourneyContextResolver.resolve(
+      journeyID: journeyID,
+      active: activeJourneyModel.session.map {
+        JourneyContext(
+          journey: $0.journey,
+          destination: $0.destination,
+          source: $0.source,
+          planningPolicy: $0.planningPolicy
+        )
+      },
+      reminder: reminder,
+      planned: planned,
+      search: search
+    )
   }
 
   private var displayedHighlightedSectionID: String? {

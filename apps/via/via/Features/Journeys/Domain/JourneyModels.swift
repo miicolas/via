@@ -43,6 +43,34 @@ struct JourneyRequest: Sendable, Hashable {
     var requiresAccessibleStations = false
     var requiresOperationalElevators = false
     var originStationID: StationID?
+
+    init(origin: GeoCoordinate, destination: JourneyDestination) {
+        self.init(origin: origin, destination: destination, policy: JourneyPlanningPolicy())
+    }
+
+    init(
+        origin: GeoCoordinate,
+        destination: JourneyDestination,
+        policy: JourneyPlanningPolicy,
+        limit: Int = 4,
+        requestedAt: Date? = nil,
+        datetimeRepresents: JourneyDatetimeRepresents? = nil,
+        timeAnchor: JourneyTimeAnchor? = nil,
+        originStationID: StationID? = nil
+    ) {
+        self.origin = origin
+        self.destination = destination
+        self.limit = limit
+        self.requestedAt = requestedAt
+        self.datetimeRepresents = datetimeRepresents
+        self.timeAnchor = timeAnchor
+        self.requiredModes = policy.requiredModes
+        self.excludedModes = policy.excludedModes
+        self.preferredModes = policy.preferredModes
+        self.requiresAccessibleStations = policy.requiresAccessibleStations
+        self.requiresOperationalElevators = policy.requiresOperationalElevators
+        self.originStationID = originStationID
+    }
 }
 
 struct JourneyPlace: Codable, Sendable, Hashable {

@@ -9,7 +9,9 @@ import { drawnRouteCondition } from '@via/db/network-scope';
 import { and, eq, sql } from 'drizzle-orm';
 
 import { datasetUpdatedAt, exportDataset } from '../idfm/referential';
+import { bumpTransitNetworkCacheVersion } from '../network-cache-version';
 import { mapToiletFacts, parseToiletRows, type ToiletStationCandidate } from './map-toilets';
+import { replaceSnapshot } from '../snapshot-importer';
 
 const SOURCE = 'idfm:sanitaires-reseau-ratp';
 
@@ -58,23 +60,27 @@ export async function refreshToiletSnapshot(): Promise<ToiletImportResult> {
   }
   if (mapping.facts.length === 0) throw new Error('Toilet source does not match the transit network');
 
-  const importedAt = new Date();
-  await db.transaction(async (tx) => {
-    await tx.delete(stationFacts).where(eq(stationFacts.kind, 'toilets'));
-    await tx.insert(stationFacts).values(mapping.facts.map((fact) => ({
-      stopId: fact.stopId,
-      kind: 'toilets' as const,
-      condition: 'available' as const,
-      detail: fact.detail || null,
-      source: SOURCE,
-      sourceRef: fact.sourceRef,
-      sourceUpdatedAt: sourceUpdatedAtDate,
-      importedAt,
-    })));
+  const { rows: facts, importedAt } = await replaceSnapshot({
+    prepare: async () => mapping.facts,
+    emptyMessage: 'Toilet source does not match the transit network',
+    onCommit: bumpTransitNetworkCacheVersion,
+    write: async (tx, rows, importedAt) => {
+      await tx.delete(stationFacts).where(eq(stationFacts.kind, 'toilets'));
+      await tx.insert(stationFacts).values(rows.map((fact) => ({
+        stopId: fact.stopId,
+        kind: 'toilets' as const,
+        condition: 'available' as const,
+        detail: fact.detail || null,
+        source: SOURCE,
+        sourceRef: fact.sourceRef,
+        sourceUpdatedAt: sourceUpdatedAtDate,
+        importedAt,
+      })));
+    },
   });
 
   return {
-    imported: mapping.facts.length,
+    imported: facts.length,
     skipped: false,
     sourceUpdatedAt,
     importedAt: importedAt.toISOString(),

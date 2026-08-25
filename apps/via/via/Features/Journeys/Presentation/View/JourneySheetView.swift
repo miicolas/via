@@ -70,7 +70,7 @@ struct JourneySheetView: View {
                         activeJourneyModel: activeJourneyModel,
                         plannedJourneyDraftModel: plannedJourneyDraftModel,
                         journeyNotificationCoordinator: journeyNotificationCoordinator,
-                        planningPolicy: resolved.policy,
+                        planningPolicy: resolved.planningPolicy,
                         departureChoicesModel: departureChoicesModel,
                         onSelectDeparture: selectDeparture,
                         onRetryDepartures: refreshDepartureChoices,
@@ -108,7 +108,7 @@ struct JourneySheetView: View {
             await departureChoicesModel.runAutomaticRefresh(
                 journey: { resolvedJourney?.journey ?? resolved.journey },
                 destination: resolved.destination,
-                policy: resolved.policy,
+                policy: resolved.planningPolicy,
                 apply: applyRevision
             )
         }
@@ -177,39 +177,48 @@ struct JourneySheetView: View {
     /// Prefers the live session so a restored journey resolves even when the
     /// search result set is empty; otherwise looks the journey up in the
     /// current proposal.
-    private var resolvedJourney: (
-        journey: Journey,
-        destination: JourneyDestination,
-        source: JourneyResult.Source?,
-        policy: JourneyPlanningPolicy
-    )? {
-        if let session = activeJourneyModel.session, session.journey.id == journeyID {
-            return (session.journey, session.destination, session.source, session.planningPolicy)
-        }
-        if scheduledReminder != nil,
-           let scheduledReminder = journeyNotificationCoordinator.reminder(for: journeyID) {
-            return (
-                scheduledReminder.journey,
-                scheduledReminder.destination,
-                scheduledReminder.source,
-                scheduledReminder.planningPolicy
-            )
-        }
-        if isPlannedJourney,
-           let draft = plannedJourneyDraftModel.draft,
-           draft.journey.id == journeyID {
-            return (draft.journey, draft.destination, draft.source, draft.planningPolicy)
-        }
-        if let journey = searchViewModel.journeyResult?.journeys.first(where: { $0.id == journeyID }),
-           let destination = searchViewModel.journeyDestination {
-            return (
-                journey,
-                destination,
-                searchViewModel.journeyResult?.source,
-                searchViewModel.journeyPlanningPolicy
-            )
-        }
-        return nil
+    private var resolvedJourney: JourneyContext? {
+        JourneyContextResolver.resolve(
+            journeyID: journeyID,
+            active: activeJourneyModel.session.map {
+                JourneyContext(
+                    journey: $0.journey,
+                    destination: $0.destination,
+                    source: $0.source,
+                    planningPolicy: $0.planningPolicy
+                )
+            },
+            reminder: scheduledReminder.flatMap { _ in
+                journeyNotificationCoordinator.reminder(for: journeyID).map {
+                    JourneyContext(
+                        journey: $0.journey,
+                        destination: $0.destination,
+                        source: $0.source,
+                        planningPolicy: $0.planningPolicy
+                    )
+                }
+            },
+            planned: isPlannedJourney ? plannedJourneyDraftModel.draft.map {
+                JourneyContext(
+                    journey: $0.journey,
+                    destination: $0.destination,
+                    source: $0.source,
+                    planningPolicy: $0.planningPolicy
+                )
+            } : nil,
+            search: searchViewModel.journeyResult?.journeys
+                .first(where: { $0.id == journeyID })
+                .flatMap { journey in
+                    searchViewModel.journeyDestination.map {
+                        JourneyContext(
+                            journey: journey,
+                            destination: $0,
+                            source: searchViewModel.journeyResult?.source,
+                            planningPolicy: searchViewModel.journeyPlanningPolicy
+                        )
+                    }
+                }
+        )
     }
 
     /// Dismissal is driven by the model, matching the previous in-tab guidance:
@@ -243,7 +252,7 @@ struct JourneySheetView: View {
         await departureChoicesModel.refresh(
             journey: resolved.journey,
             destination: resolved.destination,
-            policy: resolved.policy,
+            policy: resolved.planningPolicy,
             apply: applyRevision
         )
     }
@@ -259,21 +268,19 @@ struct JourneySheetView: View {
                 in: sectionID,
                 journey: resolved.journey,
                 destination: resolved.destination,
-                policy: resolved.policy,
+                policy: resolved.planningPolicy,
                 apply: applyRevision
             )
         }
     }
 
     private func applyRevision(_ journey: Journey) async {
-        if activeJourneyModel.session?.journey.id == journey.id {
-            await activeJourneyModel.applyDepartureRevision(journey)
-        } else if plannedJourneyDraftModel.draft?.journey.id == journey.id {
-            await plannedJourneyDraftModel.applyJourneyRevision(journey)
-        } else {
-            searchViewModel.replaceJourney(journey)
-            await journeyNotificationCoordinator.applyJourneyRevision(journey)
-        }
+        await JourneyContextApplier(
+            activeJourneyModel: activeJourneyModel,
+            plannedJourneyDraftModel: plannedJourneyDraftModel,
+            searchViewModel: searchViewModel,
+            journeyNotificationCoordinator: journeyNotificationCoordinator
+        ).apply(journey)
     }
 
     private func updateTime(
@@ -286,7 +293,7 @@ struct JourneySheetView: View {
         let revision = try await searchViewModel.reviseJourneySchedule(
             resolved.journey,
             destination: resolved.destination,
-            policy: resolved.policy,
+            policy: resolved.planningPolicy,
             requestedAt: requestedAt,
             represents: represents
         )

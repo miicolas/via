@@ -147,7 +147,7 @@ struct SearchJourneyResultsView: View {
   /// A journey the traveller covers on their own legs or wheels. It never
   /// competes with the transit list — it reads under its own heading below.
   private func isDirectPath(_ journey: Journey) -> Bool {
-    journey.sections.allSatisfy { $0.kind == .walk || $0.kind == .bike }
+    JourneyShape.of(journey).isDirectPath
   }
 
   private func transitJourneys(in result: JourneyResult) -> [Journey] {

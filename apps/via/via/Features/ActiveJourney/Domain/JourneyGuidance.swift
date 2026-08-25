@@ -55,38 +55,23 @@ enum JourneyGuidance {
         switch section.kind {
         case .transit:
             return riding(section: section, endsAt: endsAt, progress: progress)
-        case .walk:
+        case .walk, .bike, .transfer, .wait:
+            guard let title = JourneySectionNarration.sentence(
+                for: section,
+                voice: .guidance
+            ) else { return arrived(at: journey) }
+            let detail = switch section.kind {
+            case .transfer:
+                "\(JourneyFormatting.duration(section.durationSeconds)) de marche"
+            case .wait:
+                "Départ à \(JourneyFormatting.time(endsAt))"
+            default:
+                "\(JourneyFormatting.duration(section.durationSeconds)) · arrivée à \(JourneyFormatting.time(endsAt))"
+            }
             return JourneyGuidanceHeadline(
-                title: "Marcher jusqu'à \(section.to.name)",
-                detail: "\(JourneyFormatting.duration(section.durationSeconds)) · arrivée à \(JourneyFormatting.time(endsAt))",
-                symbolName: "figure.walk",
-                route: nil,
-                stopsUntilAlighting: nil,
-                alightStopName: nil
-            )
-        case .bike:
-            return JourneyGuidanceHeadline(
-                title: "Pédaler jusqu'à \(section.to.name)",
-                detail: "\(JourneyFormatting.duration(section.durationSeconds)) · arrivée à \(JourneyFormatting.time(endsAt))",
-                symbolName: "bicycle",
-                route: nil,
-                stopsUntilAlighting: nil,
-                alightStopName: nil
-            )
-        case .transfer:
-            return JourneyGuidanceHeadline(
-                title: "Correspondance vers \(section.to.name)",
-                detail: "\(JourneyFormatting.duration(section.durationSeconds)) de marche",
-                symbolName: "arrow.triangle.turn.up.right.diamond",
-                route: nil,
-                stopsUntilAlighting: nil,
-                alightStopName: nil
-            )
-        case .wait:
-            return JourneyGuidanceHeadline(
-                title: "Attendre à \(section.from.name)",
-                detail: "Départ à \(JourneyFormatting.time(endsAt))",
-                symbolName: "clock",
+                title: title,
+                detail: detail,
+                symbolName: section.kind.systemImage,
                 route: nil,
                 stopsUntilAlighting: nil,
                 alightStopName: nil

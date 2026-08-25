@@ -104,11 +104,9 @@ const planArgsSchema = z.object({
   preferredModes: z.array(journeyModeSchema).max(3).optional(),
 });
 
-const MODES_JSON_SCHEMA = {
-  type: 'array',
-  items: { type: 'string', enum: journeyModeSchema.options },
-  maxItems: 3,
-} as const;
+/** Keep the model-facing schema derived from the runtime parser. */
+const searchArgsJSONSchema = z.toJSONSchema(searchArgsSchema, { target: 'openai' });
+const planArgsJSONSchema = z.toJSONSchema(planArgsSchema, { target: 'openai' });
 
 export function createToolset(config: ToolsetConfig): Toolset {
   const counters: ToolCounters = { searchPlaces: 0, planJourneys: 0 };
@@ -124,17 +122,7 @@ export function createToolset(config: ToolsetConfig): Toolset {
         'Accepte aussi "maison"/"travail". La position actuelle n’a pas besoin de recherche : ' +
         'utilise origin.kind="current_location" dans plan_journeys.',
       strict: false,
-      parameters: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'Nom du lieu à résoudre, ou "maison"/"travail".',
-          },
-        },
-        required: ['query'],
-        additionalProperties: false,
-      },
+      parameters: searchArgsJSONSchema,
     },
     {
       type: 'function',
@@ -143,48 +131,7 @@ export function createToolset(config: ToolsetConfig): Toolset {
         'Calcule les itinéraires Via depuis une origine (handle ou position actuelle) vers une ' +
         'destination désignée uniquement par un handle issu de search_places. Aucune coordonnée libre.',
       strict: false,
-      parameters: {
-        type: 'object',
-        properties: {
-          origin: {
-            description: 'Origine : position actuelle ou handle de lieu.',
-            anyOf: [
-              {
-                type: 'object',
-                properties: { kind: { const: 'current_location' } },
-                required: ['kind'],
-                additionalProperties: false,
-              },
-              {
-                type: 'object',
-                properties: { kind: { const: 'handle' }, handle: { type: 'string' } },
-                required: ['kind', 'handle'],
-                additionalProperties: false,
-              },
-            ],
-          },
-          destination: {
-            type: 'object',
-            properties: { handle: { type: 'string' } },
-            required: ['handle'],
-            additionalProperties: false,
-          },
-          datetimeRepresents: { type: 'string', enum: ['departure', 'arrival'] },
-          timeAnchor: {
-            type: 'string',
-            enum: journeyTimeAnchorSchema.options,
-            description:
-              'Pour « le dernier train/métro/RER/bus » : le serveur vise la fin du service. ' +
-              'Ne fournis pas de requestedAt dans ce cas.',
-          },
-          requestedAt: { type: 'string', description: 'ISO 8601 ou "now".' },
-          requiredModes: MODES_JSON_SCHEMA,
-          excludedModes: MODES_JSON_SCHEMA,
-          preferredModes: MODES_JSON_SCHEMA,
-        },
-        required: ['origin', 'destination', 'datetimeRepresents'],
-        additionalProperties: false,
-      },
+      parameters: planArgsJSONSchema,
     },
   ];
 

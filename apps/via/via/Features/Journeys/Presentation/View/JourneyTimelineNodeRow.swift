@@ -172,14 +172,26 @@ struct JourneyTimelineNodeRow: View {
                     JourneyExitView(exit: exit, isDimmed: state == .done)
                 }
             }
-        case .walk(let destination):
-            movement("Marcher jusqu’à \(destination)", symbol: "figure.walk")
-        case .bike(let destination):
-            movement("Pédaler jusqu’à \(destination)", symbol: "bicycle")
-        case .wait(let place):
-            movement("Attendre à \(place)", symbol: "clock")
-        case .transfer(let destination):
-            movement("Correspondance vers \(destination)", symbol: "arrow.triangle.turn.up.right.diamond")
+        case .walk:
+            movement(
+                JourneySectionNarration.movementSentence(for: node.kind, voice: .timeline),
+                symbol: "figure.walk"
+            )
+        case .bike:
+            movement(
+                JourneySectionNarration.movementSentence(for: node.kind, voice: .timeline),
+                symbol: "bicycle"
+            )
+        case .wait:
+            movement(
+                JourneySectionNarration.movementSentence(for: node.kind, voice: .timeline),
+                symbol: "clock"
+            )
+        case .transfer:
+            movement(
+                JourneySectionNarration.movementSentence(for: node.kind, voice: .timeline),
+                symbol: "arrow.triangle.turn.up.right.diamond"
+            )
         case .ride:
             EmptyView()
         }
@@ -321,14 +333,26 @@ struct JourneyTimelineNodeRow: View {
                     )
                 },
             ].compactMap(\.self).joined(separator: ". ")
-        case .walk(let destination):
-            "Marcher \(JourneyFormatting.duration(node.durationSeconds)) jusqu’à \(destination)"
-        case .bike(let destination):
-            "Pédaler \(JourneyFormatting.duration(node.durationSeconds)) jusqu’à \(destination)"
-        case .wait(let place):
-            "Attendre \(JourneyFormatting.duration(node.durationSeconds)) à \(place)"
-        case .transfer(let destination):
-            "Correspondance de \(JourneyFormatting.duration(node.durationSeconds)) vers \(destination)"
+        case .walk:
+            JourneySectionNarration.accessibilitySentence(
+                for: node.kind,
+                duration: JourneyFormatting.duration(node.durationSeconds)
+            )
+        case .bike:
+            JourneySectionNarration.accessibilitySentence(
+                for: node.kind,
+                duration: JourneyFormatting.duration(node.durationSeconds)
+            )
+        case .wait:
+            JourneySectionNarration.accessibilitySentence(
+                for: node.kind,
+                duration: JourneyFormatting.duration(node.durationSeconds)
+            )
+        case .transfer:
+            JourneySectionNarration.accessibilitySentence(
+                for: node.kind,
+                duration: JourneyFormatting.duration(node.durationSeconds)
+            )
         case .ride(let intermediate):
             stopCountTitle(hiddenStopCount(in: intermediate))
         }

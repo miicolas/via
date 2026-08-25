@@ -83,6 +83,7 @@ export * from './natural-journeys/type';
 export * from './notifications';
 export * from './network/schema';
 export * from './network/type';
+export { RAIL_MAP_PATH, RAIL_MAP_RPC_PATH } from './network/rail-map-relation';
 export * from './search/schema';
 export * from './search/type';
 export * from './reports/schema';
