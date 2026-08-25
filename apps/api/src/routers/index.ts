@@ -13,13 +13,11 @@ import { createJourneyPlanner } from './journeys/service';
 import { createJourneyDepartureChoicesModule } from './journeys/departure-choices';
 import { linesRouter } from './lines/router';
 import { createNaturalJourneysRouter } from './natural-journeys/router';
-import { readNaturalJourneyFavorites } from './natural-journeys/favorites';
 import { createOpenAiResponsesTransport } from './natural-journeys/openai-transport';
 import { createNaturalJourneyService } from './natural-journeys/service';
 import { networkRouter } from './network/router';
 import { notificationsRouter } from './notifications/router';
 import { searchRouter } from './search/router';
-import { searchPlaces } from './search/search-places';
 import { reportsRouter } from './reports/router';
 import { createDatabaseJourneyReportOverlay } from './journeys/community-reports';
 import { readCachedStationSnapshot } from './departures/cache';
@@ -50,20 +48,14 @@ const baseJourneyPlanner = createJourneyPlanner({
 /**
  * « Dernier train » : the decorator answers `timeAnchor: 'last_of_day'` with
  * an arrival-at-end-of-service plan verified against the GTFS timetable; every
- * other input passes straight through. All consumers share it so the journeys
- * route and the natural-language agents speak the same planner.
+ * other input passes straight through. All journey consumers share the same
+ * verified planner.
  */
 const journeyPlanner = withLastDeparture(baseJourneyPlanner);
 
 const naturalJourneyService = createNaturalJourneyService({
   redis,
-  planner: journeyPlanner,
-  searchPlaces: async (query, options) => {
-    const { results, banAvailable } = await searchPlaces(query, options);
-    return { results, banAvailable };
-  },
-  readFavorites: readNaturalJourneyFavorites,
-  // Null adapter when no key: the service answers the recoverable double-failure
+  // Null adapter when no key: the service answers a recoverable unavailable result
   // and the key stays confined to this backend, never shipped to the app.
   transport: env.OPENAI_API_KEY
     ? createOpenAiResponsesTransport({
@@ -84,6 +76,7 @@ const naturalJourneyService = createNaturalJourneyService({
     },
     safetySecret: env.OPENAI_SAFETY_SECRET ?? env.BETTER_AUTH_SECRET,
     pricing: null,
+    rolloutPercent: env.NATURAL_JOURNEYS_REMOTE_ROLLOUT_PERCENT,
   },
 });
 

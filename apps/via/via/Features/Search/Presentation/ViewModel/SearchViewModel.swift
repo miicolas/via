@@ -12,6 +12,16 @@ enum SearchViewStep: Sendable, Equatable {
   case failed(ViaError)
 }
 
+private extension NaturalJourneySavedPlaceKind {
+  var savedPlaceRole: SavedPlace.Role? {
+    switch self {
+    case .home: .home
+    case .work: .work
+    case .custom: nil
+    }
+  }
+}
+
 enum SearchLoadState: Sendable, Equatable {
   case idle
   case loading
@@ -112,6 +122,7 @@ final class SearchViewModel {
   private(set) var naturalSearchState: NaturalSearchState = .dismissed
   private(set) var naturalJourneyCriteria: NaturalJourneyCriteria?
   private(set) var naturalJourneyUnresolvedDraft: NaturalJourneyDraft?
+  private(set) var naturalSavedPlaceSelectionRequest: NaturalSavedPlaceSelectionRequest?
   private(set) var naturalInputErrorMessage: String?
   private(set) var recentSearches: [RecentSearch]
   private(set) var requestedAt: Date? = nil
@@ -201,10 +212,9 @@ final class SearchViewModel {
     case .explanation(let guidance):
       naturalSearchState = .availability(guidance)
     case .active:
-      // This is an express entry point: opening it must always put the
-      // keyboard and the actual task one tap away, including on first use.
-      naturalJourneyOnboardingStore.markOnboardingSeen()
-      naturalSearchState = .input
+      naturalSearchState = naturalJourneyOnboardingStore.hasSeenOnboarding
+        ? .input
+        : .onboarding
     }
   }
 
@@ -228,6 +238,8 @@ final class SearchViewModel {
     naturalQuery = ""
     naturalInputErrorMessage = nil
     lastNaturalJourneyRequest = nil
+    naturalJourneyUnresolvedDraft = nil
+    naturalSavedPlaceSelectionRequest = nil
     naturalSearchState = .dismissed
   }
 
@@ -256,16 +268,27 @@ final class SearchViewModel {
       naturalJourneyRepository != nil
     else { return }
 
-    naturalSearchStartedAt = now()
-    naturalCorrectionCount = 0
-    naturalJourneyCriteria = nil
-    naturalJourneyUnresolvedDraft = nil
+    let existingDraft = naturalJourneyUnresolvedDraft
+    if existingDraft == nil {
+      naturalSearchStartedAt = now()
+      naturalCorrectionCount = 0
+      naturalJourneyCriteria = nil
+    } else {
+      naturalCorrectionCount += 1
+    }
     naturalInputErrorMessage = nil
-    performNaturalRequest(
-      .submit(
+    if let existingDraft {
+      performNaturalRequest(.revise(
+        query: phrase,
+        draft: existingDraft,
+        currentLocation: locationModel.coordinate,
+      ))
+    } else {
+      performNaturalRequest(.submit(
         query: phrase,
         currentLocation: locationModel.coordinate,
       ))
+    }
   }
 
   func resolveNaturalPlace(
@@ -353,7 +376,56 @@ final class SearchViewModel {
       ))
   }
 
+  func continueNaturalSearchAfterUnexplainedText(draft: NaturalJourneyDraft) {
+    naturalCorrectionCount += 1
+    performNaturalRequest(.continueAfterUnexplainedText(
+      draft: draft,
+      currentLocation: locationModel.coordinate,
+    ))
+  }
+
+  func chooseNaturalSavedPlace(
+    draft: NaturalJourneyDraft,
+    target: NaturalJourneyClarification.Target,
+    kind: NaturalJourneySavedPlaceKind,
+    savesPlace: Bool,
+  ) {
+    naturalSavedPlaceSelectionRequest = NaturalSavedPlaceSelectionRequest(
+      draft: draft,
+      target: target,
+      kind: kind,
+      savesPlace: savesPlace,
+    )
+  }
+
+  func cancelNaturalSavedPlaceSelection() {
+    naturalSavedPlaceSelectionRequest = nil
+  }
+
+  func completeNaturalSavedPlaceSelection(_ result: SearchResult) {
+    guard let selection = naturalSavedPlaceSelectionRequest else { return }
+    naturalSavedPlaceSelectionRequest = nil
+    if selection.savesPlace, let role = selection.kind.savedPlaceRole {
+      account?.setPlace(result, role: role)
+    }
+    naturalCorrectionCount += 1
+    performNaturalRequest(.resolve(
+      draft: selection.draft,
+      currentLocation: locationModel.coordinate,
+      origin: selection.target == .origin ? result : nil,
+      destination: selection.target == .destination ? result : nil,
+      requestedAt: nil,
+      datetimeRepresents: nil,
+    ))
+  }
+
   func modifyNaturalQuery() {
+    switch naturalSearchState {
+    case let .clarification(draft, _), let .decision(draft, _):
+      naturalJourneyUnresolvedDraft = draft
+    default:
+      break
+    }
     lastNaturalJourneyRequest = nil
     naturalInputErrorMessage = nil
     naturalSearchState = .input
@@ -422,7 +494,7 @@ final class SearchViewModel {
   private func receiveNaturalJourneyResult(_ result: NaturalJourneyResult) {
     switch result {
     case .ready(let interpretation, let journeys):
-      recordNaturalMetric(.success)
+      recordNaturalMetric(.success, path: interpretation.processingPath)
       apply(interpretation)
       results = []
       loadState = .idle
@@ -439,22 +511,26 @@ final class SearchViewModel {
       naturalSearchState = .dismissed
       naturalQuery = ""
       lastNaturalJourneyRequest = nil
+      naturalJourneyUnresolvedDraft = nil
+      naturalSavedPlaceSelectionRequest = nil
     case .needsClarification(let draft, let fields):
-      recordNaturalMetric(.clarification)
+      recordNaturalMetric(.clarification, path: draft.dialogueState.processingPath)
       guard let field = fields.first else {
         naturalSearchState = .failed(message: "La demande doit être précisée.")
         return
       }
+      naturalJourneyUnresolvedDraft = draft
       naturalSearchState = .clarification(draft: draft, field: field)
     case .needsDecision(let draft, let decision):
-      recordNaturalMetric(.clarification)
+      recordNaturalMetric(.clarification, path: draft.dialogueState.processingPath)
+      naturalJourneyUnresolvedDraft = draft
       naturalSearchState = .decision(draft: draft, decision: decision)
     case .networkUnavailable(let interpretation):
-      recordNaturalMetric(.failure)
+      recordNaturalMetric(.failure, path: interpretation.processingPath)
       apply(interpretation)
       naturalSearchState = .failed(message: Self.offlineMessage)
     case .networkUnavailableDraft(let draft):
-      recordNaturalMetric(.failure)
+      recordNaturalMetric(.failure, path: draft.dialogueState.processingPath)
       naturalJourneyCriteria = nil
       naturalJourneyUnresolvedDraft = draft
       naturalSearchState = .failed(message: Self.offlineMessage)
@@ -486,7 +562,7 @@ final class SearchViewModel {
   ) -> String {
     switch error {
     case .unsupportedLanguage:
-      "Utilise une phrase en français."
+      "Utilise une phrase en français ou en anglais."
     case .modelBusy:
       "Apple Intelligence est occupé. Réessaie dans un instant."
     case .contextWindowExceeded:
@@ -500,7 +576,10 @@ final class SearchViewModel {
     }
   }
 
-  private func recordNaturalMetric(_ outcome: NaturalJourneyMetric.Outcome) {
+  private func recordNaturalMetric(
+    _ outcome: NaturalJourneyMetric.Outcome,
+    path: NaturalJourneyProcessingPath = .unknown,
+  ) {
     guard let naturalSearchStartedAt else { return }
     let duration = max(0, now().timeIntervalSince(naturalSearchStartedAt))
     naturalJourneyMetrics.recordSearch(
@@ -510,7 +589,18 @@ final class SearchViewModel {
           ? Int(duration * 1000)
           : nil,
         correctionCount: naturalCorrectionCount,
+        processingPath: path,
       ))
+  }
+
+  func recordNaturalIncorrectExecution() {
+    guard let criteria = naturalJourneyCriteria else { return }
+    naturalJourneyMetrics.recordSearch(NaturalJourneyMetric(
+      outcome: .incorrectExecution,
+      firstResultDurationMilliseconds: nil,
+      correctionCount: naturalCorrectionCount,
+      processingPath: criteria.processingPath,
+    ))
   }
 
   var subtitle: String {

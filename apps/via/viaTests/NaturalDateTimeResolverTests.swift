@@ -5,10 +5,10 @@ import XCTest
 final class NaturalDateTimeResolverTests: XCTestCase {
     private let now = ISO8601.parse("2026-08-17T09:00:00+02:00")!
 
-    func testFoundationModelsPolicyUsesFrenchLocaleAndDeterministicSampling() {
+    func testFoundationModelsPolicyGuaranteesFrenchAndEnglishWithDeterministicSampling() {
         XCTAssertTrue(
             FoundationModelsIntentParser.instructions.hasPrefix(
-                "The person's locale is fr_FR."
+                "The person's locale is fr_FR or en."
             )
         )
         XCTAssertFalse(FoundationModelsIntentParser.instructions.contains("Instant actuel:"))
@@ -68,6 +68,21 @@ final class NaturalDateTimeResolverTests: XCTestCase {
         XCTAssertEqual(result.date, ISO8601.parse("2026-08-18T18:30:00+02:00"))
     }
 
+    func testExplicitClockEvidenceOverridesAnInventedExactHour() throws {
+        let generatedParts = parts(
+            reference: .implicitToday,
+            timePrecision: .exact,
+            hour: 17,
+            minute: 45
+        )
+
+        let grounded = try generatedParts.validatingExplicitTime(in: "avant 18 h 30")
+
+        XCTAssertEqual(grounded.timePrecision, .exact)
+        XCTAssertEqual(grounded.hour, 18)
+        XCTAssertEqual(grounded.minute, 30)
+    }
+
     func testRelativeDurationIsNotReinterpretedAsAClockTime() {
         let generatedParts = parts(
             reference: .relative,
@@ -81,6 +96,22 @@ final class NaturalDateTimeResolverTests: XCTestCase {
         )
 
         XCTAssertEqual(correctedParts, generatedParts)
+    }
+
+    func testRelativeDurationRejectsAnAmountAbsentFromItsEvidence() {
+        var generatedParts = parts(
+            reference: .relative,
+            timePrecision: .unspecified,
+            relativeAmount: 2,
+            relativeUnit: .hour
+        )
+        generatedParts.yearWasExplicit = false
+
+        XCTAssertThrowsError(
+            try generatedParts.validatingExplicitTime(in: "dans 3 heures")
+        ) { error in
+            XCTAssertEqual(error as? NaturalIntentParsingError, .invalidResponse)
+        }
     }
 
     func testTwoClockTimesRemainAssignedByTheStructuredModel() {

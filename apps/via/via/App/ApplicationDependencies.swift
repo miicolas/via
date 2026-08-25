@@ -117,8 +117,37 @@ enum ApplicationDependencyFactory {
         let searchRepository = LiveSearchRepository(transport: transport)
         let naturalIntentParser = FoundationModelsIntentParser()
         let naturalJourneyMetrics = AppLogNaturalJourneyMetrics()
+        let naturalJourneyUnderstanding = ReliableNaturalJourneyUnderstanding(
+            localModel: naturalIntentParser,
+            remoteModel: RemoteNaturalIntentParser(transport: transport),
+            savedPlaces: {
+                await MainActor.run {
+                    let roles = SavedPlace.Role.allCases.map { role in
+                        let place = accountModel.place(for: role)
+                        return NaturalJourneySavedPlaceReference(
+                            id: "role:\(role.rawValue)",
+                            label: role.displayTitle,
+                            kind: role == .home ? .home : .work,
+                            result: place?.searchResult,
+                        )
+                    }
+                    let custom = accountModel.destinations.map { destination in
+                        NaturalJourneySavedPlaceReference(
+                            id: "custom:\(destination.id.uuidString)",
+                            label: destination.label,
+                            kind: .custom,
+                            result: destination.searchResult,
+                        )
+                    }
+                    return roles + custom
+                }
+            },
+            serverFallbackAllowed: {
+                NaturalJourneyProcessingPreference.allowsServerFallback()
+            },
+        )
         let onDeviceNaturalJourneyService = OnDeviceNaturalJourneyService(
-            parser: naturalIntentParser,
+            understanding: naturalJourneyUnderstanding,
             places: OnDevicePlaceResolver { query, coordinate in
                 try await searchRepository.search(query: query, near: coordinate)
             },
@@ -134,11 +163,7 @@ enum ApplicationDependencyFactory {
                 await MainActor.run { accountModel.place(for: role)?.searchResult }
             },
         )
-        let naturalJourneyRepository = HybridNaturalJourneyService(
-            onDevice: onDeviceNaturalJourneyService,
-            remote: RemoteNaturalJourneyService(transport: transport),
-            availability: { naturalIntentParser.availability },
-        )
+        let naturalJourneyRepository = onDeviceNaturalJourneyService
 
         return ApplicationDependencies(
             locationModel: LocationModel(adapter: CoreLocationAdapter()),
@@ -155,9 +180,7 @@ enum ApplicationDependencyFactory {
                 transport: transport
             ),
             naturalJourneyRepository: naturalJourneyRepository,
-            // The server fallback makes the natural-language surface reachable
-            // on every device; failures still route to availability guidance.
-            naturalLanguageAvailability: { .available },
+            naturalLanguageAvailability: { naturalJourneyUnderstanding.availability },
             naturalJourneyMetrics: naturalJourneyMetrics,
             lineStatusRepository: LiveLineStatusRepository(transport: transport),
             accountModel: accountModel,

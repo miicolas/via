@@ -5,6 +5,53 @@ enum RouteOriginIntent: Sendable, Hashable {
     case place(query: String)
 }
 
+enum NaturalJourneySavedPlaceKind: String, Sendable, Hashable, Codable {
+    case home
+    case work
+    case custom
+}
+
+/// A conversational place never becomes a geocoder query. It can point at a
+/// specific confirmed slot or require the only confirmed place in the current
+/// search; otherwise the executor asks a targeted question.
+enum NaturalJourneyConversationReference: String, Sendable, Hashable, Codable {
+    case previousOrigin = "previous_origin"
+    case previousDestination = "previous_destination"
+    case uniquelyConfirmedPlace = "uniquely_confirmed_place"
+}
+
+/// A personal place is identified before any geocoding. `result` never leaves
+/// the app: the server adapter sends only an anchored opaque id, generic kind
+/// and the words explicitly typed in the current turn.
+struct NaturalJourneySavedPlaceReference: Sendable, Hashable {
+    let id: String
+    let label: String
+    let kind: NaturalJourneySavedPlaceKind
+    let result: SearchResult?
+
+    init(
+        id: String,
+        label: String,
+        kind: NaturalJourneySavedPlaceKind,
+        result: SearchResult?,
+    ) {
+        self.id = id
+        self.label = label
+        self.kind = kind
+        self.result = result
+    }
+}
+
+/// Canonical place vocabulary shared by deterministic grounding, both model
+/// adapters, dialogue state and execution. Personal and conversational places
+/// can therefore never accidentally become literal geocoding queries.
+enum RoutePlaceIntent: Sendable, Hashable {
+    case currentLocation
+    case saved(NaturalJourneySavedPlaceReference)
+    case query(String)
+    case reference(NaturalJourneyConversationReference)
+}
+
 struct RouteTimeConstraint: Sendable, Hashable {
     let requestedAt: Date
     let meaning: JourneyDatetimeRepresents
@@ -23,8 +70,8 @@ struct RouteIntent: Sendable, Hashable {
     }
 
     private(set) var scope: Scope
-    private(set) var origin: RouteOriginIntent
-    private(set) var destinationQuery: String?
+    private(set) var originPlace: RoutePlaceIntent
+    private(set) var destinationPlace: RoutePlaceIntent?
     private(set) var requestedAt: Date?
     private(set) var datetimeRepresents: TimeMeaning
     /// « Le dernier train de la journée » — no instant to carry, the anchor is the service day's end.
@@ -37,6 +84,36 @@ struct RouteIntent: Sendable, Hashable {
     private(set) var timeWasExplicit: Bool
     private(set) var alternateTimeConstraint: RouteTimeConstraint?
     private(set) var originWasExplicit: Bool
+
+    /// Compatibility vocabulary for the existing planning and clarification
+    /// views. New understanding code uses the typed place slots above.
+    var origin: RouteOriginIntent {
+        switch originPlace {
+        case .currentLocation:
+            .currentLocation
+        case .saved(let place):
+            .place(query: place.label)
+        case .query(let query):
+            .place(query: query)
+        case .reference(let reference):
+            .place(query: reference.rawValue)
+        }
+    }
+
+    var destinationQuery: String? {
+        switch destinationPlace {
+        case .currentLocation:
+            nil
+        case .saved(let place):
+            place.label
+        case .query(let query):
+            query
+        case .reference:
+            nil
+        case nil:
+            nil
+        }
+    }
 
     init(
         scope: Scope,
@@ -55,8 +132,43 @@ struct RouteIntent: Sendable, Hashable {
         originWasExplicit: Bool = true,
     ) {
         self.scope = scope
-        self.origin = origin
-        self.destinationQuery = destinationQuery
+        originPlace = switch origin {
+        case .currentLocation: .currentLocation
+        case .place(let query): .query(query)
+        }
+        destinationPlace = destinationQuery.map(RoutePlaceIntent.query)
+        self.requestedAt = requestedAt
+        self.datetimeRepresents = datetimeRepresents
+        self.timeAnchor = timeAnchor
+        self.requiredModes = requiredModes
+        self.excludedModes = excludedModes
+        self.preferredModes = preferredModes
+        self.unsupportedConstraints = unsupportedConstraints
+        self.dateWasExplicit = dateWasExplicit
+        self.timeWasExplicit = timeWasExplicit
+        self.alternateTimeConstraint = alternateTimeConstraint
+        self.originWasExplicit = originWasExplicit
+    }
+
+    init(
+        scope: Scope,
+        originPlace: RoutePlaceIntent,
+        destinationPlace: RoutePlaceIntent?,
+        requestedAt: Date?,
+        datetimeRepresents: TimeMeaning,
+        timeAnchor: JourneyTimeAnchor? = nil,
+        requiredModes: Set<TransitMode>,
+        excludedModes: Set<TransitMode>,
+        preferredModes: Set<TransitMode>,
+        unsupportedConstraints: [String] = [],
+        dateWasExplicit: Bool = true,
+        timeWasExplicit: Bool = true,
+        alternateTimeConstraint: RouteTimeConstraint? = nil,
+        originWasExplicit: Bool = true,
+    ) {
+        self.scope = scope
+        self.originPlace = originPlace
+        self.destinationPlace = destinationPlace
         self.requestedAt = requestedAt
         self.datetimeRepresents = datetimeRepresents
         self.timeAnchor = timeAnchor
@@ -112,8 +224,19 @@ struct RouteIntent: Sendable, Hashable {
 
     func confirmingCurrentLocation() -> Self {
         var copy = self
-        copy.origin = .currentLocation
+        copy.originPlace = .currentLocation
         copy.originWasExplicit = true
+        return copy
+    }
+
+    func replacingPlaces(
+        origin: RoutePlaceIntent? = nil,
+        destination: RoutePlaceIntent? = nil,
+        replaceDestination: Bool = false,
+    ) -> Self {
+        var copy = self
+        if let origin { copy.originPlace = origin }
+        if replaceDestination { copy.destinationPlace = destination }
         return copy
     }
 
@@ -122,22 +245,121 @@ struct RouteIntent: Sendable, Hashable {
         copy.requestedAt = date
         return copy
     }
+
+    func replacingTime(from other: Self) -> Self {
+        var copy = self
+        copy.requestedAt = other.requestedAt
+        copy.datetimeRepresents = other.datetimeRepresents
+        copy.timeAnchor = other.timeAnchor
+        copy.dateWasExplicit = other.dateWasExplicit
+        copy.timeWasExplicit = other.timeWasExplicit
+        copy.alternateTimeConstraint = other.alternateTimeConstraint
+        return copy
+    }
+
+    func replacingTimeMeaning(_ meaning: TimeMeaning) -> Self {
+        var copy = self
+        copy.datetimeRepresents = meaning
+        return copy
+    }
+
+    func replacingTimeAnchor(_ anchor: JourneyTimeAnchor?) -> Self {
+        var copy = self
+        copy.timeAnchor = anchor
+        if anchor != nil {
+            copy.alternateTimeConstraint = nil
+            copy.timeWasExplicit = false
+        }
+        return copy
+    }
+
+    func replacingModes(from other: Self) -> Self {
+        var copy = self
+        copy.requiredModes = other.requiredModes
+        copy.excludedModes = other.excludedModes
+        copy.preferredModes = other.preferredModes
+        return copy
+    }
+
+    func replacingUnsupportedConstraints(from other: Self) -> Self {
+        var copy = self
+        copy.unsupportedConstraints = other.unsupportedConstraints
+        return copy
+    }
+
+    func replacingScope(_ scope: Scope) -> Self {
+        var copy = self
+        copy.scope = scope
+        return copy
+    }
 }
 
 struct NaturalJourneyDraft: Sendable, Hashable {
-    let intent: RouteIntent
+    let dialogueState: NaturalJourneyDialogueState
     let origin: SearchResult?
     let destination: SearchResult?
+
+    var intent: RouteIntent { dialogueState.intent }
+
+    init(
+        dialogueState: NaturalJourneyDialogueState,
+        origin: SearchResult?,
+        destination: SearchResult?,
+    ) {
+        self.dialogueState = dialogueState
+        self.origin = origin
+        self.destination = destination
+    }
+
+    init(intent: RouteIntent, origin: SearchResult?, destination: SearchResult?) {
+        self.init(
+            dialogueState: NaturalJourneyDialogueState(intent: intent),
+            origin: origin,
+            destination: destination,
+        )
+    }
 
     /// Answering a decision only revises the intent: the places already
     /// resolved for this draft survive untouched.
     func replacingIntent(_ intent: RouteIntent) -> Self {
-        NaturalJourneyDraft(intent: intent, origin: origin, destination: destination)
+        var state = dialogueState
+        state.intent = intent
+        return NaturalJourneyDraft(
+            dialogueState: state,
+            origin: origin,
+            destination: destination,
+        )
+    }
+
+    func replacingPlaces(origin: SearchResult?, destination: SearchResult?) -> Self {
+        NaturalJourneyDraft(
+            dialogueState: dialogueState,
+            origin: origin,
+            destination: destination,
+        )
+    }
+
+    func confirming(
+        _ field: NaturalJourneyIntentField,
+        evidence: String?,
+    ) -> Self {
+        var state = dialogueState
+        state[field: field] = .confirmed(evidence: evidence)
+        return NaturalJourneyDraft(
+            dialogueState: state,
+            origin: origin,
+            destination: destination,
+        )
     }
 }
 
 enum NaturalJourneyRequest: Sendable, Hashable {
     case submit(query: String, currentLocation: GeoCoordinate?)
+    case revise(
+        query: String,
+        draft: NaturalJourneyDraft,
+        currentLocation: GeoCoordinate?,
+    )
     case resolve(
         draft: NaturalJourneyDraft,
         currentLocation: GeoCoordinate?,
@@ -153,6 +375,10 @@ enum NaturalJourneyRequest: Sendable, Hashable {
         keeping: NaturalJourneyModeConstraint,
     )
     case continueWithoutUnsupportedConstraints(
+        draft: NaturalJourneyDraft,
+        currentLocation: GeoCoordinate?,
+    )
+    case continueAfterUnexplainedText(
         draft: NaturalJourneyDraft,
         currentLocation: GeoCoordinate?,
     )
@@ -185,6 +411,7 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
     let requiredModes: Set<TransitMode>
     let excludedModes: Set<TransitMode>
     let preferredModes: Set<TransitMode>
+    let processingPath: NaturalJourneyProcessingPath
 
     init(
         originLabel: String,
@@ -197,6 +424,7 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
         requiredModes: Set<TransitMode>,
         excludedModes: Set<TransitMode>,
         preferredModes: Set<TransitMode>,
+        processingPath: NaturalJourneyProcessingPath = .unknown,
     ) {
         self.originLabel = originLabel
         self.originResult = originResult
@@ -208,6 +436,7 @@ struct NaturalJourneyInterpretation: Sendable, Hashable {
         self.requiredModes = requiredModes
         self.excludedModes = excludedModes
         self.preferredModes = preferredModes
+        self.processingPath = processingPath
     }
 }
 
@@ -220,6 +449,7 @@ struct NaturalJourneyCriteria: Sendable, Hashable {
     var requiredModes: Set<TransitMode>
     var excludedModes: Set<TransitMode>
     var preferredModes: Set<TransitMode>
+    var processingPath: NaturalJourneyProcessingPath
 
     init(_ interpretation: NaturalJourneyInterpretation) {
         originLabel = interpretation.originLabel
@@ -230,6 +460,7 @@ struct NaturalJourneyCriteria: Sendable, Hashable {
         requiredModes = interpretation.requiredModes
         excludedModes = interpretation.excludedModes
         preferredModes = interpretation.preferredModes
+        processingPath = interpretation.processingPath
     }
 }
 
@@ -245,10 +476,34 @@ struct NaturalJourneyClarification: Sendable, Hashable, Identifiable {
 
 enum NaturalJourneyDecision: Sendable, Hashable {
     case currentLocation
+    case interpretationConflict([NaturalJourneyIntentField])
+    case unexplainedText(String)
+    case missingSavedPlace(
+        target: NaturalJourneyClarification.Target,
+        kind: NaturalJourneySavedPlaceKind,
+    )
     case modeConflict(TransitMode, choices: [NaturalJourneyModeConstraint])
     case unsupportedConstraints([String])
     case pastDate(Date)
     case timeConflict(RouteTimeConstraint, RouteTimeConstraint)
+}
+
+struct NaturalSavedPlaceSelectionRequest: Sendable, Hashable, Identifiable {
+    let id = UUID()
+    let draft: NaturalJourneyDraft
+    let target: NaturalJourneyClarification.Target
+    let kind: NaturalJourneySavedPlaceKind
+    let savesPlace: Bool
+
+    var title: String {
+        switch (kind, savesPlace) {
+        case (.home, true): "Enregistrer Maison"
+        case (.work, true): "Enregistrer Travail"
+        case (.home, false): "Choisir Maison"
+        case (.work, false): "Choisir Travail"
+        case (.custom, _): "Choisir un lieu"
+        }
+    }
 }
 
 enum NaturalJourneyUnavailableGuidance: Sendable, Hashable {

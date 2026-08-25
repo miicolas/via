@@ -3,6 +3,13 @@ import SwiftUI
 struct NaturalJourneyDecisionView: View {
     let decision: NaturalJourneyDecision
     let onConfirmCurrentLocation: () -> Void
+    let onResolveInterpretationConflict: () -> Void
+    let onContinueAfterUnexplainedText: () -> Void
+    let onChooseMissingSavedPlace: (
+        NaturalJourneyClarification.Target,
+        NaturalJourneySavedPlaceKind,
+        Bool
+    ) -> Void
     let onResolveMode: (TransitMode, NaturalJourneyModeConstraint) -> Void
     let onContinueWithoutUnsupported: () -> Void
     let onResolveTimeConflict: (RouteTimeConstraint) -> Void
@@ -28,6 +35,41 @@ struct NaturalJourneyDecisionView: View {
                 .naturalJourneyPrimaryAction()
             Button("Indiquer une autre origine", action: onModify)
                 .naturalJourneySecondaryAction()
+
+        case let .interpretationConflict(fields):
+            highlight(fields.map(\.displayName).joined(separator: " · "))
+            Button(
+                "Préciser la demande",
+                systemImage: "text.cursor",
+                action: onResolveInterpretationConflict,
+            )
+            .naturalJourneyPrimaryAction()
+
+        case let .unexplainedText(text):
+            highlight(text)
+            Button(
+                "Continuer sans ce fragment",
+                systemImage: "arrow.right",
+                action: onContinueAfterUnexplainedText,
+            )
+            .naturalJourneyPrimaryAction()
+            Button("Modifier la demande", systemImage: "pencil", action: onModify)
+                .naturalJourneySecondaryAction()
+
+        case let .missingSavedPlace(target, kind):
+            Button("Choisir pour cette fois", systemImage: "mappin.and.ellipse") {
+                onChooseMissingSavedPlace(target, kind, false)
+            }
+            .naturalJourneyPrimaryAction()
+            if kind != .custom {
+                Button(
+                    kind == .home ? "Choisir et enregistrer Maison" : "Choisir et enregistrer Travail",
+                    systemImage: kind == .home ? "house.fill" : "briefcase.fill",
+                ) {
+                    onChooseMissingSavedPlace(target, kind, true)
+                }
+                .naturalJourneySecondaryAction()
+            }
 
         case let .modeConflict(mode, choices):
             ForEach(Array(choices.enumerated()), id: \.offset) { index, choice in
@@ -88,6 +130,9 @@ private extension NaturalJourneyDecision {
     var title: String {
         switch self {
         case .currentLocation: "Choisir le départ"
+        case .interpretationConflict: "Demande contradictoire"
+        case .unexplainedText: "Un fragment reste incertain"
+        case let .missingSavedPlace(_, kind): kind.missingTitle
         case .modeConflict: "Contraintes contradictoires"
         case .unsupportedConstraints: "Contrainte indisponible"
         case .pastDate: "Cette heure est passée"
@@ -99,12 +144,18 @@ private extension NaturalJourneyDecision {
         switch self {
         case .currentLocation:
             "Aucune origine n’est indiquée. Veux-tu partir de ta position actuelle ?"
+        case .interpretationConflict:
+            "Deux interprétations restent plausibles. Via ne choisira ni n’inversera le trajet silencieusement."
+        case .unexplainedText:
+            "Via a compris le trajet, mais pas ce fragment. Tu peux l’ignorer explicitement ou le reformuler."
+        case let .missingSavedPlace(_, kind):
+            "« \(kind.personalName) » n’est pas encore associé à un lieu. Choisis-le pour cette recherche ou enregistre-le pour les suivantes."
         case let .modeConflict(mode, _):
             "Deux contraintes se contredisent pour \(mode.naturalLanguageNameWithArticle). Laquelle veux-tu conserver ?"
         case .unsupportedConstraints:
-            "Metyro ne sait pas encore appliquer cette contrainte."
+            "Via ne sait pas encore appliquer cette contrainte."
         case .pastDate:
-            "La date était explicite, Metyro ne la déplacera pas silencieusement."
+            "La date était explicite, Via ne la déplacera pas silencieusement."
         case .timeConflict:
             "Le moteur accepte une heure de départ ou une heure d’arrivée."
         }
@@ -113,10 +164,46 @@ private extension NaturalJourneyDecision {
     var systemImage: String {
         switch self {
         case .currentLocation: "location.circle"
+        case .interpretationConflict: "arrow.left.arrow.right.circle"
+        case .unexplainedText: "text.badge.questionmark"
+        case let .missingSavedPlace(_, kind): kind.systemImage
         case .modeConflict: "arrow.trianglehead.branch"
         case .unsupportedConstraints: "exclamationmark.triangle"
         case .pastDate: "clock.badge.exclamationmark"
         case .timeConflict: "clock.arrow.trianglehead.2.counterclockwise.rotate.90"
+        }
+    }
+}
+
+private extension NaturalJourneyIntentField {
+    var displayName: String {
+        switch self {
+        case .scope: "type de demande"
+        case .origin: "départ"
+        case .destination: "destination"
+        case .time: "heure"
+        case .modes: "modes"
+        case .unsupportedConstraints: "contraintes"
+        }
+    }
+}
+
+private extension NaturalJourneySavedPlaceKind {
+    var personalName: String {
+        switch self {
+        case .home: "Maison"
+        case .work: "Travail"
+        case .custom: "ce lieu"
+        }
+    }
+
+    var missingTitle: String { "Configurer \(personalName)" }
+
+    var systemImage: String {
+        switch self {
+        case .home: "house.circle"
+        case .work: "briefcase.circle"
+        case .custom: "mappin.circle"
         }
     }
 }

@@ -20,6 +20,9 @@ struct GeneratedRouteOrigin {
 
     @Guide(description: "Libellé exact du lieu de départ, uniquement lorsque kind vaut place")
     var query: String?
+
+    @Guide(description: "Fragment exact de la saisie qui justifie le départ; chaîne vide si implicite")
+    var evidence: String
 }
 
 @Generable(description: "Sens de l’heure demandée")
@@ -98,6 +101,9 @@ struct GeneratedRouteDateTime {
 struct GeneratedRouteTimeConstraint {
     var dateTime: GeneratedRouteDateTime
     var meaning: GeneratedRouteTimeMeaning
+
+    @Guide(description: "Fragment exact qui justifie la date ou l’heure; chaîne vide si implicite")
+    var evidence: String
 }
 
 @Generable(description: "Mode de transport en commun francilien")
@@ -120,6 +126,9 @@ struct GeneratedRouteIntent {
     @Guide(description: "Destination formulée par l’utilisateur, ou absence si elle manque")
     var destinationQuery: String?
 
+    @Guide(description: "Fragment exact de la saisie qui justifie la destination; chaîne vide si absente")
+    var destinationEvidence: String
+
     @Guide(description: "Vrai uniquement pour « le dernier train/métro/RER/bus/tram » de la journée; jamais pour une heure citée")
     var lastServiceOfDay: Bool
 
@@ -141,13 +150,35 @@ struct GeneratedRouteIntent {
     @Guide(description: "Contraintes comprises mais non prises en charge; marche maximale, accessibilité, ligne précise, coût ou confort", .maximumCount(3))
     var unsupportedConstraints: [String]
 
+    @Guide(description: "Fragment significatif non expliqué, ou chaîne vide si toute la demande est couverte")
+    var unexplainedText: String
+
     func domain(now: Date, phrase: String) throws(NaturalIntentParsingError) -> RouteIntent {
         let mappedOrigin: RouteOriginIntent
         switch origin.kind {
         case .currentLocation:
+            if !origin.evidence.isEmpty,
+               !Self.isEvidence(origin.evidence, groundedIn: phrase)
+            {
+                throw .invalidResponse
+            }
+            guard originWasExplicit == !origin.evidence
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { throw .invalidResponse }
+            if originWasExplicit {
+                let evidence = OnDevicePlaceResolver.normalize(origin.evidence)
+                guard [
+                    "ma position", "position actuelle", "ici", "d ici",
+                    "my location", "current location", "here",
+                ].contains(evidence) else { throw .invalidResponse }
+            }
             mappedOrigin = .currentLocation
         case .place:
+            guard originWasExplicit else { throw .invalidResponse }
             guard let query = Self.validPlace(origin.query) else { throw .invalidResponse }
+            guard Self.isPlace(query, groundedBy: origin.evidence, in: phrase) else {
+                throw .invalidResponse
+            }
             mappedOrigin = .place(query: query)
         }
 
@@ -156,8 +187,14 @@ struct GeneratedRouteIntent {
             guard let validDestination = Self.validPlace(destinationQuery) else {
                 throw .invalidResponse
             }
+            guard Self.isPlace(validDestination, groundedBy: destinationEvidence, in: phrase) else {
+                throw .invalidResponse
+            }
             destination = validDestination
         } else {
+            guard destinationEvidence.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw .invalidResponse
+            }
             destination = nil
         }
 
@@ -193,7 +230,9 @@ struct GeneratedRouteIntent {
         } else {
             do {
                 resolvedTime = try NaturalDateTimeResolver.resolve(
-                    timeConstraint.dateTime.domain.correctingSingleExactTime(in: phrase),
+                    timeConstraint.dateTime.domain.validatingExplicitTime(
+                        in: timeConstraint.evidence
+                    ),
                     now: now
                 )
             } catch {
@@ -201,10 +240,15 @@ struct GeneratedRouteIntent {
             }
 
             if let alternate = self.alternateTimeConstraint {
+                guard Self.isEvidence(alternate.evidence, groundedIn: phrase) else {
+                    throw .invalidResponse
+                }
                 let resolvedAlternate: ResolvedNaturalDateTime
                 do {
                     resolvedAlternate = try NaturalDateTimeResolver.resolve(
-                        alternate.dateTime.domain,
+                        alternate.dateTime.domain.validatingExplicitTime(
+                            in: alternate.evidence
+                        ),
                         now: now
                     )
                 } catch {
@@ -247,6 +291,46 @@ struct GeneratedRouteIntent {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty || trimmed.count > 160 ? nil : trimmed
+    }
+
+    func proposal(now: Date, phrase: String) throws(NaturalIntentParsingError) -> NaturalIntentProposal {
+        let intent = try domain(now: now, phrase: phrase)
+        let residue = unexplainedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard residue.count <= 200,
+              residue.isEmpty || Self.isEvidence(residue, groundedIn: phrase)
+        else {
+            throw .invalidResponse
+        }
+        return NaturalIntentProposal(
+            intent: intent,
+            originEvidence: origin.evidence.nilIfEmpty,
+            destinationEvidence: destinationEvidence.nilIfEmpty,
+            timeEvidence: timeConstraint.evidence.nilIfEmpty,
+            unexplainedText: residue.nilIfEmpty,
+        )
+    }
+
+    private static func isPlace(_ query: String, groundedBy evidence: String, in phrase: String) -> Bool {
+        guard isEvidence(evidence, groundedIn: phrase) else { return false }
+        let normalizedQuery = OnDevicePlaceResolver.normalize(query)
+        let normalizedEvidence = OnDevicePlaceResolver.normalize(evidence)
+        return normalizedEvidence.contains(normalizedQuery)
+    }
+
+    private static func isEvidence(_ evidence: String, groundedIn phrase: String) -> Bool {
+        let trimmed = evidence.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.count <= 160 else { return false }
+        return phrase.range(
+            of: trimmed,
+            options: [.caseInsensitive, .diacriticInsensitive],
+        ) != nil
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

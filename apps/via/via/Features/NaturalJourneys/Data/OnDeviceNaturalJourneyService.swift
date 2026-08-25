@@ -1,13 +1,13 @@
 import Foundation
 
 struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
-    private static let unsupportedMessage = "Metyro peut t’aider à préparer un trajet en Île-de-France"
+    private static let unsupportedMessage = "Via peut t’aider à préparer un trajet en Île-de-France"
     private static let examples = [
         "Depuis Châtelet, je veux être à Gare du Nord à 10 h",
         "12 rue de Rivoli avant 9 h",
     ]
 
-    private let parser: any NaturalIntentParsing
+    private let understanding: any NaturalJourneyUnderstanding
     private let places: OnDevicePlaceResolver
     private let journeys: any JourneyRepository
     private let now: @Sendable () -> Date
@@ -20,7 +20,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
     private let favorites: @Sendable (SavedPlace.Role) async -> SearchResult?
 
     init(
-        parser: any NaturalIntentParsing,
+        understanding: any NaturalJourneyUnderstanding,
         places: OnDevicePlaceResolver,
         journeys: any JourneyRepository,
         now: @escaping @Sendable () -> Date = { .now },
@@ -30,7 +30,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         requiresOperationalElevators: @escaping @Sendable () -> Bool = { false },
         favorites: @escaping @Sendable (SavedPlace.Role) async -> SearchResult? = { _ in nil },
     ) {
-        self.parser = parser
+        self.understanding = understanding
         self.places = places
         self.journeys = journeys
         self.now = now
@@ -41,23 +41,107 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         self.favorites = favorites
     }
 
+    init(
+        parser: any NaturalIntentParsing,
+        places: OnDevicePlaceResolver,
+        journeys: any JourneyRepository,
+        now: @escaping @Sendable () -> Date = { .now },
+        metrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
+        metricsNow: @escaping @Sendable () -> Date = { .now },
+        requiresAccessibleStations: @escaping @Sendable () -> Bool = { false },
+        requiresOperationalElevators: @escaping @Sendable () -> Bool = { false },
+        favorites: @escaping @Sendable (SavedPlace.Role) async -> SearchResult? = { _ in nil },
+    ) {
+        self.init(
+            understanding: ParserBackedNaturalJourneyUnderstanding(parser: parser),
+            places: places,
+            journeys: journeys,
+            now: now,
+            metrics: metrics,
+            metricsNow: metricsNow,
+            requiresAccessibleStations: requiresAccessibleStations,
+            requiresOperationalElevators: requiresOperationalElevators,
+            favorites: favorites,
+        )
+    }
+
     func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
         let currentTime = now()
         var draft: NaturalJourneyDraft
         let currentLocation: GeoCoordinate?
+        var understandingConflicts: [NaturalJourneyConflict] = []
+        var unexplainedText: String? = nil
 
         switch request {
         case let .submit(query, location):
             let interpretationStartedAt = metricsNow()
             do {
-                let parsed = try await parser.parseIntent(query, now: currentTime)
-                recordInterpretation(startedAt: interpretationStartedAt)
-                let intent = Self.normalizedTime(in: parsed, now: currentTime)
-                draft = NaturalJourneyDraft(intent: intent, origin: nil, destination: nil)
+                let transition = try await understanding.interpret(
+                    NaturalJourneyTurn(
+                        phrase: query,
+                        now: currentTime,
+                        hasCurrentLocation: location != nil,
+                    ),
+                    state: nil,
+                )
+                recordInterpretation(
+                    startedAt: interpretationStartedAt,
+                    path: transition.state.processingPath,
+                )
+                var dialogueState = transition.state
+                dialogueState.intent = Self.normalizedTime(
+                    in: dialogueState.intent,
+                    now: currentTime,
+                )
+                draft = NaturalJourneyDraft(
+                    dialogueState: dialogueState,
+                    origin: nil,
+                    destination: nil,
+                )
+                understandingConflicts = transition.conflicts
+                unexplainedText = transition.unexplainedText
             } catch NaturalIntentParsingError.cancelled {
                 throw CancellationError()
             } catch {
-                recordInterpretation(startedAt: interpretationStartedAt)
+                recordInterpretation(startedAt: interpretationStartedAt, path: .unknown)
+                throw error
+            }
+            currentLocation = location
+        case let .revise(query, submittedDraft, location):
+            let interpretationStartedAt = metricsNow()
+            do {
+                let transition = try await understanding.interpret(
+                    NaturalJourneyTurn(
+                        phrase: query,
+                        now: currentTime,
+                        hasCurrentLocation: location != nil,
+                    ),
+                    state: submittedDraft.dialogueState,
+                )
+                recordInterpretation(
+                    startedAt: interpretationStartedAt,
+                    path: transition.state.processingPath,
+                )
+                var dialogueState = transition.state
+                dialogueState.intent = Self.normalizedTime(
+                    in: dialogueState.intent,
+                    now: currentTime,
+                )
+                draft = NaturalJourneyDraft(
+                    dialogueState: dialogueState,
+                    origin: transition.changedFields.contains(.origin)
+                        ? nil
+                        : submittedDraft.origin,
+                    destination: transition.changedFields.contains(.destination)
+                        ? nil
+                        : submittedDraft.destination,
+                )
+                understandingConflicts = transition.conflicts
+                unexplainedText = transition.unexplainedText
+            } catch NaturalIntentParsingError.cancelled {
+                throw CancellationError()
+            } catch {
+                recordInterpretation(startedAt: interpretationStartedAt, path: .unknown)
                 throw error
             }
             currentLocation = location
@@ -78,27 +162,38 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             } else {
                 submittedDraft.intent
             }
-            let unresolvedDraft = NaturalJourneyDraft(
-                intent: intent,
-                origin: submittedOrigin ?? submittedDraft.origin,
-                destination: submittedDestination ?? submittedDraft.destination,
-            )
+            var unresolvedDraft = submittedDraft
+                .replacingIntent(intent)
+                .replacingPlaces(
+                    origin: submittedOrigin ?? submittedDraft.origin,
+                    destination: submittedDestination ?? submittedDraft.destination,
+                )
+            if let submittedOrigin {
+                unresolvedDraft = unresolvedDraft.confirming(.origin, evidence: submittedOrigin.name)
+            }
+            if let submittedDestination {
+                unresolvedDraft = unresolvedDraft.confirming(
+                    .destination,
+                    evidence: submittedDestination.name,
+                )
+            }
+            if submittedRequestedAt != nil || submittedTime != nil {
+                unresolvedDraft = unresolvedDraft.confirming(.time, evidence: nil)
+            }
             let origin: SearchResult?
             let destination: SearchResult?
+            let unresolvedOrigin = unresolvedDraft.origin
+            let unresolvedDestination = unresolvedDraft.destination
             do {
-                async let verifiedOrigin = verify(unresolvedDraft.origin, near: location)
-                async let verifiedDestination = verify(unresolvedDraft.destination, near: location)
+                async let verifiedOrigin = verify(unresolvedOrigin, near: location)
+                async let verifiedDestination = verify(unresolvedDestination, near: location)
                 (origin, destination) = try await (verifiedOrigin, verifiedDestination)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
                 return .networkUnavailableDraft(draft: unresolvedDraft)
             }
-            draft = NaturalJourneyDraft(
-                intent: intent,
-                origin: origin,
-                destination: destination,
-            )
+            draft = unresolvedDraft.replacingPlaces(origin: origin, destination: destination)
             currentLocation = location
         case let .resolveModeConflict(submittedDraft, location, mode, constraint):
             func keeping(
@@ -114,11 +209,18 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 excluded: keeping(submittedDraft.intent.excludedModes, when: .excluded),
                 preferred: keeping(submittedDraft.intent.preferredModes, when: .preferred),
             )
-            draft = submittedDraft.replacingIntent(intent)
+            draft = submittedDraft
+                .replacingIntent(intent)
+                .confirming(.modes, evidence: mode.naturalLanguageName)
             currentLocation = location
         case let .continueWithoutUnsupportedConstraints(submittedDraft, location):
             let intent = submittedDraft.intent.ignoringUnsupportedConstraints()
-            draft = submittedDraft.replacingIntent(intent)
+            draft = submittedDraft
+                .replacingIntent(intent)
+                .confirming(.unsupportedConstraints, evidence: nil)
+            currentLocation = location
+        case let .continueAfterUnexplainedText(submittedDraft, location):
+            draft = submittedDraft
             currentLocation = location
         case let .resolveTimeConflict(submittedDraft, location, chosen):
             let primary = submittedDraft.intent.requestedAt.map {
@@ -131,17 +233,77 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 throw ViaError.invalidRequest("La contrainte horaire choisie ne correspond pas à la demande")
             }
             let intent = submittedDraft.intent.choosingTimeConstraint(chosen)
-            draft = submittedDraft.replacingIntent(intent)
+            draft = submittedDraft
+                .replacingIntent(intent)
+                .confirming(.time, evidence: nil)
             currentLocation = location
         case let .confirmCurrentLocation(submittedDraft, location):
             let intent = submittedDraft.intent.confirmingCurrentLocation()
-            draft = submittedDraft.replacingIntent(intent)
+            draft = submittedDraft
+                .replacingIntent(intent)
+                .confirming(.origin, evidence: "ma position")
             currentLocation = location
         }
 
         try Task.checkCancellation()
+        if !understandingConflicts.isEmpty {
+            let order: [NaturalJourneyIntentField] = [
+                .origin, .destination, .time, .modes, .unsupportedConstraints, .scope,
+            ]
+            let conflicted = Set(understandingConflicts.map(\.field))
+            return .needsDecision(
+                draft: draft,
+                decision: .interpretationConflict(order.filter(conflicted.contains)),
+            )
+        }
+        if let unexplainedText,
+           !unexplainedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            return .needsDecision(
+                draft: draft,
+                decision: .unexplainedText(unexplainedText),
+            )
+        }
         if draft.intent.scope == .unsupported {
             return .unsupported(message: Self.unsupportedMessage, examples: Self.examples)
+        }
+        if case .saved(let place) = draft.intent.originPlace,
+           place.result == nil,
+           draft.origin == nil
+        {
+            return .needsDecision(
+                draft: draft,
+                decision: .missingSavedPlace(target: .origin, kind: place.kind),
+            )
+        }
+        if case .saved(let place) = draft.intent.destinationPlace,
+           place.result == nil,
+           draft.destination == nil
+        {
+            return .needsDecision(
+                draft: draft,
+                decision: .missingSavedPlace(target: .destination, kind: place.kind),
+            )
+        }
+        if case .reference = draft.intent.originPlace, draft.origin == nil {
+            return .needsClarification(
+                draft: draft,
+                fields: [.init(
+                    target: .origin,
+                    question: "À quel lieu confirmé fais-tu référence pour le départ ?",
+                    candidates: Self.contextCandidates(in: draft),
+                )],
+            )
+        }
+        if case .reference = draft.intent.destinationPlace, draft.destination == nil {
+            return .needsClarification(
+                draft: draft,
+                fields: [.init(
+                    target: .destination,
+                    question: "À quel lieu confirmé fais-tu référence ?",
+                    candidates: Self.contextCandidates(in: draft),
+                )],
+            )
         }
         if case .currentLocation = draft.intent.origin,
            !draft.intent.originWasExplicit,
@@ -207,12 +369,23 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             }
         }
 
+        let resolutionStartedAt = metricsNow()
         let resolved: DraftResolution
         do {
             resolved = try await resolveDraft(draft, currentLocation: currentLocation)
+            recordStage(
+                .placeResolution,
+                startedAt: resolutionStartedAt,
+                path: draft.dialogueState.processingPath,
+            )
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            recordStage(
+                .placeResolution,
+                startedAt: resolutionStartedAt,
+                path: draft.dialogueState.processingPath,
+            )
             return .networkUnavailableDraft(draft: draft)
         }
         switch resolved {
@@ -234,9 +407,9 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             )
         }
 
-        let origin = switch draft.intent.origin {
+        let origin = switch draft.intent.originPlace {
         case .currentLocation: currentLocation
-        case .place: draft.origin?.coordinate
+        case .query, .saved, .reference: draft.origin?.coordinate
         }
         guard let origin, let destinationResult = draft.destination else {
             return .unavailable(message: "J’ai besoin d’un point de départ pour calculer le trajet.")
@@ -277,9 +450,9 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             originStationID: originStationID
         )
 
-        let originLabel = switch draft.intent.origin {
+        let originLabel = switch draft.intent.originPlace {
         case .currentLocation: "Ta position"
-        case .place: draft.origin?.name ?? "Départ"
+        case .query, .saved, .reference: draft.origin?.name ?? "Départ"
         }
         let interpretation = NaturalJourneyInterpretation(
             originLabel: originLabel,
@@ -292,15 +465,27 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             requiredModes: draft.intent.requiredModes,
             excludedModes: draft.intent.excludedModes,
             preferredModes: draft.intent.preferredModes,
+            processingPath: draft.dialogueState.processingPath,
         )
 
         let journeyResult: JourneyResult
+        let planningStartedAt = metricsNow()
         do {
             journeyResult = try await journeys.plan(journeyRequest)
             try Task.checkCancellation()
+            recordStage(
+                .planning,
+                startedAt: planningStartedAt,
+                path: draft.dialogueState.processingPath,
+            )
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            recordStage(
+                .planning,
+                startedAt: planningStartedAt,
+                path: draft.dialogueState.processingPath,
+            )
             return .networkUnavailable(interpretation: interpretation)
         }
 
@@ -334,22 +519,68 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         var origin = draft.origin
         var destination = draft.destination
 
-        let pendingOriginQuery: String? = if case let .place(query) = draft.intent.origin, origin == nil {
+        if case .saved(let place) = draft.intent.originPlace, origin == nil {
+            origin = place.result
+        }
+        if case .saved(let place) = draft.intent.destinationPlace, destination == nil {
+            destination = place.result
+        }
+
+        let customOrigin: NaturalJourneySavedPlaceReference? = if draft.origin == nil,
+                                                                  case let .saved(place) = draft.intent.originPlace,
+                                                                  place.kind == .custom {
+            place
+        } else {
+            nil
+        }
+        let customDestination: NaturalJourneySavedPlaceReference? = if draft.destination == nil,
+                                                                       case let .saved(place) = draft.intent.destinationPlace,
+                                                                       place.kind == .custom {
+            place
+        } else {
+            nil
+        }
+
+        let pendingOriginQuery: String? = if case let .query(query) = draft.intent.originPlace,
+                                             origin == nil {
             query
         } else {
             nil
         }
-        let pendingDestinationQuery = destination == nil ? draft.intent.destinationQuery : nil
+        let pendingDestinationQuery: String? = if case let .query(query) = draft.intent.destinationPlace,
+                                                  destination == nil {
+            query
+        } else {
+            nil
+        }
 
         // The two lookups are independent network searches: waiting for one
         // before starting the other doubled the geocoding latency.
         async let resolvedOrigin = resolve(pendingOriginQuery, near: currentLocation)
         async let resolvedDestination = resolve(pendingDestinationQuery, near: currentLocation)
-        let (originResolution, destinationResolution) = try await (resolvedOrigin, resolvedDestination)
+        async let resolvedCustomOrigin = resolveCustomAlias(customOrigin, near: currentLocation)
+        async let resolvedCustomDestination = resolveCustomAlias(customDestination, near: currentLocation)
+        let (
+            originResolution,
+            destinationResolution,
+            customOriginResolution,
+            customDestinationResolution
+        ) = try await (
+            resolvedOrigin,
+            resolvedDestination,
+            resolvedCustomOrigin,
+            resolvedCustomDestination,
+        )
         try Task.checkCancellation()
 
         if case .currentLocation = draft.intent.origin, currentLocation == nil {
             fields.append(.init(target: .origin, question: "D’où pars-tu ?", candidates: []))
+        } else if case .reference = draft.intent.originPlace, origin == nil {
+            fields.append(.init(
+                target: .origin,
+                question: "À quel lieu confirmé fais-tu référence pour le départ ?",
+                candidates: Self.contextCandidates(in: draft),
+            ))
         } else if let originResolution {
             switch originResolution {
             case let .resolved(result):
@@ -360,6 +591,19 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                     question: "De quel lieu pars-tu ?",
                     candidates: originResolution.candidates,
                 ))
+            }
+        } else if let customOriginResolution {
+            switch customOriginResolution {
+            case let .resolved(result):
+                origin = result
+            case let .ambiguous(candidates):
+                fields.append(.init(
+                    target: .origin,
+                    question: "Tu parles du lieu enregistré ou du lieu public ?",
+                    candidates: candidates,
+                ))
+            case .notFound, .unavailable:
+                break
             }
         }
 
@@ -374,6 +618,25 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                     candidates: destinationResolution.candidates,
                 ))
             }
+        } else if let customDestinationResolution {
+            switch customDestinationResolution {
+            case let .resolved(result):
+                destination = result
+            case let .ambiguous(candidates):
+                fields.append(.init(
+                    target: .destination,
+                    question: "Tu parles du lieu enregistré ou du lieu public ?",
+                    candidates: candidates,
+                ))
+            case .notFound, .unavailable:
+                break
+            }
+        } else if case .reference = draft.intent.destinationPlace, destination == nil {
+            fields.append(.init(
+                target: .destination,
+                question: "À quel lieu confirmé fais-tu référence ?",
+                candidates: Self.contextCandidates(in: draft),
+            ))
         } else if draft.intent.destinationQuery == nil {
             fields.append(.init(
                 target: .destination,
@@ -390,11 +653,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             ))
         }
 
-        let next = NaturalJourneyDraft(
-            intent: draft.intent,
-            origin: origin,
-            destination: destination,
-        )
+        let next = draft.replacingPlaces(origin: origin, destination: destination)
         return fields.isEmpty
             ? .resolved(next)
             : .clarification(.needsClarification(draft: next, fields: fields))
@@ -405,13 +664,42 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         near currentLocation: GeoCoordinate?,
     ) async throws -> OnDevicePlaceResolution? {
         guard let query else { return nil }
-        // « chez moi » / « au bureau » name a saved place, not a geocodable
-        // one: the favorite answers directly and no search request leaves the
-        // device. An absent favorite falls through to the ordinary search.
-        if let role = Self.favoriteRole(for: query), let favorite = await favorites(role) {
+        // « chez moi » / « au bureau » name a saved place, never a geocodable
+        // query. The typed production path handles an absent slot before this
+        // seam; the legacy parser path still fails closed here.
+        if let role = Self.favoriteRole(for: query) {
+            guard let favorite = await favorites(role) else { return .notFound }
             return .resolved(favorite)
         }
         return try await places.resolve(query, near: currentLocation)
+    }
+
+    /// Home and Work are personal, unambiguous concepts. A custom alias can
+    /// also be a public place name (for example « Bastille »), so both choices
+    /// are shown when the local resolver finds a different exact candidate.
+    private func resolveCustomAlias(
+        _ place: NaturalJourneySavedPlaceReference?,
+        near currentLocation: GeoCoordinate?,
+    ) async throws -> OnDevicePlaceResolution? {
+        guard let place, place.kind == .custom, let saved = place.result else { return nil }
+        let publicResolution: OnDevicePlaceResolution
+        do {
+            publicResolution = try await places.resolve(place.label, near: currentLocation)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return .resolved(saved)
+        }
+
+        switch publicResolution {
+        case let .resolved(result):
+            return result.id == saved.id ? .resolved(saved) : .ambiguous([saved, result])
+        case let .ambiguous(candidates):
+            let distinct = candidates.filter { $0.id != saved.id }
+            return distinct.isEmpty ? .resolved(saved) : .ambiguous([saved] + distinct)
+        case .notFound, .unavailable:
+            return .resolved(saved)
+        }
     }
 
     /// Mirrors the server toolset's HOME/WORK tokens; the queries are compared
@@ -452,9 +740,31 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         case clarification(NaturalJourneyResult)
     }
 
-    private func recordInterpretation(startedAt: Date) {
+    private static func contextCandidates(in draft: NaturalJourneyDraft) -> [SearchResult] {
+        var seen: Set<String> = []
+        return [draft.origin, draft.destination]
+            .compactMap { $0 }
+            .filter { seen.insert($0.id).inserted }
+    }
+
+    private func recordInterpretation(
+        startedAt: Date,
+        path: NaturalJourneyProcessingPath,
+    ) {
+        recordStage(.interpretation, startedAt: startedAt, path: path)
+    }
+
+    private func recordStage(
+        _ stage: NaturalJourneyMetricStage,
+        startedAt: Date,
+        path: NaturalJourneyProcessingPath,
+    ) {
         let duration = max(0, metricsNow().timeIntervalSince(startedAt))
-        metrics.recordInterpretation(durationMilliseconds: Int(duration * 1000))
+        metrics.recordStage(
+            stage,
+            path: path,
+            durationMilliseconds: Int(duration * 1000),
+        )
     }
 
     private static let parisCalendar: Calendar = {

@@ -30,7 +30,7 @@
   les voyageurs à mobilité réduite (itinéraires fauteuil, ascenseurs, accès de plain-pied)
   et les touristes (non adressés tant que l'app est monolingue française).
 - **Unique Differentiator:**
-  1. **Langage naturel local** — « Gare de Lyon avant 18 h » compris par Apple Intelligence,
+  1. **Langage naturel privé** — « Gare de Lyon avant 18 h » compris sur l’iPhone quand c’est possible, sinon par le serveur sécurisé sans conservation,
      traité sur l'appareil. Aucun concurrent du top 10 FR ne le fait.
   2. **Live Activity de trajet** — prochain arrêt, correspondance et heure d'arrivée sur
      l'écran verrouillé, sans rouvrir l'app.
@@ -126,7 +126,7 @@ Ce qui suit a été vérifié dans `apps/via/via/` — toute promesse de fiche d
 | Métro, RER, Transilien, tramway, bus | `Features/Network` — les cinq modes sont modélisés |
 | Prochains passages temps réel vs théorique | `Features/Departures` |
 | Itinéraires, partir après / arriver avant | `Features/Journeys` |
-| Langage naturel + Apple Intelligence sur l'appareil | `Features/NaturalJourneys` |
+| Langage naturel + Apple Intelligence, avec interprétation serveur sécurisée en secours | `Features/NaturalJourneys` |
 | Live Activity de trajet | `Features/ActiveJourney` |
 | Carte du réseau, lignes, stations | `Features/Map`, `Features/Lines` |
 | Vélib' : stations, capacité, disponibilité | `BikeStationDTO`, couche carte opt-in |

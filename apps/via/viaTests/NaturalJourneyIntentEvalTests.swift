@@ -6,30 +6,9 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(Self.corpus.count, 100)
     }
 
-    func testGeneratedReformulationIsTrimmedAndBounded() {
-        let reformulation = GeneratedJourneyReformulation(
-            query: "  Aller de Châtelet à Nation demain matin  ",
-        )
-
-        XCTAssertEqual(
-            reformulation.validatedQuery(),
-            "Aller de Châtelet à Nation demain matin",
-        )
-        XCTAssertNil(
-            GeneratedJourneyReformulation(query: "   ").validatedQuery(),
-        )
-        XCTAssertNil(
-            GeneratedJourneyReformulation(query: String(repeating: "a", count: 501))
-                .validatedQuery(),
-        )
-    }
-
     func testRuntimeFailureStaysInsideTheNaturalIntentErrorContract() async throws {
         let parser = FoundationModelsIntentParser()
-        try XCTSkipUnless(
-            parser.availability == .available,
-            "Foundation Models français indisponible sur cet appareil ou ce simulateur",
-        )
+        guard try requireLiveModel(parser) else { return }
         let now = try XCTUnwrap(ISO8601.parse("2026-08-17T09:00:00+02:00"))
 
         do {
@@ -44,10 +23,7 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
 
     func testBareOriginVersDestinationKeepsExplicitOriginAndExcludedMode() async throws {
         let parser = FoundationModelsIntentParser()
-        try XCTSkipUnless(
-            parser.availability == .available,
-            "Foundation Models français indisponible sur cet appareil ou ce simulateur",
-        )
+        guard try requireLiveModel(parser) else { return }
         let now = try XCTUnwrap(ISO8601.parse("2026-08-21T11:42:00+02:00"))
 
         let intent = try await parser.parseIntent(
@@ -65,12 +41,9 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         XCTAssertEqual(intent.excludedModes, [.rer])
     }
 
-    func testReformulationKeepsAnInvertedExplicitOriginGrounded() async throws {
+    func testStructuredInterpretationKeepsAnInvertedExplicitOriginGrounded() async throws {
         let parser = FoundationModelsIntentParser()
-        try XCTSkipUnless(
-            parser.availability == .available,
-            "Foundation Models français indisponible sur cet appareil ou ce simulateur",
-        )
+        guard try requireLiveModel(parser) else { return }
         let now = try XCTUnwrap(ISO8601.parse("2026-08-25T22:40:00+02:00"))
 
         let intent = try await parser.parseIntent(
@@ -83,7 +56,7 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         }
         XCTAssertTrue(
             OnDevicePlaceResolver.normalize(originQuery).hasPrefix("saint germain en lay"),
-            "La reformulation a remplacé l’origine par \(originQuery)",
+            "L’interprétation a remplacé l’origine par \(originQuery)",
         )
         XCTAssertEqual(intent.destinationQuery?.lowercased(), "auber")
         XCTAssertTrue(intent.originWasExplicit)
@@ -91,10 +64,7 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
 
     func testAnnotatedFrenchJourneyCorpus() async throws {
         let parser = FoundationModelsIntentParser()
-        try XCTSkipUnless(
-            parser.availability == .available,
-            "Foundation Models français indisponible sur cet appareil ou ce simulateur",
-        )
+        guard try requireLiveModel(parser) else { return }
         let now = try XCTUnwrap(ISO8601.parse("2026-08-17T09:00:00+02:00"))
 
         var exactMatches = 0
@@ -144,9 +114,79 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         let accuracy = Double(exactMatches) / Double(exactEligibleCount)
         XCTAssertGreaterThanOrEqual(
             accuracy,
-            0.95,
+            0.99,
             "Précision \(accuracy); cas en échec: \(mismatches.joined(separator: ", "))",
         )
+    }
+
+    func testAnnotatedEnglishJourneyCorpus() async throws {
+        let parser = FoundationModelsIntentParser()
+        guard try requireLiveModel(parser) else { return }
+        let now = try XCTUnwrap(ISO8601.parse("2026-08-17T09:00:00+02:00"))
+
+        let evaluations: [(
+            phrase: String,
+            origin: RouteOriginIntent,
+            destination: String,
+            meaning: RouteIntent.TimeMeaning,
+            required: Set<TransitMode>,
+            excluded: Set<TransitMode>,
+            preferred: Set<TransitMode>
+        )] = [
+            ("Take me to Nation", .currentLocation, "Nation", .departure, [], [], []),
+            ("Get me from Auber to Nation", .place(query: "Auber"), "Nation", .departure, [], [], []),
+            ("I need to arrive at Gare du Nord before 9:00", .currentLocation, "Gare du Nord", .arrival, [], [], []),
+            ("Go to Bastille after 18:30", .currentLocation, "Bastille", .departure, [], [], []),
+            ("Nation without the RER", .currentLocation, "Nation", .departure, [], [.rer], []),
+            ("Prefer the bus to Nation", .currentLocation, "Nation", .departure, [], [], [.bus]),
+            ("Nation only by metro", .currentLocation, "Nation", .departure, [.metro], [], []),
+            ("Take me towards La Défense", .currentLocation, "La Défense", .departure, [], [], []),
+        ]
+
+        var matches = 0
+        for evaluation in evaluations {
+            let intent = try await parser.proposeIntent(NaturalIntentModelRequest(
+                phrase: evaluation.phrase,
+                locale: Locale(identifier: "en_US"),
+                now: now,
+                hasCurrentLocation: true,
+                originAnchor: nil,
+                destinationAnchor: nil,
+                savedPlaces: [],
+            )).intent
+            if intent.origin == evaluation.origin,
+               intent.destinationQuery == evaluation.destination,
+               intent.datetimeRepresents == evaluation.meaning,
+               intent.requiredModes == evaluation.required,
+               intent.excludedModes == evaluation.excluded,
+               intent.preferredModes == evaluation.preferred
+            {
+                matches += 1
+            }
+        }
+
+        let accuracy = Double(matches) / Double(evaluations.count)
+        XCTAssertGreaterThanOrEqual(accuracy, 0.99, "English accuracy: \(accuracy)")
+    }
+
+    private func requireLiveModel(
+        _ parser: FoundationModelsIntentParser
+    ) throws -> Bool {
+        #if VIA_RELEASE_EVAL_GATE
+            guard parser.availability == .available else {
+                XCTFail(
+                    "La release exige un appareil compatible avec Foundation Models et les modèles FR/EN prêts."
+                )
+                return false
+            }
+            return true
+        #else
+            try XCTSkipUnless(
+                parser.availability == .available,
+                "Foundation Models indisponible sur cet appareil ou ce simulateur",
+            )
+            return true
+        #endif
     }
 
     private struct Evaluation {

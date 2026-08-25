@@ -5,24 +5,23 @@
  * reviewer can confirm the privacy promise by reading this type alone.
  */
 export type NaturalJourneyOutcomeCategory =
-  | 'ready'
-  | 'unsupported'
+  | 'interpreted'
+  | 'rollout-disabled'
   | 'no-key'
   | 'rate-limited'
   | 'circuit-open'
   | 'timeout'
   | 'cancelled'
   | 'invalid-output'
-  | 'tool-budget-exceeded'
   | 'openai-error';
 
 export type TokenUsage = { input: number; output: number; total: number };
 
 export type NaturalJourneyMetric = {
   source: 'openai';
+  stage: 'interpretation';
   category: NaturalJourneyOutcomeCategory;
   latencyMs: number;
-  toolCalls: { searchPlaces: number; planJourneys: number };
   tokens: TokenUsage | null;
   model: string;
   promptVersion: string;

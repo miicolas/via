@@ -32,17 +32,22 @@ struct AIOnboardingCard: View {
                 .padding(.vertical, 14)
                 .glassEffect(.regular.tint(Color.aiSurface), in: .rect(cornerRadius: 20))
 
-            Button("Essayer", systemImage: "arrow.right", action: onTry)
-                .naturalJourneyPrimaryAction()
-                .accessibilityHint("Ouvre le champ de recherche en langage naturel")
-
             Label(
-                "La demande est comprise sur cet iPhone quand c’est possible, sinon par le serveur sécurisé de Metyro.",
+                "La demande est comprise sur cet iPhone quand c’est possible, sinon par le serveur sécurisé de Via.",
                 systemImage: "lock.shield.fill",
             )
             .font(.footnote)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+
+            Text("Tu peux choisir « Local uniquement » dans Réglages > Recherche intelligente.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button("Essayer", systemImage: "arrow.right", action: onTry)
+                .naturalJourneyPrimaryAction()
+                .accessibilityHint("Ouvre le champ de recherche en langage naturel")
         }
         .frame(maxWidth: .infinity)
     }

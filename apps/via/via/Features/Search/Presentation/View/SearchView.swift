@@ -27,6 +27,7 @@ struct SearchView: View {
   @State private var isNaturalDatePickerPresented = false
   @State private var isNaturalOptionsPresented = false
   @State private var isAccessibilityInfoPresented = false
+  @State private var isNaturalCriteriaFeedbackPresented = false
   @State private var isReminderErrorPresented = false
 
   init(
@@ -135,6 +136,21 @@ struct SearchView: View {
         elevatorSource: viewModel.elevatorSource
       )
     }
+    .sheet(item: naturalSavedPlaceSelection) { request in
+      SavedDestinationSearchView(
+        viewModel: viewModel,
+        title: request.title,
+        accessibilityHint: request.savesPlace
+          ? "Enregistre ce lieu et reprend le trajet"
+          : "Choisit ce lieu pour ce trajet uniquement",
+        onSelect: viewModel.completeNaturalSavedPlaceSelection,
+      )
+    }
+    .sheet(isPresented: $isNaturalCriteriaFeedbackPresented) {
+      if let criteria = viewModel.naturalJourneyCriteria {
+        NaturalJourneyCriteriaFeedbackView(criteria: criteria)
+      }
+    }
     .alert("Rappel non modifié", isPresented: $isReminderErrorPresented) {
       if journeyNotificationCoordinator.authorizationStatus == .denied {
         Button("Ouvrir les réglages iOS") {
@@ -149,6 +165,15 @@ struct SearchView: View {
           ?? "Votre rappel est mémorisé et sera réessayé plus tard."
       )
     }
+  }
+
+  private var naturalSavedPlaceSelection: Binding<NaturalSavedPlaceSelectionRequest?> {
+    Binding(
+      get: { viewModel.naturalSavedPlaceSelectionRequest },
+      set: { request in
+        if request == nil { viewModel.cancelNaturalSavedPlaceSelection() }
+      },
+    )
   }
 
   private var hasActiveJourneySurface: Bool {
@@ -330,6 +355,10 @@ struct SearchView: View {
             onEditDestination: viewModel.wrappedValue.editDestination,
             onEditTime: { isNaturalDatePickerPresented = true },
             onEditOptions: { isNaturalOptionsPresented = true },
+            onReportInterpretation: {
+              viewModel.wrappedValue.recordNaturalIncorrectExecution()
+              isNaturalCriteriaFeedbackPresented = true
+            },
           )
         } else if viewModel.wrappedValue.step == .results {
           SearchOptionsBar(

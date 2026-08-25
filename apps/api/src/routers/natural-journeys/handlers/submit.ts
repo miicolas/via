@@ -10,7 +10,6 @@ export function createSubmitNaturalJourneyHandler(service: NaturalJourneyService
     context.resHeaders?.set('Cache-Control', NATURAL_JOURNEYS_CACHE_CONTROL);
     return service.submit(input, {
       identity: context.userId ?? context.requestIPHash?.() ?? 'anonymous',
-      userId: context.userId ?? undefined,
       signal,
     });
   });

@@ -4,49 +4,68 @@ struct AppleIntelligenceSettingsView: View {
     let searchViewModel: SearchViewModel
 
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(NaturalJourneyProcessingPreference.serverFallbackKey)
+    private var serverFallbackEnabled = true
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 46, weight: .semibold))
-                    .foregroundStyle(.purple)
-
-                Text("Recherche naturelle")
-                    .font(.largeTitle.bold())
+        List {
+            Section {
+                Label(status, systemImage: statusImage)
+                    .foregroundStyle(statusColor)
 
                 Text(message)
-                    .font(.title3)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } header: {
+                Label("Recherche naturelle", systemImage: "apple.intelligence")
+            }
 
-                Label(status, systemImage: statusImage)
-                    .font(.headline)
-                    .foregroundStyle(statusColor)
-                    .padding(18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.quaternary, in: .rect(cornerRadius: 20))
-
-                if let guidance {
-                    VStack(alignment: .leading, spacing: 14) {
-                        ForEach(Array(guidance.instructions.enumerated()), id: \.offset) {
-                            _, instruction in
-                            Label(instruction.text, systemImage: instruction.systemImage)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
+            Section {
+                LabeledContent {
+                    Toggle(isOn: $serverFallbackEnabled) {
+                        Label(
+                            "Autoriser le serveur sécurisé",
+                            systemImage: "lock.shield.fill",
+                        )
                     }
-                    .font(.body)
+                    .labelStyle(.iconOnly)
+                    .accessibilityLabel("Autoriser le serveur sécurisé")
+                    .accessibilityValue(serverFallbackEnabled ? "Activé" : "Désactivé")
+                } label: {
+                    Label("Serveur sécurisé", systemImage: "lock.shield.fill")
+                }
+            } header: {
+                Text("Traitement")
+            } footer: {
+                Text(serverFallbackEnabled
+                    ? "Si le traitement local ne peut pas terminer la compréhension, la phrase est envoyée au serveur sécurisé de Via. Elle n’est pas conservée."
+                    : "Mode local uniquement. Les formulations déterministes restent disponibles, mais certaines demandes complexes peuvent nécessiter une saisie classique.")
+            }
+
+            if let guidance {
+                Section("SUR CET IPHONE") {
+                    ForEach(Array(guidance.instructions.enumerated()), id: \.offset) {
+                        _, instruction in
+                        Label(instruction.text, systemImage: instruction.systemImage)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
-            .padding(24)
+
+            Section("CONFIDENTIALITÉ") {
+                Label("Aucun historique de phrases", systemImage: "text.badge.xmark")
+                Label("Les adresses enregistrées restent sur cet iPhone", systemImage: "mappin.slash")
+                Label("Retour détaillé uniquement avec ton accord", systemImage: "checkmark.shield.fill")
+            }
         }
-        .navigationTitle("Apple Intelligence")
+        .navigationTitle("Recherche intelligente")
         .navigationBarTitleDisplayMode(.inline)
         .id(scenePhase)
     }
 
     private var status: String {
         switch searchViewModel.naturalLanguageAccess {
-        case .active: "Disponible"
+        case .active: serverFallbackEnabled ? "Local quand possible" : "Local uniquement"
         case .explanation(.enableAppleIntelligence): "À activer"
         case .explanation(.modelNotReady): "Modèle en préparation"
         case .explanation(.systemUnavailable): "Temporairement indisponible"
@@ -57,9 +76,11 @@ struct AppleIntelligenceSettingsView: View {
     private var message: String {
         switch searchViewModel.naturalLanguageAccess {
         case .active:
-            "Décris ton trajet avec tes propres mots. Le traitement reste sur l’appareil."
+            serverFallbackEnabled
+                ? "Décris ton trajet avec tes propres mots. Il est traité sur cet iPhone quand c’est possible, sinon par le serveur sécurisé de Via."
+                : "Décris ton trajet avec tes propres mots. Aucun modèle serveur ne sera utilisé."
         case .explanation(.enableAppleIntelligence):
-            "Active Apple Intelligence dans Réglages > Apple Intelligence et Siri, puis reviens dans Metyro."
+            "Active Apple Intelligence dans Réglages > Apple Intelligence et Siri, puis reviens dans Via."
         case .explanation(.modelNotReady):
             "Le modèle n’est pas encore prêt. Garde l’appareil connecté au Wi-Fi et à l’alimentation."
         case .explanation(.systemUnavailable):

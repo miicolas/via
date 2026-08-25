@@ -4,6 +4,7 @@ struct NaturalJourneyFailureView: View {
     let message: String
     let criteria: NaturalJourneyCriteria?
     let unresolvedDraft: NaturalJourneyDraft?
+    let feedbackPhrase: String
     let onRetry: () -> Void
     let onClassicSearch: () -> Void
 
@@ -23,6 +24,7 @@ struct NaturalJourneyFailureView: View {
             NaturalJourneyRecoveryActions(onClassicSearch: onClassicSearch) {
                 RetryButton(action: onRetry)
             }
+            NaturalJourneyFeedbackShareLink(phrase: feedbackPhrase)
         }
     }
 }

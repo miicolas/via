@@ -157,9 +157,9 @@ const envSchema = z.object({
     .transform(Number)
     .pipe(z.number().int().min(60)),
   /**
-   * OpenAI fallback for the natural-language journey agent. The key is optional
+   * OpenAI fallback for natural-language interpretation. The key is optional
    * on purpose: without it the `/natural-journeys` route answers with the
-   * recoverable double-failure instead of the whole API refusing to boot, and
+   * recoverable unavailable result instead of the whole API refusing to boot, and
    * the key never leaves this backend. See docs/adr for the fallback contract.
    */
   OPENAI_API_KEY: z.string().min(1).optional(),
@@ -172,12 +172,12 @@ const envSchema = z.object({
    */
   OPENAI_TIMEOUT_MS: z
     .string()
-    .default("13000")
+    .default("5000")
     .transform(Number)
     .pipe(z.number().int().min(1_000).max(60_000)),
   /**
-   * Per-turn thinking budget of the orchestration agent. `minimal` keeps the
-   * tool loop fast; raise it by env if the model starts mis-planning.
+   * Thinking budget for the single structured interpretation. `minimal` keeps
+   * the fallback inside its latency budget.
    */
   OPENAI_REASONING_EFFORT: z.enum(["minimal", "low", "medium"]).default("minimal"),
   /** Per-person fallback ceiling: 20 submissions per 15-minute window. */
@@ -208,6 +208,12 @@ const envSchema = z.object({
    * user id, while a dedicated secret can rotate independently later.
    */
   OPENAI_SAFETY_SECRET: z.string().min(16).optional(),
+  /** Stable remote interpretation rollout. Set to 0 for the kill switch. */
+  NATURAL_JOURNEYS_REMOTE_ROLLOUT_PERCENT: z
+    .string()
+    .default("0")
+    .transform(Number)
+    .pipe(z.number().int().min(0).max(100)),
 });
 
 const parsed = envSchema.safeParse(process.env);

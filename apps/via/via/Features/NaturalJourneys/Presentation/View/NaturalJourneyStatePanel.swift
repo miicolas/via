@@ -64,6 +64,18 @@ struct NaturalJourneyStatePanel: View {
                 onConfirmCurrentLocation: {
                     viewModel.confirmNaturalCurrentLocation(draft: draft)
                 },
+                onResolveInterpretationConflict: viewModel.modifyNaturalQuery,
+                onContinueAfterUnexplainedText: {
+                    viewModel.continueNaturalSearchAfterUnexplainedText(draft: draft)
+                },
+                onChooseMissingSavedPlace: { target, kind, savesPlace in
+                    viewModel.chooseNaturalSavedPlace(
+                        draft: draft,
+                        target: target,
+                        kind: kind,
+                        savesPlace: savesPlace,
+                    )
+                },
                 onResolveMode: { mode, constraint in
                     viewModel.resolveNaturalModeConflict(
                         draft: draft,
@@ -88,6 +100,7 @@ struct NaturalJourneyStatePanel: View {
             NaturalJourneyUnsupportedView(
                 message: message,
                 suggestions: suggestions,
+                feedbackPhrase: viewModel.naturalQuery,
                 onModify: viewModel.modifyNaturalQuery,
                 onClassicSearch: viewModel.useClassicSearch,
             )
@@ -102,6 +115,7 @@ struct NaturalJourneyStatePanel: View {
                 message: message,
                 criteria: viewModel.naturalJourneyCriteria,
                 unresolvedDraft: viewModel.naturalJourneyUnresolvedDraft,
+                feedbackPhrase: viewModel.naturalQuery,
                 onRetry: viewModel.retryNaturalSearch,
                 onClassicSearch: viewModel.useClassicSearch,
             )
