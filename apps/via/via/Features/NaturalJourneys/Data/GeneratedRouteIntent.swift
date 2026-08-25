@@ -120,6 +120,9 @@ struct GeneratedRouteIntent {
     @Guide(description: "Destination formulée par l’utilisateur, ou absence si elle manque")
     var destinationQuery: String?
 
+    @Guide(description: "Vrai uniquement pour « le dernier train/métro/RER/bus/tram » de la journée; jamais pour une heure citée")
+    var lastServiceOfDay: Bool
+
     @Guide(description: "Contrainte principale; utilise implicitToday et unspecified si aucune date ni heure n’est formulée")
     var timeConstraint: GeneratedRouteTimeConstraint
 
@@ -228,6 +231,7 @@ struct GeneratedRouteIntent {
             destinationQuery: destination,
             requestedAt: resolvedTime.date,
             datetimeRepresents: timeMeaning,
+            timeAnchor: lastServiceOfDay ? .lastOfDay : nil,
             requiredModes: Set(requiredModes.map(\.domain)),
             excludedModes: Set(excludedModes.map(\.domain)),
             preferredModes: Set(preferredModes.map(\.domain)),

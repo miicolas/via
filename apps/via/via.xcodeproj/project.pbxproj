@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000011 /* OpenAPIRuntime */; };
 		A10000000000000000000002 /* OpenAPIURLSession in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000012 /* OpenAPIURLSession */; };
-		D10000000000000000000001 /* JourneyActivityExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = D10000000000000000000002 /* JourneyActivityExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D10000000000000000000001 /* JourneyActivityExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D10000000000000000000002 /* JourneyActivityExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,15 +30,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		D1000000000000000000000B /* Embed App Extensions */ = {
+		D1000000000000000000000B /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				D10000000000000000000001 /* JourneyActivityExtension.appex in Embed App Extensions */,
+				D10000000000000000000001 /* JourneyActivityExtension.appex in Embed Foundation Extensions */,
 			);
-			name = "Embed App Extensions";
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -170,7 +170,7 @@
 				B2DADC633030B6E8007DFCA8 /* Sources */,
 				B2DADC643030B6E8007DFCA8 /* Frameworks */,
 				B2DADC653030B6E8007DFCA8 /* Resources */,
-				D1000000000000000000000B /* Embed App Extensions */,
+				D1000000000000000000000B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -244,7 +244,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2660;
-				LastUpgradeCheck = 2660;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					B2DADC663030B6E8007DFCA8 = {
 						CreatedOnToolsVersion = 26.6;
@@ -386,6 +386,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 			};
 			name = Staging;
@@ -474,6 +475,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -531,6 +533,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};

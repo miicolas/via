@@ -1,6 +1,6 @@
 # 0002 — Recherche en langage naturel Apple Intelligence locale uniquement
 
-- Statut : accepté
+- Statut : partiellement remplacé par ADR-0004 (décisions 6, 8 et 9)
 - Date : 2026-08-20
 - Remplace : ADR-0001
 

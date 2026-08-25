@@ -13,6 +13,18 @@ enum NaturalJourneyPresentationPolicy {
     static func centersContent(_ state: NaturalSearchState) -> Bool {
         !expandsForInput(state)
     }
+
+    /// Which states have an answer or a question to show: the conversational
+    /// panel in the composer, and the raised sheet detent that hosts it. One
+    /// predicate for both so the detent and the panel can never disagree.
+    static func showsPanel(_ state: NaturalSearchState) -> Bool {
+        switch state {
+        case .dismissed, .input, .loading:
+            false
+        case .onboarding, .clarification, .decision, .unsupported, .availability, .failed:
+            true
+        }
+    }
 }
 
 struct NaturalJourneyRecoveryInstruction: Sendable, Hashable {

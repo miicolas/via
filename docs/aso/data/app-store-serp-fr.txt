@@ -1,0 +1,181 @@
+### metro paris
+   1. Métro Paris & RER  |  Alexandre Morcos  |  4.6/13914  |  1296797383
+   2. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   3. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   4. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   5. Métro de Paris et Itinéraires  |  Mapway Inc.  |  4.4/16106  |  527534137
+   6. SNCF Connect: Trains & trajets  |  SNCF Connect  |  4.6/1880665  |  343889987
+   7. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+   8. Plan Métro Paris & RER  |  DXB Technologies  |  4.4/1514  |  579456113
+   9. Métro Paris  |  Alexandre Morcos  |  4.6/1668  |  297404959
+  10. Métro Paris & Bus - HorairesMe  |  yohan teixeira  |  4.4/8186  |  575814291
+  11. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+### plan metro paris
+   1. Métro Paris & RER  |  Alexandre Morcos  |  4.6/13914  |  1296797383
+   2. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   3. Métro de Paris et Itinéraires  |  Mapway Inc.  |  4.4/16106  |  527534137
+   4. Plan Métro Paris & RER  |  DXB Technologies  |  4.4/1514  |  579456113
+   5. Paris Metro Map + Bus & RER  |  Thryv Inc  |  5.0/2  |  1563946666
+   6. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   7. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   8. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   9. Métro Paris  |  Alexandre Morcos  |  4.6/1668  |  297404959
+  10. Disneyland® Paris  |  Euro Disney Associes SCA  |  4.4/30441  |  396908589
+  11. Métro Paris & Bus - HorairesMe  |  yohan teixeira  |  4.4/8186  |  575814291
+  12. City Rail Map - Travel Offline  |  Ansgar Vollmer Und Till Knorr  |  4.5/1460  |  1032469973
+### transport ile de france
+   1. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   2. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   3. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   4. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   5. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+   6. SNCF Connect: Trains & trajets  |  SNCF Connect  |  4.6/1880665  |  343889987
+   7. TAD Île-de-France Mobilités  |  Padam Mobility  |  2.8/250  |  1292320725
+   8. Transdev Ile de France  |  TRANSDEV  |  2.6/3015  |  1348748734
+   9. Covoit IDFM  |  Ile de France Mobilites  |  4.8/3198  |  6752778055
+  10. Transports IDF  |  Donovan Herbe  |  0.0/0  |  6783892631
+  11. RER A  |  Tom Brzezinski  |  5.0/6  |  1614651337
+### ratp
+   1. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   2. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   3. SNCF Connect: Trains & trajets  |  SNCF Connect  |  4.6/1880665  |  343889987
+   4. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   5. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   6. Métro Paris & RER  |  Alexandre Morcos  |  4.6/13914  |  1296797383
+   7. Trainline : Trains SNCF & Bus  |  thetrainline  |  4.7/15001  |  334235181
+   8. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+   9. Métro Paris & Bus - HorairesMe  |  yohan teixeira  |  4.4/8186  |  575814291
+  10. RATP Habitat  |  SA HLM LOGIS TRANSPORTS  |  2.0/4  |  1449718000
+  11. Citygo - Covoiturage  |  CITYGO SAS  |  4.7/43043  |  926928559
+  12. Mutuelle RATP  |  Mutuelle du groupe RATP  |  3.1/8  |  6752852774
+### rer
+   1. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   2. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   3. Métro Paris & RER  |  Alexandre Morcos  |  4.6/13914  |  1296797383
+   4. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   5. RER A  |  Tom Brzezinski  |  5.0/6  |  1614651337
+   6. SNCF Connect: Trains & trajets  |  SNCF Connect  |  4.6/1880665  |  343889987
+   7. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   8. Plan Métro Paris & RER  |  DXB Technologies  |  4.4/1514  |  579456113
+   9. Mon Écran — Métros RER BUS & +  |  julien Benkhellate  |  4.2/374  |  1326558707
+  10. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+  11. Métro de Paris et Itinéraires  |  Mapway Inc.  |  4.4/16106  |  527534137
+  12. Ma Gare SNCF  |  SNCF Gares & Connexions  |  4.5/3614  |  1132567213
+### transport paris
+   1. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   2. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   3. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   4. Métro Paris & RER  |  Alexandre Morcos  |  4.6/13914  |  1296797383
+   5. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+   6. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   7. Métro de Paris et Itinéraires  |  Mapway Inc.  |  4.4/16106  |  527534137
+   8. Bolt : Demandez un Trajet 24/7  |  BOLT TECHNOLOGY OU  |  4.8/128799  |  675033630
+   9. Métro Paris & Bus - HorairesMe  |  yohan teixeira  |  4.4/8186  |  575814291
+  10. Paris Aéroport–App officielle  |  Aeroports de Paris  |  3.9/2525  |  322543617
+  11. SNCF Connect: Trains & trajets  |  SNCF Connect  |  4.6/1880665  |  343889987
+  12. Tisséo : Métro, Tram, Bus  |  TISSEO VOYAGEURS  |  4.3/18599  |  818553522
+### transport en commun paris
+   1. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   2. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   3. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   4. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+   5. Métro de Paris et Itinéraires  |  Mapway Inc.  |  4.4/16106  |  527534137
+   6. Disneyland® Paris  |  Euro Disney Associes SCA  |  4.4/30441  |  396908589
+   7. MetrO  |  Kinevia  |  4.5/72  |  320949132
+   8. Plan Métro Paris & RER  |  DXB Technologies  |  4.4/1514  |  579456113
+   9. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+  10. G7 TAXI – Commande de taxi  |  Ste Nouvelle Groupement Taxi  |  4.7/115311  |  402196027
+  11. Paris Aéroport–App officielle  |  Aeroports de Paris  |  3.9/2525  |  322543617
+### bus paris
+   1. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   2. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   3. Métro Paris & Bus - HorairesMe  |  yohan teixeira  |  4.4/8186  |  575814291
+   4. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   5. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   6. Bus Paris Stickers par Paris-ci la Sortie  |  Patrick UNG  |  2.8/8  |  1170260748
+   7. Métro Paris & RER  |  Alexandre Morcos  |  4.6/13914  |  1296797383
+   8. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+   9. Paris Metro Map + Bus & RER  |  Thryv Inc  |  5.0/2  |  1563946666
+  10. MAPS.ME – carte navigo, GPS  |  Convexity Holdings AG  |  4.7/28881  |  510623322
+  11. Métro de Paris et Itinéraires  |  Mapway Inc.  |  4.4/16106  |  527534137
+  12. Big Bus Tours: Hop On, Hop Off  |  Big Bus Tours Ltd  |  4.6/1017  |  590746945
+### idf mobilite
+   1. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   2. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   3. SNCF Connect: Trains & trajets  |  SNCF Connect  |  4.6/1880665  |  343889987
+   4. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   5. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   6. Covoit IDFM  |  Ile de France Mobilites  |  4.8/3198  |  6752778055
+   7. TAD Île-de-France Mobilités  |  Padam Mobility  |  2.8/250  |  1292320725
+   8. Métro Paris & RER  |  Alexandre Morcos  |  4.6/13914  |  1296797383
+   9. OUIGO : Billet de train & Gare  |  SNCF Voyageurs  |  3.7/4172  |  621194412
+  10. Transdev Ile de France  |  TRANSDEV  |  2.6/3015  |  1348748734
+  11. Trainline : Trains SNCF & Bus  |  thetrainline  |  4.7/15001  |  334235181
+  12. Ma Gare SNCF  |  SNCF Gares & Connexions  |  4.5/3614  |  1132567213
+### metro
+   1. METRO Companion  |  METRO Digital GmbH  |  3.5/174  |  1224592987
+   2. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   3. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   4. Métro Paris & RER  |  Alexandre Morcos  |  4.6/13914  |  1296797383
+   5. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   6. Mini Métro  |  Dinosaur Polo Club Limited  |  4.8/5641  |  837860959
+   7. MetrO  |  Kinevia  |  4.5/72  |  320949132
+   8. Mon Metro  |  Metro Richelieu Inc.  |  2.7/6  |  694386842
+   9. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+  10. Subway Simulator 3D: Transits  |  SIMULYATORS LAIV,OOO  |  3.9/2722  |  818269124
+  11. SNCF Connect: Trains & trajets  |  SNCF Connect  |  4.6/1880665  |  343889987
+### horaire bus
+   1. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   2. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   3. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   4. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+   5. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   6. Métro Paris & Bus - HorairesMe  |  yohan teixeira  |  4.4/8186  |  575814291
+   7. Où est mon bus ?  |  Jacques Hu  |  4.5/35  |  1610202931
+   8. Bus Connect  |  Clement Weibel  |  4.2/108  |  1544247813
+   9. SNCF Connect: Trains & trajets  |  SNCF Connect  |  4.6/1880665  |  343889987
+  10. STAR : bus, métro à Rennes  |  Keolis Rennes  |  4.6/6302  |  1237675720
+  11. Moovizy Saint-Etienne  |  Transdev Saint-Etienne  |  4.5/2556  |  944230356
+### itineraire transport
+   1. Citymapper  |  Citymapper Limited  |  4.8/190510  |  469463298
+   2. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   3. Moovit: Transports en commun  |  Moovit App Global LTD  |  4.6/25194  |  498477945
+   4. Transit • Horaires Bus & Métro  |  9280-0366 Quebec inc.  |  4.6/95030  |  498151501
+   5. Bonjour RATP  |  RATP Smart Systems  |  4.7/59762  |  507107090
+   6. Métro de Paris et Itinéraires  |  Mapway Inc.  |  4.4/16106  |  527534137
+   7. Tisséo : Métro, Tram, Bus  |  TISSEO VOYAGEURS  |  4.3/18599  |  818553522
+   8. TBM mobilités  |  Keolis Bordeaux  |  4.5/48193  |  1492096341
+   9. CTS Transports Strasbourg  |  Compagnie des Transports Strasbourgeois  |  4.4/7340  |  1241895758
+  10. Sibra  |  SOCIETE INTERCOMMUNALE DES BUS DE LA REGION ANNECIENNE  |  4.2/1104  |  1047139539
+  11. Lignes d’Azur Mobile  |  Regie Ligne d Azur  |  3.9/10541  |  423316741
+  12. Big Bus Tours: Hop On, Hop Off  |  Big Bus Tours Ltd  |  4.6/1017  |  590746945
+### trafic metro
+   1. Navigation Waze et trafic  |  waze  |  4.7/465120  |  323229106
+   2. Ma Ligne - Trafic Metro & RER  |  AUTO DIFF  |  4.0/56  |  6444736703
+   3. Carte Métro Londres  |  Mapway Inc.  |  4.6/4216  |  320969612
+   4. Plan Métro Barcelone  |  Mapway Inc.  |  4.6/2012  |  350745417
+   5. MAPS.ME – carte navigo, GPS  |  Convexity Holdings AG  |  4.7/28881  |  510623322
+   6. AMap Global  |  AutoNavi Information Technology Co. Ltd.  |  4.7/1996  |  461703208
+   7. State Connect : trafic routier  |  AI GAMES FZ LLC  |  4.3/5614  |  1590353335
+   8. Métro de Pékin - Jeu de Train  |  GEIMNEZIS, OOO  |  4.2/23  |  1607804237
+   9. L’Appli M  |  Grenoble Alpes Metropole  |  1.6/540  |  966169282
+  10. Métro à Paris: Jeu de conduite  |  IMPULSORY LLC  |  3.8/258  |  1604765650
+  11. Jeux course Metro Bike Rider 5  |  Hassan Javed  |  4.1/192  |  6472714641
+### prochain metro
+   1. Prochain metro  |  Mathieu SACHET  |  5.0/1  |  6759900326
+   2. Métro Paris & Bus - HorairesMe  |  yohan teixeira  |  4.4/8186  |  575814291
+   3. Tisséo : Métro, Tram, Bus  |  TISSEO VOYAGEURS  |  4.3/18599  |  818553522
+   4. Traintrain - Départ imminent  |  Joey Bronner  |  5.0/4  |  1536604401
+### velib
+   1. Vélib', app officielle  |  SYNDICAT MIXTE AUTOLIB' ET VELIB' METROPOLE  |  1.6/1081  |  577807727
+   2. Lime - #RideGreen  |  Neutron Holdings. Inc.  |  4.9/352781  |  1199780189
+   3. vélôToulouse officiel  |  JCDecaux SA  |  4.5/6689  |  6478927758
+   4. Île-de-France Mobilités  |  Ile de France Mobilites  |  4.7/144270  |  484527651
+   5. Dott – Moving us closer  |  emTransit B.V  |  4.8/102627  |  1440301673
+   6. Voi – trottinettes et vélos  |  VOI Technology AB  |  4.8/42343  |  1395921017
+   7. Uber : Commandez un trajet  |  Uber Technologies, Inc.  |  4.8/922566  |  368677368
+   8. Velibest  |  Thomas De Queiros  |  4.8/21  |  6751761698
+   9. Vélibz  |  Alexandre Guibert  |  4.8/61  |  1522170476
+  10. levélo - La Métropole Mobilité  |  Fifteen  |  4.7/15312  |  6444705742
+  11. Vélo’v officiel  |  JCDecaux SA  |  4.6/8582  |  1356108037
+  12. Pony - Vélos et Trottinettes  |  Pony Bikes Ltd.  |  4.8/21025  |  1273866794

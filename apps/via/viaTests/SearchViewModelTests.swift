@@ -1020,6 +1020,24 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertFalse(model.showsRecentSearches)
     }
 
+    func testRecentSearchesAreAvailableWhenChoosingAnotherDeparture() {
+        let recent = RecentSearch(result: .previewAddress, savedAt: .now)
+        let model = makeModel(
+            recentSearchStore: InMemoryRecentSearchStore(searches: [recent]),
+        )
+
+        XCTAssertTrue(model.showsRecentDepartureSearches)
+
+        model.updateDepartureQuery("cha")
+
+        XCTAssertFalse(model.showsRecentDepartureSearches)
+
+        model.clearDepartureSearch()
+
+        XCTAssertTrue(model.showsRecentDepartureSearches)
+        XCTAssertEqual(model.recentSearches, [recent])
+    }
+
     func testVelibFilterHidesNonBikeRecentDestinations() {
         let bikeResult = BikeStation(
             id: "1",

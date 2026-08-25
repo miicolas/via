@@ -310,6 +310,73 @@ describe('natural-journey service — resilience', () => {
   });
 });
 
+describe('natural-journey service — favorites', () => {
+  test('a signed-in submission reads favorites and hands them to the toolset', async () => {
+    const home = { ...ADDRESS, id: 'home', name: 'Chez moi' };
+    const reads: string[] = [];
+    const { transport } = scriptedTransport([
+      toolCallTurn('search_places', { query: 'maison' }),
+      toolCallTurn('plan_journeys', {
+        origin: { kind: 'current_location' },
+        destination: { handle: 'place_1' },
+        datetimeRepresents: 'departure',
+      }),
+      finalTurn({ outcome: 'ready', planHandle: 'plan_1', unsupportedMessage: '', examples: [] }),
+    ]);
+    const { service, searcher } = buildService(transport, {
+      readFavorites: async (userId) => {
+        reads.push(userId);
+        return { home };
+      },
+    });
+
+    const result = await service.submit(
+      { query: 'de maison à Châtelet', latitude: 48.85, longitude: 2.35 },
+      { identity: IDENTITY, userId: 'account-42' }
+    );
+
+    expect(result.outcome).toBe('ready');
+    expect(reads).toEqual(['account-42']);
+    // « maison » resolved from the favorite: the search pipeline never ran.
+    expect(searcher.queries).toEqual([]);
+  });
+
+  test('an anonymous submission never reads favorites', async () => {
+    let reads = 0;
+    const { transport } = scriptedTransport(HAPPY_PATH);
+    const { service } = buildService(transport, {
+      readFavorites: async () => {
+        reads += 1;
+        return {};
+      },
+    });
+
+    await service.submit(
+      { query: 'Je veux aller à Châtelet', latitude: 48.85, longitude: 2.35 },
+      { identity: IDENTITY }
+    );
+
+    expect(reads).toBe(0);
+  });
+
+  test('a failing favorites read degrades to the plain search', async () => {
+    const { transport } = scriptedTransport(HAPPY_PATH);
+    const { service, searcher } = buildService(transport, {
+      readFavorites: async () => {
+        throw new Error('db down');
+      },
+    });
+
+    const result = await service.submit(
+      { query: 'Je veux aller à Châtelet', latitude: 48.85, longitude: 2.35 },
+      { identity: IDENTITY, userId: 'account-42' }
+    );
+
+    expect(result.outcome).toBe('ready');
+    expect(searcher.queries).toEqual(['Châtelet']);
+  });
+});
+
 describe('natural-journey service — privacy of metrics', () => {
   test('a metric never carries the phrase, places, or coordinates', async () => {
     const { transport } = scriptedTransport(HAPPY_PATH);

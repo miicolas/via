@@ -24,9 +24,12 @@ struct JourneyDepartureChoicesView: View {
     /// The last choice handed upward, so the end of a drag cannot submit it
     /// twice after the value has already been sent to the model.
     @State private var committedID: String?
-    /// Only a direct drag earns a network commit. Scroll-position corrections
-    /// caused by a refreshed data set must remain purely visual.
+    /// Only a direct drag earns a network commit. Focus corrections caused by
+    /// a refreshed data set must remain purely visual.
     @State private var hasPendingDragCommit = false
+    /// Where the focus sat when a horizontal drag latched on, so stepping is
+    /// measured from a fixed origin. Resets itself if the drag is cancelled.
+    @GestureState private var dragBaseIndex: Int?
     @State private var hapticTick = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -75,17 +78,8 @@ struct JourneyDepartureChoicesView: View {
             .scrollIndicators(.hidden)
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $focusedID, anchor: .center)
-            .onScrollPhaseChange { oldPhase, newPhase in
-                if newPhase == .interacting {
-                    hasPendingDragCommit = true
-                }
-                if newPhase == .idle, oldPhase != .idle, hasPendingDragCommit {
-                    hasPendingDragCommit = false
-                    if let focusedID { commit(focusedID) }
-                }
-            }
             .contentMargins(.horizontal, proxy.size.width / 3, for: .scrollContent)
-            .scrollDisabled(choices.count < 2)
+            .scrollDisabled(true)
             .mask {
                 LinearGradient(
                     stops: [
@@ -98,6 +92,8 @@ struct JourneyDepartureChoicesView: View {
                     endPoint: .trailing
                 )
             }
+            .contentShape(.rect)
+            .gesture(stepGesture(itemWidth: itemWidth))
         }
         .frame(height: 48)
         .sensoryFeedback(.selection, trigger: hapticTick)
@@ -136,6 +132,48 @@ struct JourneyDepartureChoicesView: View {
             .contentTransition(reduceMotion ? .identity : .numericText())
             .animation(reduceMotion ? nil : .default, value: choice.displayAt)
             .frame(maxWidth: .infinity, minHeight: 44)
+    }
+
+    // MARK: - Drag stepping
+
+    /// The rail never scrolls on its own: an interactive horizontal scroll
+    /// claims vertical drags that begin on it and pins the whole page. A drag
+    /// that is clearly horizontal steps the focus instead, one passage per
+    /// item width, and the scroll position only ever moves programmatically —
+    /// vertical drags always belong to the page.
+    private func stepGesture(itemWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 12)
+            .updating($dragBaseIndex) { value, state, _ in
+                guard state == nil,
+                      choices.count > 1,
+                      abs(value.translation.width) > abs(value.translation.height),
+                      let focusedIndex
+                else { return }
+                state = focusedIndex
+            }
+            .onChanged { value in
+                guard let dragBaseIndex else { return }
+                hasPendingDragCommit = true
+                let target = steppedIndex(
+                    from: dragBaseIndex,
+                    offset: value.translation.width,
+                    itemWidth: itemWidth
+                )
+                guard choices[target].id != focusedID else { return }
+                withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) {
+                    focusedID = choices[target].id
+                }
+            }
+            .onEnded { _ in
+                guard hasPendingDragCommit else { return }
+                hasPendingDragCommit = false
+                if let focusedID { commit(focusedID) }
+            }
+    }
+
+    private func steppedIndex(from base: Int, offset: CGFloat, itemWidth: CGFloat) -> Int {
+        let steps = Int((-offset / itemWidth).rounded())
+        return min(max(base + steps, choices.startIndex), choices.index(before: choices.endIndex))
     }
 
     // MARK: - Selection

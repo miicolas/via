@@ -366,7 +366,7 @@ struct ApplicationEntry: App {
         let searchRepository = LiveSearchRepository(transport: transport)
         let naturalIntentParser = FoundationModelsIntentParser()
         let naturalJourneyMetrics = AppLogNaturalJourneyMetrics()
-        let naturalJourneyRepository = OnDeviceNaturalJourneyService(
+        let onDeviceNaturalJourneyService = OnDeviceNaturalJourneyService(
             parser: naturalIntentParser,
             places: OnDevicePlaceResolver { query, coordinate in
                 return try await searchRepository.search(
@@ -382,6 +382,14 @@ struct ApplicationEntry: App {
             requiresOperationalElevators: {
                 UserDefaultsSearchFilterStore().load().requiresOperationalElevators
             },
+            favorites: { role in
+                await MainActor.run { accountModel.place(for: role)?.searchResult }
+            },
+        )
+        let naturalJourneyRepository = HybridNaturalJourneyService(
+            onDevice: onDeviceNaturalJourneyService,
+            remote: RemoteNaturalJourneyService(transport: transport),
+            availability: { naturalIntentParser.availability },
         )
 
         return Dependencies(
@@ -399,7 +407,10 @@ struct ApplicationEntry: App {
                 transport: transport
             ),
             naturalJourneyRepository: naturalJourneyRepository,
-            naturalLanguageAvailability: { naturalIntentParser.availability },
+            // With the server fallback wired in, the natural-language surface
+            // is reachable on every device; runtime failures still route to
+            // the availability guidance through the repository's errors.
+            naturalLanguageAvailability: { .available },
             naturalJourneyMetrics: naturalJourneyMetrics,
             lineStatusRepository: LiveLineStatusRepository(transport: transport),
             accountModel: accountModel,

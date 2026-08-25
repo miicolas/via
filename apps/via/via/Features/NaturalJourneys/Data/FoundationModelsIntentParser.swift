@@ -112,9 +112,11 @@ struct FoundationModelsIntentParser: NaturalIntentParsing {
 
         Pour dateTime.reference, utilise implicitToday si aucun jour n’est cité, today, tomorrow, le jour de semaine correspondant, calendarDate pour une date chiffrée, ou relative pour « dans N minutes/heures/jours ». Recopie uniquement les nombres cités. Pour une heure chiffrée, timePrecision vaut exact; morning, afternoon ou evening correspondent à matin, après-midi ou soir; sinon unspecified. « avant », « pour être à », « arriver à » signifient arrival. « à partir de », « partir à », « après » signifient departure. Une heure seule associée à la destination signifie arrival. Si départ et arrivée ont chacun une heure, utilise alternateTimeConstraint pour la seconde contrainte complète.
 
+        « le dernier train/métro/RER/bus/tram » (de la journée, ce soir) signifie lastServiceOfDay true ; n’invente aucune heure dans ce cas et laisse timePrecision unspecified. Une heure chiffrée citée signifie lastServiceOfDay false.
         « plutôt en bus/métro/RER/Transilien/tram » est preferred ; « uniquement » ou « seulement » est required ; « sans » ou « évite » est excluded.
         Metyro ne sait pas appliquer une durée de marche maximale, l’accessibilité, une ligne précise, le coût, le confort ou un nombre maximal de correspondances. Recopie ces demandes dans unsupportedConstraints sans les ignorer.
         N’invente pas de lieu. Garde les libellés assez complets pour que Metyro les géocode ensuite.
+        « chez moi », « la maison », « le bureau », « au travail » sont des lieux valides : recopie-les tels quels dans origin.query ou destinationQuery, Metyro les résout avec les favoris.
         Un nom de commune seul est déjà un lieu complet : conserve-le comme destination et ne lui invente ni rue ni numéro.
         Dans la construction « <lieu A> vers <lieu B> », le lieu A est toujours l’origine explicite et le lieu B la destination, même sans « de » ni « depuis ». Exemple : « gare du nord vers orly sans RER » signifie origin.kind place, origin.query « gare du nord », originWasExplicit true, destinationQuery « orly » et RER excluded.
         Si l’origine n’est pas indiquée, utilise currentLocation et originWasExplicit vaut false. Si l’utilisateur dit « ma position », originWasExplicit vaut true. Si la destination manque, destinationQuery est absent.

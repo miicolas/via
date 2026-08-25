@@ -24,12 +24,19 @@ enum JourneyDatetimeRepresents: String, Codable, Sendable, Hashable, Identifiabl
     var id: Self { self }
 }
 
+/// « Le dernier train » : the server plans against the end of the service day,
+/// verified on the GTFS timetable, instead of an instant.
+enum JourneyTimeAnchor: String, Codable, Sendable, Hashable {
+    case lastOfDay = "last_of_day"
+}
+
 struct JourneyRequest: Sendable, Hashable {
     let origin: GeoCoordinate
     let destination: JourneyDestination
     var limit = 4
     var requestedAt: Date?
     var datetimeRepresents: JourneyDatetimeRepresents?
+    var timeAnchor: JourneyTimeAnchor?
     var requiredModes: Set<TransitMode> = []
     var excludedModes: Set<TransitMode> = []
     var preferredModes: Set<TransitMode> = []

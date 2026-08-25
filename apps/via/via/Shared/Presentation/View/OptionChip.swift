@@ -44,4 +44,25 @@ extension NaturalJourneyCriteria {
         let prefix = represents == .arrival ? "Arrivée" : "Départ"
         return "\(prefix) · \(JourneyFormatting.dateTime(date))"
     }
+
+    /// « Le dernier train » names a service, not an instant: the anchor wins
+    /// over whatever time the request happens to carry.
+    static let lastDepartureLabel = "Dernier départ"
+
+    static func timeLabel(
+        _ date: Date,
+        represents: JourneyDatetimeRepresents,
+        anchor: JourneyTimeAnchor?,
+    ) -> String {
+        anchor == .lastOfDay ? lastDepartureLabel : timeLabel(date, represents: represents)
+    }
+
+    static func timeLabel(
+        _ date: Date?,
+        represents: JourneyDatetimeRepresents,
+        anchor: JourneyTimeAnchor?,
+    ) -> String? {
+        if anchor == .lastOfDay { return lastDepartureLabel }
+        return date.map { timeLabel($0, represents: represents) }
+    }
 }

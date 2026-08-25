@@ -42,6 +42,20 @@ struct SearchDeparturePickerView: View {
 
                 if viewModel.departureQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     shortcuts
+
+                    if viewModel.showsRecentDepartureSearches {
+                        RecentSearchesSection(
+                            searches: viewModel.recentSearches,
+                            accessibilityHint: "Sélectionne ce point de départ",
+                            onSelect: { recent in
+                                select(.manual(recent.searchResult))
+                            },
+                            onRemove: { recent in
+                                viewModel.removeRecentSearch(id: recent.id)
+                            },
+                            onClear: viewModel.clearRecentSearches,
+                        )
+                    }
                 } else {
                     Section {
                         SearchResultsSection(

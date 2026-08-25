@@ -70,8 +70,8 @@ final class SheetTabPresentationTests: XCTestCase {
         )
     }
 
-    func testJourneyDetailPeekKeepsHeaderAndActionsVisible() {
-        XCTAssertEqual(JourneySheetDetents.peekHeight(isGuiding: false), 160)
+    func testJourneyDetailPeekKeepsSummaryHeaderAndActionsVisible() {
+        XCTAssertEqual(JourneySheetDetents.peekHeight(isGuiding: false), 240)
         XCTAssertEqual(
             JourneySheetDetents.peekHeight(isGuiding: true),
             SheetTabDetents.collapsedHeight(hasCompactContent: true)

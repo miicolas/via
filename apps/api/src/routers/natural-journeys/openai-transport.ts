@@ -31,12 +31,14 @@ export type ResponsesInputItem =
   | { type: 'function_call'; call_id: string; name: string; arguments: string }
   | { type: 'function_call_output'; call_id: string; output: string };
 
+export type ReasoningEffort = 'minimal' | 'low' | 'medium';
+
 export type ResponsesRequest = {
   model: string;
   input: ResponsesInputItem[];
   tools: ResponsesToolDefinition[];
   text: { verbosity: 'low'; format: ResponsesTextFormat };
-  reasoning: { effort: 'low' };
+  reasoning: { effort: ReasoningEffort };
   /** Never persist the phrase or transcript on OpenAI's side. */
   store: false;
   /** HMAC of the identity, never the raw id. */

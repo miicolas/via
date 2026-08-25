@@ -14,6 +14,7 @@ struct JourneyDetailView: View {
     let onUpdateTime: (Date, JourneyDatetimeRepresents) async throws -> Void
     var prefersGoAction = false
     var prefersPlanAction = false
+    var isCompact = false
     let onHighlightSection: (String?) -> Void
     let onExpandMap: () -> Void
 
@@ -77,6 +78,10 @@ struct JourneyDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // The compact summary lives in the sheet container; keep this scroll
+        // content out of the peek while leaving the action bar available.
+        .opacity(isCompact ? 0 : 1)
+        .accessibilityHidden(isCompact)
         .scrollIndicators(.hidden)
         .background(Color(uiColor: .systemBackground))
         .navigationBarTitleDisplayMode(.inline)

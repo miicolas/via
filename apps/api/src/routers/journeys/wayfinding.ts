@@ -277,7 +277,8 @@ export function applyWayfinding(
         coordinate: chosen.coordinate,
         walkingMeters: Math.round(haversineMeters(chosen.coordinate, destination)),
       });
-      const position = positions.find((row) => row.targetId === chosen.id);
+      const position = positions.find((row) => row.targetId === chosen.id)
+        ?? exitConsensus(positions);
       if (position) boardingPositionByIndex.set(last.index, boardingPositionOf(position, 'exit'));
     }
   }
@@ -341,6 +342,22 @@ function travelDirection(patterns: readonly PatternStations[], cameFrom: string,
   }
   if (directions.size !== 1) return undefined;
   return [...directions][0];
+}
+
+/**
+ * The carriage every documented exit of the quay agrees on. An exit the source
+ * skipped — Saint-Germain-en-Laye's « Hôtel de Ville » — then borrows that
+ * unanimous advice: the doors still open next to a documented exit, so the
+ * traveller lands close even if the signage differs. The equipment does not
+ * cross over: it describes the walk to one specific exit.
+ */
+function exitConsensus(rows: PositionRow[]): PositionRow | undefined {
+  const [first, ...rest] = rows;
+  if (!first) return undefined;
+  const unanimous = rest.every(
+    (row) => row.car === first.car && row.carCount === first.carCount && row.zone === first.zone
+  );
+  return unanimous ? { ...first, equipment: null } : undefined;
 }
 
 function stationDirectionKey(stationStopId: string, routeId: string, directionId: number) {

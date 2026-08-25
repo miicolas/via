@@ -67,6 +67,13 @@ const journeyModeListParamSchema = z
   .transform((raw) => raw.split(',').filter((mode) => mode.length > 0))
   .pipe(z.array(journeyModeSchema).max(3));
 
+/**
+ * The one anchor a request can name instead of an instant. Every surface that
+ * speaks it — request schema, agent tool arguments, interpretation — derives
+ * from this enum, so a new anchor value lands everywhere at once.
+ */
+export const journeyTimeAnchorSchema = z.enum(['last_of_day']);
+
 export const journeyInputSchema = z.object({
   origin: coordinateParamSchema,
   destination: journeyDestinationParamSchema,
@@ -83,6 +90,12 @@ export const journeyInputSchema = z.object({
   requiresOperationalElevators: queryBooleanSchema.optional(),
   /** The user explicitly selected this station as origin; preserve that choice when filtering. */
   originStationId: z.string().min(1).optional(),
+  /**
+   * « Le dernier train » : plan against the end of the service day instead of
+   * an instant, verified against the GTFS timetable. `requestedAt` then only
+   * anchors which service day "tonight" means.
+   */
+  timeAnchor: journeyTimeAnchorSchema.optional(),
 });
 
 export const journeyQualifierSchema = z.enum([

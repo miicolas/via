@@ -75,10 +75,9 @@ struct JourneySheetView: View {
                         onSelectDeparture: selectDeparture,
                         onRetryDepartures: refreshDepartureChoices,
                         onUpdateTime: updateTime,
-                        prefersGoAction: scheduledReminder != nil || isPlannedJourney,
-                        prefersPlanAction: scheduledReminder == nil
-                            && !isPlannedJourney
-                            && !searchViewModel.selectedDeparture.isCurrentLocation,
+                        prefersGoAction: !shouldPlanOpenedJourney,
+                        prefersPlanAction: shouldPlanOpenedJourney,
+                        isCompact: showsCompactJourney,
                         onHighlightSection: searchViewModel.highlightJourneySection,
                         onExpandMap: onExpandMap,
                     )
@@ -92,13 +91,13 @@ struct JourneySheetView: View {
                 }
             }
         }
-        // At the peek the guidance panel has no room for its navigation bar and
-        // its pinned header at once: they overlap and spill over the map. The
-        // compact strip says the same thing in the height there is.
+        // At the peek the full detail has no room for its navigation bar, route
+        // timeline and action bar at once. A compact summary keeps the useful
+        // journey facts visible while the map remains the dominant context.
         .opacity(showsCompactGuidance ? 0 : 1)
         .accessibilityHidden(showsCompactGuidance)
-        .overlay(alignment: .top) { compactGuidance }
-        .onHeightChange(for: Self.isAtPeek(sheetHeight:)) { isAtPeek = $0 }
+        .overlay(alignment: .top) { compactContent }
+        .onHeightChange(for: isAtPeek(sheetHeight:)) { isAtPeek = $0 }
         .detailSheetPresentation(
             isLargeScreen: isLargeScreen,
             collapsedHeight: JourneySheetDetents.peekHeight(isGuiding: activeJourneyModel.isGuiding),
@@ -116,36 +115,63 @@ struct JourneySheetView: View {
         .onChange(of: journeyID) { _, _ in departureChoicesModel.reset() }
     }
 
-    /// Sits above the (hidden) guidance panel rather than replacing it, so the
+    /// Sits above the (hidden) detail content rather than replacing it, so the
     /// pushed stack keeps its scroll position while the sheet is put away.
-    @ViewBuilder
-    private var compactGuidance: some View {
-        if showsCompactGuidance {
-            ActiveJourneyCompactStrip(model: activeJourneyModel) {
-                detent = DetailSheetPresentation.expanded(isLargeScreen: isLargeScreen)
+    private var compactContent: some View {
+        Group {
+            if showsCompactGuidance {
+                ActiveJourneyCompactStrip(model: activeJourneyModel) {
+                    detent = DetailSheetPresentation.expanded(isLargeScreen: isLargeScreen)
+                }
+            } else if showsCompactJourney, let resolvedJourney {
+                JourneyCompactSummaryView(
+                    journey: resolvedJourney.journey,
+                    source: resolvedJourney.source
+                ) {
+                    detent = DetailSheetPresentation.expanded(isLargeScreen: isLargeScreen)
+                }
             }
-            // Clears the drag indicator the sheet draws at its top edge.
-            .padding(.top, 16)
-            .transition(.opacity)
         }
+        // Clears the drag indicator the sheet draws at its top edge.
+        .padding(.top, 16)
+        .transition(.opacity)
     }
 
-    /// Whether the sheet sits low enough for the strip to take over. Kept free
-    /// of the eligibility question so the measurement reduces to a Bool that
-    /// changes twice per drag instead of a height that changes every frame.
-    private static func isAtPeek(sheetHeight: CGFloat) -> Bool {
+    /// Whether the sheet sits at its collapsed detent. A detail peek has its
+    /// own height, while the running journey keeps the tab sheet's measured
+    /// progress contract because its compact strip is shorter.
+    private func isAtPeek(sheetHeight: CGFloat) -> Bool {
         guard sheetHeight > 0 else { return false }
-        return SheetTabPresentation.showsCompactContent(
-            isEligible: true,
-            measuredContentProgress: SheetTabDetents.contentProgress(
-                sheetHeight: sheetHeight,
-                hasCompactContent: true
+        if activeJourneyModel.isGuiding {
+            return SheetTabPresentation.showsCompactContent(
+                isEligible: true,
+                measuredContentProgress: SheetTabDetents.contentProgress(
+                    sheetHeight: sheetHeight,
+                    hasCompactContent: true
+                )
             )
-        )
+        }
+        return sheetHeight <= JourneySheetDetents.detailPeekHeight + 1
     }
 
     private var showsCompactGuidance: Bool {
         activeJourneyModel.isGuiding && isAtPeek == true
+    }
+
+    private var showsCompactJourney: Bool {
+        !activeJourneyModel.isGuiding && isAtPeek == true && resolvedJourney != nil
+    }
+
+    /// The action follows the search intent, not the headway of the first
+    /// result. A "now" search can legitimately start a journey whose service
+    /// leaves in twenty minutes; only a deliberately future time is a saved
+    /// plan.
+    private var shouldPlanOpenedJourney: Bool {
+        guard scheduledReminder == nil, !isPlannedJourney else { return false }
+        return ActiveJourneyRules.isFutureJourneyRequest(
+            requestedAt: searchViewModel.journeyRequestedAt,
+            at: .now
+        )
     }
 
     /// Prefers the live session so a restored journey resolves even when the

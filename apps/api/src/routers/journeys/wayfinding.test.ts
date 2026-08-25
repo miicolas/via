@@ -166,26 +166,83 @@ describe('applyWayfinding', () => {
     expect(sections[0]!.boardingPosition).toMatchObject({ car: 1, zone: 'front' });
   });
 
-  test('keeps the nearest exit when that exit has no carriage advice', () => {
+  test('an undocumented exit borrows the carriage the documented exits agree on', () => {
     const snapshotWithoutNearestPosition: WayfindingSnapshot = {
       ...SNAPSHOT,
       positionsByQuayId: new Map([[
         'IDFM:463060',
-        [{
-          fromQuayId: 'IDFM:463060',
-          targetId: 'IDFM:50147794',
-          targetKind: 'exit',
-          car: 4,
-          carCount: 5,
-          zone: 'rear',
-          equipment: null,
-        }],
+        [
+          {
+            fromQuayId: 'IDFM:463060',
+            targetId: 'IDFM:50147794',
+            targetKind: 'exit',
+            car: 4,
+            carCount: 5,
+            zone: 'rear',
+            equipment: 'lift',
+          },
+          {
+            fromQuayId: 'IDFM:463060',
+            targetId: 'IDFM:50147796',
+            targetKind: 'exit',
+            car: 4,
+            carCount: 5,
+            zone: 'rear',
+            equipment: null,
+          },
+        ],
       ]]),
     };
     const result = applyWayfinding(
       journey([transit(['stop_point:IDFM:21958', 'stop_point:IDFM:463060']), walk()]),
       PLACE_DU_CHATELET,
       snapshotWithoutNearestPosition,
+    );
+
+    expect(result.sections[0]!.exit?.id).toBe('IDFM:50147797');
+    // The consensus carries the carriage, never the equipment: the lift
+    // belongs to the walk toward r. des Lavandières, not toward this exit.
+    expect(result.sections[0]!.boardingPosition).toEqual({
+      car: 4,
+      carCount: 5,
+      zone: 'rear',
+      reason: 'exit',
+    });
+  });
+
+  test('keeps the nearest exit but no carriage when the documented exits disagree', () => {
+    const result = applyWayfinding(
+      journey([transit(['stop_point:IDFM:21958', 'stop_point:IDFM:463060']), walk()]),
+      // Nearest to neither documented target once the pl. du Châtelet row is
+      // removed: the two remaining rows disagree (car 4 vs car 5), so no
+      // consensus can stand in for the missing exit.
+      PLACE_DU_CHATELET,
+      {
+        ...SNAPSHOT,
+        positionsByQuayId: new Map([[
+          'IDFM:463060',
+          [
+            {
+              fromQuayId: 'IDFM:463060',
+              targetId: 'IDFM:50147794',
+              targetKind: 'exit',
+              car: 4,
+              carCount: 5,
+              zone: 'rear',
+              equipment: null,
+            },
+            {
+              fromQuayId: 'IDFM:463060',
+              targetId: 'IDFM:50147796',
+              targetKind: 'exit',
+              car: 5,
+              carCount: 5,
+              zone: 'rear',
+              equipment: null,
+            },
+          ],
+        ]]),
+      },
     );
 
     expect(result.sections[0]!.exit?.id).toBe('IDFM:50147797');

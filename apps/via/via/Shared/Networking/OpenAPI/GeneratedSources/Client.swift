@@ -409,6 +409,13 @@ internal struct Client: APIProtocol {
                     name: "originStationId",
                     value: input.query.originStationId
                 )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "timeAnchor",
+                    value: input.query.timeAnchor
+                )
                 converter.setAcceptHeader(
                     in: &request.headerFields,
                     contentTypes: input.headers.accept
@@ -501,6 +508,77 @@ internal struct Client: APIProtocol {
                     case "application/json":
                         body = try await converter.getResponseBodyAsJSON(
                             Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Interpréter une phrase et calculer un itinéraire
+    ///
+    /// Point d'entrée du repli serveur : reçoit une phrase en langage naturel, sa position éventuelle et le contexte temporel, puis renvoie le même résultat structuré que le chemin local. Réservé aux soumissions initiales — les clarifications restent traitées sur l’appareil.
+    ///
+    /// - Remark: HTTP `POST /natural-journeys`.
+    /// - Remark: Generated from `#/paths//natural-journeys/post(naturalJourneys.submit)`.
+    internal func naturalJourneys_period_submit(_ input: Operations.naturalJourneys_period_submit.Input) async throws -> Operations.naturalJourneys_period_submit.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.naturalJourneys_period_submit.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/natural-journeys",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.naturalJourneys_period_submit.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.self,
                             from: responseBody,
                             transforming: { value in
                                 .json(value)

@@ -31,8 +31,11 @@ struct NaturalJourneyCriteriaView: View {
                         title: NaturalJourneyCriteria.timeLabel(
                             criteria.requestedAt,
                             represents: criteria.datetimeRepresents,
+                            anchor: criteria.timeAnchor,
                         ),
-                        systemImage: "calendar.badge.clock",
+                        systemImage: criteria.timeAnchor == .lastOfDay
+                            ? "moon.stars"
+                            : "calendar.badge.clock",
                         isActive: true,
                         action: onEditTime,
                     )
@@ -57,6 +60,9 @@ struct NaturalJourneyCriteriaView: View {
 
     private var summary: String {
         let noun = journeyCount > 1 ? "trajets" : "trajet"
+        if criteria.timeAnchor == .lastOfDay {
+            return "\(journeyCount) \(noun) — dernier départ de la journée"
+        }
         let verb = criteria.datetimeRepresents == .arrival ? "pour arriver avant" : "au départ après"
         return "\(journeyCount) \(noun) \(verb) \(JourneyFormatting.time(criteria.requestedAt))"
     }

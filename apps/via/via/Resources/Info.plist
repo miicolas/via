@@ -38,14 +38,14 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Metyro utilise votre position pendant un trajet actif pour mettre à jour les étapes et proposer un nouvel itinéraire même lorsque l’écran est verrouillé.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Metyro utilise votre position pour trouver les gares et itinéraires proches.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Metyro utilise l’appareil photo uniquement pour ajouter une photo à votre profil local.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Metyro peut remplir votre nom et votre photo de profil depuis un contact que vous choisissez.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Metyro utilise votre position pendant un trajet actif pour mettre à jour les étapes et proposer un nouvel itinéraire même lorsque l’écran est verrouillé.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Metyro utilise votre position pour trouver les gares et itinéraires proches.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>

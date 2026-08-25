@@ -479,21 +479,6 @@ final class SearchViewModel {
     query = interpretation.destinationResult.name
   }
 
-  /// The single sentence shown under the composer field. The state speaks when
-  /// it has a question or a refusal; otherwise the last transport error does.
-  var naturalInputMessage: String? {
-    switch naturalSearchState {
-    case .clarification(_, let field):
-      field.question
-    case .unsupported(let message, _), .failed(let message):
-      message
-    case .availability(let guidance):
-      guidance.message
-    case .dismissed, .onboarding, .input, .loading, .decision:
-      naturalInputErrorMessage
-    }
-  }
-
   private static let offlineMessage = "Connexion nécessaire pour rechercher les horaires."
 
   private static func naturalInputErrorMessage(
@@ -547,6 +532,10 @@ final class SearchViewModel {
 
   var journeyDestination: JourneyDestination? {
     selectedDestination.map { JourneyPlaceSelection($0).journeyDestination }
+  }
+
+  var journeyRequestedAt: Date? {
+    naturalJourneyCriteria?.requestedAt ?? requestedAt
   }
 
   var journeyPlanningPolicy: JourneyPlanningPolicy {
@@ -634,6 +623,7 @@ final class SearchViewModel {
         naturalCorrectionCount += 1
         criteria.requestedAt = requestedAt
         criteria.datetimeRepresents = represents
+        criteria.timeAnchor = nil
         naturalJourneyCriteria = criteria
       } else {
         self.requestedAt = requestedAt
@@ -660,6 +650,12 @@ final class SearchViewModel {
       && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
       && loadState == .idle
       && !visibleRecentSearches.isEmpty
+  }
+
+  var showsRecentDepartureSearches: Bool {
+    departureQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      && departureLoadState == .idle
+      && !recentSearches.isEmpty
   }
 
   var visibleRecentSearches: [RecentSearch] {
@@ -936,6 +932,7 @@ final class SearchViewModel {
     naturalCorrectionCount += 1
     criteria.requestedAt = requestedAt
     criteria.datetimeRepresents = represents
+    criteria.timeAnchor = nil
     naturalJourneyCriteria = criteria
     scheduleNaturalCriteriaReplan()
   }
@@ -1018,6 +1015,7 @@ final class SearchViewModel {
         naturalJourneyCriteria = criteria
         request.requestedAt = criteria.requestedAt
         request.datetimeRepresents = criteria.datetimeRepresents
+        request.timeAnchor = criteria.timeAnchor
         request.requiredModes = criteria.requiredModes
         request.excludedModes = criteria.excludedModes
         request.preferredModes = criteria.preferredModes

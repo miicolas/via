@@ -268,11 +268,15 @@ struct ActiveJourneyPanelView: View {
             .controlSize(.small)
             .tint(.white)
         }
-        Text(model.requiresResume ? "Reprendre" : "Go")
+        Text(
+          model.requiresResume
+            ? JourneyActivationAction.resume.title
+            : JourneyActivationAction.go.displayTitle
+        )
           .font(.headline)
       }
     }
-    .primaryAction()
+    .primaryAction(tint: model.requiresResume ? .green : .blue)
     .disabled(isStarting)
     .padding(.horizontal, 16)
     .padding(.vertical, 10)
