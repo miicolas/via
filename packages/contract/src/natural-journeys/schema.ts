@@ -5,73 +5,118 @@ import {
   journeyDestinationSchema,
   journeyModeSchema,
   journeyTimeAnchorSchema,
-  journeysResponseSchema,
 } from '../journeys/schema';
 import { searchResultSchema } from '../search/schema';
 
-/**
- * POST /natural-journeys carries a free-text phrase, so it never rides in a
- * cacheable GET query string. The body is plain JSON — no query-string coercion
- * needed, unlike {@link journeyInputSchema}.
- */
-export const naturalJourneyInputSchema = z
-  .object({
-    /** The user's phrase. Bounded so a runaway paste can't inflate a prompt. */
-    query: z.string().trim().min(1).max(500),
-    /** Where the user is, if location was granted. Both coordinates travel together. */
-    latitude: z.number().min(-90).max(90).optional(),
-    longitude: z.number().min(-180).max(180).optional(),
-    /**
-     * The client's temporal context ("now") so the agent can resolve relative
-     * phrasing like "dans 20 minutes" against the device clock, not the server's.
-     */
-    requestedAt: z.iso.datetime({ offset: true }).optional(),
-  })
-  .refine((input) => (input.latitude === undefined) === (input.longitude === undefined), {
-    message: 'latitude et longitude vont ensemble',
-  });
+export const naturalJourneyPlaceReferenceSchema = z.object({
+  kind: z.enum(['current_location', 'query', 'saved', 'context_reference']),
+  /** Query text, opaque saved-place id, or a bounded conversational reference. */
+  value: z.string().max(160),
+  /** Exact fragment copied from the user turn. */
+  evidence: z.string().max(160),
+});
 
-/**
- * The intent Via resolved from the phrase, mirroring the on-device
- * `NaturalJourneyInterpretation`. Every field here is grounded in Via's own
- * place resolution and journey engine — never in model free-text.
- */
-export const naturalJourneyInterpretationSchema = z.object({
-  /** Display label for the origin, e.g. "Ma position" or a resolved place name. */
-  originLabel: z.string(),
-  /** Absent when the origin is the device's current location. */
-  origin: searchResultSchema.optional(),
-  destination: journeyDestinationSchema,
-  destinationResult: searchResultSchema,
-  requestedAt: z.iso.datetime({ offset: true }),
-  datetimeRepresents: journeyDatetimeRepresentsSchema,
-  /** Present when the phrase asked for the last service of the day. */
-  timeAnchor: journeyTimeAnchorSchema.optional(),
-  requiredModes: z.array(journeyModeSchema),
-  excludedModes: z.array(journeyModeSchema),
-  preferredModes: z.array(journeyModeSchema),
+export const naturalJourneySavedPlaceAliasSchema = z.object({
+  id: z.string().min(1).max(128),
+  label: z.string().min(1).max(80),
+  kind: z.enum(['home', 'work', 'custom']),
+});
+
+export const naturalJourneyAnchorsSchema = z.object({
+  origin: naturalJourneyPlaceReferenceSchema.optional(),
+  destination: naturalJourneyPlaceReferenceSchema.optional(),
+});
+
+const naturalDateReferenceSchema = z.enum([
+  'implicit_today',
+  'today',
+  'tomorrow',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+  'calendar_date',
+  'relative',
+]);
+
+const naturalTimePrecisionSchema = z.enum([
+  'unspecified',
+  'exact',
+  'morning',
+  'afternoon',
+  'evening',
+]);
+
+export const naturalJourneyTimeConstraintSchema = z.object({
+  reference: naturalDateReferenceSchema,
+  year: z.number().int().min(2000).max(2100),
+  yearWasExplicit: z.boolean(),
+  month: z.number().int().min(1).max(12),
+  day: z.number().int().min(1).max(31),
+  timePrecision: naturalTimePrecisionSchema,
+  hour: z.number().int().min(0).max(23),
+  minute: z.number().int().min(0).max(59),
+  relativeAmount: z.number().int().min(0).max(10080),
+  relativeUnit: z.enum(['minute', 'hour', 'day']),
+  meaning: z.enum(['departure', 'arrival', 'ambiguous']),
+  evidence: z.string().max(160),
+});
+
+export const naturalJourneyModelInterpretationSchema = z.object({
+  scope: z.enum(['journey', 'unsupported']),
+  origin: naturalJourneyPlaceReferenceSchema.optional(),
+  destination: naturalJourneyPlaceReferenceSchema.optional(),
+  originWasExplicit: z.boolean(),
+  lastServiceOfDay: z.boolean(),
+  timeConstraint: naturalJourneyTimeConstraintSchema,
+  alternateTimeConstraint: naturalJourneyTimeConstraintSchema.optional(),
+  requiredModes: z.array(journeyModeSchema).max(3),
+  excludedModes: z.array(journeyModeSchema).max(3),
+  preferredModes: z.array(journeyModeSchema).max(3),
+  unsupportedConstraints: z.array(z.string().min(1).max(160)).max(3),
+  /** Significant fragment the model could not account for; empty when fully covered. */
+  unexplainedText: z.string().max(200),
 });
 
 /**
- * The server's answer for an initial submission. It intentionally omits the
- * clarification and decision branches of the on-device `NaturalJourneyResult`:
- * OpenAI only ever produces a resolved plan, a bounded "unsupported", or the
- * recoverable "unavailable" double-failure. Everything after a clarification
- * flows back through the deterministic on-device pipeline instead.
+ * Interpretation-only fallback. Coordinates, addresses and journey results are
+ * intentionally absent: the iPhone resolves personal places and runs Via's
+ * shared place/journey modules after validating this patch.
  */
+export const naturalJourneyInputSchema = z.object({
+  query: z.string().trim().min(1).max(500),
+  locale: z.enum(['fr-FR', 'en']),
+  requestedAt: z.iso.datetime({ offset: true }),
+  hasCurrentLocation: z.boolean(),
+  anchors: naturalJourneyAnchorsSchema,
+  savedPlaces: z.array(naturalJourneySavedPlaceAliasSchema).max(22),
+});
+
 export const naturalJourneyResultSchema = z.discriminatedUnion('outcome', [
   z.object({
-    outcome: z.literal('ready'),
-    interpretation: naturalJourneyInterpretationSchema,
-    journeys: journeysResponseSchema,
-  }),
-  z.object({
-    outcome: z.literal('unsupported'),
-    message: z.string(),
-    examples: z.array(z.string()),
+    outcome: z.literal('interpreted'),
+    interpretation: naturalJourneyModelInterpretationSchema,
   }),
   z.object({
     outcome: z.literal('unavailable'),
     message: z.string(),
   }),
 ]);
+
+// Retained only for the legacy rollback implementation while rollout is in
+// progress. The nominal server path no longer returns these resolved values.
+export const naturalJourneyInterpretationSchema = z.object({
+  originLabel: z.string(),
+  origin: searchResultSchema.optional(),
+  destination: journeyDestinationSchema,
+  destinationResult: searchResultSchema,
+  requestedAt: z.iso.datetime({ offset: true }),
+  datetimeRepresents: journeyDatetimeRepresentsSchema,
+  timeAnchor: journeyTimeAnchorSchema.optional(),
+  requiredModes: z.array(journeyModeSchema),
+  excludedModes: z.array(journeyModeSchema),
+  preferredModes: z.array(journeyModeSchema),
+});

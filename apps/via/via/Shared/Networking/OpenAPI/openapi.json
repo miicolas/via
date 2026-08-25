@@ -103,463 +103,115 @@
                     "type": "array",
                     "maxItems": 100,
                     "items": {
-                      "type": "object",
-                      "properties": {
-                        "operationId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "kind": {
-                          "enum": [
-                            "favorite.upsert",
-                            "favorite.remove",
-                            "recent.upsert",
-                            "recent.remove",
-                            "recent.clear",
-                            "preferences.set",
-                            "place.upsert",
-                            "place.remove",
-                            "destination.upsert",
-                            "destination.remove",
-                            "notifications.preferences.set",
-                            "notifications.schedule.upsert",
-                            "notifications.schedule.remove",
-                            "notifications.alert.upsert",
-                            "notifications.alert.remove"
-                          ],
-                          "type": "string"
-                        },
-                        "occurredAt": {
-                          "type": "string",
-                          "format": "date-time"
-                        },
-                        "station": {
+                      "anyOf": [
+                        {
                           "type": "object",
                           "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "favorite.upsert"
+                            },
+                            "station": {
+                              "type": "object",
+                              "properties": {
+                                "stationId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 300
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 300
+                                },
+                                "coordinate": {
+                                  "type": "object",
+                                  "properties": {
+                                    "latitude": {
+                                      "type": "number"
+                                    },
+                                    "longitude": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "latitude",
+                                    "longitude"
+                                  ]
+                                },
+                                "savedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "stationId",
+                                "name",
+                                "savedAt",
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "station"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "favorite.remove"
+                            },
                             "stationId": {
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 300
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 300
-                            },
-                            "coordinate": {
-                              "type": "object",
-                              "properties": {
-                                "latitude": {
-                                  "type": "number"
-                                },
-                                "longitude": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "latitude",
-                                "longitude"
-                              ]
-                            },
-                            "savedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
                             }
                           },
                           "required": [
-                            "stationId",
-                            "name",
-                            "savedAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "stationId": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 300
-                        },
-                        "recentId": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 500
-                        },
-                        "recent": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 500
-                            },
-                            "kind": {
-                              "enum": [
-                                "station",
-                                "address"
-                              ],
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 300
-                            },
-                            "context": {
-                              "type": "string",
-                              "maxLength": 500
-                            },
-                            "coordinate": {
-                              "type": "object",
-                              "properties": {
-                                "latitude": {
-                                  "type": "number"
-                                },
-                                "longitude": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "latitude",
-                                "longitude"
-                              ]
-                            },
-                            "savedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
+                            "operationId",
+                            "occurredAt",
                             "kind",
-                            "name",
-                            "coordinate",
-                            "savedAt"
+                            "stationId"
                           ]
                         },
-                        "preferences": {
+                        {
                           "type": "object",
                           "properties": {
-                            "preferredModes": {
-                              "type": "array",
-                              "maxItems": 5,
-                              "items": {
-                                "enum": [
-                                  "metro",
-                                  "rer",
-                                  "transilien",
-                                  "tram",
-                                  "bus"
-                                ],
-                                "type": "string"
-                              }
-                            },
-                            "excludedModes": {
-                              "type": "array",
-                              "maxItems": 5,
-                              "items": {
-                                "enum": [
-                                  "metro",
-                                  "rer",
-                                  "transilien",
-                                  "tram",
-                                  "bus"
-                                ],
-                                "type": "string"
-                              }
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "preferredModes",
-                            "excludedModes",
-                            "updatedAt"
-                          ]
-                        },
-                        "place": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 500
-                            },
-                            "kind": {
-                              "enum": [
-                                "station",
-                                "address"
-                              ],
-                              "type": "string"
-                            },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 300
-                            },
-                            "context": {
-                              "type": "string",
-                              "maxLength": 500
-                            },
-                            "coordinate": {
-                              "type": "object",
-                              "properties": {
-                                "latitude": {
-                                  "type": "number"
-                                },
-                                "longitude": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "latitude",
-                                "longitude"
-                              ]
-                            },
-                            "role": {
-                              "enum": [
-                                "home",
-                                "work"
-                              ],
-                              "type": "string"
-                            },
-                            "systemImage": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 100
-                            },
-                            "savedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "kind",
-                            "name",
-                            "coordinate",
-                            "role",
-                            "savedAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "placeId": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 500
-                        },
-                        "destination": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
+                            "operationId": {
                               "type": "string",
                               "format": "uuid"
                             },
-                            "destinationId": {
+                            "occurredAt": {
                               "type": "string",
-                              "minLength": 1,
-                              "maxLength": 500
+                              "format": "date-time"
                             },
                             "kind": {
-                              "enum": [
-                                "station",
-                                "address"
-                              ],
-                              "type": "string"
+                              "const": "recent.upsert"
                             },
-                            "name": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 300
-                            },
-                            "context": {
-                              "type": "string",
-                              "maxLength": 500
-                            },
-                            "coordinate": {
-                              "type": "object",
-                              "properties": {
-                                "latitude": {
-                                  "type": "number"
-                                },
-                                "longitude": {
-                                  "type": "number"
-                                }
-                              },
-                              "required": [
-                                "latitude",
-                                "longitude"
-                              ]
-                            },
-                            "label": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 80
-                            },
-                            "systemImage": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 100
-                            },
-                            "position": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 49
-                            },
-                            "savedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "destinationId",
-                            "kind",
-                            "name",
-                            "coordinate",
-                            "label",
-                            "systemImage",
-                            "position",
-                            "savedAt",
-                            "updatedAt"
-                          ]
-                        },
-                        "destinationId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "notificationPreferences": {
-                          "type": "object",
-                          "properties": {
-                            "enabled": {
-                              "type": "boolean"
-                            },
-                            "timeZone": {
-                              "const": "Europe/Paris",
-                              "default": "Europe/Paris"
-                            },
-                            "quietHoursStartMinute": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 1439
-                            },
-                            "quietHoursEndMinute": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 1439
-                            },
-                            "mutedOnWeekends": {
-                              "type": "boolean"
-                            },
-                            "mutedOnHolidays": {
-                              "type": "boolean"
-                            },
-                            "minimumSeverity": {
-                              "enum": [
-                                "attention",
-                                "disrupted",
-                                "suspended"
-                              ],
-                              "type": "string"
-                            },
-                            "dailyCap": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 100
-                            },
-                            "categories": {
-                              "type": "array",
-                              "maxItems": 6,
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "category": {
-                                    "enum": [
-                                      "journey",
-                                      "commute",
-                                      "line",
-                                      "station",
-                                      "digest",
-                                      "recommendation"
-                                    ],
-                                    "type": "string"
-                                  },
-                                  "enabled": {
-                                    "type": "boolean"
-                                  },
-                                  "minimumSeverity": {
-                                    "enum": [
-                                      "attention",
-                                      "disrupted",
-                                      "suspended"
-                                    ],
-                                    "type": "string"
-                                  },
-                                  "dailyCap": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 100
-                                  }
-                                },
-                                "required": [
-                                  "category",
-                                  "enabled",
-                                  "minimumSeverity"
-                                ]
-                              }
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            }
-                          },
-                          "required": [
-                            "enabled",
-                            "mutedOnWeekends",
-                            "mutedOnHolidays",
-                            "minimumSeverity",
-                            "categories",
-                            "updatedAt"
-                          ]
-                        },
-                        "schedule": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 128
-                            },
-                            "kind": {
-                              "enum": [
-                                "commute",
-                                "digest"
-                              ],
-                              "type": "string"
-                            },
-                            "label": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 160
-                            },
-                            "revision": {
-                              "type": "integer",
-                              "minimum": 1,
-                              "maximum": 9007199254740991
-                            },
-                            "origin": {
+                            "recent": {
                               "type": "object",
                               "properties": {
                                 "id": {
@@ -583,30 +235,296 @@
                                   "type": "string",
                                   "maxLength": 500
                                 },
-                                "latitude": {
-                                  "type": "number",
-                                  "minimum": -90,
-                                  "maximum": 90
+                                "coordinate": {
+                                  "type": "object",
+                                  "properties": {
+                                    "latitude": {
+                                      "type": "number"
+                                    },
+                                    "longitude": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "latitude",
+                                    "longitude"
+                                  ]
                                 },
-                                "longitude": {
-                                  "type": "number",
-                                  "minimum": -180,
-                                  "maximum": 180
+                                "savedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
                                 }
                               },
                               "required": [
                                 "id",
                                 "kind",
                                 "name",
-                                "latitude",
-                                "longitude"
+                                "coordinate",
+                                "savedAt"
                               ]
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "recent"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "recent.remove"
+                            },
+                            "recentId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "recentId"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "recent.clear"
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "preferences.set"
+                            },
+                            "preferences": {
+                              "type": "object",
+                              "properties": {
+                                "preferredModes": {
+                                  "type": "array",
+                                  "maxItems": 5,
+                                  "items": {
+                                    "enum": [
+                                      "metro",
+                                      "rer",
+                                      "transilien",
+                                      "tram",
+                                      "bus"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "excludedModes": {
+                                  "type": "array",
+                                  "maxItems": 5,
+                                  "items": {
+                                    "enum": [
+                                      "metro",
+                                      "rer",
+                                      "transilien",
+                                      "tram",
+                                      "bus"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "preferredModes",
+                                "excludedModes",
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "preferences"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "place.upsert"
+                            },
+                            "place": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 500
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "station",
+                                    "address"
+                                  ],
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 300
+                                },
+                                "context": {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                "coordinate": {
+                                  "type": "object",
+                                  "properties": {
+                                    "latitude": {
+                                      "type": "number"
+                                    },
+                                    "longitude": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "latitude",
+                                    "longitude"
+                                  ]
+                                },
+                                "role": {
+                                  "enum": [
+                                    "home",
+                                    "work"
+                                  ],
+                                  "type": "string"
+                                },
+                                "systemImage": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "savedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "kind",
+                                "name",
+                                "coordinate",
+                                "role",
+                                "savedAt",
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "place"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "place.remove"
+                            },
+                            "placeId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 500
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "placeId"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "destination.upsert"
                             },
                             "destination": {
                               "type": "object",
                               "properties": {
                                 "id": {
                                   "type": "string",
+                                  "format": "uuid"
+                                },
+                                "destinationId": {
+                                  "type": "string",
                                   "minLength": 1,
                                   "maxLength": 500
                                 },
@@ -626,204 +544,581 @@
                                   "type": "string",
                                   "maxLength": 500
                                 },
-                                "latitude": {
-                                  "type": "number",
-                                  "minimum": -90,
-                                  "maximum": 90
+                                "coordinate": {
+                                  "type": "object",
+                                  "properties": {
+                                    "latitude": {
+                                      "type": "number"
+                                    },
+                                    "longitude": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "latitude",
+                                    "longitude"
+                                  ]
                                 },
-                                "longitude": {
-                                  "type": "number",
-                                  "minimum": -180,
-                                  "maximum": 180
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 80
+                                },
+                                "systemImage": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 100
+                                },
+                                "position": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 49
+                                },
+                                "savedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "destinationId",
+                                "kind",
+                                "name",
+                                "coordinate",
+                                "label",
+                                "systemImage",
+                                "position",
+                                "savedAt",
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "destination"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "destination.remove"
+                            },
+                            "destinationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "destinationId"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "notifications.preferences.set"
+                            },
+                            "notificationPreferences": {
+                              "type": "object",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "timeZone": {
+                                  "const": "Europe/Paris",
+                                  "default": "Europe/Paris"
+                                },
+                                "quietHoursStartMinute": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 1439
+                                },
+                                "quietHoursEndMinute": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 1439
+                                },
+                                "mutedOnWeekends": {
+                                  "type": "boolean"
+                                },
+                                "mutedOnHolidays": {
+                                  "type": "boolean"
+                                },
+                                "minimumSeverity": {
+                                  "enum": [
+                                    "attention",
+                                    "disrupted",
+                                    "suspended"
+                                  ],
+                                  "type": "string"
+                                },
+                                "dailyCap": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                "categories": {
+                                  "type": "array",
+                                  "maxItems": 6,
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "category": {
+                                        "enum": [
+                                          "journey",
+                                          "commute",
+                                          "line",
+                                          "station",
+                                          "digest",
+                                          "recommendation"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "enabled": {
+                                        "type": "boolean"
+                                      },
+                                      "minimumSeverity": {
+                                        "enum": [
+                                          "attention",
+                                          "disrupted",
+                                          "suspended"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "dailyCap": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 100
+                                      }
+                                    },
+                                    "required": [
+                                      "category",
+                                      "enabled",
+                                      "minimumSeverity"
+                                    ]
+                                  }
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "enabled",
+                                "mutedOnWeekends",
+                                "mutedOnHolidays",
+                                "minimumSeverity",
+                                "categories",
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "notificationPreferences"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "notifications.schedule.upsert"
+                            },
+                            "schedule": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "commute",
+                                    "digest"
+                                  ],
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                },
+                                "revision": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                },
+                                "origin": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "kind": {
+                                      "enum": [
+                                        "station",
+                                        "address"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 300
+                                    },
+                                    "context": {
+                                      "type": "string",
+                                      "maxLength": 500
+                                    },
+                                    "latitude": {
+                                      "type": "number",
+                                      "minimum": -90,
+                                      "maximum": 90
+                                    },
+                                    "longitude": {
+                                      "type": "number",
+                                      "minimum": -180,
+                                      "maximum": 180
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "kind",
+                                    "name",
+                                    "latitude",
+                                    "longitude"
+                                  ]
+                                },
+                                "destination": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 500
+                                    },
+                                    "kind": {
+                                      "enum": [
+                                        "station",
+                                        "address"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 300
+                                    },
+                                    "context": {
+                                      "type": "string",
+                                      "maxLength": 500
+                                    },
+                                    "latitude": {
+                                      "type": "number",
+                                      "minimum": -90,
+                                      "maximum": 90
+                                    },
+                                    "longitude": {
+                                      "type": "number",
+                                      "minimum": -180,
+                                      "maximum": 180
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "kind",
+                                    "name",
+                                    "latitude",
+                                    "longitude"
+                                  ]
+                                },
+                                "routeIds": {
+                                  "type": "array",
+                                  "maxItems": 64,
+                                  "items": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 255
+                                  }
+                                },
+                                "daysOfWeek": {
+                                  "type": "array",
+                                  "maxItems": 7,
+                                  "items": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 6
+                                  }
+                                },
+                                "departureMinute": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 1439
+                                },
+                                "leadMinutes": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 240
+                                },
+                                "skipHolidays": {
+                                  "type": "boolean"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "pausedUntil": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "timeZone": {
+                                  "const": "Europe/Paris",
+                                  "default": "Europe/Paris"
+                                },
+                                "savedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "deletedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
                                 }
                               },
                               "required": [
                                 "id",
                                 "kind",
-                                "name",
-                                "latitude",
-                                "longitude"
+                                "label",
+                                "revision",
+                                "routeIds",
+                                "daysOfWeek",
+                                "departureMinute",
+                                "leadMinutes",
+                                "skipHolidays",
+                                "enabled",
+                                "savedAt",
+                                "updatedAt"
                               ]
-                            },
-                            "routeIds": {
-                              "type": "array",
-                              "maxItems": 64,
-                              "items": {
-                                "type": "string",
-                                "minLength": 1,
-                                "maxLength": 255
-                              }
-                            },
-                            "daysOfWeek": {
-                              "type": "array",
-                              "maxItems": 7,
-                              "items": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 6
-                              }
-                            },
-                            "departureMinute": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 1439
-                            },
-                            "leadMinutes": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 240
-                            },
-                            "skipHolidays": {
-                              "type": "boolean"
-                            },
-                            "enabled": {
-                              "type": "boolean"
-                            },
-                            "pausedUntil": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "timeZone": {
-                              "const": "Europe/Paris",
-                              "default": "Europe/Paris"
-                            },
-                            "savedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "deletedAt": {
-                              "type": "string",
-                              "format": "date-time"
                             }
                           },
                           "required": [
-                            "id",
+                            "operationId",
+                            "occurredAt",
                             "kind",
-                            "label",
-                            "revision",
-                            "routeIds",
-                            "daysOfWeek",
-                            "departureMinute",
-                            "leadMinutes",
-                            "skipHolidays",
-                            "enabled",
-                            "savedAt",
-                            "updatedAt"
+                            "schedule"
                           ]
                         },
-                        "scheduleId": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 128
-                        },
-                        "alertSubscription": {
+                        {
                           "type": "object",
                           "properties": {
-                            "id": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "notifications.schedule.remove"
+                            },
+                            "scheduleId": {
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 128
-                            },
-                            "topicKind": {
-                              "enum": [
-                                "line",
-                                "station"
-                              ],
-                              "type": "string"
-                            },
-                            "topicId": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 300
-                            },
-                            "label": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 160
-                            },
-                            "daysOfWeek": {
-                              "type": "array",
-                              "maxItems": 7,
-                              "items": {
-                                "type": "integer",
-                                "minimum": 0,
-                                "maximum": 6
-                              }
-                            },
-                            "windows": {
-                              "type": "array",
-                              "maxItems": 8,
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "startMinute": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 1439
-                                  },
-                                  "endMinute": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 1439
-                                  }
-                                },
-                                "required": [
-                                  "startMinute",
-                                  "endMinute"
-                                ]
-                              }
-                            },
-                            "minimumSeverity": {
-                              "enum": [
-                                "attention",
-                                "disrupted",
-                                "suspended"
-                              ],
-                              "type": "string"
-                            },
-                            "enabled": {
-                              "type": "boolean"
-                            },
-                            "savedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "updatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "deletedAt": {
-                              "type": "string",
-                              "format": "date-time"
                             }
                           },
                           "required": [
-                            "id",
-                            "topicKind",
-                            "topicId",
-                            "label",
-                            "daysOfWeek",
-                            "windows",
-                            "minimumSeverity",
-                            "enabled",
-                            "savedAt",
-                            "updatedAt"
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "scheduleId"
                           ]
                         },
-                        "alertSubscriptionId": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 128
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "notifications.alert.upsert"
+                            },
+                            "alertSubscription": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "topicKind": {
+                                  "enum": [
+                                    "line",
+                                    "station"
+                                  ],
+                                  "type": "string"
+                                },
+                                "topicId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 300
+                                },
+                                "label": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                },
+                                "daysOfWeek": {
+                                  "type": "array",
+                                  "maxItems": 7,
+                                  "items": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 6
+                                  }
+                                },
+                                "windows": {
+                                  "type": "array",
+                                  "maxItems": 8,
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "startMinute": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 1439
+                                      },
+                                      "endMinute": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 1439
+                                      }
+                                    },
+                                    "required": [
+                                      "startMinute",
+                                      "endMinute"
+                                    ]
+                                  }
+                                },
+                                "minimumSeverity": {
+                                  "enum": [
+                                    "attention",
+                                    "disrupted",
+                                    "suspended"
+                                  ],
+                                  "type": "string"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "savedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "updatedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                },
+                                "deletedAt": {
+                                  "type": "string",
+                                  "format": "date-time"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "topicKind",
+                                "topicId",
+                                "label",
+                                "daysOfWeek",
+                                "windows",
+                                "minimumSeverity",
+                                "enabled",
+                                "savedAt",
+                                "updatedAt"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "alertSubscription"
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "operationId": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "kind": {
+                              "const": "notifications.alert.remove"
+                            },
+                            "alertSubscriptionId": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128
+                            }
+                          },
+                          "required": [
+                            "operationId",
+                            "occurredAt",
+                            "kind",
+                            "alertSubscriptionId"
+                          ]
                         }
-                      },
-                      "required": [
-                        "operationId",
-                        "kind",
-                        "occurredAt"
                       ]
                     }
                   }
@@ -3961,8 +4256,8 @@
     "/natural-journeys": {
       "post": {
         "operationId": "naturalJourneys.submit",
-        "summary": "Interpréter une phrase et calculer un itinéraire",
-        "description": "Point d'entrée du repli serveur : reçoit une phrase en langage naturel, sa position éventuelle et le contexte temporel, puis renvoie le même résultat structuré que le chemin local. Réservé aux soumissions initiales — les clarifications restent traitées sur l’appareil.",
+        "summary": "Interpréter une phrase de trajet",
+        "description": "Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres déterministes et des alias personnels opaques, puis renvoie le même patch typé que le modèle local. La résolution et la planification restent sur l’appareil.",
         "tags": [
           "natural-journeys"
         ],
@@ -3978,23 +4273,119 @@
                     "minLength": 1,
                     "maxLength": 500
                   },
-                  "latitude": {
-                    "type": "number",
-                    "minimum": -90,
-                    "maximum": 90
-                  },
-                  "longitude": {
-                    "type": "number",
-                    "minimum": -180,
-                    "maximum": 180
+                  "locale": {
+                    "enum": [
+                      "fr-FR",
+                      "en"
+                    ],
+                    "type": "string"
                   },
                   "requestedAt": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "hasCurrentLocation": {
+                    "type": "boolean"
+                  },
+                  "anchors": {
+                    "type": "object",
+                    "properties": {
+                      "origin": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "current_location",
+                              "query",
+                              "saved",
+                              "context_reference"
+                            ],
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string",
+                            "maxLength": 160
+                          },
+                          "evidence": {
+                            "type": "string",
+                            "maxLength": 160
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "value",
+                          "evidence"
+                        ]
+                      },
+                      "destination": {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "current_location",
+                              "query",
+                              "saved",
+                              "context_reference"
+                            ],
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "string",
+                            "maxLength": 160
+                          },
+                          "evidence": {
+                            "type": "string",
+                            "maxLength": 160
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "value",
+                          "evidence"
+                        ]
+                      }
+                    }
+                  },
+                  "savedPlaces": {
+                    "type": "array",
+                    "maxItems": 22,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        "label": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "kind": {
+                          "enum": [
+                            "home",
+                            "work",
+                            "custom"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label",
+                        "kind"
+                      ]
+                    }
                   }
                 },
                 "required": [
-                  "query"
+                  "query",
+                  "locale",
+                  "requestedAt",
+                  "hasCurrentLocation",
+                  "anchors",
+                  "savedPlaces"
                 ]
               }
             }
@@ -4011,574 +4402,279 @@
                       "type": "object",
                       "properties": {
                         "outcome": {
-                          "const": "ready"
+                          "const": "interpreted"
                         },
                         "interpretation": {
                           "type": "object",
                           "properties": {
-                            "originLabel": {
+                            "scope": {
+                              "enum": [
+                                "journey",
+                                "unsupported"
+                              ],
                               "type": "string"
                             },
                             "origin": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "kind": {
-                                      "const": "station"
-                                    },
-                                    "id": {
-                                      "type": "string"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "coordinate": {
-                                      "type": "object",
-                                      "properties": {
-                                        "latitude": {
-                                          "type": "number"
-                                        },
-                                        "longitude": {
-                                          "type": "number"
-                                        }
-                                      },
-                                      "required": [
-                                        "latitude",
-                                        "longitude"
-                                      ]
-                                    },
-                                    "routes": {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "id": {
-                                            "type": "string"
-                                          },
-                                          "shortName": {
-                                            "type": "string"
-                                          },
-                                          "mode": {
-                                            "enum": [
-                                              "metro",
-                                              "rer",
-                                              "transilien",
-                                              "tram",
-                                              "bus"
-                                            ],
-                                            "type": "string"
-                                          },
-                                          "color": {
-                                            "type": "string"
-                                          },
-                                          "textColor": {
-                                            "type": "string"
-                                          }
-                                        },
-                                        "required": [
-                                          "id",
-                                          "shortName",
-                                          "mode",
-                                          "color",
-                                          "textColor"
-                                        ]
-                                      }
-                                    },
-                                    "distanceMeters": {
-                                      "type": "number"
-                                    },
-                                    "accessibility": {
-                                      "type": "object",
-                                      "properties": {
-                                        "condition": {
-                                          "enum": [
-                                            "reservationRequired",
-                                            "staffAssistance",
-                                            "autonomous"
-                                          ],
-                                          "type": "string"
-                                        },
-                                        "label": {
-                                          "type": "string"
-                                        },
-                                        "comment": {
-                                          "type": "string"
-                                        }
-                                      },
-                                      "required": [
-                                        "condition",
-                                        "label"
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "kind",
-                                    "id",
-                                    "name",
-                                    "coordinate",
-                                    "routes"
-                                  ]
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "current_location",
+                                    "query",
+                                    "saved",
+                                    "context_reference"
+                                  ],
+                                  "type": "string"
                                 },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "kind": {
-                                      "const": "address"
-                                    },
-                                    "id": {
-                                      "type": "string"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "context": {
-                                      "type": "string"
-                                    },
-                                    "coordinate": {
-                                      "type": "object",
-                                      "properties": {
-                                        "latitude": {
-                                          "type": "number"
-                                        },
-                                        "longitude": {
-                                          "type": "number"
-                                        }
-                                      },
-                                      "required": [
-                                        "latitude",
-                                        "longitude"
-                                      ]
-                                    },
-                                    "distanceMeters": {
-                                      "type": "number"
-                                    }
-                                  },
-                                  "required": [
-                                    "kind",
-                                    "id",
-                                    "name",
-                                    "context",
-                                    "coordinate"
-                                  ]
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 160
                                 },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "kind": {
-                                      "const": "bikeStation"
-                                    },
-                                    "id": {
-                                      "type": "string"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "coordinate": {
-                                      "type": "object",
-                                      "properties": {
-                                        "latitude": {
-                                          "type": "number"
-                                        },
-                                        "longitude": {
-                                          "type": "number"
-                                        }
-                                      },
-                                      "required": [
-                                        "latitude",
-                                        "longitude"
-                                      ]
-                                    },
-                                    "distanceMeters": {
-                                      "type": "number"
-                                    },
-                                    "capacity": {
-                                      "type": "integer",
-                                      "minimum": 0,
-                                      "maximum": 9007199254740991
-                                    },
-                                    "availability": {
-                                      "type": "object",
-                                      "properties": {
-                                        "mechanicalBikes": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
-                                        },
-                                        "electricBikes": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
-                                        },
-                                        "docks": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
-                                        },
-                                        "isInstalled": {
-                                          "type": "boolean"
-                                        },
-                                        "isRenting": {
-                                          "type": "boolean"
-                                        },
-                                        "isReturning": {
-                                          "type": "boolean"
-                                        },
-                                        "lastReportedAt": {
-                                          "type": "string",
-                                          "format": "date-time"
-                                        }
-                                      },
-                                      "required": [
-                                        "mechanicalBikes",
-                                        "electricBikes",
-                                        "docks",
-                                        "isInstalled",
-                                        "isRenting",
-                                        "isReturning"
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "kind",
-                                    "id",
-                                    "name",
-                                    "coordinate",
-                                    "capacity"
-                                  ]
+                                "evidence": {
+                                  "type": "string",
+                                  "maxLength": 160
                                 }
+                              },
+                              "required": [
+                                "kind",
+                                "value",
+                                "evidence"
                               ]
                             },
                             "destination": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "kind": {
-                                      "const": "station"
-                                    },
-                                    "id": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "name": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "coordinate": {
-                                      "type": "object",
-                                      "properties": {
-                                        "latitude": {
-                                          "type": "number"
-                                        },
-                                        "longitude": {
-                                          "type": "number"
-                                        }
-                                      },
-                                      "required": [
-                                        "latitude",
-                                        "longitude"
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "kind",
-                                    "id",
-                                    "name",
-                                    "coordinate"
-                                  ]
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "current_location",
+                                    "query",
+                                    "saved",
+                                    "context_reference"
+                                  ],
+                                  "type": "string"
                                 },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "kind": {
-                                      "const": "address"
-                                    },
-                                    "id": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "name": {
-                                      "type": "string",
-                                      "minLength": 1
-                                    },
-                                    "context": {
-                                      "type": "string"
-                                    },
-                                    "coordinate": {
-                                      "type": "object",
-                                      "properties": {
-                                        "latitude": {
-                                          "type": "number"
-                                        },
-                                        "longitude": {
-                                          "type": "number"
-                                        }
-                                      },
-                                      "required": [
-                                        "latitude",
-                                        "longitude"
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "kind",
-                                    "id",
-                                    "name",
-                                    "coordinate"
-                                  ]
+                                "value": {
+                                  "type": "string",
+                                  "maxLength": 160
+                                },
+                                "evidence": {
+                                  "type": "string",
+                                  "maxLength": 160
                                 }
+                              },
+                              "required": [
+                                "kind",
+                                "value",
+                                "evidence"
                               ]
                             },
-                            "destinationResult": {
-                              "anyOf": [
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "kind": {
-                                      "const": "station"
-                                    },
-                                    "id": {
-                                      "type": "string"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "coordinate": {
-                                      "type": "object",
-                                      "properties": {
-                                        "latitude": {
-                                          "type": "number"
-                                        },
-                                        "longitude": {
-                                          "type": "number"
-                                        }
-                                      },
-                                      "required": [
-                                        "latitude",
-                                        "longitude"
-                                      ]
-                                    },
-                                    "routes": {
-                                      "type": "array",
-                                      "items": {
-                                        "type": "object",
-                                        "properties": {
-                                          "id": {
-                                            "type": "string"
-                                          },
-                                          "shortName": {
-                                            "type": "string"
-                                          },
-                                          "mode": {
-                                            "enum": [
-                                              "metro",
-                                              "rer",
-                                              "transilien",
-                                              "tram",
-                                              "bus"
-                                            ],
-                                            "type": "string"
-                                          },
-                                          "color": {
-                                            "type": "string"
-                                          },
-                                          "textColor": {
-                                            "type": "string"
-                                          }
-                                        },
-                                        "required": [
-                                          "id",
-                                          "shortName",
-                                          "mode",
-                                          "color",
-                                          "textColor"
-                                        ]
-                                      }
-                                    },
-                                    "distanceMeters": {
-                                      "type": "number"
-                                    },
-                                    "accessibility": {
-                                      "type": "object",
-                                      "properties": {
-                                        "condition": {
-                                          "enum": [
-                                            "reservationRequired",
-                                            "staffAssistance",
-                                            "autonomous"
-                                          ],
-                                          "type": "string"
-                                        },
-                                        "label": {
-                                          "type": "string"
-                                        },
-                                        "comment": {
-                                          "type": "string"
-                                        }
-                                      },
-                                      "required": [
-                                        "condition",
-                                        "label"
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "kind",
-                                    "id",
-                                    "name",
-                                    "coordinate",
-                                    "routes"
-                                  ]
+                            "originWasExplicit": {
+                              "type": "boolean"
+                            },
+                            "lastServiceOfDay": {
+                              "type": "boolean"
+                            },
+                            "timeConstraint": {
+                              "type": "object",
+                              "properties": {
+                                "reference": {
+                                  "enum": [
+                                    "implicit_today",
+                                    "today",
+                                    "tomorrow",
+                                    "monday",
+                                    "tuesday",
+                                    "wednesday",
+                                    "thursday",
+                                    "friday",
+                                    "saturday",
+                                    "sunday",
+                                    "calendar_date",
+                                    "relative"
+                                  ],
+                                  "type": "string"
                                 },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "kind": {
-                                      "const": "address"
-                                    },
-                                    "id": {
-                                      "type": "string"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "context": {
-                                      "type": "string"
-                                    },
-                                    "coordinate": {
-                                      "type": "object",
-                                      "properties": {
-                                        "latitude": {
-                                          "type": "number"
-                                        },
-                                        "longitude": {
-                                          "type": "number"
-                                        }
-                                      },
-                                      "required": [
-                                        "latitude",
-                                        "longitude"
-                                      ]
-                                    },
-                                    "distanceMeters": {
-                                      "type": "number"
-                                    }
-                                  },
-                                  "required": [
-                                    "kind",
-                                    "id",
-                                    "name",
-                                    "context",
-                                    "coordinate"
-                                  ]
+                                "year": {
+                                  "type": "integer",
+                                  "minimum": 2000,
+                                  "maximum": 2100
                                 },
-                                {
-                                  "type": "object",
-                                  "properties": {
-                                    "kind": {
-                                      "const": "bikeStation"
-                                    },
-                                    "id": {
-                                      "type": "string"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    },
-                                    "coordinate": {
-                                      "type": "object",
-                                      "properties": {
-                                        "latitude": {
-                                          "type": "number"
-                                        },
-                                        "longitude": {
-                                          "type": "number"
-                                        }
-                                      },
-                                      "required": [
-                                        "latitude",
-                                        "longitude"
-                                      ]
-                                    },
-                                    "distanceMeters": {
-                                      "type": "number"
-                                    },
-                                    "capacity": {
-                                      "type": "integer",
-                                      "minimum": 0,
-                                      "maximum": 9007199254740991
-                                    },
-                                    "availability": {
-                                      "type": "object",
-                                      "properties": {
-                                        "mechanicalBikes": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
-                                        },
-                                        "electricBikes": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
-                                        },
-                                        "docks": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
-                                        },
-                                        "isInstalled": {
-                                          "type": "boolean"
-                                        },
-                                        "isRenting": {
-                                          "type": "boolean"
-                                        },
-                                        "isReturning": {
-                                          "type": "boolean"
-                                        },
-                                        "lastReportedAt": {
-                                          "type": "string",
-                                          "format": "date-time"
-                                        }
-                                      },
-                                      "required": [
-                                        "mechanicalBikes",
-                                        "electricBikes",
-                                        "docks",
-                                        "isInstalled",
-                                        "isRenting",
-                                        "isReturning"
-                                      ]
-                                    }
-                                  },
-                                  "required": [
-                                    "kind",
-                                    "id",
-                                    "name",
-                                    "coordinate",
-                                    "capacity"
-                                  ]
+                                "yearWasExplicit": {
+                                  "type": "boolean"
+                                },
+                                "month": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 12
+                                },
+                                "day": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 31
+                                },
+                                "timePrecision": {
+                                  "enum": [
+                                    "unspecified",
+                                    "exact",
+                                    "morning",
+                                    "afternoon",
+                                    "evening"
+                                  ],
+                                  "type": "string"
+                                },
+                                "hour": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 23
+                                },
+                                "minute": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 59
+                                },
+                                "relativeAmount": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 10080
+                                },
+                                "relativeUnit": {
+                                  "enum": [
+                                    "minute",
+                                    "hour",
+                                    "day"
+                                  ],
+                                  "type": "string"
+                                },
+                                "meaning": {
+                                  "enum": [
+                                    "departure",
+                                    "arrival",
+                                    "ambiguous"
+                                  ],
+                                  "type": "string"
+                                },
+                                "evidence": {
+                                  "type": "string",
+                                  "maxLength": 160
                                 }
+                              },
+                              "required": [
+                                "reference",
+                                "year",
+                                "yearWasExplicit",
+                                "month",
+                                "day",
+                                "timePrecision",
+                                "hour",
+                                "minute",
+                                "relativeAmount",
+                                "relativeUnit",
+                                "meaning",
+                                "evidence"
                               ]
                             },
-                            "requestedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "datetimeRepresents": {
-                              "enum": [
-                                "departure",
-                                "arrival"
-                              ],
-                              "type": "string"
-                            },
-                            "timeAnchor": {
-                              "enum": [
-                                "last_of_day"
-                              ],
-                              "type": "string"
+                            "alternateTimeConstraint": {
+                              "type": "object",
+                              "properties": {
+                                "reference": {
+                                  "enum": [
+                                    "implicit_today",
+                                    "today",
+                                    "tomorrow",
+                                    "monday",
+                                    "tuesday",
+                                    "wednesday",
+                                    "thursday",
+                                    "friday",
+                                    "saturday",
+                                    "sunday",
+                                    "calendar_date",
+                                    "relative"
+                                  ],
+                                  "type": "string"
+                                },
+                                "year": {
+                                  "type": "integer",
+                                  "minimum": 2000,
+                                  "maximum": 2100
+                                },
+                                "yearWasExplicit": {
+                                  "type": "boolean"
+                                },
+                                "month": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 12
+                                },
+                                "day": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 31
+                                },
+                                "timePrecision": {
+                                  "enum": [
+                                    "unspecified",
+                                    "exact",
+                                    "morning",
+                                    "afternoon",
+                                    "evening"
+                                  ],
+                                  "type": "string"
+                                },
+                                "hour": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 23
+                                },
+                                "minute": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 59
+                                },
+                                "relativeAmount": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 10080
+                                },
+                                "relativeUnit": {
+                                  "enum": [
+                                    "minute",
+                                    "hour",
+                                    "day"
+                                  ],
+                                  "type": "string"
+                                },
+                                "meaning": {
+                                  "enum": [
+                                    "departure",
+                                    "arrival",
+                                    "ambiguous"
+                                  ],
+                                  "type": "string"
+                                },
+                                "evidence": {
+                                  "type": "string",
+                                  "maxLength": 160
+                                }
+                              },
+                              "required": [
+                                "reference",
+                                "year",
+                                "yearWasExplicit",
+                                "month",
+                                "day",
+                                "timePrecision",
+                                "hour",
+                                "minute",
+                                "relativeAmount",
+                                "relativeUnit",
+                                "meaning",
+                                "evidence"
+                              ]
                             },
                             "requiredModes": {
                               "type": "array",
+                              "maxItems": 3,
                               "items": {
                                 "enum": [
                                   "metro",
@@ -4592,6 +4688,7 @@
                             },
                             "excludedModes": {
                               "type": "array",
+                              "maxItems": 3,
                               "items": {
                                 "enum": [
                                   "metro",
@@ -4605,6 +4702,7 @@
                             },
                             "preferredModes": {
                               "type": "array",
+                              "maxItems": 3,
                               "items": {
                                 "enum": [
                                   "metro",
@@ -4615,600 +4713,37 @@
                                 ],
                                 "type": "string"
                               }
+                            },
+                            "unsupportedConstraints": {
+                              "type": "array",
+                              "maxItems": 3,
+                              "items": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 160
+                              }
+                            },
+                            "unexplainedText": {
+                              "type": "string",
+                              "maxLength": 200
                             }
                           },
                           "required": [
-                            "originLabel",
-                            "destination",
-                            "destinationResult",
-                            "requestedAt",
-                            "datetimeRepresents",
+                            "scope",
+                            "originWasExplicit",
+                            "lastServiceOfDay",
+                            "timeConstraint",
                             "requiredModes",
                             "excludedModes",
-                            "preferredModes"
-                          ]
-                        },
-                        "journeys": {
-                          "type": "object",
-                          "properties": {
-                            "status": {
-                              "enum": [
-                                "ready",
-                                "no-route",
-                                "unavailable"
-                              ],
-                              "type": "string"
-                            },
-                            "source": {
-                              "enum": [
-                                "idfm-realtime",
-                                "gtfs-theoretical"
-                              ],
-                              "type": "string"
-                            },
-                            "generatedAt": {
-                              "type": "string",
-                              "format": "date-time"
-                            },
-                            "reason": {
-                              "enum": [
-                                "no-accessible-route",
-                                "accessibility-data-unavailable",
-                                "no-operational-elevator-route",
-                                "elevator-data-unavailable"
-                              ],
-                              "type": "string"
-                            },
-                            "journeys": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "qualifier": {
-                                    "enum": [
-                                      "recommended",
-                                      "rapid",
-                                      "less-walking",
-                                      "comfort",
-                                      "walking",
-                                      "bike"
-                                    ],
-                                    "type": "string"
-                                  },
-                                  "durationSeconds": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 9007199254740991
-                                  },
-                                  "walkingDurationSeconds": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 9007199254740991
-                                  },
-                                  "transferCount": {
-                                    "type": "integer",
-                                    "minimum": 0,
-                                    "maximum": 9007199254740991
-                                  },
-                                  "departureAt": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  },
-                                  "arrivalAt": {
-                                    "type": "string",
-                                    "format": "date-time"
-                                  },
-                                  "status": {
-                                    "enum": [
-                                      "normal",
-                                      "disrupted",
-                                      "theoretical"
-                                    ],
-                                    "type": "string"
-                                  },
-                                  "warnings": {
-                                    "type": "array",
-                                    "items": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "accessibility": {
-                                    "type": "object",
-                                    "properties": {
-                                      "condition": {
-                                        "enum": [
-                                          "reservationRequired",
-                                          "staffAssistance",
-                                          "autonomous"
-                                        ],
-                                        "type": "string"
-                                      },
-                                      "label": {
-                                        "type": "string"
-                                      }
-                                    },
-                                    "required": [
-                                      "condition",
-                                      "label"
-                                    ]
-                                  },
-                                  "peak": {
-                                    "type": "object",
-                                    "properties": {
-                                      "ratio": {
-                                        "type": "number",
-                                        "minimum": 0,
-                                        "maximum": 1
-                                      },
-                                      "level": {
-                                        "enum": [
-                                          "moderate",
-                                          "peak"
-                                        ],
-                                        "type": "string"
-                                      },
-                                      "stationId": {
-                                        "type": "string"
-                                      },
-                                      "stationName": {
-                                        "type": "string"
-                                      },
-                                      "label": {
-                                        "type": "string"
-                                      }
-                                    },
-                                    "required": [
-                                      "ratio",
-                                      "level",
-                                      "stationName",
-                                      "label"
-                                    ]
-                                  },
-                                  "reportedCrowding": {
-                                    "type": "object",
-                                    "properties": {
-                                      "level": {
-                                        "enum": [
-                                          "low",
-                                          "moderate",
-                                          "high",
-                                          "saturated"
-                                        ],
-                                        "type": "string"
-                                      },
-                                      "stationName": {
-                                        "type": "string"
-                                      },
-                                      "label": {
-                                        "type": "string"
-                                      },
-                                      "reporterCount": {
-                                        "type": "integer",
-                                        "minimum": -9007199254740991,
-                                        "maximum": 9007199254740991,
-                                        "exclusiveMinimum": 0
-                                      },
-                                      "expiresAt": {
-                                        "type": "string",
-                                        "format": "date-time"
-                                      }
-                                    },
-                                    "required": [
-                                      "level",
-                                      "stationName",
-                                      "label",
-                                      "reporterCount",
-                                      "expiresAt"
-                                    ]
-                                  },
-                                  "wheelchairReport": {
-                                    "type": "object",
-                                    "properties": {
-                                      "stationName": {
-                                        "type": "string"
-                                      },
-                                      "label": {
-                                        "type": "string"
-                                      },
-                                      "reporterCount": {
-                                        "type": "integer",
-                                        "minimum": -9007199254740991,
-                                        "maximum": 9007199254740991,
-                                        "exclusiveMinimum": 0
-                                      },
-                                      "confidence": {
-                                        "enum": [
-                                          "observed",
-                                          "confirmed"
-                                        ],
-                                        "type": "string"
-                                      },
-                                      "expiresAt": {
-                                        "type": "string",
-                                        "format": "date-time"
-                                      }
-                                    },
-                                    "required": [
-                                      "stationName",
-                                      "label",
-                                      "reporterCount",
-                                      "confidence",
-                                      "expiresAt"
-                                    ]
-                                  },
-                                  "sections": {
-                                    "type": "array",
-                                    "minItems": 1,
-                                    "items": {
-                                      "type": "object",
-                                      "properties": {
-                                        "id": {
-                                          "type": "string"
-                                        },
-                                        "type": {
-                                          "enum": [
-                                            "walk",
-                                            "bike",
-                                            "wait",
-                                            "transfer",
-                                            "transit"
-                                          ],
-                                          "type": "string"
-                                        },
-                                        "durationSeconds": {
-                                          "type": "integer",
-                                          "minimum": 0,
-                                          "maximum": 9007199254740991
-                                        },
-                                        "from": {
-                                          "type": "object",
-                                          "properties": {
-                                            "name": {
-                                              "type": "string"
-                                            },
-                                            "coordinate": {
-                                              "type": "object",
-                                              "properties": {
-                                                "latitude": {
-                                                  "type": "number"
-                                                },
-                                                "longitude": {
-                                                  "type": "number"
-                                                }
-                                              },
-                                              "required": [
-                                                "latitude",
-                                                "longitude"
-                                              ]
-                                            }
-                                          },
-                                          "required": [
-                                            "name",
-                                            "coordinate"
-                                          ]
-                                        },
-                                        "to": {
-                                          "type": "object",
-                                          "properties": {
-                                            "name": {
-                                              "type": "string"
-                                            },
-                                            "coordinate": {
-                                              "type": "object",
-                                              "properties": {
-                                                "latitude": {
-                                                  "type": "number"
-                                                },
-                                                "longitude": {
-                                                  "type": "number"
-                                                }
-                                              },
-                                              "required": [
-                                                "latitude",
-                                                "longitude"
-                                              ]
-                                            }
-                                          },
-                                          "required": [
-                                            "name",
-                                            "coordinate"
-                                          ]
-                                        },
-                                        "departureAt": {
-                                          "type": "string",
-                                          "format": "date-time"
-                                        },
-                                        "arrivalAt": {
-                                          "type": "string",
-                                          "format": "date-time"
-                                        },
-                                        "scheduledDepartureAt": {
-                                          "type": "string",
-                                          "format": "date-time"
-                                        },
-                                        "scheduledArrivalAt": {
-                                          "type": "string",
-                                          "format": "date-time"
-                                        },
-                                        "geometry": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "object",
-                                            "properties": {
-                                              "latitude": {
-                                                "type": "number"
-                                              },
-                                              "longitude": {
-                                                "type": "number"
-                                              }
-                                            },
-                                            "required": [
-                                              "latitude",
-                                              "longitude"
-                                            ]
-                                          }
-                                        },
-                                        "route": {
-                                          "type": "object",
-                                          "properties": {
-                                            "id": {
-                                              "type": "string"
-                                            },
-                                            "shortName": {
-                                              "type": "string"
-                                            },
-                                            "longName": {
-                                              "type": "string"
-                                            },
-                                            "mode": {
-                                              "enum": [
-                                                "metro",
-                                                "rer",
-                                                "transilien",
-                                                "tram",
-                                                "bus"
-                                              ],
-                                              "type": "string"
-                                            },
-                                            "color": {
-                                              "type": "string"
-                                            },
-                                            "textColor": {
-                                              "type": "string"
-                                            }
-                                          },
-                                          "required": [
-                                            "id",
-                                            "shortName",
-                                            "longName",
-                                            "mode",
-                                            "color",
-                                            "textColor"
-                                          ]
-                                        },
-                                        "direction": {
-                                          "type": "string"
-                                        },
-                                        "platform": {
-                                          "type": "string"
-                                        },
-                                        "stops": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "object",
-                                            "properties": {
-                                              "id": {
-                                                "type": "string"
-                                              },
-                                              "stationId": {
-                                                "type": "string"
-                                              },
-                                              "name": {
-                                                "type": "string"
-                                              },
-                                              "coordinate": {
-                                                "type": "object",
-                                                "properties": {
-                                                  "latitude": {
-                                                    "type": "number"
-                                                  },
-                                                  "longitude": {
-                                                    "type": "number"
-                                                  }
-                                                },
-                                                "required": [
-                                                  "latitude",
-                                                  "longitude"
-                                                ]
-                                              },
-                                              "arrivalAt": {
-                                                "type": "string",
-                                                "format": "date-time"
-                                              },
-                                              "departureAt": {
-                                                "type": "string",
-                                                "format": "date-time"
-                                              }
-                                            },
-                                            "required": [
-                                              "id",
-                                              "name",
-                                              "coordinate"
-                                            ]
-                                          },
-                                          "default": []
-                                        },
-                                        "serviceId": {
-                                          "type": "string"
-                                        },
-                                        "timingSource": {
-                                          "enum": [
-                                            "realtime",
-                                            "theoretical"
-                                          ],
-                                          "type": "string"
-                                        },
-                                        "departureStatus": {
-                                          "enum": [
-                                            "on_time",
-                                            "delayed",
-                                            "early",
-                                            "cancelled",
-                                            "missed",
-                                            "arrived",
-                                            "departed",
-                                            "no_report",
-                                            "scheduled"
-                                          ],
-                                          "type": "string"
-                                        },
-                                        "boardingPosition": {
-                                          "type": "object",
-                                          "properties": {
-                                            "car": {
-                                              "type": "integer",
-                                              "minimum": 1,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "carCount": {
-                                              "type": "integer",
-                                              "minimum": 1,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "zone": {
-                                              "enum": [
-                                                "front",
-                                                "middle",
-                                                "rear"
-                                              ],
-                                              "type": "string"
-                                            },
-                                            "reason": {
-                                              "enum": [
-                                                "exit",
-                                                "transfer"
-                                              ],
-                                              "type": "string"
-                                            },
-                                            "equipment": {
-                                              "enum": [
-                                                "escalator",
-                                                "lift",
-                                                "stairs"
-                                              ],
-                                              "type": "string"
-                                            }
-                                          },
-                                          "required": [
-                                            "car",
-                                            "carCount",
-                                            "zone",
-                                            "reason"
-                                          ]
-                                        },
-                                        "exit": {
-                                          "type": "object",
-                                          "properties": {
-                                            "id": {
-                                              "type": "string"
-                                            },
-                                            "name": {
-                                              "type": "string"
-                                            },
-                                            "number": {
-                                              "type": "integer",
-                                              "minimum": -9007199254740991,
-                                              "maximum": 9007199254740991
-                                            },
-                                            "coordinate": {
-                                              "type": "object",
-                                              "properties": {
-                                                "latitude": {
-                                                  "type": "number"
-                                                },
-                                                "longitude": {
-                                                  "type": "number"
-                                                }
-                                              },
-                                              "required": [
-                                                "latitude",
-                                                "longitude"
-                                              ]
-                                            },
-                                            "walkingMeters": {
-                                              "type": "integer",
-                                              "minimum": 0,
-                                              "maximum": 9007199254740991
-                                            }
-                                          },
-                                          "required": [
-                                            "id",
-                                            "name",
-                                            "coordinate"
-                                          ]
-                                        }
-                                      },
-                                      "required": [
-                                        "type",
-                                        "durationSeconds",
-                                        "from",
-                                        "to",
-                                        "geometry"
-                                      ]
-                                    }
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "qualifier",
-                                  "durationSeconds",
-                                  "walkingDurationSeconds",
-                                  "transferCount",
-                                  "departureAt",
-                                  "arrivalAt",
-                                  "status",
-                                  "warnings",
-                                  "sections"
-                                ]
-                              }
-                            }
-                          },
-                          "required": [
-                            "status",
-                            "generatedAt",
-                            "journeys"
+                            "preferredModes",
+                            "unsupportedConstraints",
+                            "unexplainedText"
                           ]
                         }
                       },
                       "required": [
                         "outcome",
-                        "interpretation",
-                        "journeys"
-                      ]
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "outcome": {
-                          "const": "unsupported"
-                        },
-                        "message": {
-                          "type": "string"
-                        },
-                        "examples": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
-                      },
-                      "required": [
-                        "outcome",
-                        "message",
-                        "examples"
+                        "interpretation"
                       ]
                     },
                     {

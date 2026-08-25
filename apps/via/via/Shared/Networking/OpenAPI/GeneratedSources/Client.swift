@@ -529,9 +529,9 @@ internal struct Client: APIProtocol {
             }
         )
     }
-    /// Interpréter une phrase et calculer un itinéraire
+    /// Interpréter une phrase de trajet
     ///
-    /// Point d'entrée du repli serveur : reçoit une phrase en langage naturel, sa position éventuelle et le contexte temporel, puis renvoie le même résultat structuré que le chemin local. Réservé aux soumissions initiales — les clarifications restent traitées sur l’appareil.
+    /// Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres déterministes et des alias personnels opaques, puis renvoie le même patch typé que le modèle local. La résolution et la planification restent sur l’appareil.
     ///
     /// - Remark: HTTP `POST /natural-journeys`.
     /// - Remark: Generated from `#/paths//natural-journeys/post(naturalJourneys.submit)`.

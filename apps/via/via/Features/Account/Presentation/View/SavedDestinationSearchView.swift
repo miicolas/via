@@ -6,9 +6,22 @@ import SwiftUI
 struct SavedDestinationSearchView: View {
     let viewModel: SearchViewModel
     let title: String
+    let accessibilityHint: String
     let onSelect: (SearchResult) -> Void
 
     @Environment(\.dismiss) private var dismiss
+
+    init(
+        viewModel: SearchViewModel,
+        title: String,
+        accessibilityHint: String = "Enregistre ce lieu dans vos favoris",
+        onSelect: @escaping (SearchResult) -> Void,
+    ) {
+        self.viewModel = viewModel
+        self.title = title
+        self.accessibilityHint = accessibilityHint
+        self.onSelect = onSelect
+    }
 
     var body: some View {
         @Bindable var viewModel = viewModel
@@ -36,7 +49,7 @@ struct SavedDestinationSearchView: View {
                         results: viewModel.departureResults,
                         onRetry: viewModel.retryDepartureSearch,
                         onSelect: select,
-                        accessibilityHint: "Enregistre ce lieu dans vos favoris",
+                        accessibilityHint: accessibilityHint,
                     )
                 }
                 .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))

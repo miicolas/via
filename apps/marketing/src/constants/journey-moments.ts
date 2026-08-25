@@ -7,7 +7,7 @@ export const journeyMoments = [
     title: "Décrivez simplement où vous allez",
     description:
       "Écrivez votre trajet comme vous le pensez. Metyro comprend le lieu, l’heure et vos contraintes, directement sur votre iPhone.",
-    detail: "Traité sur cet iPhone avec Apple Intelligence",
+    detail: "Traité sur cet iPhone quand c’est possible, sinon par le serveur sécurisé",
     icon: "search",
     color: "#1872f7",
   },

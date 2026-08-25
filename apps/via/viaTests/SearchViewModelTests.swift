@@ -3,7 +3,7 @@ import XCTest
 
 @MainActor
 final class SearchViewModelTests: XCTestCase {
-    func testFirstNaturalSearchOpeningGoesStraightToInput() {
+    func testFirstNaturalSearchOpeningDisclosesServerFallbackBeforeInput() {
         let onboarding = InMemoryNaturalJourneyOnboardingStore(hasSeenOnboarding: false)
         let model = makeModel(
             naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
@@ -14,6 +14,11 @@ final class SearchViewModelTests: XCTestCase {
         model.openNaturalSearch()
 
         XCTAssertTrue(model.isNaturalSearchPresented)
+        XCTAssertEqual(model.naturalSearchState, .onboarding)
+        XCTAssertFalse(onboarding.hasSeenOnboarding)
+
+        model.showNaturalSearchInput()
+
         XCTAssertEqual(model.naturalSearchState, .input)
         XCTAssertTrue(onboarding.hasSeenOnboarding)
     }
@@ -138,6 +143,37 @@ final class SearchViewModelTests: XCTestCase {
             firstResultDurationMilliseconds: 0,
             correctionCount: 0,
         )])
+    }
+
+    func testIncorrectExecutionFeedbackIsASeparateAnonymousOutcome() async {
+        let interpretation = NaturalJourneyInterpretation(
+            originLabel: "Auber",
+            destination: JourneyPlaceSelection(.previewStation).journeyDestination,
+            destinationResult: .previewStation,
+            requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+            datetimeRepresents: .arrival,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            processingPath: .serverModel,
+        )
+        let metrics = NaturalJourneyMetricsRecorder()
+        let model = makeModel(
+            naturalJourneyRepository: NaturalJourneyRepositoryRecorder(
+                result: .ready(interpretation: interpretation, journeys: .mapPreview),
+            ),
+            naturalLanguageAvailability: .available,
+            naturalJourneyMetrics: metrics,
+            now: { Date(timeIntervalSince1970: 42) },
+        )
+        model.naturalQuery = "Depuis Auber vers Nation"
+        model.submitNaturalSearch()
+        await waitForStep(model, .results)
+
+        model.recordNaturalIncorrectExecution()
+
+        XCTAssertEqual(metrics.searches.map(\.outcome), [.success, .incorrectExecution])
+        XCTAssertEqual(metrics.searches.last?.processingPath, .serverModel)
     }
 
     func testNaturalNetworkFailureKeepsCriteriaAndPhraseForRetry() async {
@@ -330,6 +366,109 @@ final class SearchViewModelTests: XCTestCase {
             return XCTFail("Expected a clarification resolution")
         }
         XCTAssertEqual(destination, .previewStation)
+    }
+
+    func testFreeTextAfterAClarificationPatchesTheExistingDialogueState() async {
+        let draft = NaturalJourneyDraft(
+            intent: RouteIntent(
+                scope: .journey,
+                origin: .place(query: "Auber"),
+                destinationQuery: "Nation",
+                requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+                datetimeRepresents: .arrival,
+                requiredModes: [],
+                excludedModes: [],
+                preferredModes: [],
+            ),
+            origin: .previewAddress,
+            destination: nil,
+        )
+        let repository = NaturalJourneyRepositoryRecorder(results: [
+            .needsDecision(
+                draft: draft,
+                decision: .interpretationConflict([.destination]),
+            ),
+            .unsupported(message: "fin", examples: []),
+        ])
+        let model = makeModel(
+            naturalJourneyRepository: repository,
+            naturalLanguageAvailability: .available,
+        )
+        model.naturalQuery = "Depuis Auber vers Nation"
+        model.submitNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .decision = $0 { return true }
+            return false
+        }
+
+        model.modifyNaturalQuery()
+        model.naturalQuery = "Non, plutôt Bastille"
+        model.submitNaturalSearch()
+        await waitUntil { await repository.requests.count == 2 }
+
+        let requests = await repository.requests
+        guard case let .revise(query, revisedDraft, _) = requests.last else {
+            return XCTFail("La correction doit modifier la recherche en cours")
+        }
+        XCTAssertEqual(query, "Non, plutôt Bastille")
+        XCTAssertEqual(revisedDraft, draft)
+    }
+
+    func testMissingHomeCanBeChosenAndSavedBeforeResuming() async {
+        let draft = NaturalJourneyDraft(
+            intent: RouteIntent(
+                scope: .journey,
+                origin: .place(query: "Auber"),
+                destinationQuery: nil,
+                requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+                datetimeRepresents: .departure,
+                requiredModes: [],
+                excludedModes: [],
+                preferredModes: [],
+            ),
+            origin: .previewStation,
+            destination: nil,
+        )
+        let repository = NaturalJourneyRepositoryRecorder(results: [
+            .needsDecision(
+                draft: draft,
+                decision: .missingSavedPlace(target: .destination, kind: .home),
+            ),
+            .unsupported(message: "fin", examples: []),
+        ])
+        let account = AccountModel(
+            remote: InMemoryAccountRemote(),
+            synchronizationEnabled: false,
+        )
+        account.activate(userID: "natural-home-test")
+        let model = makeModel(
+            account: account,
+            naturalJourneyRepository: repository,
+            naturalLanguageAvailability: .available,
+        )
+        model.naturalQuery = "rentrez chez moi depuis Auber"
+        model.submitNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .decision = $0 { return true }
+            return false
+        }
+
+        model.chooseNaturalSavedPlace(
+            draft: draft,
+            target: .destination,
+            kind: .home,
+            savesPlace: true,
+        )
+        XCTAssertEqual(model.naturalSavedPlaceSelectionRequest?.title, "Enregistrer Maison")
+        model.completeNaturalSavedPlaceSelection(.previewAddress)
+        await waitUntil { await repository.requests.count == 2 }
+
+        XCTAssertEqual(account.place(for: .home)?.searchResult, .previewAddress)
+        let requests = await repository.requests
+        guard case let .resolve(_, _, _, destination, _, _) = requests.last else {
+            return XCTFail("Le lieu choisi doit reprendre le même trajet")
+        }
+        XCTAssertEqual(destination, .previewAddress)
     }
 
     func testEditingNaturalTimeReplansWithAllInterpretedConstraints() async {
@@ -1087,6 +1226,7 @@ final class SearchViewModelTests: XCTestCase {
         repository: any SearchRepository = InMemorySearchRepository.preview,
         journeyRepository: any JourneyRepository = InMemoryJourneyRepository(result: .mapPreview),
         location: LocationModel = LocationModel(adapter: InMemoryLocationAdapter()),
+        account: AccountModel? = nil,
         naturalJourneyRepository: (any NaturalJourneyRepository)? = nil,
         naturalLanguageAvailability: NaturalLanguageAvailability = .unavailable(.deviceNotEligible),
         naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring = InMemoryNaturalJourneyOnboardingStore(),
@@ -1098,6 +1238,7 @@ final class SearchViewModelTests: XCTestCase {
             repository: repository,
             journeyRepository: journeyRepository,
             locationModel: location,
+            account: account,
             naturalJourneyRepository: naturalJourneyRepository,
             naturalLanguageAvailability: { naturalLanguageAvailability },
             naturalJourneyOnboardingStore: naturalJourneyOnboardingStore,

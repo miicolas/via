@@ -112,7 +112,7 @@ enum JourneySectionNarration {
         duration: String
     ) -> String {
         switch kind {
-        case .walk(let destination):
+        case .walk(_):
             "Marcher (duration) jusqu’à (destination)"
         case .bike(let destination):
             "Pédaler (duration) jusqu’à (destination)"

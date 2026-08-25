@@ -54,9 +54,9 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /journeys/departure-choices`.
     /// - Remark: Generated from `#/paths//journeys/departure-choices/post(journeys.departureChoices)`.
     func journeys_period_departureChoices(_ input: Operations.journeys_period_departureChoices.Input) async throws -> Operations.journeys_period_departureChoices.Output
-    /// Interpréter une phrase et calculer un itinéraire
+    /// Interpréter une phrase de trajet
     ///
-    /// Point d'entrée du repli serveur : reçoit une phrase en langage naturel, sa position éventuelle et le contexte temporel, puis renvoie le même résultat structuré que le chemin local. Réservé aux soumissions initiales — les clarifications restent traitées sur l’appareil.
+    /// Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres déterministes et des alias personnels opaques, puis renvoie le même patch typé que le modèle local. La résolution et la planification restent sur l’appareil.
     ///
     /// - Remark: HTTP `POST /natural-journeys`.
     /// - Remark: Generated from `#/paths//natural-journeys/post(naturalJourneys.submit)`.
@@ -268,9 +268,9 @@ extension APIProtocol {
             body: body
         ))
     }
-    /// Interpréter une phrase et calculer un itinéraire
+    /// Interpréter une phrase de trajet
     ///
-    /// Point d'entrée du repli serveur : reçoit une phrase en langage naturel, sa position éventuelle et le contexte temporel, puis renvoie le même résultat structuré que le chemin local. Réservé aux soumissions initiales — les clarifications restent traitées sur l’appareil.
+    /// Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres déterministes et des alias personnels opaques, puis renvoie le même patch typé que le modèle local. La résolution et la planification restent sur l’appareil.
     ///
     /// - Remark: HTTP `POST /natural-journeys`.
     /// - Remark: Generated from `#/paths//natural-journeys/post(naturalJourneys.submit)`.
@@ -757,988 +757,1577 @@ internal enum Operations {
                 internal struct jsonPayload: Codable, Hashable, Sendable {
                     /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload`.
                     internal struct operationsPayloadPayload: Codable, Hashable, Sendable {
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/operationId`.
-                        internal var operationId: Swift.String
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/kind`.
-                        internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                            case favorite_period_upsert = "favorite.upsert"
-                            case favorite_period_remove = "favorite.remove"
-                            case recent_period_upsert = "recent.upsert"
-                            case recent_period_remove = "recent.remove"
-                            case recent_period_clear = "recent.clear"
-                            case preferences_period_set = "preferences.set"
-                            case place_period_upsert = "place.upsert"
-                            case place_period_remove = "place.remove"
-                            case destination_period_upsert = "destination.upsert"
-                            case destination_period_remove = "destination.remove"
-                            case notifications_period_preferences_period_set = "notifications.preferences.set"
-                            case notifications_period_schedule_period_upsert = "notifications.schedule.upsert"
-                            case notifications_period_schedule_period_remove = "notifications.schedule.remove"
-                            case notifications_period_alert_period_upsert = "notifications.alert.upsert"
-                            case notifications_period_alert_period_remove = "notifications.alert.remove"
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1`.
+                        internal struct Value1Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station`.
+                            internal struct stationPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station/stationId`.
+                                internal var stationId: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station/coordinate`.
+                                internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value1Payload.stationPayload.coordinatePayload?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station/savedAt`.
+                                internal var savedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station/updatedAt`.
+                                internal var updatedAt: Foundation.Date
+                                /// Creates a new `stationPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - stationId:
+                                ///   - name:
+                                ///   - coordinate:
+                                ///   - savedAt:
+                                ///   - updatedAt:
+                                internal init(
+                                    stationId: Swift.String,
+                                    name: Swift.String,
+                                    coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value1Payload.stationPayload.coordinatePayload? = nil,
+                                    savedAt: Foundation.Date,
+                                    updatedAt: Foundation.Date
+                                ) {
+                                    self.stationId = stationId
+                                    self.name = name
+                                    self.coordinate = coordinate
+                                    self.savedAt = savedAt
+                                    self.updatedAt = updatedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case stationId
+                                    case name
+                                    case coordinate
+                                    case savedAt
+                                    case updatedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1/station`.
+                            internal var station: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value1Payload.stationPayload
+                            /// Creates a new `Value1Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - station:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                station: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value1Payload.stationPayload
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.station = station
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case station
+                            }
                         }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/kind`.
-                        internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.kindPayload
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/occurredAt`.
-                        internal var occurredAt: Foundation.Date
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station`.
-                        internal struct stationPayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/stationId`.
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value1`.
+                        internal var value1: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value1Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value2`.
+                        internal struct Value2Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value2/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value2/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value2/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value2/stationId`.
                             internal var stationId: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/name`.
-                            internal var name: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/coordinate`.
-                            internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/coordinate/latitude`.
-                                internal var latitude: Swift.Double
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/coordinate/longitude`.
-                                internal var longitude: Swift.Double
-                                /// Creates a new `coordinatePayload`.
-                                ///
-                                /// - Parameters:
-                                ///   - latitude:
-                                ///   - longitude:
-                                internal init(
-                                    latitude: Swift.Double,
-                                    longitude: Swift.Double
-                                ) {
-                                    self.latitude = latitude
-                                    self.longitude = longitude
-                                }
-                                internal enum CodingKeys: String, CodingKey {
-                                    case latitude
-                                    case longitude
-                                }
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/coordinate`.
-                            internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload.coordinatePayload?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/savedAt`.
-                            internal var savedAt: Foundation.Date
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station/updatedAt`.
-                            internal var updatedAt: Foundation.Date
-                            /// Creates a new `stationPayload`.
+                            /// Creates a new `Value2Payload`.
                             ///
                             /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
                             ///   - stationId:
-                            ///   - name:
-                            ///   - coordinate:
-                            ///   - savedAt:
-                            ///   - updatedAt:
                             internal init(
-                                stationId: Swift.String,
-                                name: Swift.String,
-                                coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload.coordinatePayload? = nil,
-                                savedAt: Foundation.Date,
-                                updatedAt: Foundation.Date
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                stationId: Swift.String
                             ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
                                 self.stationId = stationId
-                                self.name = name
-                                self.coordinate = coordinate
-                                self.savedAt = savedAt
-                                self.updatedAt = updatedAt
                             }
                             internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
                                 case stationId
-                                case name
-                                case coordinate
-                                case savedAt
-                                case updatedAt
                             }
                         }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/station`.
-                        internal var station: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/stationId`.
-                        internal var stationId: Swift.String?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recentId`.
-                        internal var recentId: Swift.String?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent`.
-                        internal struct recentPayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/id`.
-                            internal var id: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/kind`.
-                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case station = "station"
-                                case address = "address"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/kind`.
-                            internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload.kindPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/name`.
-                            internal var name: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/context`.
-                            internal var context: Swift.String?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/coordinate`.
-                            internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/coordinate/latitude`.
-                                internal var latitude: Swift.Double
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/coordinate/longitude`.
-                                internal var longitude: Swift.Double
-                                /// Creates a new `coordinatePayload`.
-                                ///
-                                /// - Parameters:
-                                ///   - latitude:
-                                ///   - longitude:
-                                internal init(
-                                    latitude: Swift.Double,
-                                    longitude: Swift.Double
-                                ) {
-                                    self.latitude = latitude
-                                    self.longitude = longitude
-                                }
-                                internal enum CodingKeys: String, CodingKey {
-                                    case latitude
-                                    case longitude
-                                }
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/coordinate`.
-                            internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload.coordinatePayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent/savedAt`.
-                            internal var savedAt: Foundation.Date
-                            /// Creates a new `recentPayload`.
-                            ///
-                            /// - Parameters:
-                            ///   - id:
-                            ///   - kind:
-                            ///   - name:
-                            ///   - context:
-                            ///   - coordinate:
-                            ///   - savedAt:
-                            internal init(
-                                id: Swift.String,
-                                kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload.kindPayload,
-                                name: Swift.String,
-                                context: Swift.String? = nil,
-                                coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload.coordinatePayload,
-                                savedAt: Foundation.Date
-                            ) {
-                                self.id = id
-                                self.kind = kind
-                                self.name = name
-                                self.context = context
-                                self.coordinate = coordinate
-                                self.savedAt = savedAt
-                            }
-                            internal enum CodingKeys: String, CodingKey {
-                                case id
-                                case kind
-                                case name
-                                case context
-                                case coordinate
-                                case savedAt
-                            }
-                        }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/recent`.
-                        internal var recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences`.
-                        internal struct preferencesPayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/preferredModesPayload`.
-                            internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case metro = "metro"
-                                case rer = "rer"
-                                case transilien = "transilien"
-                                case tram = "tram"
-                                case bus = "bus"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/preferredModes`.
-                            internal typealias preferredModesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.preferredModesPayloadPayload]
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/preferredModes`.
-                            internal var preferredModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.preferredModesPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/excludedModesPayload`.
-                            internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case metro = "metro"
-                                case rer = "rer"
-                                case transilien = "transilien"
-                                case tram = "tram"
-                                case bus = "bus"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/excludedModes`.
-                            internal typealias excludedModesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.excludedModesPayloadPayload]
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/excludedModes`.
-                            internal var excludedModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.excludedModesPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences/updatedAt`.
-                            internal var updatedAt: Foundation.Date
-                            /// Creates a new `preferencesPayload`.
-                            ///
-                            /// - Parameters:
-                            ///   - preferredModes:
-                            ///   - excludedModes:
-                            ///   - updatedAt:
-                            internal init(
-                                preferredModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.preferredModesPayload,
-                                excludedModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload.excludedModesPayload,
-                                updatedAt: Foundation.Date
-                            ) {
-                                self.preferredModes = preferredModes
-                                self.excludedModes = excludedModes
-                                self.updatedAt = updatedAt
-                            }
-                            internal enum CodingKeys: String, CodingKey {
-                                case preferredModes
-                                case excludedModes
-                                case updatedAt
-                            }
-                        }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/preferences`.
-                        internal var preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place`.
-                        internal struct placePayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/id`.
-                            internal var id: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/kind`.
-                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case station = "station"
-                                case address = "address"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/kind`.
-                            internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.kindPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/name`.
-                            internal var name: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/context`.
-                            internal var context: Swift.String?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/coordinate`.
-                            internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/coordinate/latitude`.
-                                internal var latitude: Swift.Double
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/coordinate/longitude`.
-                                internal var longitude: Swift.Double
-                                /// Creates a new `coordinatePayload`.
-                                ///
-                                /// - Parameters:
-                                ///   - latitude:
-                                ///   - longitude:
-                                internal init(
-                                    latitude: Swift.Double,
-                                    longitude: Swift.Double
-                                ) {
-                                    self.latitude = latitude
-                                    self.longitude = longitude
-                                }
-                                internal enum CodingKeys: String, CodingKey {
-                                    case latitude
-                                    case longitude
-                                }
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/coordinate`.
-                            internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.coordinatePayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/role`.
-                            internal enum rolePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case home = "home"
-                                case work = "work"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/role`.
-                            internal var role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.rolePayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/systemImage`.
-                            internal var systemImage: Swift.String?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/savedAt`.
-                            internal var savedAt: Foundation.Date
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place/updatedAt`.
-                            internal var updatedAt: Foundation.Date
-                            /// Creates a new `placePayload`.
-                            ///
-                            /// - Parameters:
-                            ///   - id:
-                            ///   - kind:
-                            ///   - name:
-                            ///   - context:
-                            ///   - coordinate:
-                            ///   - role:
-                            ///   - systemImage:
-                            ///   - savedAt:
-                            ///   - updatedAt:
-                            internal init(
-                                id: Swift.String,
-                                kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.kindPayload,
-                                name: Swift.String,
-                                context: Swift.String? = nil,
-                                coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.coordinatePayload,
-                                role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload.rolePayload,
-                                systemImage: Swift.String? = nil,
-                                savedAt: Foundation.Date,
-                                updatedAt: Foundation.Date
-                            ) {
-                                self.id = id
-                                self.kind = kind
-                                self.name = name
-                                self.context = context
-                                self.coordinate = coordinate
-                                self.role = role
-                                self.systemImage = systemImage
-                                self.savedAt = savedAt
-                                self.updatedAt = updatedAt
-                            }
-                            internal enum CodingKeys: String, CodingKey {
-                                case id
-                                case kind
-                                case name
-                                case context
-                                case coordinate
-                                case role
-                                case systemImage
-                                case savedAt
-                                case updatedAt
-                            }
-                        }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/place`.
-                        internal var place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/placeId`.
-                        internal var placeId: Swift.String?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination`.
-                        internal struct destinationPayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/id`.
-                            internal var id: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/destinationId`.
-                            internal var destinationId: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/kind`.
-                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case station = "station"
-                                case address = "address"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/kind`.
-                            internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload.kindPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/name`.
-                            internal var name: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/context`.
-                            internal var context: Swift.String?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/coordinate`.
-                            internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/coordinate/latitude`.
-                                internal var latitude: Swift.Double
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/coordinate/longitude`.
-                                internal var longitude: Swift.Double
-                                /// Creates a new `coordinatePayload`.
-                                ///
-                                /// - Parameters:
-                                ///   - latitude:
-                                ///   - longitude:
-                                internal init(
-                                    latitude: Swift.Double,
-                                    longitude: Swift.Double
-                                ) {
-                                    self.latitude = latitude
-                                    self.longitude = longitude
-                                }
-                                internal enum CodingKeys: String, CodingKey {
-                                    case latitude
-                                    case longitude
-                                }
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/coordinate`.
-                            internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload.coordinatePayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/label`.
-                            internal var label: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/systemImage`.
-                            internal var systemImage: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/position`.
-                            internal var position: Swift.Int
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/savedAt`.
-                            internal var savedAt: Foundation.Date
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination/updatedAt`.
-                            internal var updatedAt: Foundation.Date
-                            /// Creates a new `destinationPayload`.
-                            ///
-                            /// - Parameters:
-                            ///   - id:
-                            ///   - destinationId:
-                            ///   - kind:
-                            ///   - name:
-                            ///   - context:
-                            ///   - coordinate:
-                            ///   - label:
-                            ///   - systemImage:
-                            ///   - position:
-                            ///   - savedAt:
-                            ///   - updatedAt:
-                            internal init(
-                                id: Swift.String,
-                                destinationId: Swift.String,
-                                kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload.kindPayload,
-                                name: Swift.String,
-                                context: Swift.String? = nil,
-                                coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload.coordinatePayload,
-                                label: Swift.String,
-                                systemImage: Swift.String,
-                                position: Swift.Int,
-                                savedAt: Foundation.Date,
-                                updatedAt: Foundation.Date
-                            ) {
-                                self.id = id
-                                self.destinationId = destinationId
-                                self.kind = kind
-                                self.name = name
-                                self.context = context
-                                self.coordinate = coordinate
-                                self.label = label
-                                self.systemImage = systemImage
-                                self.position = position
-                                self.savedAt = savedAt
-                                self.updatedAt = updatedAt
-                            }
-                            internal enum CodingKeys: String, CodingKey {
-                                case id
-                                case destinationId
-                                case kind
-                                case name
-                                case context
-                                case coordinate
-                                case label
-                                case systemImage
-                                case position
-                                case savedAt
-                                case updatedAt
-                            }
-                        }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destination`.
-                        internal var destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/destinationId`.
-                        internal var destinationId: Swift.String?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences`.
-                        internal struct notificationPreferencesPayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/enabled`.
-                            internal var enabled: Swift.Bool
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/timeZone`.
-                            internal var timeZone: OpenAPIRuntime.OpenAPIValueContainer?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/quietHoursStartMinute`.
-                            internal var quietHoursStartMinute: Swift.Int?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/quietHoursEndMinute`.
-                            internal var quietHoursEndMinute: Swift.Int?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/mutedOnWeekends`.
-                            internal var mutedOnWeekends: Swift.Bool
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/mutedOnHolidays`.
-                            internal var mutedOnHolidays: Swift.Bool
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/minimumSeverity`.
-                            internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case attention = "attention"
-                                case disrupted = "disrupted"
-                                case suspended = "suspended"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/minimumSeverity`.
-                            internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.minimumSeverityPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/dailyCap`.
-                            internal var dailyCap: Swift.Int?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload`.
-                            internal struct categoriesPayloadPayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/category`.
-                                internal enum categoryPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                    case journey = "journey"
-                                    case commute = "commute"
-                                    case line = "line"
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value2`.
+                        internal var value2: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value2Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3`.
+                        internal struct Value3Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent`.
+                            internal struct recentPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case station = "station"
-                                    case digest = "digest"
-                                    case recommendation = "recommendation"
+                                    case address = "address"
                                 }
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/category`.
-                                internal var category: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload.categoryPayload
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/enabled`.
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/kind`.
+                                internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value3Payload.recentPayload.kindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/context`.
+                                internal var context: Swift.String?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/coordinate`.
+                                internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value3Payload.recentPayload.coordinatePayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent/savedAt`.
+                                internal var savedAt: Foundation.Date
+                                /// Creates a new `recentPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - kind:
+                                ///   - name:
+                                ///   - context:
+                                ///   - coordinate:
+                                ///   - savedAt:
+                                internal init(
+                                    id: Swift.String,
+                                    kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value3Payload.recentPayload.kindPayload,
+                                    name: Swift.String,
+                                    context: Swift.String? = nil,
+                                    coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value3Payload.recentPayload.coordinatePayload,
+                                    savedAt: Foundation.Date
+                                ) {
+                                    self.id = id
+                                    self.kind = kind
+                                    self.name = name
+                                    self.context = context
+                                    self.coordinate = coordinate
+                                    self.savedAt = savedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case kind
+                                    case name
+                                    case context
+                                    case coordinate
+                                    case savedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3/recent`.
+                            internal var recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value3Payload.recentPayload
+                            /// Creates a new `Value3Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - recent:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value3Payload.recentPayload
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.recent = recent
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case recent
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value3`.
+                        internal var value3: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value3Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value4`.
+                        internal struct Value4Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value4/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value4/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value4/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value4/recentId`.
+                            internal var recentId: Swift.String
+                            /// Creates a new `Value4Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - recentId:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                recentId: Swift.String
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.recentId = recentId
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case recentId
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value4`.
+                        internal var value4: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value4Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value5`.
+                        internal struct Value5Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value5/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value5/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value5/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// Creates a new `Value5Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value5`.
+                        internal var value5: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value5Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6`.
+                        internal struct Value6Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences`.
+                            internal struct preferencesPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences/preferredModesPayload`.
+                                internal enum preferredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case metro = "metro"
+                                    case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
+                                    case bus = "bus"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences/preferredModes`.
+                                internal typealias preferredModesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload.preferencesPayload.preferredModesPayloadPayload]
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences/preferredModes`.
+                                internal var preferredModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload.preferencesPayload.preferredModesPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences/excludedModesPayload`.
+                                internal enum excludedModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case metro = "metro"
+                                    case rer = "rer"
+                                    case transilien = "transilien"
+                                    case tram = "tram"
+                                    case bus = "bus"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences/excludedModes`.
+                                internal typealias excludedModesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload.preferencesPayload.excludedModesPayloadPayload]
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences/excludedModes`.
+                                internal var excludedModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload.preferencesPayload.excludedModesPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences/updatedAt`.
+                                internal var updatedAt: Foundation.Date
+                                /// Creates a new `preferencesPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - preferredModes:
+                                ///   - excludedModes:
+                                ///   - updatedAt:
+                                internal init(
+                                    preferredModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload.preferencesPayload.preferredModesPayload,
+                                    excludedModes: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload.preferencesPayload.excludedModesPayload,
+                                    updatedAt: Foundation.Date
+                                ) {
+                                    self.preferredModes = preferredModes
+                                    self.excludedModes = excludedModes
+                                    self.updatedAt = updatedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case preferredModes
+                                    case excludedModes
+                                    case updatedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6/preferences`.
+                            internal var preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload.preferencesPayload
+                            /// Creates a new `Value6Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - preferences:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload.preferencesPayload
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.preferences = preferences
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case preferences
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value6`.
+                        internal var value6: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7`.
+                        internal struct Value7Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place`.
+                            internal struct placePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case station = "station"
+                                    case address = "address"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/kind`.
+                                internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload.placePayload.kindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/context`.
+                                internal var context: Swift.String?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/coordinate`.
+                                internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload.placePayload.coordinatePayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/role`.
+                                internal enum rolePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case home = "home"
+                                    case work = "work"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/role`.
+                                internal var role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload.placePayload.rolePayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/systemImage`.
+                                internal var systemImage: Swift.String?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/savedAt`.
+                                internal var savedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place/updatedAt`.
+                                internal var updatedAt: Foundation.Date
+                                /// Creates a new `placePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - kind:
+                                ///   - name:
+                                ///   - context:
+                                ///   - coordinate:
+                                ///   - role:
+                                ///   - systemImage:
+                                ///   - savedAt:
+                                ///   - updatedAt:
+                                internal init(
+                                    id: Swift.String,
+                                    kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload.placePayload.kindPayload,
+                                    name: Swift.String,
+                                    context: Swift.String? = nil,
+                                    coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload.placePayload.coordinatePayload,
+                                    role: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload.placePayload.rolePayload,
+                                    systemImage: Swift.String? = nil,
+                                    savedAt: Foundation.Date,
+                                    updatedAt: Foundation.Date
+                                ) {
+                                    self.id = id
+                                    self.kind = kind
+                                    self.name = name
+                                    self.context = context
+                                    self.coordinate = coordinate
+                                    self.role = role
+                                    self.systemImage = systemImage
+                                    self.savedAt = savedAt
+                                    self.updatedAt = updatedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case kind
+                                    case name
+                                    case context
+                                    case coordinate
+                                    case role
+                                    case systemImage
+                                    case savedAt
+                                    case updatedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7/place`.
+                            internal var place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload.placePayload
+                            /// Creates a new `Value7Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - place:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload.placePayload
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.place = place
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case place
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value7`.
+                        internal var value7: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value8`.
+                        internal struct Value8Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value8/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value8/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value8/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value8/placeId`.
+                            internal var placeId: Swift.String
+                            /// Creates a new `Value8Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - placeId:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                placeId: Swift.String
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.placeId = placeId
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case placeId
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value8`.
+                        internal var value8: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value8Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9`.
+                        internal struct Value9Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination`.
+                            internal struct destinationPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/destinationId`.
+                                internal var destinationId: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case station = "station"
+                                    case address = "address"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/kind`.
+                                internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value9Payload.destinationPayload.kindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/context`.
+                                internal var context: Swift.String?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/coordinate`.
+                                internal var coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value9Payload.destinationPayload.coordinatePayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/systemImage`.
+                                internal var systemImage: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/position`.
+                                internal var position: Swift.Int
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/savedAt`.
+                                internal var savedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination/updatedAt`.
+                                internal var updatedAt: Foundation.Date
+                                /// Creates a new `destinationPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - destinationId:
+                                ///   - kind:
+                                ///   - name:
+                                ///   - context:
+                                ///   - coordinate:
+                                ///   - label:
+                                ///   - systemImage:
+                                ///   - position:
+                                ///   - savedAt:
+                                ///   - updatedAt:
+                                internal init(
+                                    id: Swift.String,
+                                    destinationId: Swift.String,
+                                    kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value9Payload.destinationPayload.kindPayload,
+                                    name: Swift.String,
+                                    context: Swift.String? = nil,
+                                    coordinate: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value9Payload.destinationPayload.coordinatePayload,
+                                    label: Swift.String,
+                                    systemImage: Swift.String,
+                                    position: Swift.Int,
+                                    savedAt: Foundation.Date,
+                                    updatedAt: Foundation.Date
+                                ) {
+                                    self.id = id
+                                    self.destinationId = destinationId
+                                    self.kind = kind
+                                    self.name = name
+                                    self.context = context
+                                    self.coordinate = coordinate
+                                    self.label = label
+                                    self.systemImage = systemImage
+                                    self.position = position
+                                    self.savedAt = savedAt
+                                    self.updatedAt = updatedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case destinationId
+                                    case kind
+                                    case name
+                                    case context
+                                    case coordinate
+                                    case label
+                                    case systemImage
+                                    case position
+                                    case savedAt
+                                    case updatedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9/destination`.
+                            internal var destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value9Payload.destinationPayload
+                            /// Creates a new `Value9Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - destination:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value9Payload.destinationPayload
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.destination = destination
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case destination
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value9`.
+                        internal var value9: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value9Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value10`.
+                        internal struct Value10Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value10/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value10/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value10/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value10/destinationId`.
+                            internal var destinationId: Swift.String
+                            /// Creates a new `Value10Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - destinationId:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                destinationId: Swift.String
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.destinationId = destinationId
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case destinationId
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value10`.
+                        internal var value10: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value10Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11`.
+                        internal struct Value11Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences`.
+                            internal struct notificationPreferencesPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/enabled`.
                                 internal var enabled: Swift.Bool
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/minimumSeverity`.
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/timeZone`.
+                                internal var timeZone: OpenAPIRuntime.OpenAPIValueContainer?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/quietHoursStartMinute`.
+                                internal var quietHoursStartMinute: Swift.Int?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/quietHoursEndMinute`.
+                                internal var quietHoursEndMinute: Swift.Int?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/mutedOnWeekends`.
+                                internal var mutedOnWeekends: Swift.Bool
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/mutedOnHolidays`.
+                                internal var mutedOnHolidays: Swift.Bool
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/minimumSeverity`.
                                 internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case attention = "attention"
                                     case disrupted = "disrupted"
                                     case suspended = "suspended"
                                 }
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/minimumSeverity`.
-                                internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload.minimumSeverityPayload
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categoriesPayload/dailyCap`.
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/minimumSeverity`.
+                                internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.minimumSeverityPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/dailyCap`.
                                 internal var dailyCap: Swift.Int?
-                                /// Creates a new `categoriesPayloadPayload`.
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categoriesPayload`.
+                                internal struct categoriesPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categoriesPayload/category`.
+                                    internal enum categoryPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case journey = "journey"
+                                        case commute = "commute"
+                                        case line = "line"
+                                        case station = "station"
+                                        case digest = "digest"
+                                        case recommendation = "recommendation"
+                                    }
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categoriesPayload/category`.
+                                    internal var category: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.categoriesPayloadPayload.categoryPayload
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categoriesPayload/enabled`.
+                                    internal var enabled: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categoriesPayload/minimumSeverity`.
+                                    internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case attention = "attention"
+                                        case disrupted = "disrupted"
+                                        case suspended = "suspended"
+                                    }
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categoriesPayload/minimumSeverity`.
+                                    internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.categoriesPayloadPayload.minimumSeverityPayload
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categoriesPayload/dailyCap`.
+                                    internal var dailyCap: Swift.Int?
+                                    /// Creates a new `categoriesPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - category:
+                                    ///   - enabled:
+                                    ///   - minimumSeverity:
+                                    ///   - dailyCap:
+                                    internal init(
+                                        category: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.categoriesPayloadPayload.categoryPayload,
+                                        enabled: Swift.Bool,
+                                        minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.categoriesPayloadPayload.minimumSeverityPayload,
+                                        dailyCap: Swift.Int? = nil
+                                    ) {
+                                        self.category = category
+                                        self.enabled = enabled
+                                        self.minimumSeverity = minimumSeverity
+                                        self.dailyCap = dailyCap
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case category
+                                        case enabled
+                                        case minimumSeverity
+                                        case dailyCap
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categories`.
+                                internal typealias categoriesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.categoriesPayloadPayload]
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/categories`.
+                                internal var categories: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.categoriesPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences/updatedAt`.
+                                internal var updatedAt: Foundation.Date
+                                /// Creates a new `notificationPreferencesPayload`.
                                 ///
                                 /// - Parameters:
-                                ///   - category:
                                 ///   - enabled:
+                                ///   - timeZone:
+                                ///   - quietHoursStartMinute:
+                                ///   - quietHoursEndMinute:
+                                ///   - mutedOnWeekends:
+                                ///   - mutedOnHolidays:
                                 ///   - minimumSeverity:
                                 ///   - dailyCap:
+                                ///   - categories:
+                                ///   - updatedAt:
                                 internal init(
-                                    category: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload.categoryPayload,
                                     enabled: Swift.Bool,
-                                    minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload.minimumSeverityPayload,
-                                    dailyCap: Swift.Int? = nil
+                                    timeZone: OpenAPIRuntime.OpenAPIValueContainer? = nil,
+                                    quietHoursStartMinute: Swift.Int? = nil,
+                                    quietHoursEndMinute: Swift.Int? = nil,
+                                    mutedOnWeekends: Swift.Bool,
+                                    mutedOnHolidays: Swift.Bool,
+                                    minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.minimumSeverityPayload,
+                                    dailyCap: Swift.Int? = nil,
+                                    categories: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload.categoriesPayload,
+                                    updatedAt: Foundation.Date
                                 ) {
-                                    self.category = category
                                     self.enabled = enabled
+                                    self.timeZone = timeZone
+                                    self.quietHoursStartMinute = quietHoursStartMinute
+                                    self.quietHoursEndMinute = quietHoursEndMinute
+                                    self.mutedOnWeekends = mutedOnWeekends
+                                    self.mutedOnHolidays = mutedOnHolidays
                                     self.minimumSeverity = minimumSeverity
                                     self.dailyCap = dailyCap
+                                    self.categories = categories
+                                    self.updatedAt = updatedAt
                                 }
                                 internal enum CodingKeys: String, CodingKey {
-                                    case category
                                     case enabled
+                                    case timeZone
+                                    case quietHoursStartMinute
+                                    case quietHoursEndMinute
+                                    case mutedOnWeekends
+                                    case mutedOnHolidays
                                     case minimumSeverity
                                     case dailyCap
+                                    case categories
+                                    case updatedAt
                                 }
                             }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categories`.
-                            internal typealias categoriesPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayloadPayload]
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/categories`.
-                            internal var categories: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences/updatedAt`.
-                            internal var updatedAt: Foundation.Date
-                            /// Creates a new `notificationPreferencesPayload`.
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11/notificationPreferences`.
+                            internal var notificationPreferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload
+                            /// Creates a new `Value11Payload`.
                             ///
                             /// - Parameters:
-                            ///   - enabled:
-                            ///   - timeZone:
-                            ///   - quietHoursStartMinute:
-                            ///   - quietHoursEndMinute:
-                            ///   - mutedOnWeekends:
-                            ///   - mutedOnHolidays:
-                            ///   - minimumSeverity:
-                            ///   - dailyCap:
-                            ///   - categories:
-                            ///   - updatedAt:
-                            internal init(
-                                enabled: Swift.Bool,
-                                timeZone: OpenAPIRuntime.OpenAPIValueContainer? = nil,
-                                quietHoursStartMinute: Swift.Int? = nil,
-                                quietHoursEndMinute: Swift.Int? = nil,
-                                mutedOnWeekends: Swift.Bool,
-                                mutedOnHolidays: Swift.Bool,
-                                minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.minimumSeverityPayload,
-                                dailyCap: Swift.Int? = nil,
-                                categories: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload.categoriesPayload,
-                                updatedAt: Foundation.Date
-                            ) {
-                                self.enabled = enabled
-                                self.timeZone = timeZone
-                                self.quietHoursStartMinute = quietHoursStartMinute
-                                self.quietHoursEndMinute = quietHoursEndMinute
-                                self.mutedOnWeekends = mutedOnWeekends
-                                self.mutedOnHolidays = mutedOnHolidays
-                                self.minimumSeverity = minimumSeverity
-                                self.dailyCap = dailyCap
-                                self.categories = categories
-                                self.updatedAt = updatedAt
-                            }
-                            internal enum CodingKeys: String, CodingKey {
-                                case enabled
-                                case timeZone
-                                case quietHoursStartMinute
-                                case quietHoursEndMinute
-                                case mutedOnWeekends
-                                case mutedOnHolidays
-                                case minimumSeverity
-                                case dailyCap
-                                case categories
-                                case updatedAt
-                            }
-                        }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/notificationPreferences`.
-                        internal var notificationPreferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule`.
-                        internal struct schedulePayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/id`.
-                            internal var id: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/kind`.
-                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case commute = "commute"
-                                case digest = "digest"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/kind`.
-                            internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.kindPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/label`.
-                            internal var label: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/revision`.
-                            internal var revision: Swift.Int
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin`.
-                            internal struct originPayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/id`.
-                                internal var id: Swift.String
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/kind`.
-                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                    case station = "station"
-                                    case address = "address"
-                                }
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/kind`.
-                                internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.originPayload.kindPayload
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/name`.
-                                internal var name: Swift.String
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/context`.
-                                internal var context: Swift.String?
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/latitude`.
-                                internal var latitude: Swift.Double
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin/longitude`.
-                                internal var longitude: Swift.Double
-                                /// Creates a new `originPayload`.
-                                ///
-                                /// - Parameters:
-                                ///   - id:
-                                ///   - kind:
-                                ///   - name:
-                                ///   - context:
-                                ///   - latitude:
-                                ///   - longitude:
-                                internal init(
-                                    id: Swift.String,
-                                    kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.originPayload.kindPayload,
-                                    name: Swift.String,
-                                    context: Swift.String? = nil,
-                                    latitude: Swift.Double,
-                                    longitude: Swift.Double
-                                ) {
-                                    self.id = id
-                                    self.kind = kind
-                                    self.name = name
-                                    self.context = context
-                                    self.latitude = latitude
-                                    self.longitude = longitude
-                                }
-                                internal enum CodingKeys: String, CodingKey {
-                                    case id
-                                    case kind
-                                    case name
-                                    case context
-                                    case latitude
-                                    case longitude
-                                }
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/origin`.
-                            internal var origin: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.originPayload?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination`.
-                            internal struct destinationPayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/id`.
-                                internal var id: Swift.String
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/kind`.
-                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                    case station = "station"
-                                    case address = "address"
-                                }
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/kind`.
-                                internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.destinationPayload.kindPayload
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/name`.
-                                internal var name: Swift.String
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/context`.
-                                internal var context: Swift.String?
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/latitude`.
-                                internal var latitude: Swift.Double
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination/longitude`.
-                                internal var longitude: Swift.Double
-                                /// Creates a new `destinationPayload`.
-                                ///
-                                /// - Parameters:
-                                ///   - id:
-                                ///   - kind:
-                                ///   - name:
-                                ///   - context:
-                                ///   - latitude:
-                                ///   - longitude:
-                                internal init(
-                                    id: Swift.String,
-                                    kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.destinationPayload.kindPayload,
-                                    name: Swift.String,
-                                    context: Swift.String? = nil,
-                                    latitude: Swift.Double,
-                                    longitude: Swift.Double
-                                ) {
-                                    self.id = id
-                                    self.kind = kind
-                                    self.name = name
-                                    self.context = context
-                                    self.latitude = latitude
-                                    self.longitude = longitude
-                                }
-                                internal enum CodingKeys: String, CodingKey {
-                                    case id
-                                    case kind
-                                    case name
-                                    case context
-                                    case latitude
-                                    case longitude
-                                }
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/destination`.
-                            internal var destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.destinationPayload?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/routeIds`.
-                            internal var routeIds: [Swift.String]
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/daysOfWeek`.
-                            internal var daysOfWeek: [Swift.Int]
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/departureMinute`.
-                            internal var departureMinute: Swift.Int
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/leadMinutes`.
-                            internal var leadMinutes: Swift.Int
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/skipHolidays`.
-                            internal var skipHolidays: Swift.Bool
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/enabled`.
-                            internal var enabled: Swift.Bool
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/pausedUntil`.
-                            internal var pausedUntil: Foundation.Date?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/timeZone`.
-                            internal var timeZone: OpenAPIRuntime.OpenAPIValueContainer?
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/savedAt`.
-                            internal var savedAt: Foundation.Date
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/updatedAt`.
-                            internal var updatedAt: Foundation.Date
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule/deletedAt`.
-                            internal var deletedAt: Foundation.Date?
-                            /// Creates a new `schedulePayload`.
-                            ///
-                            /// - Parameters:
-                            ///   - id:
+                            ///   - operationId:
+                            ///   - occurredAt:
                             ///   - kind:
-                            ///   - label:
-                            ///   - revision:
-                            ///   - origin:
-                            ///   - destination:
-                            ///   - routeIds:
-                            ///   - daysOfWeek:
-                            ///   - departureMinute:
-                            ///   - leadMinutes:
-                            ///   - skipHolidays:
-                            ///   - enabled:
-                            ///   - pausedUntil:
-                            ///   - timeZone:
-                            ///   - savedAt:
-                            ///   - updatedAt:
-                            ///   - deletedAt:
+                            ///   - notificationPreferences:
                             internal init(
-                                id: Swift.String,
-                                kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.kindPayload,
-                                label: Swift.String,
-                                revision: Swift.Int,
-                                origin: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.originPayload? = nil,
-                                destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload.destinationPayload? = nil,
-                                routeIds: [Swift.String],
-                                daysOfWeek: [Swift.Int],
-                                departureMinute: Swift.Int,
-                                leadMinutes: Swift.Int,
-                                skipHolidays: Swift.Bool,
-                                enabled: Swift.Bool,
-                                pausedUntil: Foundation.Date? = nil,
-                                timeZone: OpenAPIRuntime.OpenAPIValueContainer? = nil,
-                                savedAt: Foundation.Date,
-                                updatedAt: Foundation.Date,
-                                deletedAt: Foundation.Date? = nil
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                notificationPreferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload.notificationPreferencesPayload
                             ) {
-                                self.id = id
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
                                 self.kind = kind
-                                self.label = label
-                                self.revision = revision
-                                self.origin = origin
-                                self.destination = destination
-                                self.routeIds = routeIds
-                                self.daysOfWeek = daysOfWeek
-                                self.departureMinute = departureMinute
-                                self.leadMinutes = leadMinutes
-                                self.skipHolidays = skipHolidays
-                                self.enabled = enabled
-                                self.pausedUntil = pausedUntil
-                                self.timeZone = timeZone
-                                self.savedAt = savedAt
-                                self.updatedAt = updatedAt
-                                self.deletedAt = deletedAt
+                                self.notificationPreferences = notificationPreferences
                             }
                             internal enum CodingKeys: String, CodingKey {
-                                case id
+                                case operationId
+                                case occurredAt
                                 case kind
-                                case label
-                                case revision
-                                case origin
-                                case destination
-                                case routeIds
-                                case daysOfWeek
-                                case departureMinute
-                                case leadMinutes
-                                case skipHolidays
-                                case enabled
-                                case pausedUntil
-                                case timeZone
-                                case savedAt
-                                case updatedAt
-                                case deletedAt
+                                case notificationPreferences
                             }
                         }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/schedule`.
-                        internal var schedule: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/scheduleId`.
-                        internal var scheduleId: Swift.String?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription`.
-                        internal struct alertSubscriptionPayload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/id`.
-                            internal var id: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/topicKind`.
-                            internal enum topicKindPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case line = "line"
-                                case station = "station"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/topicKind`.
-                            internal var topicKind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.topicKindPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/topicId`.
-                            internal var topicId: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/label`.
-                            internal var label: Swift.String
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/daysOfWeek`.
-                            internal var daysOfWeek: [Swift.Int]
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windowsPayload`.
-                            internal struct windowsPayloadPayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windowsPayload/startMinute`.
-                                internal var startMinute: Swift.Int
-                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windowsPayload/endMinute`.
-                                internal var endMinute: Swift.Int
-                                /// Creates a new `windowsPayloadPayload`.
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value11`.
+                        internal var value11: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12`.
+                        internal struct Value12Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule`.
+                            internal struct schedulePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case commute = "commute"
+                                    case digest = "digest"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/kind`.
+                                internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.kindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/revision`.
+                                internal var revision: Swift.Int
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin`.
+                                internal struct originPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin/kind`.
+                                    internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case station = "station"
+                                        case address = "address"
+                                    }
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin/kind`.
+                                    internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.originPayload.kindPayload
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin/context`.
+                                    internal var context: Swift.String?
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `originPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - kind:
+                                    ///   - name:
+                                    ///   - context:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        id: Swift.String,
+                                        kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.originPayload.kindPayload,
+                                        name: Swift.String,
+                                        context: Swift.String? = nil,
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.id = id
+                                        self.kind = kind
+                                        self.name = name
+                                        self.context = context
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case kind
+                                        case name
+                                        case context
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/origin`.
+                                internal var origin: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.originPayload?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination`.
+                                internal struct destinationPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination/kind`.
+                                    internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case station = "station"
+                                        case address = "address"
+                                    }
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination/kind`.
+                                    internal var kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.destinationPayload.kindPayload
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination/context`.
+                                    internal var context: Swift.String?
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `destinationPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - kind:
+                                    ///   - name:
+                                    ///   - context:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        id: Swift.String,
+                                        kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.destinationPayload.kindPayload,
+                                        name: Swift.String,
+                                        context: Swift.String? = nil,
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.id = id
+                                        self.kind = kind
+                                        self.name = name
+                                        self.context = context
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case kind
+                                        case name
+                                        case context
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/destination`.
+                                internal var destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.destinationPayload?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/routeIds`.
+                                internal var routeIds: [Swift.String]
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/daysOfWeek`.
+                                internal var daysOfWeek: [Swift.Int]
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/departureMinute`.
+                                internal var departureMinute: Swift.Int
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/leadMinutes`.
+                                internal var leadMinutes: Swift.Int
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/skipHolidays`.
+                                internal var skipHolidays: Swift.Bool
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/enabled`.
+                                internal var enabled: Swift.Bool
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/pausedUntil`.
+                                internal var pausedUntil: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/timeZone`.
+                                internal var timeZone: OpenAPIRuntime.OpenAPIValueContainer?
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/savedAt`.
+                                internal var savedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/updatedAt`.
+                                internal var updatedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule/deletedAt`.
+                                internal var deletedAt: Foundation.Date?
+                                /// Creates a new `schedulePayload`.
                                 ///
                                 /// - Parameters:
-                                ///   - startMinute:
-                                ///   - endMinute:
+                                ///   - id:
+                                ///   - kind:
+                                ///   - label:
+                                ///   - revision:
+                                ///   - origin:
+                                ///   - destination:
+                                ///   - routeIds:
+                                ///   - daysOfWeek:
+                                ///   - departureMinute:
+                                ///   - leadMinutes:
+                                ///   - skipHolidays:
+                                ///   - enabled:
+                                ///   - pausedUntil:
+                                ///   - timeZone:
+                                ///   - savedAt:
+                                ///   - updatedAt:
+                                ///   - deletedAt:
                                 internal init(
-                                    startMinute: Swift.Int,
-                                    endMinute: Swift.Int
+                                    id: Swift.String,
+                                    kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.kindPayload,
+                                    label: Swift.String,
+                                    revision: Swift.Int,
+                                    origin: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.originPayload? = nil,
+                                    destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload.destinationPayload? = nil,
+                                    routeIds: [Swift.String],
+                                    daysOfWeek: [Swift.Int],
+                                    departureMinute: Swift.Int,
+                                    leadMinutes: Swift.Int,
+                                    skipHolidays: Swift.Bool,
+                                    enabled: Swift.Bool,
+                                    pausedUntil: Foundation.Date? = nil,
+                                    timeZone: OpenAPIRuntime.OpenAPIValueContainer? = nil,
+                                    savedAt: Foundation.Date,
+                                    updatedAt: Foundation.Date,
+                                    deletedAt: Foundation.Date? = nil
                                 ) {
-                                    self.startMinute = startMinute
-                                    self.endMinute = endMinute
+                                    self.id = id
+                                    self.kind = kind
+                                    self.label = label
+                                    self.revision = revision
+                                    self.origin = origin
+                                    self.destination = destination
+                                    self.routeIds = routeIds
+                                    self.daysOfWeek = daysOfWeek
+                                    self.departureMinute = departureMinute
+                                    self.leadMinutes = leadMinutes
+                                    self.skipHolidays = skipHolidays
+                                    self.enabled = enabled
+                                    self.pausedUntil = pausedUntil
+                                    self.timeZone = timeZone
+                                    self.savedAt = savedAt
+                                    self.updatedAt = updatedAt
+                                    self.deletedAt = deletedAt
                                 }
                                 internal enum CodingKeys: String, CodingKey {
-                                    case startMinute
-                                    case endMinute
+                                    case id
+                                    case kind
+                                    case label
+                                    case revision
+                                    case origin
+                                    case destination
+                                    case routeIds
+                                    case daysOfWeek
+                                    case departureMinute
+                                    case leadMinutes
+                                    case skipHolidays
+                                    case enabled
+                                    case pausedUntil
+                                    case timeZone
+                                    case savedAt
+                                    case updatedAt
+                                    case deletedAt
                                 }
                             }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windows`.
-                            internal typealias windowsPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.windowsPayloadPayload]
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/windows`.
-                            internal var windows: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.windowsPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/minimumSeverity`.
-                            internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                case attention = "attention"
-                                case disrupted = "disrupted"
-                                case suspended = "suspended"
-                            }
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/minimumSeverity`.
-                            internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.minimumSeverityPayload
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/enabled`.
-                            internal var enabled: Swift.Bool
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/savedAt`.
-                            internal var savedAt: Foundation.Date
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/updatedAt`.
-                            internal var updatedAt: Foundation.Date
-                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription/deletedAt`.
-                            internal var deletedAt: Foundation.Date?
-                            /// Creates a new `alertSubscriptionPayload`.
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12/schedule`.
+                            internal var schedule: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload
+                            /// Creates a new `Value12Payload`.
                             ///
                             /// - Parameters:
-                            ///   - id:
-                            ///   - topicKind:
-                            ///   - topicId:
-                            ///   - label:
-                            ///   - daysOfWeek:
-                            ///   - windows:
-                            ///   - minimumSeverity:
-                            ///   - enabled:
-                            ///   - savedAt:
-                            ///   - updatedAt:
-                            ///   - deletedAt:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - schedule:
                             internal init(
-                                id: Swift.String,
-                                topicKind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.topicKindPayload,
-                                topicId: Swift.String,
-                                label: Swift.String,
-                                daysOfWeek: [Swift.Int],
-                                windows: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.windowsPayload,
-                                minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload.minimumSeverityPayload,
-                                enabled: Swift.Bool,
-                                savedAt: Foundation.Date,
-                                updatedAt: Foundation.Date,
-                                deletedAt: Foundation.Date? = nil
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                schedule: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload.schedulePayload
                             ) {
-                                self.id = id
-                                self.topicKind = topicKind
-                                self.topicId = topicId
-                                self.label = label
-                                self.daysOfWeek = daysOfWeek
-                                self.windows = windows
-                                self.minimumSeverity = minimumSeverity
-                                self.enabled = enabled
-                                self.savedAt = savedAt
-                                self.updatedAt = updatedAt
-                                self.deletedAt = deletedAt
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.schedule = schedule
                             }
                             internal enum CodingKeys: String, CodingKey {
-                                case id
-                                case topicKind
-                                case topicId
-                                case label
-                                case daysOfWeek
-                                case windows
-                                case minimumSeverity
-                                case enabled
-                                case savedAt
-                                case updatedAt
-                                case deletedAt
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case schedule
                             }
                         }
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscription`.
-                        internal var alertSubscription: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload?
-                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/alertSubscriptionId`.
-                        internal var alertSubscriptionId: Swift.String?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value12`.
+                        internal var value12: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value13`.
+                        internal struct Value13Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value13/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value13/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value13/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value13/scheduleId`.
+                            internal var scheduleId: Swift.String
+                            /// Creates a new `Value13Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - scheduleId:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                scheduleId: Swift.String
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.scheduleId = scheduleId
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case scheduleId
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value13`.
+                        internal var value13: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value13Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14`.
+                        internal struct Value14Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription`.
+                            internal struct alertSubscriptionPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/topicKind`.
+                                internal enum topicKindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case line = "line"
+                                    case station = "station"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/topicKind`.
+                                internal var topicKind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload.topicKindPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/topicId`.
+                                internal var topicId: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/daysOfWeek`.
+                                internal var daysOfWeek: [Swift.Int]
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/windowsPayload`.
+                                internal struct windowsPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/windowsPayload/startMinute`.
+                                    internal var startMinute: Swift.Int
+                                    /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/windowsPayload/endMinute`.
+                                    internal var endMinute: Swift.Int
+                                    /// Creates a new `windowsPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - startMinute:
+                                    ///   - endMinute:
+                                    internal init(
+                                        startMinute: Swift.Int,
+                                        endMinute: Swift.Int
+                                    ) {
+                                        self.startMinute = startMinute
+                                        self.endMinute = endMinute
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case startMinute
+                                        case endMinute
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/windows`.
+                                internal typealias windowsPayload = [Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload.windowsPayloadPayload]
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/windows`.
+                                internal var windows: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload.windowsPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/minimumSeverity`.
+                                internal enum minimumSeverityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case attention = "attention"
+                                    case disrupted = "disrupted"
+                                    case suspended = "suspended"
+                                }
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/minimumSeverity`.
+                                internal var minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload.minimumSeverityPayload
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/enabled`.
+                                internal var enabled: Swift.Bool
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/savedAt`.
+                                internal var savedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/updatedAt`.
+                                internal var updatedAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription/deletedAt`.
+                                internal var deletedAt: Foundation.Date?
+                                /// Creates a new `alertSubscriptionPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - topicKind:
+                                ///   - topicId:
+                                ///   - label:
+                                ///   - daysOfWeek:
+                                ///   - windows:
+                                ///   - minimumSeverity:
+                                ///   - enabled:
+                                ///   - savedAt:
+                                ///   - updatedAt:
+                                ///   - deletedAt:
+                                internal init(
+                                    id: Swift.String,
+                                    topicKind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload.topicKindPayload,
+                                    topicId: Swift.String,
+                                    label: Swift.String,
+                                    daysOfWeek: [Swift.Int],
+                                    windows: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload.windowsPayload,
+                                    minimumSeverity: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload.minimumSeverityPayload,
+                                    enabled: Swift.Bool,
+                                    savedAt: Foundation.Date,
+                                    updatedAt: Foundation.Date,
+                                    deletedAt: Foundation.Date? = nil
+                                ) {
+                                    self.id = id
+                                    self.topicKind = topicKind
+                                    self.topicId = topicId
+                                    self.label = label
+                                    self.daysOfWeek = daysOfWeek
+                                    self.windows = windows
+                                    self.minimumSeverity = minimumSeverity
+                                    self.enabled = enabled
+                                    self.savedAt = savedAt
+                                    self.updatedAt = updatedAt
+                                    self.deletedAt = deletedAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case topicKind
+                                    case topicId
+                                    case label
+                                    case daysOfWeek
+                                    case windows
+                                    case minimumSeverity
+                                    case enabled
+                                    case savedAt
+                                    case updatedAt
+                                    case deletedAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14/alertSubscription`.
+                            internal var alertSubscription: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload
+                            /// Creates a new `Value14Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - alertSubscription:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                alertSubscription: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload.alertSubscriptionPayload
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.alertSubscription = alertSubscription
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case alertSubscription
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value14`.
+                        internal var value14: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload?
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value15`.
+                        internal struct Value15Payload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value15/operationId`.
+                            internal var operationId: Swift.String
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value15/occurredAt`.
+                            internal var occurredAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value15/kind`.
+                            internal var kind: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value15/alertSubscriptionId`.
+                            internal var alertSubscriptionId: Swift.String
+                            /// Creates a new `Value15Payload`.
+                            ///
+                            /// - Parameters:
+                            ///   - operationId:
+                            ///   - occurredAt:
+                            ///   - kind:
+                            ///   - alertSubscriptionId:
+                            internal init(
+                                operationId: Swift.String,
+                                occurredAt: Foundation.Date,
+                                kind: OpenAPIRuntime.OpenAPIValueContainer,
+                                alertSubscriptionId: Swift.String
+                            ) {
+                                self.operationId = operationId
+                                self.occurredAt = occurredAt
+                                self.kind = kind
+                                self.alertSubscriptionId = alertSubscriptionId
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case operationId
+                                case occurredAt
+                                case kind
+                                case alertSubscriptionId
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operationsPayload/value15`.
+                        internal var value15: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value15Payload?
                         /// Creates a new `operationsPayloadPayload`.
                         ///
                         /// - Parameters:
-                        ///   - operationId:
-                        ///   - kind:
-                        ///   - occurredAt:
-                        ///   - station:
-                        ///   - stationId:
-                        ///   - recentId:
-                        ///   - recent:
-                        ///   - preferences:
-                        ///   - place:
-                        ///   - placeId:
-                        ///   - destination:
-                        ///   - destinationId:
-                        ///   - notificationPreferences:
-                        ///   - schedule:
-                        ///   - scheduleId:
-                        ///   - alertSubscription:
-                        ///   - alertSubscriptionId:
+                        ///   - value1:
+                        ///   - value2:
+                        ///   - value3:
+                        ///   - value4:
+                        ///   - value5:
+                        ///   - value6:
+                        ///   - value7:
+                        ///   - value8:
+                        ///   - value9:
+                        ///   - value10:
+                        ///   - value11:
+                        ///   - value12:
+                        ///   - value13:
+                        ///   - value14:
+                        ///   - value15:
                         internal init(
-                            operationId: Swift.String,
-                            kind: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.kindPayload,
-                            occurredAt: Foundation.Date,
-                            station: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.stationPayload? = nil,
-                            stationId: Swift.String? = nil,
-                            recentId: Swift.String? = nil,
-                            recent: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.recentPayload? = nil,
-                            preferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.preferencesPayload? = nil,
-                            place: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.placePayload? = nil,
-                            placeId: Swift.String? = nil,
-                            destination: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.destinationPayload? = nil,
-                            destinationId: Swift.String? = nil,
-                            notificationPreferences: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.notificationPreferencesPayload? = nil,
-                            schedule: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.schedulePayload? = nil,
-                            scheduleId: Swift.String? = nil,
-                            alertSubscription: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.alertSubscriptionPayload? = nil,
-                            alertSubscriptionId: Swift.String? = nil
+                            value1: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value1Payload? = nil,
+                            value2: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value2Payload? = nil,
+                            value3: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value3Payload? = nil,
+                            value4: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value4Payload? = nil,
+                            value5: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value5Payload? = nil,
+                            value6: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value6Payload? = nil,
+                            value7: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value7Payload? = nil,
+                            value8: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value8Payload? = nil,
+                            value9: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value9Payload? = nil,
+                            value10: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value10Payload? = nil,
+                            value11: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value11Payload? = nil,
+                            value12: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value12Payload? = nil,
+                            value13: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value13Payload? = nil,
+                            value14: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value14Payload? = nil,
+                            value15: Operations.account_period_sync.Input.Body.jsonPayload.operationsPayloadPayload.Value15Payload? = nil
                         ) {
-                            self.operationId = operationId
-                            self.kind = kind
-                            self.occurredAt = occurredAt
-                            self.station = station
-                            self.stationId = stationId
-                            self.recentId = recentId
-                            self.recent = recent
-                            self.preferences = preferences
-                            self.place = place
-                            self.placeId = placeId
-                            self.destination = destination
-                            self.destinationId = destinationId
-                            self.notificationPreferences = notificationPreferences
-                            self.schedule = schedule
-                            self.scheduleId = scheduleId
-                            self.alertSubscription = alertSubscription
-                            self.alertSubscriptionId = alertSubscriptionId
+                            self.value1 = value1
+                            self.value2 = value2
+                            self.value3 = value3
+                            self.value4 = value4
+                            self.value5 = value5
+                            self.value6 = value6
+                            self.value7 = value7
+                            self.value8 = value8
+                            self.value9 = value9
+                            self.value10 = value10
+                            self.value11 = value11
+                            self.value12 = value12
+                            self.value13 = value13
+                            self.value14 = value14
+                            self.value15 = value15
                         }
-                        internal enum CodingKeys: String, CodingKey {
-                            case operationId
-                            case kind
-                            case occurredAt
-                            case station
-                            case stationId
-                            case recentId
-                            case recent
-                            case preferences
-                            case place
-                            case placeId
-                            case destination
-                            case destinationId
-                            case notificationPreferences
-                            case schedule
-                            case scheduleId
-                            case alertSubscription
-                            case alertSubscriptionId
+                        internal init(from decoder: any Swift.Decoder) throws {
+                            var errors: [any Swift.Error] = []
+                            do {
+                                self.value1 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value2 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value3 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value4 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value5 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value6 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value7 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value8 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value9 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value10 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value11 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value12 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value13 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value14 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            do {
+                                self.value15 = try .init(from: decoder)
+                            } catch {
+                                errors.append(error)
+                            }
+                            try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                                [
+                                    self.value1,
+                                    self.value2,
+                                    self.value3,
+                                    self.value4,
+                                    self.value5,
+                                    self.value6,
+                                    self.value7,
+                                    self.value8,
+                                    self.value9,
+                                    self.value10,
+                                    self.value11,
+                                    self.value12,
+                                    self.value13,
+                                    self.value14,
+                                    self.value15
+                                ],
+                                type: Self.self,
+                                codingPath: decoder.codingPath,
+                                errors: errors
+                            )
+                        }
+                        internal func encode(to encoder: any Swift.Encoder) throws {
+                            try self.value1?.encode(to: encoder)
+                            try self.value2?.encode(to: encoder)
+                            try self.value3?.encode(to: encoder)
+                            try self.value4?.encode(to: encoder)
+                            try self.value5?.encode(to: encoder)
+                            try self.value6?.encode(to: encoder)
+                            try self.value7?.encode(to: encoder)
+                            try self.value8?.encode(to: encoder)
+                            try self.value9?.encode(to: encoder)
+                            try self.value10?.encode(to: encoder)
+                            try self.value11?.encode(to: encoder)
+                            try self.value12?.encode(to: encoder)
+                            try self.value13?.encode(to: encoder)
+                            try self.value14?.encode(to: encoder)
+                            try self.value15?.encode(to: encoder)
                         }
                     }
                     /// - Remark: Generated from `#/paths/account/sync/POST/requestBody/json/operations`.
@@ -6766,9 +7355,9 @@ internal enum Operations {
             }
         }
     }
-    /// Interpréter une phrase et calculer un itinéraire
+    /// Interpréter une phrase de trajet
     ///
-    /// Point d'entrée du repli serveur : reçoit une phrase en langage naturel, sa position éventuelle et le contexte temporel, puis renvoie le même résultat structuré que le chemin local. Réservé aux soumissions initiales — les clarifications restent traitées sur l’appareil.
+    /// Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres déterministes et des alias personnels opaques, puis renvoie le même patch typé que le modèle local. La résolution et la planification restent sur l’appareil.
     ///
     /// - Remark: HTTP `POST /natural-journeys`.
     /// - Remark: Generated from `#/paths//natural-journeys/post(naturalJourneys.submit)`.
@@ -6793,35 +7382,184 @@ internal enum Operations {
                 internal struct jsonPayload: Codable, Hashable, Sendable {
                     /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/query`.
                     internal var query: Swift.String
-                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/latitude`.
-                    internal var latitude: Swift.Double?
-                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/longitude`.
-                    internal var longitude: Swift.Double?
+                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/locale`.
+                    internal enum localePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                        case fr_hyphen_FR = "fr-FR"
+                        case en = "en"
+                    }
+                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/locale`.
+                    internal var locale: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.localePayload
                     /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/requestedAt`.
-                    internal var requestedAt: Foundation.Date?
+                    internal var requestedAt: Foundation.Date
+                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/hasCurrentLocation`.
+                    internal var hasCurrentLocation: Swift.Bool
+                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors`.
+                    internal struct anchorsPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/origin`.
+                        internal struct originPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/origin/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case current_location = "current_location"
+                                case query = "query"
+                                case saved = "saved"
+                                case context_reference = "context_reference"
+                            }
+                            /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/origin/kind`.
+                            internal var kind: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload.originPayload.kindPayload
+                            /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/origin/value`.
+                            internal var value: Swift.String
+                            /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/origin/evidence`.
+                            internal var evidence: Swift.String
+                            /// Creates a new `originPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - kind:
+                            ///   - value:
+                            ///   - evidence:
+                            internal init(
+                                kind: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload.originPayload.kindPayload,
+                                value: Swift.String,
+                                evidence: Swift.String
+                            ) {
+                                self.kind = kind
+                                self.value = value
+                                self.evidence = evidence
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case kind
+                                case value
+                                case evidence
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/origin`.
+                        internal var origin: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload.originPayload?
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/destination`.
+                        internal struct destinationPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/destination/kind`.
+                            internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case current_location = "current_location"
+                                case query = "query"
+                                case saved = "saved"
+                                case context_reference = "context_reference"
+                            }
+                            /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/destination/kind`.
+                            internal var kind: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload.destinationPayload.kindPayload
+                            /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/destination/value`.
+                            internal var value: Swift.String
+                            /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/destination/evidence`.
+                            internal var evidence: Swift.String
+                            /// Creates a new `destinationPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - kind:
+                            ///   - value:
+                            ///   - evidence:
+                            internal init(
+                                kind: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload.destinationPayload.kindPayload,
+                                value: Swift.String,
+                                evidence: Swift.String
+                            ) {
+                                self.kind = kind
+                                self.value = value
+                                self.evidence = evidence
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case kind
+                                case value
+                                case evidence
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors/destination`.
+                        internal var destination: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload.destinationPayload?
+                        /// Creates a new `anchorsPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - origin:
+                        ///   - destination:
+                        internal init(
+                            origin: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload.originPayload? = nil,
+                            destination: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload.destinationPayload? = nil
+                        ) {
+                            self.origin = origin
+                            self.destination = destination
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case origin
+                            case destination
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/anchors`.
+                    internal var anchors: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload
+                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/savedPlacesPayload`.
+                    internal struct savedPlacesPayloadPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/savedPlacesPayload/id`.
+                        internal var id: Swift.String
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/savedPlacesPayload/label`.
+                        internal var label: Swift.String
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/savedPlacesPayload/kind`.
+                        internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                            case home = "home"
+                            case work = "work"
+                            case custom = "custom"
+                        }
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/savedPlacesPayload/kind`.
+                        internal var kind: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.savedPlacesPayloadPayload.kindPayload
+                        /// Creates a new `savedPlacesPayloadPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - id:
+                        ///   - label:
+                        ///   - kind:
+                        internal init(
+                            id: Swift.String,
+                            label: Swift.String,
+                            kind: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.savedPlacesPayloadPayload.kindPayload
+                        ) {
+                            self.id = id
+                            self.label = label
+                            self.kind = kind
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case id
+                            case label
+                            case kind
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/savedPlaces`.
+                    internal typealias savedPlacesPayload = [Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.savedPlacesPayloadPayload]
+                    /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/json/savedPlaces`.
+                    internal var savedPlaces: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.savedPlacesPayload
                     /// Creates a new `jsonPayload`.
                     ///
                     /// - Parameters:
                     ///   - query:
-                    ///   - latitude:
-                    ///   - longitude:
+                    ///   - locale:
                     ///   - requestedAt:
+                    ///   - hasCurrentLocation:
+                    ///   - anchors:
+                    ///   - savedPlaces:
                     internal init(
                         query: Swift.String,
-                        latitude: Swift.Double? = nil,
-                        longitude: Swift.Double? = nil,
-                        requestedAt: Foundation.Date? = nil
+                        locale: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.localePayload,
+                        requestedAt: Foundation.Date,
+                        hasCurrentLocation: Swift.Bool,
+                        anchors: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.anchorsPayload,
+                        savedPlaces: Operations.naturalJourneys_period_submit.Input.Body.jsonPayload.savedPlacesPayload
                     ) {
                         self.query = query
-                        self.latitude = latitude
-                        self.longitude = longitude
+                        self.locale = locale
                         self.requestedAt = requestedAt
+                        self.hasCurrentLocation = hasCurrentLocation
+                        self.anchors = anchors
+                        self.savedPlaces = savedPlaces
                     }
                     internal enum CodingKeys: String, CodingKey {
                         case query
-                        case latitude
-                        case longitude
+                        case locale
                         case requestedAt
+                        case hasCurrentLocation
+                        case anchors
+                        case savedPlaces
                     }
                 }
                 /// - Remark: Generated from `#/paths/natural-journeys/POST/requestBody/content/application\/json`.
@@ -6853,1032 +7591,333 @@ internal enum Operations {
                             internal var outcome: OpenAPIRuntime.OpenAPIValueContainer
                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation`.
                             internal struct interpretationPayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/originLabel`.
-                                internal var originLabel: Swift.String
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/scope`.
+                                internal enum scopePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case journey = "journey"
+                                    case unsupported = "unsupported"
+                                }
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/scope`.
+                                internal var scope: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.scopePayload
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin`.
                                 internal struct originPayload: Codable, Hashable, Sendable {
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1`.
-                                    internal struct Value1Payload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/kind`.
-                                        internal var kind: OpenAPIRuntime.OpenAPIValueContainer
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/id`.
-                                        internal var id: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/name`.
-                                        internal var name: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/coordinate`.
-                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/coordinate/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/coordinate/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `coordinatePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/coordinate`.
-                                        internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.coordinatePayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routesPayload`.
-                                        internal struct routesPayloadPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routesPayload/id`.
-                                            internal var id: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routesPayload/shortName`.
-                                            internal var shortName: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routesPayload/mode`.
-                                            internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                                case metro = "metro"
-                                                case rer = "rer"
-                                                case transilien = "transilien"
-                                                case tram = "tram"
-                                                case bus = "bus"
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routesPayload/mode`.
-                                            internal var mode: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.routesPayloadPayload.modePayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routesPayload/color`.
-                                            internal var color: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routesPayload/textColor`.
-                                            internal var textColor: Swift.String
-                                            /// Creates a new `routesPayloadPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - id:
-                                            ///   - shortName:
-                                            ///   - mode:
-                                            ///   - color:
-                                            ///   - textColor:
-                                            internal init(
-                                                id: Swift.String,
-                                                shortName: Swift.String,
-                                                mode: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.routesPayloadPayload.modePayload,
-                                                color: Swift.String,
-                                                textColor: Swift.String
-                                            ) {
-                                                self.id = id
-                                                self.shortName = shortName
-                                                self.mode = mode
-                                                self.color = color
-                                                self.textColor = textColor
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case id
-                                                case shortName
-                                                case mode
-                                                case color
-                                                case textColor
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routes`.
-                                        internal typealias routesPayload = [Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.routesPayloadPayload]
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/routes`.
-                                        internal var routes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.routesPayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/distanceMeters`.
-                                        internal var distanceMeters: Swift.Double?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/accessibility`.
-                                        internal struct accessibilityPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/accessibility/condition`.
-                                            internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                                case reservationRequired = "reservationRequired"
-                                                case staffAssistance = "staffAssistance"
-                                                case autonomous = "autonomous"
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/accessibility/condition`.
-                                            internal var condition: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.accessibilityPayload.conditionPayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/accessibility/label`.
-                                            internal var label: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/accessibility/comment`.
-                                            internal var comment: Swift.String?
-                                            /// Creates a new `accessibilityPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - condition:
-                                            ///   - label:
-                                            ///   - comment:
-                                            internal init(
-                                                condition: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.accessibilityPayload.conditionPayload,
-                                                label: Swift.String,
-                                                comment: Swift.String? = nil
-                                            ) {
-                                                self.condition = condition
-                                                self.label = label
-                                                self.comment = comment
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case condition
-                                                case label
-                                                case comment
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1/accessibility`.
-                                        internal var accessibility: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.accessibilityPayload?
-                                        /// Creates a new `Value1Payload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - kind:
-                                        ///   - id:
-                                        ///   - name:
-                                        ///   - coordinate:
-                                        ///   - routes:
-                                        ///   - distanceMeters:
-                                        ///   - accessibility:
-                                        internal init(
-                                            kind: OpenAPIRuntime.OpenAPIValueContainer,
-                                            id: Swift.String,
-                                            name: Swift.String,
-                                            coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.coordinatePayload,
-                                            routes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.routesPayload,
-                                            distanceMeters: Swift.Double? = nil,
-                                            accessibility: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload.accessibilityPayload? = nil
-                                        ) {
-                                            self.kind = kind
-                                            self.id = id
-                                            self.name = name
-                                            self.coordinate = coordinate
-                                            self.routes = routes
-                                            self.distanceMeters = distanceMeters
-                                            self.accessibility = accessibility
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case kind
-                                            case id
-                                            case name
-                                            case coordinate
-                                            case routes
-                                            case distanceMeters
-                                            case accessibility
-                                        }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/kind`.
+                                    internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case current_location = "current_location"
+                                        case query = "query"
+                                        case saved = "saved"
+                                        case context_reference = "context_reference"
                                     }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value1`.
-                                    internal var value1: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2`.
-                                    internal struct Value2Payload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/kind`.
-                                        internal var kind: OpenAPIRuntime.OpenAPIValueContainer
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/id`.
-                                        internal var id: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/name`.
-                                        internal var name: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/context`.
-                                        internal var context: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/coordinate`.
-                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/coordinate/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/coordinate/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `coordinatePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/coordinate`.
-                                        internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value2Payload.coordinatePayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2/distanceMeters`.
-                                        internal var distanceMeters: Swift.Double?
-                                        /// Creates a new `Value2Payload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - kind:
-                                        ///   - id:
-                                        ///   - name:
-                                        ///   - context:
-                                        ///   - coordinate:
-                                        ///   - distanceMeters:
-                                        internal init(
-                                            kind: OpenAPIRuntime.OpenAPIValueContainer,
-                                            id: Swift.String,
-                                            name: Swift.String,
-                                            context: Swift.String,
-                                            coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value2Payload.coordinatePayload,
-                                            distanceMeters: Swift.Double? = nil
-                                        ) {
-                                            self.kind = kind
-                                            self.id = id
-                                            self.name = name
-                                            self.context = context
-                                            self.coordinate = coordinate
-                                            self.distanceMeters = distanceMeters
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case kind
-                                            case id
-                                            case name
-                                            case context
-                                            case coordinate
-                                            case distanceMeters
-                                        }
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value2`.
-                                    internal var value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value2Payload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3`.
-                                    internal struct Value3Payload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/kind`.
-                                        internal var kind: OpenAPIRuntime.OpenAPIValueContainer
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/id`.
-                                        internal var id: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/name`.
-                                        internal var name: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/coordinate`.
-                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/coordinate/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/coordinate/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `coordinatePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/coordinate`.
-                                        internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value3Payload.coordinatePayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/distanceMeters`.
-                                        internal var distanceMeters: Swift.Double?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/capacity`.
-                                        internal var capacity: Swift.Int
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability`.
-                                        internal struct availabilityPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability/mechanicalBikes`.
-                                            internal var mechanicalBikes: Swift.Int
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability/electricBikes`.
-                                            internal var electricBikes: Swift.Int
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability/docks`.
-                                            internal var docks: Swift.Int
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability/isInstalled`.
-                                            internal var isInstalled: Swift.Bool
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability/isRenting`.
-                                            internal var isRenting: Swift.Bool
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability/isReturning`.
-                                            internal var isReturning: Swift.Bool
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability/lastReportedAt`.
-                                            internal var lastReportedAt: Foundation.Date?
-                                            /// Creates a new `availabilityPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - mechanicalBikes:
-                                            ///   - electricBikes:
-                                            ///   - docks:
-                                            ///   - isInstalled:
-                                            ///   - isRenting:
-                                            ///   - isReturning:
-                                            ///   - lastReportedAt:
-                                            internal init(
-                                                mechanicalBikes: Swift.Int,
-                                                electricBikes: Swift.Int,
-                                                docks: Swift.Int,
-                                                isInstalled: Swift.Bool,
-                                                isRenting: Swift.Bool,
-                                                isReturning: Swift.Bool,
-                                                lastReportedAt: Foundation.Date? = nil
-                                            ) {
-                                                self.mechanicalBikes = mechanicalBikes
-                                                self.electricBikes = electricBikes
-                                                self.docks = docks
-                                                self.isInstalled = isInstalled
-                                                self.isRenting = isRenting
-                                                self.isReturning = isReturning
-                                                self.lastReportedAt = lastReportedAt
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case mechanicalBikes
-                                                case electricBikes
-                                                case docks
-                                                case isInstalled
-                                                case isRenting
-                                                case isReturning
-                                                case lastReportedAt
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3/availability`.
-                                        internal var availability: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value3Payload.availabilityPayload?
-                                        /// Creates a new `Value3Payload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - kind:
-                                        ///   - id:
-                                        ///   - name:
-                                        ///   - coordinate:
-                                        ///   - distanceMeters:
-                                        ///   - capacity:
-                                        ///   - availability:
-                                        internal init(
-                                            kind: OpenAPIRuntime.OpenAPIValueContainer,
-                                            id: Swift.String,
-                                            name: Swift.String,
-                                            coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value3Payload.coordinatePayload,
-                                            distanceMeters: Swift.Double? = nil,
-                                            capacity: Swift.Int,
-                                            availability: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value3Payload.availabilityPayload? = nil
-                                        ) {
-                                            self.kind = kind
-                                            self.id = id
-                                            self.name = name
-                                            self.coordinate = coordinate
-                                            self.distanceMeters = distanceMeters
-                                            self.capacity = capacity
-                                            self.availability = availability
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case kind
-                                            case id
-                                            case name
-                                            case coordinate
-                                            case distanceMeters
-                                            case capacity
-                                            case availability
-                                        }
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value3`.
-                                    internal var value3: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value3Payload?
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/kind`.
+                                    internal var kind: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.kindPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/value`.
+                                    internal var value: Swift.String
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin/evidence`.
+                                    internal var evidence: Swift.String
                                     /// Creates a new `originPayload`.
                                     ///
                                     /// - Parameters:
-                                    ///   - value1:
-                                    ///   - value2:
-                                    ///   - value3:
+                                    ///   - kind:
+                                    ///   - value:
+                                    ///   - evidence:
                                     internal init(
-                                        value1: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value1Payload? = nil,
-                                        value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value2Payload? = nil,
-                                        value3: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.Value3Payload? = nil
+                                        kind: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload.kindPayload,
+                                        value: Swift.String,
+                                        evidence: Swift.String
                                     ) {
-                                        self.value1 = value1
-                                        self.value2 = value2
-                                        self.value3 = value3
+                                        self.kind = kind
+                                        self.value = value
+                                        self.evidence = evidence
                                     }
-                                    internal init(from decoder: any Swift.Decoder) throws {
-                                        var errors: [any Swift.Error] = []
-                                        do {
-                                            self.value1 = try .init(from: decoder)
-                                        } catch {
-                                            errors.append(error)
-                                        }
-                                        do {
-                                            self.value2 = try .init(from: decoder)
-                                        } catch {
-                                            errors.append(error)
-                                        }
-                                        do {
-                                            self.value3 = try .init(from: decoder)
-                                        } catch {
-                                            errors.append(error)
-                                        }
-                                        try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
-                                            [
-                                                self.value1,
-                                                self.value2,
-                                                self.value3
-                                            ],
-                                            type: Self.self,
-                                            codingPath: decoder.codingPath,
-                                            errors: errors
-                                        )
-                                    }
-                                    internal func encode(to encoder: any Swift.Encoder) throws {
-                                        try self.value1?.encode(to: encoder)
-                                        try self.value2?.encode(to: encoder)
-                                        try self.value3?.encode(to: encoder)
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case kind
+                                        case value
+                                        case evidence
                                     }
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/origin`.
                                 internal var origin: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload?
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination`.
                                 internal struct destinationPayload: Codable, Hashable, Sendable {
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1`.
-                                    internal struct Value1Payload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1/kind`.
-                                        internal var kind: OpenAPIRuntime.OpenAPIValueContainer
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1/id`.
-                                        internal var id: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1/name`.
-                                        internal var name: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1/coordinate`.
-                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1/coordinate/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1/coordinate/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `coordinatePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1/coordinate`.
-                                        internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.Value1Payload.coordinatePayload
-                                        /// Creates a new `Value1Payload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - kind:
-                                        ///   - id:
-                                        ///   - name:
-                                        ///   - coordinate:
-                                        internal init(
-                                            kind: OpenAPIRuntime.OpenAPIValueContainer,
-                                            id: Swift.String,
-                                            name: Swift.String,
-                                            coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.Value1Payload.coordinatePayload
-                                        ) {
-                                            self.kind = kind
-                                            self.id = id
-                                            self.name = name
-                                            self.coordinate = coordinate
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case kind
-                                            case id
-                                            case name
-                                            case coordinate
-                                        }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/kind`.
+                                    internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case current_location = "current_location"
+                                        case query = "query"
+                                        case saved = "saved"
+                                        case context_reference = "context_reference"
                                     }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value1`.
-                                    internal var value1: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.Value1Payload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2`.
-                                    internal struct Value2Payload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2/kind`.
-                                        internal var kind: OpenAPIRuntime.OpenAPIValueContainer
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2/id`.
-                                        internal var id: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2/name`.
-                                        internal var name: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2/context`.
-                                        internal var context: Swift.String?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2/coordinate`.
-                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2/coordinate/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2/coordinate/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `coordinatePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2/coordinate`.
-                                        internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.Value2Payload.coordinatePayload
-                                        /// Creates a new `Value2Payload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - kind:
-                                        ///   - id:
-                                        ///   - name:
-                                        ///   - context:
-                                        ///   - coordinate:
-                                        internal init(
-                                            kind: OpenAPIRuntime.OpenAPIValueContainer,
-                                            id: Swift.String,
-                                            name: Swift.String,
-                                            context: Swift.String? = nil,
-                                            coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.Value2Payload.coordinatePayload
-                                        ) {
-                                            self.kind = kind
-                                            self.id = id
-                                            self.name = name
-                                            self.context = context
-                                            self.coordinate = coordinate
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case kind
-                                            case id
-                                            case name
-                                            case context
-                                            case coordinate
-                                        }
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value2`.
-                                    internal var value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.Value2Payload?
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/kind`.
+                                    internal var kind: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.kindPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/value`.
+                                    internal var value: Swift.String
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination/evidence`.
+                                    internal var evidence: Swift.String
                                     /// Creates a new `destinationPayload`.
                                     ///
                                     /// - Parameters:
-                                    ///   - value1:
-                                    ///   - value2:
+                                    ///   - kind:
+                                    ///   - value:
+                                    ///   - evidence:
                                     internal init(
-                                        value1: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.Value1Payload? = nil,
-                                        value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.Value2Payload? = nil
+                                        kind: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload.kindPayload,
+                                        value: Swift.String,
+                                        evidence: Swift.String
                                     ) {
-                                        self.value1 = value1
-                                        self.value2 = value2
+                                        self.kind = kind
+                                        self.value = value
+                                        self.evidence = evidence
                                     }
-                                    internal init(from decoder: any Swift.Decoder) throws {
-                                        var errors: [any Swift.Error] = []
-                                        do {
-                                            self.value1 = try .init(from: decoder)
-                                        } catch {
-                                            errors.append(error)
-                                        }
-                                        do {
-                                            self.value2 = try .init(from: decoder)
-                                        } catch {
-                                            errors.append(error)
-                                        }
-                                        try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
-                                            [
-                                                self.value1,
-                                                self.value2
-                                            ],
-                                            type: Self.self,
-                                            codingPath: decoder.codingPath,
-                                            errors: errors
-                                        )
-                                    }
-                                    internal func encode(to encoder: any Swift.Encoder) throws {
-                                        try self.value1?.encode(to: encoder)
-                                        try self.value2?.encode(to: encoder)
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case kind
+                                        case value
+                                        case evidence
                                     }
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destination`.
-                                internal var destination: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult`.
-                                internal struct destinationResultPayload: Codable, Hashable, Sendable {
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1`.
-                                    internal struct Value1Payload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/kind`.
-                                        internal var kind: OpenAPIRuntime.OpenAPIValueContainer
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/id`.
-                                        internal var id: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/name`.
-                                        internal var name: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/coordinate`.
-                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/coordinate/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/coordinate/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `coordinatePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/coordinate`.
-                                        internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.coordinatePayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routesPayload`.
-                                        internal struct routesPayloadPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routesPayload/id`.
-                                            internal var id: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routesPayload/shortName`.
-                                            internal var shortName: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routesPayload/mode`.
-                                            internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                                case metro = "metro"
-                                                case rer = "rer"
-                                                case transilien = "transilien"
-                                                case tram = "tram"
-                                                case bus = "bus"
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routesPayload/mode`.
-                                            internal var mode: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.routesPayloadPayload.modePayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routesPayload/color`.
-                                            internal var color: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routesPayload/textColor`.
-                                            internal var textColor: Swift.String
-                                            /// Creates a new `routesPayloadPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - id:
-                                            ///   - shortName:
-                                            ///   - mode:
-                                            ///   - color:
-                                            ///   - textColor:
-                                            internal init(
-                                                id: Swift.String,
-                                                shortName: Swift.String,
-                                                mode: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.routesPayloadPayload.modePayload,
-                                                color: Swift.String,
-                                                textColor: Swift.String
-                                            ) {
-                                                self.id = id
-                                                self.shortName = shortName
-                                                self.mode = mode
-                                                self.color = color
-                                                self.textColor = textColor
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case id
-                                                case shortName
-                                                case mode
-                                                case color
-                                                case textColor
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routes`.
-                                        internal typealias routesPayload = [Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.routesPayloadPayload]
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/routes`.
-                                        internal var routes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.routesPayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/distanceMeters`.
-                                        internal var distanceMeters: Swift.Double?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/accessibility`.
-                                        internal struct accessibilityPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/accessibility/condition`.
-                                            internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                                case reservationRequired = "reservationRequired"
-                                                case staffAssistance = "staffAssistance"
-                                                case autonomous = "autonomous"
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/accessibility/condition`.
-                                            internal var condition: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.accessibilityPayload.conditionPayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/accessibility/label`.
-                                            internal var label: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/accessibility/comment`.
-                                            internal var comment: Swift.String?
-                                            /// Creates a new `accessibilityPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - condition:
-                                            ///   - label:
-                                            ///   - comment:
-                                            internal init(
-                                                condition: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.accessibilityPayload.conditionPayload,
-                                                label: Swift.String,
-                                                comment: Swift.String? = nil
-                                            ) {
-                                                self.condition = condition
-                                                self.label = label
-                                                self.comment = comment
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case condition
-                                                case label
-                                                case comment
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1/accessibility`.
-                                        internal var accessibility: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.accessibilityPayload?
-                                        /// Creates a new `Value1Payload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - kind:
-                                        ///   - id:
-                                        ///   - name:
-                                        ///   - coordinate:
-                                        ///   - routes:
-                                        ///   - distanceMeters:
-                                        ///   - accessibility:
-                                        internal init(
-                                            kind: OpenAPIRuntime.OpenAPIValueContainer,
-                                            id: Swift.String,
-                                            name: Swift.String,
-                                            coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.coordinatePayload,
-                                            routes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.routesPayload,
-                                            distanceMeters: Swift.Double? = nil,
-                                            accessibility: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload.accessibilityPayload? = nil
-                                        ) {
-                                            self.kind = kind
-                                            self.id = id
-                                            self.name = name
-                                            self.coordinate = coordinate
-                                            self.routes = routes
-                                            self.distanceMeters = distanceMeters
-                                            self.accessibility = accessibility
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case kind
-                                            case id
-                                            case name
-                                            case coordinate
-                                            case routes
-                                            case distanceMeters
-                                            case accessibility
-                                        }
+                                internal var destination: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload?
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/originWasExplicit`.
+                                internal var originWasExplicit: Swift.Bool
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lastServiceOfDay`.
+                                internal var lastServiceOfDay: Swift.Bool
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint`.
+                                internal struct timeConstraintPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/reference`.
+                                    internal enum referencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case implicit_today = "implicit_today"
+                                        case today = "today"
+                                        case tomorrow = "tomorrow"
+                                        case monday = "monday"
+                                        case tuesday = "tuesday"
+                                        case wednesday = "wednesday"
+                                        case thursday = "thursday"
+                                        case friday = "friday"
+                                        case saturday = "saturday"
+                                        case sunday = "sunday"
+                                        case calendar_date = "calendar_date"
+                                        case relative = "relative"
                                     }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value1`.
-                                    internal var value1: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2`.
-                                    internal struct Value2Payload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/kind`.
-                                        internal var kind: OpenAPIRuntime.OpenAPIValueContainer
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/id`.
-                                        internal var id: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/name`.
-                                        internal var name: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/context`.
-                                        internal var context: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/coordinate`.
-                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/coordinate/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/coordinate/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `coordinatePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/coordinate`.
-                                        internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value2Payload.coordinatePayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2/distanceMeters`.
-                                        internal var distanceMeters: Swift.Double?
-                                        /// Creates a new `Value2Payload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - kind:
-                                        ///   - id:
-                                        ///   - name:
-                                        ///   - context:
-                                        ///   - coordinate:
-                                        ///   - distanceMeters:
-                                        internal init(
-                                            kind: OpenAPIRuntime.OpenAPIValueContainer,
-                                            id: Swift.String,
-                                            name: Swift.String,
-                                            context: Swift.String,
-                                            coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value2Payload.coordinatePayload,
-                                            distanceMeters: Swift.Double? = nil
-                                        ) {
-                                            self.kind = kind
-                                            self.id = id
-                                            self.name = name
-                                            self.context = context
-                                            self.coordinate = coordinate
-                                            self.distanceMeters = distanceMeters
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case kind
-                                            case id
-                                            case name
-                                            case context
-                                            case coordinate
-                                            case distanceMeters
-                                        }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/reference`.
+                                    internal var reference: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload.referencePayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/year`.
+                                    internal var year: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/yearWasExplicit`.
+                                    internal var yearWasExplicit: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/month`.
+                                    internal var month: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/day`.
+                                    internal var day: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/timePrecision`.
+                                    internal enum timePrecisionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case unspecified = "unspecified"
+                                        case exact = "exact"
+                                        case morning = "morning"
+                                        case afternoon = "afternoon"
+                                        case evening = "evening"
                                     }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value2`.
-                                    internal var value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value2Payload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3`.
-                                    internal struct Value3Payload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/kind`.
-                                        internal var kind: OpenAPIRuntime.OpenAPIValueContainer
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/id`.
-                                        internal var id: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/name`.
-                                        internal var name: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/coordinate`.
-                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/coordinate/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/coordinate/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `coordinatePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/coordinate`.
-                                        internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value3Payload.coordinatePayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/distanceMeters`.
-                                        internal var distanceMeters: Swift.Double?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/capacity`.
-                                        internal var capacity: Swift.Int
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability`.
-                                        internal struct availabilityPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability/mechanicalBikes`.
-                                            internal var mechanicalBikes: Swift.Int
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability/electricBikes`.
-                                            internal var electricBikes: Swift.Int
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability/docks`.
-                                            internal var docks: Swift.Int
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability/isInstalled`.
-                                            internal var isInstalled: Swift.Bool
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability/isRenting`.
-                                            internal var isRenting: Swift.Bool
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability/isReturning`.
-                                            internal var isReturning: Swift.Bool
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability/lastReportedAt`.
-                                            internal var lastReportedAt: Foundation.Date?
-                                            /// Creates a new `availabilityPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - mechanicalBikes:
-                                            ///   - electricBikes:
-                                            ///   - docks:
-                                            ///   - isInstalled:
-                                            ///   - isRenting:
-                                            ///   - isReturning:
-                                            ///   - lastReportedAt:
-                                            internal init(
-                                                mechanicalBikes: Swift.Int,
-                                                electricBikes: Swift.Int,
-                                                docks: Swift.Int,
-                                                isInstalled: Swift.Bool,
-                                                isRenting: Swift.Bool,
-                                                isReturning: Swift.Bool,
-                                                lastReportedAt: Foundation.Date? = nil
-                                            ) {
-                                                self.mechanicalBikes = mechanicalBikes
-                                                self.electricBikes = electricBikes
-                                                self.docks = docks
-                                                self.isInstalled = isInstalled
-                                                self.isRenting = isRenting
-                                                self.isReturning = isReturning
-                                                self.lastReportedAt = lastReportedAt
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case mechanicalBikes
-                                                case electricBikes
-                                                case docks
-                                                case isInstalled
-                                                case isRenting
-                                                case isReturning
-                                                case lastReportedAt
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3/availability`.
-                                        internal var availability: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value3Payload.availabilityPayload?
-                                        /// Creates a new `Value3Payload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - kind:
-                                        ///   - id:
-                                        ///   - name:
-                                        ///   - coordinate:
-                                        ///   - distanceMeters:
-                                        ///   - capacity:
-                                        ///   - availability:
-                                        internal init(
-                                            kind: OpenAPIRuntime.OpenAPIValueContainer,
-                                            id: Swift.String,
-                                            name: Swift.String,
-                                            coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value3Payload.coordinatePayload,
-                                            distanceMeters: Swift.Double? = nil,
-                                            capacity: Swift.Int,
-                                            availability: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value3Payload.availabilityPayload? = nil
-                                        ) {
-                                            self.kind = kind
-                                            self.id = id
-                                            self.name = name
-                                            self.coordinate = coordinate
-                                            self.distanceMeters = distanceMeters
-                                            self.capacity = capacity
-                                            self.availability = availability
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case kind
-                                            case id
-                                            case name
-                                            case coordinate
-                                            case distanceMeters
-                                            case capacity
-                                            case availability
-                                        }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/timePrecision`.
+                                    internal var timePrecision: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload.timePrecisionPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/hour`.
+                                    internal var hour: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/minute`.
+                                    internal var minute: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/relativeAmount`.
+                                    internal var relativeAmount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/relativeUnit`.
+                                    internal enum relativeUnitPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case minute = "minute"
+                                        case hour = "hour"
+                                        case day = "day"
                                     }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult/value3`.
-                                    internal var value3: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value3Payload?
-                                    /// Creates a new `destinationResultPayload`.
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/relativeUnit`.
+                                    internal var relativeUnit: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload.relativeUnitPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/meaning`.
+                                    internal enum meaningPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case departure = "departure"
+                                        case arrival = "arrival"
+                                        case ambiguous = "ambiguous"
+                                    }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/meaning`.
+                                    internal var meaning: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload.meaningPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint/evidence`.
+                                    internal var evidence: Swift.String
+                                    /// Creates a new `timeConstraintPayload`.
                                     ///
                                     /// - Parameters:
-                                    ///   - value1:
-                                    ///   - value2:
-                                    ///   - value3:
+                                    ///   - reference:
+                                    ///   - year:
+                                    ///   - yearWasExplicit:
+                                    ///   - month:
+                                    ///   - day:
+                                    ///   - timePrecision:
+                                    ///   - hour:
+                                    ///   - minute:
+                                    ///   - relativeAmount:
+                                    ///   - relativeUnit:
+                                    ///   - meaning:
+                                    ///   - evidence:
                                     internal init(
-                                        value1: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value1Payload? = nil,
-                                        value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value2Payload? = nil,
-                                        value3: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload.Value3Payload? = nil
+                                        reference: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload.referencePayload,
+                                        year: Swift.Int,
+                                        yearWasExplicit: Swift.Bool,
+                                        month: Swift.Int,
+                                        day: Swift.Int,
+                                        timePrecision: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload.timePrecisionPayload,
+                                        hour: Swift.Int,
+                                        minute: Swift.Int,
+                                        relativeAmount: Swift.Int,
+                                        relativeUnit: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload.relativeUnitPayload,
+                                        meaning: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload.meaningPayload,
+                                        evidence: Swift.String
                                     ) {
-                                        self.value1 = value1
-                                        self.value2 = value2
-                                        self.value3 = value3
+                                        self.reference = reference
+                                        self.year = year
+                                        self.yearWasExplicit = yearWasExplicit
+                                        self.month = month
+                                        self.day = day
+                                        self.timePrecision = timePrecision
+                                        self.hour = hour
+                                        self.minute = minute
+                                        self.relativeAmount = relativeAmount
+                                        self.relativeUnit = relativeUnit
+                                        self.meaning = meaning
+                                        self.evidence = evidence
                                     }
-                                    internal init(from decoder: any Swift.Decoder) throws {
-                                        var errors: [any Swift.Error] = []
-                                        do {
-                                            self.value1 = try .init(from: decoder)
-                                        } catch {
-                                            errors.append(error)
-                                        }
-                                        do {
-                                            self.value2 = try .init(from: decoder)
-                                        } catch {
-                                            errors.append(error)
-                                        }
-                                        do {
-                                            self.value3 = try .init(from: decoder)
-                                        } catch {
-                                            errors.append(error)
-                                        }
-                                        try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
-                                            [
-                                                self.value1,
-                                                self.value2,
-                                                self.value3
-                                            ],
-                                            type: Self.self,
-                                            codingPath: decoder.codingPath,
-                                            errors: errors
-                                        )
-                                    }
-                                    internal func encode(to encoder: any Swift.Encoder) throws {
-                                        try self.value1?.encode(to: encoder)
-                                        try self.value2?.encode(to: encoder)
-                                        try self.value3?.encode(to: encoder)
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case reference
+                                        case year
+                                        case yearWasExplicit
+                                        case month
+                                        case day
+                                        case timePrecision
+                                        case hour
+                                        case minute
+                                        case relativeAmount
+                                        case relativeUnit
+                                        case meaning
+                                        case evidence
                                     }
                                 }
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/destinationResult`.
-                                internal var destinationResult: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/requestedAt`.
-                                internal var requestedAt: Foundation.Date
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/datetimeRepresents`.
-                                internal enum datetimeRepresentsPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                    case departure = "departure"
-                                    case arrival = "arrival"
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeConstraint`.
+                                internal var timeConstraint: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint`.
+                                internal struct alternateTimeConstraintPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/reference`.
+                                    internal enum referencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case implicit_today = "implicit_today"
+                                        case today = "today"
+                                        case tomorrow = "tomorrow"
+                                        case monday = "monday"
+                                        case tuesday = "tuesday"
+                                        case wednesday = "wednesday"
+                                        case thursday = "thursday"
+                                        case friday = "friday"
+                                        case saturday = "saturday"
+                                        case sunday = "sunday"
+                                        case calendar_date = "calendar_date"
+                                        case relative = "relative"
+                                    }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/reference`.
+                                    internal var reference: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload.referencePayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/year`.
+                                    internal var year: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/yearWasExplicit`.
+                                    internal var yearWasExplicit: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/month`.
+                                    internal var month: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/day`.
+                                    internal var day: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/timePrecision`.
+                                    internal enum timePrecisionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case unspecified = "unspecified"
+                                        case exact = "exact"
+                                        case morning = "morning"
+                                        case afternoon = "afternoon"
+                                        case evening = "evening"
+                                    }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/timePrecision`.
+                                    internal var timePrecision: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload.timePrecisionPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/hour`.
+                                    internal var hour: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/minute`.
+                                    internal var minute: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/relativeAmount`.
+                                    internal var relativeAmount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/relativeUnit`.
+                                    internal enum relativeUnitPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case minute = "minute"
+                                        case hour = "hour"
+                                        case day = "day"
+                                    }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/relativeUnit`.
+                                    internal var relativeUnit: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload.relativeUnitPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/meaning`.
+                                    internal enum meaningPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case departure = "departure"
+                                        case arrival = "arrival"
+                                        case ambiguous = "ambiguous"
+                                    }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/meaning`.
+                                    internal var meaning: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload.meaningPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint/evidence`.
+                                    internal var evidence: Swift.String
+                                    /// Creates a new `alternateTimeConstraintPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - reference:
+                                    ///   - year:
+                                    ///   - yearWasExplicit:
+                                    ///   - month:
+                                    ///   - day:
+                                    ///   - timePrecision:
+                                    ///   - hour:
+                                    ///   - minute:
+                                    ///   - relativeAmount:
+                                    ///   - relativeUnit:
+                                    ///   - meaning:
+                                    ///   - evidence:
+                                    internal init(
+                                        reference: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload.referencePayload,
+                                        year: Swift.Int,
+                                        yearWasExplicit: Swift.Bool,
+                                        month: Swift.Int,
+                                        day: Swift.Int,
+                                        timePrecision: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload.timePrecisionPayload,
+                                        hour: Swift.Int,
+                                        minute: Swift.Int,
+                                        relativeAmount: Swift.Int,
+                                        relativeUnit: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload.relativeUnitPayload,
+                                        meaning: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload.meaningPayload,
+                                        evidence: Swift.String
+                                    ) {
+                                        self.reference = reference
+                                        self.year = year
+                                        self.yearWasExplicit = yearWasExplicit
+                                        self.month = month
+                                        self.day = day
+                                        self.timePrecision = timePrecision
+                                        self.hour = hour
+                                        self.minute = minute
+                                        self.relativeAmount = relativeAmount
+                                        self.relativeUnit = relativeUnit
+                                        self.meaning = meaning
+                                        self.evidence = evidence
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case reference
+                                        case year
+                                        case yearWasExplicit
+                                        case month
+                                        case day
+                                        case timePrecision
+                                        case hour
+                                        case minute
+                                        case relativeAmount
+                                        case relativeUnit
+                                        case meaning
+                                        case evidence
+                                    }
                                 }
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/datetimeRepresents`.
-                                internal var datetimeRepresents: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.datetimeRepresentsPayload
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeAnchor`.
-                                internal enum timeAnchorPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                    case last_of_day = "last_of_day"
-                                }
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/timeAnchor`.
-                                internal var timeAnchor: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeAnchorPayload?
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/alternateTimeConstraint`.
+                                internal var alternateTimeConstraint: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload?
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/requiredModesPayload`.
                                 internal enum requiredModesPayloadPayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case metro = "metro"
@@ -7915,936 +7954,84 @@ internal enum Operations {
                                 internal typealias preferredModesPayload = [Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.preferredModesPayloadPayload]
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/preferredModes`.
                                 internal var preferredModes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.preferredModesPayload
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/unsupportedConstraints`.
+                                internal var unsupportedConstraints: [Swift.String]
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/unexplainedText`.
+                                internal var unexplainedText: Swift.String
                                 /// Creates a new `interpretationPayload`.
                                 ///
                                 /// - Parameters:
-                                ///   - originLabel:
+                                ///   - scope:
                                 ///   - origin:
                                 ///   - destination:
-                                ///   - destinationResult:
-                                ///   - requestedAt:
-                                ///   - datetimeRepresents:
-                                ///   - timeAnchor:
+                                ///   - originWasExplicit:
+                                ///   - lastServiceOfDay:
+                                ///   - timeConstraint:
+                                ///   - alternateTimeConstraint:
                                 ///   - requiredModes:
                                 ///   - excludedModes:
                                 ///   - preferredModes:
+                                ///   - unsupportedConstraints:
+                                ///   - unexplainedText:
                                 internal init(
-                                    originLabel: Swift.String,
+                                    scope: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.scopePayload,
                                     origin: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload? = nil,
-                                    destination: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload,
-                                    destinationResult: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationResultPayload,
-                                    requestedAt: Foundation.Date,
-                                    datetimeRepresents: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.datetimeRepresentsPayload,
-                                    timeAnchor: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeAnchorPayload? = nil,
+                                    destination: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.destinationPayload? = nil,
+                                    originWasExplicit: Swift.Bool,
+                                    lastServiceOfDay: Swift.Bool,
+                                    timeConstraint: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.timeConstraintPayload,
+                                    alternateTimeConstraint: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.alternateTimeConstraintPayload? = nil,
                                     requiredModes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.requiredModesPayload,
                                     excludedModes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.excludedModesPayload,
-                                    preferredModes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.preferredModesPayload
+                                    preferredModes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.preferredModesPayload,
+                                    unsupportedConstraints: [Swift.String],
+                                    unexplainedText: Swift.String
                                 ) {
-                                    self.originLabel = originLabel
+                                    self.scope = scope
                                     self.origin = origin
                                     self.destination = destination
-                                    self.destinationResult = destinationResult
-                                    self.requestedAt = requestedAt
-                                    self.datetimeRepresents = datetimeRepresents
-                                    self.timeAnchor = timeAnchor
+                                    self.originWasExplicit = originWasExplicit
+                                    self.lastServiceOfDay = lastServiceOfDay
+                                    self.timeConstraint = timeConstraint
+                                    self.alternateTimeConstraint = alternateTimeConstraint
                                     self.requiredModes = requiredModes
                                     self.excludedModes = excludedModes
                                     self.preferredModes = preferredModes
+                                    self.unsupportedConstraints = unsupportedConstraints
+                                    self.unexplainedText = unexplainedText
                                 }
                                 internal enum CodingKeys: String, CodingKey {
-                                    case originLabel
+                                    case scope
                                     case origin
                                     case destination
-                                    case destinationResult
-                                    case requestedAt
-                                    case datetimeRepresents
-                                    case timeAnchor
+                                    case originWasExplicit
+                                    case lastServiceOfDay
+                                    case timeConstraint
+                                    case alternateTimeConstraint
                                     case requiredModes
                                     case excludedModes
                                     case preferredModes
+                                    case unsupportedConstraints
+                                    case unexplainedText
                                 }
                             }
                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation`.
                             internal var interpretation: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload
-                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys`.
-                            internal struct journeysPayload: Codable, Hashable, Sendable {
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/status`.
-                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                    case ready = "ready"
-                                    case no_hyphen_route = "no-route"
-                                    case unavailable = "unavailable"
-                                }
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/status`.
-                                internal var status: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.statusPayload
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/source`.
-                                internal enum sourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                    case idfm_hyphen_realtime = "idfm-realtime"
-                                    case gtfs_hyphen_theoretical = "gtfs-theoretical"
-                                }
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/source`.
-                                internal var source: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.sourcePayload?
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/generatedAt`.
-                                internal var generatedAt: Foundation.Date
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/reason`.
-                                internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                    case no_hyphen_accessible_hyphen_route = "no-accessible-route"
-                                    case accessibility_hyphen_data_hyphen_unavailable = "accessibility-data-unavailable"
-                                    case no_hyphen_operational_hyphen_elevator_hyphen_route = "no-operational-elevator-route"
-                                    case elevator_hyphen_data_hyphen_unavailable = "elevator-data-unavailable"
-                                }
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/reason`.
-                                internal var reason: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.reasonPayload?
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload`.
-                                internal struct journeysPayloadPayload: Codable, Hashable, Sendable {
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/id`.
-                                    internal var id: Swift.String
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/qualifier`.
-                                    internal enum qualifierPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                        case recommended = "recommended"
-                                        case rapid = "rapid"
-                                        case less_hyphen_walking = "less-walking"
-                                        case comfort = "comfort"
-                                        case walking = "walking"
-                                        case bike = "bike"
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/qualifier`.
-                                    internal var qualifier: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.qualifierPayload
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/durationSeconds`.
-                                    internal var durationSeconds: Swift.Int
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/walkingDurationSeconds`.
-                                    internal var walkingDurationSeconds: Swift.Int
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/transferCount`.
-                                    internal var transferCount: Swift.Int
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/departureAt`.
-                                    internal var departureAt: Foundation.Date
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/arrivalAt`.
-                                    internal var arrivalAt: Foundation.Date
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/status`.
-                                    internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                        case normal = "normal"
-                                        case disrupted = "disrupted"
-                                        case theoretical = "theoretical"
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/status`.
-                                    internal var status: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.statusPayload
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/warnings`.
-                                    internal var warnings: [Swift.String]
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/accessibility`.
-                                    internal struct accessibilityPayload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/accessibility/condition`.
-                                        internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                            case reservationRequired = "reservationRequired"
-                                            case staffAssistance = "staffAssistance"
-                                            case autonomous = "autonomous"
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/accessibility/condition`.
-                                        internal var condition: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.accessibilityPayload.conditionPayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/accessibility/label`.
-                                        internal var label: Swift.String
-                                        /// Creates a new `accessibilityPayload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - condition:
-                                        ///   - label:
-                                        internal init(
-                                            condition: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.accessibilityPayload.conditionPayload,
-                                            label: Swift.String
-                                        ) {
-                                            self.condition = condition
-                                            self.label = label
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case condition
-                                            case label
-                                        }
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/accessibility`.
-                                    internal var accessibility: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.accessibilityPayload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/peak`.
-                                    internal struct peakPayload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/peak/ratio`.
-                                        internal var ratio: Swift.Double
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/peak/level`.
-                                        internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                            case moderate = "moderate"
-                                            case peak = "peak"
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/peak/level`.
-                                        internal var level: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.peakPayload.levelPayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/peak/stationId`.
-                                        internal var stationId: Swift.String?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/peak/stationName`.
-                                        internal var stationName: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/peak/label`.
-                                        internal var label: Swift.String
-                                        /// Creates a new `peakPayload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - ratio:
-                                        ///   - level:
-                                        ///   - stationId:
-                                        ///   - stationName:
-                                        ///   - label:
-                                        internal init(
-                                            ratio: Swift.Double,
-                                            level: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.peakPayload.levelPayload,
-                                            stationId: Swift.String? = nil,
-                                            stationName: Swift.String,
-                                            label: Swift.String
-                                        ) {
-                                            self.ratio = ratio
-                                            self.level = level
-                                            self.stationId = stationId
-                                            self.stationName = stationName
-                                            self.label = label
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case ratio
-                                            case level
-                                            case stationId
-                                            case stationName
-                                            case label
-                                        }
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/peak`.
-                                    internal var peak: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.peakPayload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/reportedCrowding`.
-                                    internal struct reportedCrowdingPayload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/reportedCrowding/level`.
-                                        internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                            case low = "low"
-                                            case moderate = "moderate"
-                                            case high = "high"
-                                            case saturated = "saturated"
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/reportedCrowding/level`.
-                                        internal var level: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.reportedCrowdingPayload.levelPayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/reportedCrowding/stationName`.
-                                        internal var stationName: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/reportedCrowding/label`.
-                                        internal var label: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/reportedCrowding/reporterCount`.
-                                        internal var reporterCount: Swift.Int
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/reportedCrowding/expiresAt`.
-                                        internal var expiresAt: Foundation.Date
-                                        /// Creates a new `reportedCrowdingPayload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - level:
-                                        ///   - stationName:
-                                        ///   - label:
-                                        ///   - reporterCount:
-                                        ///   - expiresAt:
-                                        internal init(
-                                            level: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.reportedCrowdingPayload.levelPayload,
-                                            stationName: Swift.String,
-                                            label: Swift.String,
-                                            reporterCount: Swift.Int,
-                                            expiresAt: Foundation.Date
-                                        ) {
-                                            self.level = level
-                                            self.stationName = stationName
-                                            self.label = label
-                                            self.reporterCount = reporterCount
-                                            self.expiresAt = expiresAt
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case level
-                                            case stationName
-                                            case label
-                                            case reporterCount
-                                            case expiresAt
-                                        }
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/reportedCrowding`.
-                                    internal var reportedCrowding: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.reportedCrowdingPayload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/wheelchairReport`.
-                                    internal struct wheelchairReportPayload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/wheelchairReport/stationName`.
-                                        internal var stationName: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/wheelchairReport/label`.
-                                        internal var label: Swift.String
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/wheelchairReport/reporterCount`.
-                                        internal var reporterCount: Swift.Int
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/wheelchairReport/confidence`.
-                                        internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                            case observed = "observed"
-                                            case confirmed = "confirmed"
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/wheelchairReport/confidence`.
-                                        internal var confidence: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.wheelchairReportPayload.confidencePayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/wheelchairReport/expiresAt`.
-                                        internal var expiresAt: Foundation.Date
-                                        /// Creates a new `wheelchairReportPayload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - stationName:
-                                        ///   - label:
-                                        ///   - reporterCount:
-                                        ///   - confidence:
-                                        ///   - expiresAt:
-                                        internal init(
-                                            stationName: Swift.String,
-                                            label: Swift.String,
-                                            reporterCount: Swift.Int,
-                                            confidence: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.wheelchairReportPayload.confidencePayload,
-                                            expiresAt: Foundation.Date
-                                        ) {
-                                            self.stationName = stationName
-                                            self.label = label
-                                            self.reporterCount = reporterCount
-                                            self.confidence = confidence
-                                            self.expiresAt = expiresAt
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case stationName
-                                            case label
-                                            case reporterCount
-                                            case confidence
-                                            case expiresAt
-                                        }
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/wheelchairReport`.
-                                    internal var wheelchairReport: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.wheelchairReportPayload?
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload`.
-                                    internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/id`.
-                                        internal var id: Swift.String?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/type`.
-                                        internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                            case walk = "walk"
-                                            case bike = "bike"
-                                            case wait = "wait"
-                                            case transfer = "transfer"
-                                            case transit = "transit"
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/type`.
-                                        internal var _type: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload._typePayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/durationSeconds`.
-                                        internal var durationSeconds: Swift.Int
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/from`.
-                                        internal struct fromPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/from/name`.
-                                            internal var name: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/from/coordinate`.
-                                            internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/from/coordinate/latitude`.
-                                                internal var latitude: Swift.Double
-                                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/from/coordinate/longitude`.
-                                                internal var longitude: Swift.Double
-                                                /// Creates a new `coordinatePayload`.
-                                                ///
-                                                /// - Parameters:
-                                                ///   - latitude:
-                                                ///   - longitude:
-                                                internal init(
-                                                    latitude: Swift.Double,
-                                                    longitude: Swift.Double
-                                                ) {
-                                                    self.latitude = latitude
-                                                    self.longitude = longitude
-                                                }
-                                                internal enum CodingKeys: String, CodingKey {
-                                                    case latitude
-                                                    case longitude
-                                                }
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/from/coordinate`.
-                                            internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
-                                            /// Creates a new `fromPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - name:
-                                            ///   - coordinate:
-                                            internal init(
-                                                name: Swift.String,
-                                                coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
-                                            ) {
-                                                self.name = name
-                                                self.coordinate = coordinate
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case name
-                                                case coordinate
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/from`.
-                                        internal var from: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.fromPayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/to`.
-                                        internal struct toPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/to/name`.
-                                            internal var name: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/to/coordinate`.
-                                            internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/to/coordinate/latitude`.
-                                                internal var latitude: Swift.Double
-                                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/to/coordinate/longitude`.
-                                                internal var longitude: Swift.Double
-                                                /// Creates a new `coordinatePayload`.
-                                                ///
-                                                /// - Parameters:
-                                                ///   - latitude:
-                                                ///   - longitude:
-                                                internal init(
-                                                    latitude: Swift.Double,
-                                                    longitude: Swift.Double
-                                                ) {
-                                                    self.latitude = latitude
-                                                    self.longitude = longitude
-                                                }
-                                                internal enum CodingKeys: String, CodingKey {
-                                                    case latitude
-                                                    case longitude
-                                                }
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/to/coordinate`.
-                                            internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.toPayload.coordinatePayload
-                                            /// Creates a new `toPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - name:
-                                            ///   - coordinate:
-                                            internal init(
-                                                name: Swift.String,
-                                                coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.toPayload.coordinatePayload
-                                            ) {
-                                                self.name = name
-                                                self.coordinate = coordinate
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case name
-                                                case coordinate
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/to`.
-                                        internal var to: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.toPayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/departureAt`.
-                                        internal var departureAt: Foundation.Date?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/arrivalAt`.
-                                        internal var arrivalAt: Foundation.Date?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/scheduledDepartureAt`.
-                                        internal var scheduledDepartureAt: Foundation.Date?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/scheduledArrivalAt`.
-                                        internal var scheduledArrivalAt: Foundation.Date?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/geometryPayload`.
-                                        internal struct geometryPayloadPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/geometryPayload/latitude`.
-                                            internal var latitude: Swift.Double
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/geometryPayload/longitude`.
-                                            internal var longitude: Swift.Double
-                                            /// Creates a new `geometryPayloadPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - latitude:
-                                            ///   - longitude:
-                                            internal init(
-                                                latitude: Swift.Double,
-                                                longitude: Swift.Double
-                                            ) {
-                                                self.latitude = latitude
-                                                self.longitude = longitude
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case latitude
-                                                case longitude
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/geometry`.
-                                        internal typealias geometryPayload = [Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.geometryPayloadPayload]
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/geometry`.
-                                        internal var geometry: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.geometryPayload
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route`.
-                                        internal struct routePayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route/id`.
-                                            internal var id: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route/shortName`.
-                                            internal var shortName: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route/longName`.
-                                            internal var longName: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route/mode`.
-                                            internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                                case metro = "metro"
-                                                case rer = "rer"
-                                                case transilien = "transilien"
-                                                case tram = "tram"
-                                                case bus = "bus"
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route/mode`.
-                                            internal var mode: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.routePayload.modePayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route/color`.
-                                            internal var color: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route/textColor`.
-                                            internal var textColor: Swift.String
-                                            /// Creates a new `routePayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - id:
-                                            ///   - shortName:
-                                            ///   - longName:
-                                            ///   - mode:
-                                            ///   - color:
-                                            ///   - textColor:
-                                            internal init(
-                                                id: Swift.String,
-                                                shortName: Swift.String,
-                                                longName: Swift.String,
-                                                mode: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.routePayload.modePayload,
-                                                color: Swift.String,
-                                                textColor: Swift.String
-                                            ) {
-                                                self.id = id
-                                                self.shortName = shortName
-                                                self.longName = longName
-                                                self.mode = mode
-                                                self.color = color
-                                                self.textColor = textColor
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case id
-                                                case shortName
-                                                case longName
-                                                case mode
-                                                case color
-                                                case textColor
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/route`.
-                                        internal var route: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.routePayload?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/direction`.
-                                        internal var direction: Swift.String?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/platform`.
-                                        internal var platform: Swift.String?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload`.
-                                        internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/id`.
-                                            internal var id: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/stationId`.
-                                            internal var stationId: Swift.String?
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/name`.
-                                            internal var name: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/coordinate`.
-                                            internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/coordinate/latitude`.
-                                                internal var latitude: Swift.Double
-                                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/coordinate/longitude`.
-                                                internal var longitude: Swift.Double
-                                                /// Creates a new `coordinatePayload`.
-                                                ///
-                                                /// - Parameters:
-                                                ///   - latitude:
-                                                ///   - longitude:
-                                                internal init(
-                                                    latitude: Swift.Double,
-                                                    longitude: Swift.Double
-                                                ) {
-                                                    self.latitude = latitude
-                                                    self.longitude = longitude
-                                                }
-                                                internal enum CodingKeys: String, CodingKey {
-                                                    case latitude
-                                                    case longitude
-                                                }
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/coordinate`.
-                                            internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/arrivalAt`.
-                                            internal var arrivalAt: Foundation.Date?
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stopsPayload/departureAt`.
-                                            internal var departureAt: Foundation.Date?
-                                            /// Creates a new `stopsPayloadPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - id:
-                                            ///   - stationId:
-                                            ///   - name:
-                                            ///   - coordinate:
-                                            ///   - arrivalAt:
-                                            ///   - departureAt:
-                                            internal init(
-                                                id: Swift.String,
-                                                stationId: Swift.String? = nil,
-                                                name: Swift.String,
-                                                coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload,
-                                                arrivalAt: Foundation.Date? = nil,
-                                                departureAt: Foundation.Date? = nil
-                                            ) {
-                                                self.id = id
-                                                self.stationId = stationId
-                                                self.name = name
-                                                self.coordinate = coordinate
-                                                self.arrivalAt = arrivalAt
-                                                self.departureAt = departureAt
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case id
-                                                case stationId
-                                                case name
-                                                case coordinate
-                                                case arrivalAt
-                                                case departureAt
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stops`.
-                                        internal typealias stopsPayload = [Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayloadPayload]
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/stops`.
-                                        internal var stops: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayload?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/serviceId`.
-                                        internal var serviceId: Swift.String?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/timingSource`.
-                                        internal enum timingSourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                            case realtime = "realtime"
-                                            case theoretical = "theoretical"
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/timingSource`.
-                                        internal var timingSource: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.timingSourcePayload?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/departureStatus`.
-                                        internal enum departureStatusPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                            case on_time = "on_time"
-                                            case delayed = "delayed"
-                                            case early = "early"
-                                            case cancelled = "cancelled"
-                                            case missed = "missed"
-                                            case arrived = "arrived"
-                                            case departed = "departed"
-                                            case no_report = "no_report"
-                                            case scheduled = "scheduled"
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/departureStatus`.
-                                        internal var departureStatus: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.departureStatusPayload?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition`.
-                                        internal struct boardingPositionPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition/car`.
-                                            internal var car: Swift.Int
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition/carCount`.
-                                            internal var carCount: Swift.Int
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition/zone`.
-                                            internal enum zonePayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                                case front = "front"
-                                                case middle = "middle"
-                                                case rear = "rear"
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition/zone`.
-                                            internal var zone: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition/reason`.
-                                            internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                                case exit = "exit"
-                                                case transfer = "transfer"
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition/reason`.
-                                            internal var reason: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition/equipment`.
-                                            internal enum equipmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
-                                                case escalator = "escalator"
-                                                case lift = "lift"
-                                                case stairs = "stairs"
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition/equipment`.
-                                            internal var equipment: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload?
-                                            /// Creates a new `boardingPositionPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - car:
-                                            ///   - carCount:
-                                            ///   - zone:
-                                            ///   - reason:
-                                            ///   - equipment:
-                                            internal init(
-                                                car: Swift.Int,
-                                                carCount: Swift.Int,
-                                                zone: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload,
-                                                reason: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload,
-                                                equipment: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload? = nil
-                                            ) {
-                                                self.car = car
-                                                self.carCount = carCount
-                                                self.zone = zone
-                                                self.reason = reason
-                                                self.equipment = equipment
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case car
-                                                case carCount
-                                                case zone
-                                                case reason
-                                                case equipment
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/boardingPosition`.
-                                        internal var boardingPosition: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload?
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit`.
-                                        internal struct exitPayload: Codable, Hashable, Sendable {
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit/id`.
-                                            internal var id: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit/name`.
-                                            internal var name: Swift.String
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit/number`.
-                                            internal var number: Swift.Int?
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit/coordinate`.
-                                            internal struct coordinatePayload: Codable, Hashable, Sendable {
-                                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit/coordinate/latitude`.
-                                                internal var latitude: Swift.Double
-                                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit/coordinate/longitude`.
-                                                internal var longitude: Swift.Double
-                                                /// Creates a new `coordinatePayload`.
-                                                ///
-                                                /// - Parameters:
-                                                ///   - latitude:
-                                                ///   - longitude:
-                                                internal init(
-                                                    latitude: Swift.Double,
-                                                    longitude: Swift.Double
-                                                ) {
-                                                    self.latitude = latitude
-                                                    self.longitude = longitude
-                                                }
-                                                internal enum CodingKeys: String, CodingKey {
-                                                    case latitude
-                                                    case longitude
-                                                }
-                                            }
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit/coordinate`.
-                                            internal var coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload.coordinatePayload
-                                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit/walkingMeters`.
-                                            internal var walkingMeters: Swift.Int?
-                                            /// Creates a new `exitPayload`.
-                                            ///
-                                            /// - Parameters:
-                                            ///   - id:
-                                            ///   - name:
-                                            ///   - number:
-                                            ///   - coordinate:
-                                            ///   - walkingMeters:
-                                            internal init(
-                                                id: Swift.String,
-                                                name: Swift.String,
-                                                number: Swift.Int? = nil,
-                                                coordinate: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload.coordinatePayload,
-                                                walkingMeters: Swift.Int? = nil
-                                            ) {
-                                                self.id = id
-                                                self.name = name
-                                                self.number = number
-                                                self.coordinate = coordinate
-                                                self.walkingMeters = walkingMeters
-                                            }
-                                            internal enum CodingKeys: String, CodingKey {
-                                                case id
-                                                case name
-                                                case number
-                                                case coordinate
-                                                case walkingMeters
-                                            }
-                                        }
-                                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sectionsPayload/exit`.
-                                        internal var exit: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload?
-                                        /// Creates a new `sectionsPayloadPayload`.
-                                        ///
-                                        /// - Parameters:
-                                        ///   - id:
-                                        ///   - _type:
-                                        ///   - durationSeconds:
-                                        ///   - from:
-                                        ///   - to:
-                                        ///   - departureAt:
-                                        ///   - arrivalAt:
-                                        ///   - scheduledDepartureAt:
-                                        ///   - scheduledArrivalAt:
-                                        ///   - geometry:
-                                        ///   - route:
-                                        ///   - direction:
-                                        ///   - platform:
-                                        ///   - stops:
-                                        ///   - serviceId:
-                                        ///   - timingSource:
-                                        ///   - departureStatus:
-                                        ///   - boardingPosition:
-                                        ///   - exit:
-                                        internal init(
-                                            id: Swift.String? = nil,
-                                            _type: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload._typePayload,
-                                            durationSeconds: Swift.Int,
-                                            from: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.fromPayload,
-                                            to: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.toPayload,
-                                            departureAt: Foundation.Date? = nil,
-                                            arrivalAt: Foundation.Date? = nil,
-                                            scheduledDepartureAt: Foundation.Date? = nil,
-                                            scheduledArrivalAt: Foundation.Date? = nil,
-                                            geometry: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.geometryPayload,
-                                            route: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.routePayload? = nil,
-                                            direction: Swift.String? = nil,
-                                            platform: Swift.String? = nil,
-                                            stops: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.stopsPayload? = nil,
-                                            serviceId: Swift.String? = nil,
-                                            timingSource: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.timingSourcePayload? = nil,
-                                            departureStatus: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.departureStatusPayload? = nil,
-                                            boardingPosition: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.boardingPositionPayload? = nil,
-                                            exit: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload.exitPayload? = nil
-                                        ) {
-                                            self.id = id
-                                            self._type = _type
-                                            self.durationSeconds = durationSeconds
-                                            self.from = from
-                                            self.to = to
-                                            self.departureAt = departureAt
-                                            self.arrivalAt = arrivalAt
-                                            self.scheduledDepartureAt = scheduledDepartureAt
-                                            self.scheduledArrivalAt = scheduledArrivalAt
-                                            self.geometry = geometry
-                                            self.route = route
-                                            self.direction = direction
-                                            self.platform = platform
-                                            self.stops = stops
-                                            self.serviceId = serviceId
-                                            self.timingSource = timingSource
-                                            self.departureStatus = departureStatus
-                                            self.boardingPosition = boardingPosition
-                                            self.exit = exit
-                                        }
-                                        internal enum CodingKeys: String, CodingKey {
-                                            case id
-                                            case _type = "type"
-                                            case durationSeconds
-                                            case from
-                                            case to
-                                            case departureAt
-                                            case arrivalAt
-                                            case scheduledDepartureAt
-                                            case scheduledArrivalAt
-                                            case geometry
-                                            case route
-                                            case direction
-                                            case platform
-                                            case stops
-                                            case serviceId
-                                            case timingSource
-                                            case departureStatus
-                                            case boardingPosition
-                                            case exit
-                                        }
-                                    }
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sections`.
-                                    internal typealias sectionsPayload = [Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayloadPayload]
-                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeysPayload/sections`.
-                                    internal var sections: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayload
-                                    /// Creates a new `journeysPayloadPayload`.
-                                    ///
-                                    /// - Parameters:
-                                    ///   - id:
-                                    ///   - qualifier:
-                                    ///   - durationSeconds:
-                                    ///   - walkingDurationSeconds:
-                                    ///   - transferCount:
-                                    ///   - departureAt:
-                                    ///   - arrivalAt:
-                                    ///   - status:
-                                    ///   - warnings:
-                                    ///   - accessibility:
-                                    ///   - peak:
-                                    ///   - reportedCrowding:
-                                    ///   - wheelchairReport:
-                                    ///   - sections:
-                                    internal init(
-                                        id: Swift.String,
-                                        qualifier: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.qualifierPayload,
-                                        durationSeconds: Swift.Int,
-                                        walkingDurationSeconds: Swift.Int,
-                                        transferCount: Swift.Int,
-                                        departureAt: Foundation.Date,
-                                        arrivalAt: Foundation.Date,
-                                        status: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.statusPayload,
-                                        warnings: [Swift.String],
-                                        accessibility: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.accessibilityPayload? = nil,
-                                        peak: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.peakPayload? = nil,
-                                        reportedCrowding: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.reportedCrowdingPayload? = nil,
-                                        wheelchairReport: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.wheelchairReportPayload? = nil,
-                                        sections: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload.sectionsPayload
-                                    ) {
-                                        self.id = id
-                                        self.qualifier = qualifier
-                                        self.durationSeconds = durationSeconds
-                                        self.walkingDurationSeconds = walkingDurationSeconds
-                                        self.transferCount = transferCount
-                                        self.departureAt = departureAt
-                                        self.arrivalAt = arrivalAt
-                                        self.status = status
-                                        self.warnings = warnings
-                                        self.accessibility = accessibility
-                                        self.peak = peak
-                                        self.reportedCrowding = reportedCrowding
-                                        self.wheelchairReport = wheelchairReport
-                                        self.sections = sections
-                                    }
-                                    internal enum CodingKeys: String, CodingKey {
-                                        case id
-                                        case qualifier
-                                        case durationSeconds
-                                        case walkingDurationSeconds
-                                        case transferCount
-                                        case departureAt
-                                        case arrivalAt
-                                        case status
-                                        case warnings
-                                        case accessibility
-                                        case peak
-                                        case reportedCrowding
-                                        case wheelchairReport
-                                        case sections
-                                    }
-                                }
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeys`.
-                                internal typealias journeysPayload = [Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayloadPayload]
-                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys/journeys`.
-                                internal var journeys: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayload
-                                /// Creates a new `journeysPayload`.
-                                ///
-                                /// - Parameters:
-                                ///   - status:
-                                ///   - source:
-                                ///   - generatedAt:
-                                ///   - reason:
-                                ///   - journeys:
-                                internal init(
-                                    status: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.statusPayload,
-                                    source: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.sourcePayload? = nil,
-                                    generatedAt: Foundation.Date,
-                                    reason: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.reasonPayload? = nil,
-                                    journeys: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload.journeysPayload
-                                ) {
-                                    self.status = status
-                                    self.source = source
-                                    self.generatedAt = generatedAt
-                                    self.reason = reason
-                                    self.journeys = journeys
-                                }
-                                internal enum CodingKeys: String, CodingKey {
-                                    case status
-                                    case source
-                                    case generatedAt
-                                    case reason
-                                    case journeys
-                                }
-                            }
-                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/journeys`.
-                            internal var journeys: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload
                             /// Creates a new `Value1Payload`.
                             ///
                             /// - Parameters:
                             ///   - outcome:
                             ///   - interpretation:
-                            ///   - journeys:
                             internal init(
                                 outcome: OpenAPIRuntime.OpenAPIValueContainer,
-                                interpretation: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload,
-                                journeys: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.journeysPayload
+                                interpretation: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload
                             ) {
                                 self.outcome = outcome
                                 self.interpretation = interpretation
-                                self.journeys = journeys
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case outcome
                                 case interpretation
-                                case journeys
                             }
                         }
                         /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1`.
@@ -8855,38 +8042,7 @@ internal enum Operations {
                             internal var outcome: OpenAPIRuntime.OpenAPIValueContainer
                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2/message`.
                             internal var message: Swift.String
-                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2/examples`.
-                            internal var examples: [Swift.String]
                             /// Creates a new `Value2Payload`.
-                            ///
-                            /// - Parameters:
-                            ///   - outcome:
-                            ///   - message:
-                            ///   - examples:
-                            internal init(
-                                outcome: OpenAPIRuntime.OpenAPIValueContainer,
-                                message: Swift.String,
-                                examples: [Swift.String]
-                            ) {
-                                self.outcome = outcome
-                                self.message = message
-                                self.examples = examples
-                            }
-                            internal enum CodingKeys: String, CodingKey {
-                                case outcome
-                                case message
-                                case examples
-                            }
-                        }
-                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2`.
-                        internal var value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value2Payload?
-                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value3`.
-                        internal struct Value3Payload: Codable, Hashable, Sendable {
-                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value3/outcome`.
-                            internal var outcome: OpenAPIRuntime.OpenAPIValueContainer
-                            /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value3/message`.
-                            internal var message: Swift.String
-                            /// Creates a new `Value3Payload`.
                             ///
                             /// - Parameters:
                             ///   - outcome:
@@ -8903,22 +8059,19 @@ internal enum Operations {
                                 case message
                             }
                         }
-                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value3`.
-                        internal var value3: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value3Payload?
+                        /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value2`.
+                        internal var value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value2Payload?
                         /// Creates a new `jsonPayload`.
                         ///
                         /// - Parameters:
                         ///   - value1:
                         ///   - value2:
-                        ///   - value3:
                         internal init(
                             value1: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload? = nil,
-                            value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value2Payload? = nil,
-                            value3: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value3Payload? = nil
+                            value2: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value2Payload? = nil
                         ) {
                             self.value1 = value1
                             self.value2 = value2
-                            self.value3 = value3
                         }
                         internal init(from decoder: any Swift.Decoder) throws {
                             var errors: [any Swift.Error] = []
@@ -8932,16 +8085,10 @@ internal enum Operations {
                             } catch {
                                 errors.append(error)
                             }
-                            do {
-                                self.value3 = try .init(from: decoder)
-                            } catch {
-                                errors.append(error)
-                            }
                             try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
                                 [
                                     self.value1,
-                                    self.value2,
-                                    self.value3
+                                    self.value2
                                 ],
                                 type: Self.self,
                                 codingPath: decoder.codingPath,
@@ -8951,7 +8098,6 @@ internal enum Operations {
                         internal func encode(to encoder: any Swift.Encoder) throws {
                             try self.value1?.encode(to: encoder)
                             try self.value2?.encode(to: encoder)
-                            try self.value3?.encode(to: encoder)
                         }
                     }
                     /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/application\/json`.

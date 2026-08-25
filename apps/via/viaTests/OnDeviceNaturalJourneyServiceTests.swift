@@ -4,6 +4,238 @@ import XCTest
 final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
     private let now = ISO8601.parse("2026-08-17T09:00:00+02:00")!
 
+    func testMissingHomeRequiresDedicatedChoiceWithoutGeocodingItsAlias() async throws {
+        let auber = address("auber", "Auber")
+        let search = NaturalJourneyQueryRecorder(results: [auber])
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: {
+                [NaturalJourneySavedPlaceReference(
+                    id: "role:home",
+                    label: "Maison",
+                    kind: .home,
+                    result: nil,
+                )]
+            },
+            serverFallbackAllowed: { false },
+        )
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let service = OnDeviceNaturalJourneyService(
+            understanding: understanding,
+            places: OnDevicePlaceResolver { query, _ in
+                await search.response(for: query)
+            },
+            journeys: journeys,
+            now: { self.now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "rentrez chez moi depuis Auber",
+            currentLocation: nil,
+        ))
+
+        guard case .needsDecision(
+            _,
+            .missingSavedPlace(target: .destination, kind: .home)
+        ) = result else {
+            return XCTFail("Maison absente doit déclencher le choix dédié")
+        }
+        let queries = await search.queries
+        XCTAssertFalse(queries.contains { OnDevicePlaceResolver.normalize($0) == "chez moi" })
+        XCTAssertFalse(queries.contains { OnDevicePlaceResolver.normalize($0) == "maison" })
+        let requests = await journeys.requests
+        XCTAssertTrue(requests.isEmpty)
+    }
+
+    func testUnderstandingConflictStopsBeforePlaceResolutionAndPlanning() async throws {
+        let intent = RouteIntent(
+            scope: .journey,
+            origin: .place(query: "Auber"),
+            destinationQuery: "Nation",
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+        )
+        let transition = NaturalJourneyTransition(
+            state: NaturalJourneyDialogueState(intent: intent),
+            changedFields: [.origin, .destination],
+            conflicts: [NaturalJourneyConflict(
+                field: .origin,
+                groundedEvidence: "depuis Auber",
+                proposedEvidence: "Nation",
+            )],
+        )
+        let search = NaturalJourneyQueryRecorder(results: [])
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let service = OnDeviceNaturalJourneyService(
+            understanding: FixedNaturalJourneyUnderstanding(transition: transition),
+            places: OnDevicePlaceResolver { query, _ in
+                await search.response(for: query)
+            },
+            journeys: journeys,
+            now: { self.now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "Depuis Auber vers Nation",
+            currentLocation: nil,
+        ))
+
+        guard case .needsDecision(_, .interpretationConflict(let fields)) = result else {
+            return XCTFail("Un désaccord d’ancre doit être visible")
+        }
+        XCTAssertEqual(fields, [.origin])
+        let queries = await search.queries
+        let requests = await journeys.requests
+        XCTAssertTrue(queries.isEmpty)
+        XCTAssertTrue(requests.isEmpty)
+    }
+
+    func testUnexplainedTextMustBeAcknowledgedBeforePlanning() async throws {
+        let intent = RouteIntent(
+            scope: .journey,
+            origin: .currentLocation,
+            destinationQuery: "Nation",
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            originWasExplicit: true,
+        )
+        let transition = NaturalJourneyTransition(
+            state: NaturalJourneyDialogueState(intent: intent),
+            changedFields: [.destination],
+            conflicts: [],
+            unexplainedText: "sans correspondance compliquée",
+        )
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let service = OnDeviceNaturalJourneyService(
+            understanding: FixedNaturalJourneyUnderstanding(transition: transition),
+            places: OnDevicePlaceResolver { _, _ in
+                SearchResponse(results: [], addressSource: .ok)
+            },
+            journeys: journeys,
+            now: { self.now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "Nation sans correspondance compliquée",
+            currentLocation: .init(latitude: 48.85, longitude: 2.35),
+        ))
+
+        guard case .needsDecision(_, .unexplainedText(let text)) = result else {
+            return XCTFail("Le fragment inexpliqué ne doit pas être ignoré")
+        }
+        XCTAssertEqual(text, "sans correspondance compliquée")
+        let requests = await journeys.requests
+        XCTAssertTrue(requests.isEmpty)
+    }
+
+    func testCustomAliasCollisionShowsSavedAndPublicCandidates() async throws {
+        let saved = address("saved-bastille", "Mon Bastille")
+        let publicPlace = address("public-bastille", "Bastille")
+        let reference = NaturalJourneySavedPlaceReference(
+            id: "custom:bastille",
+            label: "Bastille",
+            kind: .custom,
+            result: saved,
+        )
+        let intent = RouteIntent(
+            scope: .journey,
+            origin: .currentLocation,
+            destinationQuery: nil,
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            originWasExplicit: true,
+        ).replacingPlaces(destination: .saved(reference), replaceDestination: true)
+        let transition = NaturalJourneyTransition(
+            state: NaturalJourneyDialogueState(intent: intent),
+            changedFields: [.destination],
+            conflicts: [],
+        )
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let service = OnDeviceNaturalJourneyService(
+            understanding: FixedNaturalJourneyUnderstanding(transition: transition),
+            places: OnDevicePlaceResolver { _, _ in
+                SearchResponse(results: [publicPlace], addressSource: .ok)
+            },
+            journeys: journeys,
+            now: { self.now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "Va à Bastille",
+            currentLocation: .init(latitude: 48.85, longitude: 2.35),
+        ))
+
+        guard case let .needsClarification(_, fields) = result else {
+            return XCTFail("Une collision d’alias doit être clarifiée")
+        }
+        XCTAssertEqual(fields.first?.target, .destination)
+        XCTAssertEqual(fields.first?.candidates, [saved, publicPlace])
+        let requests = await journeys.requests
+        XCTAssertTrue(requests.isEmpty)
+    }
+
+    func testAmbiguousConversationReferenceAsksInsteadOfGeocodingThere() async throws {
+        let previousIntent = RouteIntent(
+            scope: .journey,
+            originPlace: .query("Auber"),
+            destinationPlace: .query("Nation"),
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+        )
+        var previousState = NaturalJourneyDialogueState(intent: previousIntent)
+        previousState[field: .origin] = .confirmed(evidence: "Auber")
+        previousState[field: .destination] = .confirmed(evidence: "Nation")
+        let draft = NaturalJourneyDraft(
+            dialogueState: previousState,
+            origin: address("auber", "Auber"),
+            destination: address("nation", "Nation"),
+        )
+        let search = NaturalJourneyQueryRecorder(results: [])
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: { [] },
+            serverFallbackAllowed: { false },
+        )
+        let service = OnDeviceNaturalJourneyService(
+            understanding: understanding,
+            places: OnDevicePlaceResolver { query, _ in
+                await search.response(for: query)
+            },
+            journeys: journeys,
+            now: { self.now },
+        )
+
+        let result = try await service.submit(.revise(
+            query: "pars de là vers Bastille",
+            draft: draft,
+            currentLocation: nil,
+        ))
+
+        guard case let .needsClarification(_, fields) = result else {
+            return XCTFail("Une référence sans antécédent unique doit être clarifiée")
+        }
+        XCTAssertEqual(fields.first?.target, .origin)
+        let queries = await search.queries
+        let requests = await journeys.requests
+        XCTAssertTrue(queries.isEmpty)
+        XCTAssertTrue(requests.isEmpty)
+    }
+
     func testMissingOriginProposesCurrentLocationBeforePlanning() async throws {
         let destination = address("nation", "Nation")
         let parser = InMemoryNaturalIntentParser(intent: RouteIntent(
@@ -923,6 +1155,33 @@ private actor OnDeviceJourneyRecorder: JourneyRepository {
     func plan(_ request: JourneyRequest) async throws -> JourneyResult {
         requests.append(request)
         return results[min(requests.count - 1, results.count - 1)]
+    }
+}
+
+private actor NaturalJourneyQueryRecorder {
+    private(set) var queries: [String] = []
+    let results: [SearchResult]
+
+    init(results: [SearchResult]) {
+        self.results = results
+    }
+
+    func response(for query: String) -> SearchResponse {
+        queries.append(query)
+        return SearchResponse(results: results, addressSource: .ok)
+    }
+}
+
+private struct FixedNaturalJourneyUnderstanding: NaturalJourneyUnderstanding {
+    let transition: NaturalJourneyTransition
+
+    var availability: NaturalLanguageAvailability { .available }
+
+    func interpret(
+        _: NaturalJourneyTurn,
+        state _: NaturalJourneyDialogueState?
+    ) async throws -> NaturalJourneyTransition {
+        transition
     }
 }
 

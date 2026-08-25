@@ -1,231 +1,278 @@
 import Foundation
+@testable import Via
 import XCTest
 
-@testable import Via
-
 final class NaturalJourneyFallbackTests: XCTestCase {
+    private let now = ISO8601.parse("2026-08-26T18:00:00+02:00")!
 
-  // MARK: - Wire decoding
+    func testServerPatchRehydratesAnOpaqueSavedPlaceWithoutPersonalCoordinatesOnTheWire() throws {
+        let home = NaturalJourneySavedPlaceReference(
+            id: "role:home",
+            label: "Maison",
+            kind: .home,
+            result: .previewAddress,
+        )
+        let json = #"""
+        {
+          "outcome": "interpreted",
+          "interpretation": {
+            "scope": "journey",
+            "origin": { "kind": "query", "value": "Auber", "evidence": "Auber" },
+            "destination": { "kind": "saved", "value": "role:home", "evidence": "chez moi" },
+            "originWasExplicit": true,
+            "lastServiceOfDay": false,
+            "timeConstraint": {
+              "reference": "implicit_today", "year": 2000, "yearWasExplicit": false,
+              "month": 1, "day": 1, "timePrecision": "unspecified", "hour": 0,
+              "minute": 0, "relativeAmount": 0, "relativeUnit": "minute",
+              "meaning": "departure", "evidence": ""
+            },
+            "requiredModes": [], "excludedModes": [], "preferredModes": [],
+            "unsupportedConstraints": [], "unexplainedText": ""
+          }
+        }
+        """#
+        let request = NaturalIntentModelRequest(
+            phrase: "rentrez chez moi depuis Auber",
+            locale: Locale(identifier: "fr_FR"),
+            now: now,
+            hasCurrentLocation: false,
+            originAnchor: nil,
+            destinationAnchor: nil,
+            savedPlaces: [home],
+        )
 
-  func testReadyOutcomeDecodesToReadyResult() throws {
-    let json = #"""
-    {
-      "outcome": "ready",
-      "interpretation": {
-        "originLabel": "Ma position",
-        "destination": {
-          "kind": "station",
-          "id": "chatelet",
-          "name": "Châtelet",
-          "coordinate": { "latitude": 48.8586, "longitude": 2.3475 }
-        },
-        "destinationResult": {
-          "kind": "station",
-          "id": "chatelet",
-          "name": "Châtelet",
-          "coordinate": { "latitude": 48.8586, "longitude": 2.3475 },
-          "routes": []
-        },
-        "requestedAt": "2026-08-25T09:00:00+02:00",
-        "datetimeRepresents": "arrival",
-        "requiredModes": ["metro"],
-        "excludedModes": [],
-        "preferredModes": []
-      },
-      "journeys": {
-        "status": "ready",
-        "source": "idfm-realtime",
-        "generatedAt": "2026-08-25T08:00:00+02:00",
-        "journeys": []
-      }
+        let proposal = try JSONDecoder.via
+            .decode(NaturalIntentResponseDTO.self, from: Data(json.utf8))
+            .proposal(for: request)
+
+        XCTAssertEqual(proposal.intent.originPlace, .query("Auber"))
+        XCTAssertEqual(proposal.intent.destinationPlace, .saved(home))
+        XCTAssertEqual(proposal.originEvidence, "Auber")
+        XCTAssertEqual(proposal.destinationEvidence, "chez moi")
     }
-    """#
 
-    let result = try JSONDecoder.via
-      .decode(NaturalJourneyResponseDTO.self, from: Data(json.utf8))
-      .domain()
+    func testServerPatchCannotInventAModeAbsentFromThePhrase() throws {
+        let json = #"""
+        {
+          "outcome": "interpreted",
+          "interpretation": {
+            "scope": "journey",
+            "destination": { "kind": "query", "value": "Nation", "evidence": "Nation" },
+            "originWasExplicit": false,
+            "lastServiceOfDay": false,
+            "timeConstraint": {
+              "reference": "implicit_today", "year": 2000, "yearWasExplicit": false,
+              "month": 1, "day": 1, "timePrecision": "unspecified", "hour": 0,
+              "minute": 0, "relativeAmount": 0, "relativeUnit": "minute",
+              "meaning": "departure", "evidence": ""
+            },
+            "requiredModes": ["rer"], "excludedModes": [], "preferredModes": [],
+            "unsupportedConstraints": [], "unexplainedText": ""
+          }
+        }
+        """#
+        let request = NaturalIntentModelRequest(
+            phrase: "Va à Nation",
+            locale: Locale(identifier: "fr_FR"),
+            now: now,
+            hasCurrentLocation: true,
+            originAnchor: nil,
+            destinationAnchor: nil,
+            savedPlaces: [],
+        )
 
-    guard case .ready(let interpretation, let journeys) = result else {
-      return XCTFail("Expected .ready, got \(result)")
+        let dto = try JSONDecoder.via.decode(
+            NaturalIntentResponseDTO.self,
+            from: Data(json.utf8),
+        )
+
+        XCTAssertThrowsError(try dto.proposal(for: request)) { error in
+            XCTAssertEqual(error as? NaturalIntentParsingError, .invalidResponse)
+        }
     }
-    XCTAssertEqual(interpretation.originLabel, "Ma position")
-    XCTAssertNil(interpretation.originResult)
-    XCTAssertEqual(interpretation.destinationResult.name, "Châtelet")
-    XCTAssertEqual(interpretation.datetimeRepresents, .arrival)
-    XCTAssertEqual(interpretation.requiredModes, [.metro])
-    XCTAssertEqual(journeys.journeys.count, 0)
-  }
 
-  func testUnsupportedOutcomeDecodes() throws {
-    let json = #"""
-    {
-      "outcome": "unsupported",
-      "message": "Metyro ne comprend pas cette demande.",
-      "examples": ["Châtelet demain avant 9 h"]
+    func testServerPatchCannotAugmentAPlaceBeyondItsEvidence() throws {
+        let json = #"""
+        {
+          "outcome": "interpreted",
+          "interpretation": {
+            "scope": "journey",
+            "destination": { "kind": "query", "value": "Nation Paris", "evidence": "Nation" },
+            "originWasExplicit": false,
+            "lastServiceOfDay": false,
+            "timeConstraint": {
+              "reference": "implicit_today", "year": 2000, "yearWasExplicit": false,
+              "month": 1, "day": 1, "timePrecision": "unspecified", "hour": 0,
+              "minute": 0, "relativeAmount": 0, "relativeUnit": "minute",
+              "meaning": "departure", "evidence": ""
+            },
+            "requiredModes": [], "excludedModes": [], "preferredModes": [],
+            "unsupportedConstraints": [], "unexplainedText": ""
+          }
+        }
+        """#
+        let request = NaturalIntentModelRequest(
+            phrase: "Va à Nation",
+            locale: Locale(identifier: "fr_FR"),
+            now: now,
+            hasCurrentLocation: true,
+            originAnchor: nil,
+            destinationAnchor: nil,
+            savedPlaces: [],
+        )
+
+        let dto = try JSONDecoder.via.decode(
+            NaturalIntentResponseDTO.self,
+            from: Data(json.utf8),
+        )
+
+        XCTAssertThrowsError(try dto.proposal(for: request)) { error in
+            XCTAssertEqual(error as? NaturalIntentParsingError, .invalidResponse)
+        }
     }
-    """#
 
-    let result = try JSONDecoder.via
-      .decode(NaturalJourneyResponseDTO.self, from: Data(json.utf8))
-      .domain()
+    func testServerPatchPreservesOnlyAnAppAnchoredConversationReference() throws {
+        let json = #"""
+        {
+          "outcome": "interpreted",
+          "interpretation": {
+            "scope": "journey",
+            "destination": {
+              "kind": "context_reference",
+              "value": "uniquely_confirmed_place",
+              "evidence": "there"
+            },
+            "originWasExplicit": false,
+            "lastServiceOfDay": false,
+            "timeConstraint": {
+              "reference": "implicit_today", "year": 2000, "yearWasExplicit": false,
+              "month": 1, "day": 1, "timePrecision": "unspecified", "hour": 0,
+              "minute": 0, "relativeAmount": 0, "relativeUnit": "minute",
+              "meaning": "departure", "evidence": ""
+            },
+            "requiredModes": [], "excludedModes": [], "preferredModes": [],
+            "unsupportedConstraints": [], "unexplainedText": ""
+          }
+        }
+        """#
+        let anchor = NaturalIntentModelAnchor(
+            place: .reference(.uniquelyConfirmedPlace),
+            evidence: "there",
+        )
+        let request = NaturalIntentModelRequest(
+            phrase: "go there",
+            locale: Locale(identifier: "en_US"),
+            now: now,
+            hasCurrentLocation: true,
+            originAnchor: nil,
+            destinationAnchor: anchor,
+            savedPlaces: [],
+        )
+        let dto = try JSONDecoder.via.decode(
+            NaturalIntentResponseDTO.self,
+            from: Data(json.utf8),
+        )
 
-    XCTAssertEqual(
-      result,
-      .unsupported(
-        message: "Metyro ne comprend pas cette demande.",
-        examples: ["Châtelet demain avant 9 h"]
-      )
-    )
-  }
+        let proposal = try dto.proposal(for: request)
 
-  func testUnavailableOutcomeDecodes() throws {
-    let json = #"""
-    { "outcome": "unavailable", "message": "Momentanément indisponible." }
-    """#
-
-    let result = try JSONDecoder.via
-      .decode(NaturalJourneyResponseDTO.self, from: Data(json.utf8))
-      .domain()
-
-    XCTAssertEqual(result, .unavailable(message: "Momentanément indisponible."))
-  }
-
-  // MARK: - Hybrid routing
-
-  func testSubmitStaysOnDeviceWhenAvailable() async throws {
-    let onDevice = RecordingNaturalJourneyRepository(result: .unsupported(message: "local", examples: []))
-    let remote = RecordingNaturalJourneyRepository(result: .unsupported(message: "remote", examples: []))
-    let hybrid = HybridNaturalJourneyService(
-      onDevice: onDevice,
-      remote: remote,
-      availability: { .available }
-    )
-
-    let result = try await hybrid.submit(.submit(query: "Châtelet", currentLocation: nil))
-
-    XCTAssertEqual(result, .unsupported(message: "local", examples: []))
-    let onDeviceCallCount = await onDevice.callCount
-    let remoteCallCount = await remote.callCount
-    XCTAssertEqual(onDeviceCallCount, 1)
-    XCTAssertEqual(remoteCallCount, 0)
-  }
-
-  func testSubmitGoesRemoteWhenUnavailable() async throws {
-    let onDevice = RecordingNaturalJourneyRepository(result: .unsupported(message: "local", examples: []))
-    let remote = RecordingNaturalJourneyRepository(result: .unsupported(message: "remote", examples: []))
-    let hybrid = HybridNaturalJourneyService(
-      onDevice: onDevice,
-      remote: remote,
-      availability: { .unavailable(.deviceNotEligible) }
-    )
-
-    let result = try await hybrid.submit(.submit(query: "Châtelet", currentLocation: nil))
-
-    XCTAssertEqual(result, .unsupported(message: "remote", examples: []))
-    let onDeviceCallCount = await onDevice.callCount
-    let remoteCallCount = await remote.callCount
-    XCTAssertEqual(onDeviceCallCount, 0)
-    XCTAssertEqual(remoteCallCount, 1)
-  }
-
-  func testSubmitRescuesRemoteWhenLocalModelFails() async throws {
-    let onDevice = RecordingNaturalJourneyRepository(error: NaturalIntentParsingError.modelFailed)
-    let remote = RecordingNaturalJourneyRepository(result: .unsupported(message: "remote", examples: []))
-    let hybrid = HybridNaturalJourneyService(
-      onDevice: onDevice,
-      remote: remote,
-      availability: { .available }
-    )
-
-    let result = try await hybrid.submit(.submit(query: "Châtelet", currentLocation: nil))
-
-    XCTAssertEqual(result, .unsupported(message: "remote", examples: []))
-    let onDeviceCallCount = await onDevice.callCount
-    let remoteCallCount = await remote.callCount
-    XCTAssertEqual(onDeviceCallCount, 1)
-    XCTAssertEqual(remoteCallCount, 1)
-  }
-
-  func testSubmitNeverForwardsARefusedPhrase() async throws {
-    let onDevice = RecordingNaturalJourneyRepository(error: NaturalIntentParsingError.contentRefused)
-    let remote = RecordingNaturalJourneyRepository(result: .unsupported(message: "remote", examples: []))
-    let hybrid = HybridNaturalJourneyService(
-      onDevice: onDevice,
-      remote: remote,
-      availability: { .available }
-    )
-
-    do {
-      _ = try await hybrid.submit(.submit(query: "Châtelet", currentLocation: nil))
-      XCTFail("Expected the local refusal to surface")
-    } catch let error as NaturalIntentParsingError {
-      XCTAssertEqual(error, .contentRefused)
+        XCTAssertEqual(
+            proposal.intent.destinationPlace,
+            .reference(.uniquelyConfirmedPlace),
+        )
     }
-    let remoteCallCount = await remote.callCount
-    XCTAssertEqual(remoteCallCount, 0)
-  }
 
-  func testFollowUpRequestsNeverGoRemote() async throws {
-    let onDevice = RecordingNaturalJourneyRepository(result: .unsupported(message: "local", examples: []))
-    let remote = RecordingNaturalJourneyRepository(result: .unsupported(message: "remote", examples: []))
-    let hybrid = HybridNaturalJourneyService(
-      onDevice: onDevice,
-      remote: remote,
-      // Even with the local model unavailable, a draft belongs on-device.
-      availability: { .unavailable(.modelNotReady) }
-    )
+    func testTechnicalLocalFailureUsesTheServerInterpreterWhenAllowed() async throws {
+        let localCalls = NaturalIntentParserCallRecorder()
+        let remoteCalls = NaturalIntentParserCallRecorder()
+        let expected = intent(destination: "Nation")
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: RecordingNaturalIntentParser(
+                calls: localCalls,
+                result: .failure(.modelBusy),
+            ),
+            remoteModel: RecordingNaturalIntentParser(
+                calls: remoteCalls,
+                result: .success(NaturalIntentProposal(intent: expected)),
+            ),
+            savedPlaces: { [] },
+            serverFallbackAllowed: { true },
+        )
 
-    let draft = NaturalJourneyDraft(
-      intent: RouteIntent(
-        scope: .journey,
-        origin: .currentLocation,
-        destinationQuery: "Châtelet",
-        requestedAt: nil,
-        datetimeRepresents: .departure,
-        requiredModes: [],
-        excludedModes: [],
-        preferredModes: []
-      ),
-      origin: nil,
-      destination: nil
-    )
-    _ = try await hybrid.submit(
-      .resolve(
-        draft: draft,
-        currentLocation: nil,
-        origin: nil,
-        destination: nil,
-        requestedAt: nil,
-        datetimeRepresents: .departure
-      ))
+        let transition = try await understanding.interpret(
+            NaturalJourneyTurn(
+                phrase: "Je voudrais me rendre quelque part à Nation",
+                locale: Locale(identifier: "fr_FR"),
+                now: now,
+            ),
+            state: nil,
+        )
 
-    let onDeviceCallCount = await onDevice.callCount
-    let remoteCallCount = await remote.callCount
-    XCTAssertEqual(onDeviceCallCount, 1)
-    XCTAssertEqual(remoteCallCount, 0)
-  }
+        XCTAssertEqual(transition.state.intent.destinationQuery, "Nation")
+        let localCount = await localCalls.count
+        let remoteCount = await remoteCalls.count
+        XCTAssertEqual(localCount, 1)
+        XCTAssertEqual(remoteCount, 1)
+    }
+
+    func testSafetyRefusalNeverFallsBackToTheServer() async throws {
+        let remoteCalls = NaturalIntentParserCallRecorder()
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: RecordingNaturalIntentParser(
+                calls: NaturalIntentParserCallRecorder(),
+                result: .failure(.contentRefused),
+            ),
+            remoteModel: RecordingNaturalIntentParser(
+                calls: remoteCalls,
+                result: .success(NaturalIntentProposal(intent: intent(destination: "Nation"))),
+            ),
+            savedPlaces: { [] },
+            serverFallbackAllowed: { true },
+        )
+
+        do {
+            _ = try await understanding.interpret(
+                NaturalJourneyTurn(phrase: "Demande refusée vers Nation", now: now),
+                state: nil,
+            )
+            XCTFail("Le refus local doit rester terminal")
+        } catch let error as NaturalIntentParsingError {
+            XCTAssertEqual(error, .contentRefused)
+        }
+        let remoteCount = await remoteCalls.count
+        XCTAssertEqual(remoteCount, 0)
+    }
+
+    private func intent(destination: String) -> RouteIntent {
+        RouteIntent(
+            scope: .journey,
+            origin: .currentLocation,
+            destinationQuery: destination,
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            originWasExplicit: false,
+        )
+    }
 }
 
-/// A repository double that counts calls and answers with a canned result or
-/// error, so routing through `HybridNaturalJourneyService` is observable.
-private actor RecordingNaturalJourneyRepository: NaturalJourneyRepository {
-  private let result: NaturalJourneyResult?
-  private let error: Error?
-  private(set) var callCount = 0
+private actor NaturalIntentParserCallRecorder {
+    private(set) var count = 0
+    func record() { count += 1 }
+}
 
-  init(result: NaturalJourneyResult) {
-    self.result = result
-    error = nil
-  }
+private struct RecordingNaturalIntentParser: NaturalIntentParsing {
+    let calls: NaturalIntentParserCallRecorder
+    let result: Result<NaturalIntentProposal, NaturalIntentParsingError>
 
-  init(error: Error) {
-    result = nil
-    self.error = error
-  }
+    var availability: NaturalLanguageAvailability { .available }
 
-  func submit(_ request: NaturalJourneyRequest) async throws -> NaturalJourneyResult {
-    callCount += 1
-    if let error { throw error }
-    return result!
-  }
+    func proposeIntent(
+        _: NaturalIntentModelRequest
+    ) async throws(NaturalIntentParsingError) -> NaturalIntentProposal {
+        await calls.record()
+        return try result.get()
+    }
 }

@@ -7,11 +7,22 @@ struct NaturalJourneyCriteriaView: View {
     let onEditDestination: () -> Void
     let onEditTime: () -> Void
     let onEditOptions: () -> Void
+    let onReportInterpretation: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(summary)
-                .font(.headline)
+            HStack {
+                Text(summary)
+                    .font(.headline)
+                Spacer()
+                Button(
+                    "Signaler une interprétation incorrecte",
+                    systemImage: "exclamationmark.bubble",
+                    action: onReportInterpretation,
+                )
+                .labelStyle(.iconOnly)
+                .accessibilityHint("Ouvre un aperçu sans conserver la phrase d’origine")
+            }
 
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {

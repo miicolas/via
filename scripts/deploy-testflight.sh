@@ -18,7 +18,8 @@ Options:
 
 Environment overrides:
   ASC_DEPLOY_APP_ID, ASC_DEPLOY_BUNDLE_ID, ASC_DEPLOY_VERSION,
-  ASC_DEPLOY_TESTFLIGHT_GROUP, ASC_DEPLOY_TIMEOUT
+  ASC_DEPLOY_TESTFLIGHT_GROUP, ASC_DEPLOY_TIMEOUT,
+  ASC_NATURAL_JOURNEY_EVAL_DESTINATION
 USAGE
 }
 
@@ -34,6 +35,7 @@ require_command() {
 }
 
 require_command asc
+require_command bun
 require_command jq
 require_command xcodebuild
 
@@ -48,6 +50,7 @@ DEPLOY_BUNDLE_ID="${ASC_DEPLOY_BUNDLE_ID:-dev.via.app}"
 DEPLOY_VERSION="${ASC_DEPLOY_VERSION:-}"
 DEPLOY_TESTFLIGHT_GROUP="${ASC_DEPLOY_TESTFLIGHT_GROUP:-}"
 DEPLOY_TIMEOUT="${ASC_DEPLOY_TIMEOUT:-60m}"
+NATURAL_EVAL_DESTINATION="${ASC_NATURAL_JOURNEY_EVAL_DESTINATION:-}"
 DRY_RUN=0
 
 while [ "$#" -gt 0 ]; do
@@ -153,6 +156,29 @@ if [ "$DRY_RUN" -eq 1 ]; then
   log "Plan validé: prochain build number → archive Xcode → IPA → TestFlight."
   exit 0
 fi
+
+if [ -z "$NATURAL_EVAL_DESTINATION" ]; then
+  log "Déploiement bloqué: ASC_NATURAL_JOURNEY_EVAL_DESTINATION doit cibler un appareil ou simulateur iOS 26 compatible avec Foundation Models."
+  exit 1
+fi
+
+log "Validation des contrats, du serveur et des tests non iOS"
+bun run typecheck
+bun run test
+bun run check:openapi
+
+log "Gate IA: invariants critiques à 100 %, corpus FR/EN à 99 %"
+xcodebuild \
+  -project "$PROJECT_PATH" \
+  -scheme "$SCHEME" \
+  -configuration Debug \
+  -destination "$NATURAL_EVAL_DESTINATION" \
+  'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) VIA_RELEASE_EVAL_GATE' \
+  -only-testing:viaTests/NaturalJourneyUnderstandingTests \
+  -only-testing:viaTests/OnDeviceNaturalJourneyServiceTests \
+  -only-testing:viaTests/NaturalJourneyFallbackTests \
+  -only-testing:viaTests/NaturalJourneyIntentEvalTests \
+  test
 
 mkdir -p .asc/artifacts
 

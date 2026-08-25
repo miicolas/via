@@ -41,7 +41,7 @@ Règle de préséance : `animate` gouverne les courbes, durées et le choix d'ou
 
 App iOS 26 native, SwiftUI, transports en commun à Paris (métro, RER, bus). Ce qu'elle fait, vérifiable dans `apps/landing/public/images/` :
 
-- **`ai-search.png`** — « Recherche intelligente » : tu décris ton trajet en une phrase (« Gare du Nord vers Orly, sans RER ») et l'app comprend lieux, heure, contraintes. Mention en bas de l'écran : « Traité sur cet iPhone avec Apple Intelligence » — **c'est l'argument différenciant : le traitement est local, rien ne part sur un serveur.**
+- **`ai-search.png`** — « Recherche intelligente » : tu décris ton trajet en une phrase (« Gare du Nord vers Orly, sans RER ») et l'app comprend lieux, heure, contraintes. Mention en bas de l'écran : « Traité sur cet iPhone quand c’est possible, sinon par le serveur sécurisé » ; la demande n’est pas conservée et un mode local uniquement reste disponible.
 - **`live-activity.png`** — trajet en cours : « Descendre dans 3 arrêts », progression sur la ligne, correspondances, marche finale, heure d'arrivée.
 - **`disruptions.png`** — perturbations en temps réel.
 - **`stations-map.png`** — carte des stations.
@@ -119,7 +119,7 @@ Pas de blob flouté, pas de grille en fond, pas de badge au-dessus du titre anno
 Quatre à cinq sections, chacune un `<h2>` court et une idée unique :
 
 1. **La recherche en langage naturel** — la phrase tapée, ce que l'app en comprend. `ai-search.png`, grand. C'est la section la plus travaillée de la page.
-2. **Le traitement local** — Apple Intelligence sur l'appareil, rien ne part. Sobre, typographique, peu ou pas d'image. Ça se lit comme une phrase, pas comme une feature-card.
+2. **Le traitement privé** — Apple Intelligence sur l’appareil quand c’est possible, sinon interprétation par le serveur sécurisé sans conservation de la demande. Sobre, typographique, peu ou pas d'image. Ça se lit comme une phrase, pas comme une feature-card.
 3. **Le trajet en cours** — `live-activity.png`.
 4. **Perturbations + carte + préférences** — les trois derniers screenshots, rythme alterné texte/image, pas une grille de cartes.
 5. **CTA final** — le bouton App Store, une phrase, rien d'autre.

@@ -6,12 +6,11 @@ export const naturalJourneysSubmitRelation = oc
   .route({
     method: 'POST',
     path: '/natural-journeys',
-    summary: 'Interpréter une phrase et calculer un itinéraire',
+    summary: 'Interpréter une phrase de trajet',
     description:
-      "Point d'entrée du repli serveur : reçoit une phrase en langage naturel, " +
-      "sa position éventuelle et le contexte temporel, puis renvoie le même résultat " +
-      "structuré que le chemin local. Réservé aux soumissions initiales — les " +
-      'clarifications restent traitées sur l’appareil.',
+      "Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres " +
+      'déterministes et des alias personnels opaques, puis renvoie le même patch ' +
+      'typé que le modèle local. La résolution et la planification restent sur l’appareil.',
     tags: ['natural-journeys'],
   })
   .input(naturalJourneyInputSchema)

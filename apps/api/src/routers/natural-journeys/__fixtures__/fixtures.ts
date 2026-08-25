@@ -41,12 +41,13 @@ export const JOURNEYS: JourneysResponse = {
 export const CONFIG: NaturalJourneyServiceConfig = {
   model: 'gpt-5.6-luna',
   reasoningEffort: 'minimal',
-  timeoutMs: 8_000,
+  timeoutMs: 5_000,
   personalLimit: 20,
   personalWindowSeconds: 900,
   breaker: { failureThreshold: 5, openSeconds: 60 },
   safetySecret: 'test-secret-key-at-least-16',
   pricing: null,
+  rolloutPercent: 100,
 };
 
 export function toolCallTurn(name: string, args: unknown, callId = 'call_1'): ResponsesTurn {

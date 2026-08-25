@@ -1,6 +1,6 @@
 # 0004 — Repli serveur pour la recherche en langage naturel
 
-- Statut : accepté
+- Statut : remplacé par ADR-0005
 - Date : 2026-08-25
 - Remplace : ADR-0002 (décisions 6, 8 et 9)
 

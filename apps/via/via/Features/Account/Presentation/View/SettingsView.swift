@@ -63,9 +63,9 @@ struct SettingsView: View {
                         AppleIntelligenceSettingsView(searchViewModel: searchViewModel)
                     } label: {
                         SettingsRow(
-                            title: "Apple Intelligence",
+                            title: "Recherche intelligente",
                             systemImage: "sparkles",
-                            subtitle: "Recherche en langage naturel",
+                            subtitle: "Compréhension locale et serveur",
                             tint: .purple,
                             value: intelligenceStatus
                         )

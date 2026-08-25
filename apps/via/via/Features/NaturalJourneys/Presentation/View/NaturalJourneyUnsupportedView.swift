@@ -3,6 +3,7 @@ import SwiftUI
 struct NaturalJourneyUnsupportedView: View {
     let message: String
     let suggestions: [String]
+    let feedbackPhrase: String
     let onModify: () -> Void
     let onClassicSearch: () -> Void
 
@@ -33,6 +34,7 @@ struct NaturalJourneyUnsupportedView: View {
                 // redrawing this screen, so it takes no spin and no haptic.
                 Button("Modifier la demande", systemImage: "pencil", action: onModify)
             }
+            NaturalJourneyFeedbackShareLink(phrase: feedbackPhrase)
         }
     }
 }
