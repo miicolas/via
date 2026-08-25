@@ -79,11 +79,12 @@ struct NaturalJourneyPreservedCriteriaView: View {
         init(_ criteria: NaturalJourneyCriteria) {
             origin = criteria.originLabel
             destination = criteria.destinationResult.name
-            time = NaturalJourneyCriteria.timeLabel(
+            let resolvedTime: String = NaturalJourneyCriteria.timeLabel(
                 criteria.requestedAt,
                 represents: criteria.datetimeRepresents,
                 anchor: criteria.timeAnchor,
             )
+            time = resolvedTime
             hasRequiredModes = !criteria.requiredModes.isEmpty
             hasExcludedModes = !criteria.excludedModes.isEmpty
             hasPreferredModes = !criteria.preferredModes.isEmpty
