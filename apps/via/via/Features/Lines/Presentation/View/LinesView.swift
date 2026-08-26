@@ -36,6 +36,9 @@ struct LinesView: View {
         .onChange(of: viewModel.requestedRouteID) { _, _ in
           openRequestedRoute()
         }
+        .onChange(of: viewModel.requestedRoute) { _, _ in
+          openRequestedRoute()
+        }
         .onChange(of: viewModel.board.value) { _, _ in
           openRequestedRoute()
         }
@@ -50,6 +53,11 @@ struct LinesView: View {
   }
 
   private func openRequestedRoute() {
+    if let status = viewModel.requestedRoute {
+      navigationPath.append(status)
+      viewModel.consumeRequestedRoute()
+      return
+    }
     guard let routeID = viewModel.requestedRouteID,
       let status = (viewModel.board.value?.lines ?? viewModel.remoteMatches)
         .first(where: { $0.route.id == routeID })

@@ -10,6 +10,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
     private let understanding: any NaturalJourneyUnderstanding
     private let places: OnDevicePlaceResolver
     private let journeys: any JourneyRepository
+    private let lineStatuses: (any LineStatusRepository)?
     private let now: @Sendable () -> Date
     private let metrics: any NaturalJourneyMetricsRecording
     private let metricsNow: @Sendable () -> Date
@@ -23,6 +24,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         understanding: any NaturalJourneyUnderstanding,
         places: OnDevicePlaceResolver,
         journeys: any JourneyRepository,
+        lineStatuses: (any LineStatusRepository)? = nil,
         now: @escaping @Sendable () -> Date = { .now },
         metrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
         metricsNow: @escaping @Sendable () -> Date = { .now },
@@ -33,6 +35,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         self.understanding = understanding
         self.places = places
         self.journeys = journeys
+        self.lineStatuses = lineStatuses
         self.now = now
         self.metrics = metrics
         self.metricsNow = metricsNow
@@ -45,6 +48,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         parser: any NaturalIntentParsing,
         places: OnDevicePlaceResolver,
         journeys: any JourneyRepository,
+        lineStatuses: (any LineStatusRepository)? = nil,
         now: @escaping @Sendable () -> Date = { .now },
         metrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
         metricsNow: @escaping @Sendable () -> Date = { .now },
@@ -56,6 +60,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             understanding: ParserBackedNaturalJourneyUnderstanding(parser: parser),
             places: places,
             journeys: journeys,
+            lineStatuses: lineStatuses,
             now: now,
             metrics: metrics,
             metricsNow: metricsNow,
@@ -263,6 +268,12 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 draft: draft,
                 decision: .unexplainedText(unexplainedText),
             )
+        }
+        if draft.intent.scope == .lineStatus {
+            guard let lineStatus = draft.intent.lineStatus else {
+                return .unavailable(message: "Je n’ai pas reconnu la ligne demandée.")
+            }
+            return await resolveLineStatus(lineStatus)
         }
         if draft.intent.scope == .unsupported {
             return .unsupported(message: Self.unsupportedMessage, examples: Self.examples)
@@ -509,6 +520,62 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             interpretation: interpretation,
             journeys: journeyResult,
         )
+    }
+
+    private func resolveLineStatus(
+        _ intent: NaturalLineStatusIntent
+    ) async -> NaturalJourneyResult {
+        switch intent.kind {
+        case .networkOverview:
+            return .lineStatus(NaturalLineStatusNavigation(
+                route: nil,
+                searchText: "",
+                mode: intent.mode,
+                disruptionsOnly: false,
+            ))
+        case .disruptions:
+            return .lineStatus(NaturalLineStatusNavigation(
+                route: nil,
+                searchText: "",
+                mode: intent.mode,
+                disruptionsOnly: true,
+            ))
+        case .specific:
+            guard let lineStatuses else {
+                return .unavailable(message: "L’état des lignes est momentanément indisponible.")
+            }
+            do {
+                let board = try await lineStatuses.searchLines(query: intent.code)
+                let normalizedCode = OnDevicePlaceResolver.normalize(intent.code)
+                let matches = board.lines.filter { status in
+                    OnDevicePlaceResolver.normalize(status.route.shortName) == normalizedCode
+                        && (intent.mode == nil || status.route.mode == intent.mode)
+                }
+                guard !matches.isEmpty else {
+                    return .unavailable(
+                        message: "Je n’ai pas trouvé la ligne \(intent.code) dans le réseau francilien."
+                    )
+                }
+                if matches.count == 1 {
+                    return .lineStatus(NaturalLineStatusNavigation(
+                        route: matches[0],
+                        searchText: intent.code,
+                        mode: intent.mode,
+                        disruptionsOnly: false,
+                    ))
+                }
+                return .lineStatus(NaturalLineStatusNavigation(
+                    route: nil,
+                    searchText: intent.code,
+                    mode: intent.mode,
+                    disruptionsOnly: false,
+                ))
+            } catch is CancellationError {
+                return .unavailable(message: "La consultation de la ligne a été interrompue.")
+            } catch {
+                return .unavailable(message: "Connexion nécessaire pour consulter l’état des lignes.")
+            }
+        }
     }
 
     private func resolveDraft(
@@ -774,18 +841,28 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
     }()
 
     private static func normalizedTime(in intent: RouteIntent, now: Date) -> RouteIntent {
-        if intent.requestedAt == nil, !intent.dateWasExplicit, !intent.timeWasExplicit {
-            return intent.replacingRequestedAt(now)
+        var normalized = intent
+        if !normalized.dateWasExplicit,
+           !normalized.timeWasExplicit,
+           normalized.datetimeRepresents == .ambiguous
+        {
+            normalized = normalized.replacingTimeMeaning(.departure)
         }
-        guard let requestedAt = intent.requestedAt,
+        if normalized.requestedAt == nil,
+           !normalized.dateWasExplicit,
+           !normalized.timeWasExplicit
+        {
+            normalized = normalized.replacingRequestedAt(now)
+        }
+        guard let requestedAt = normalized.requestedAt,
               requestedAt < now,
-              !intent.dateWasExplicit
+              !normalized.dateWasExplicit
         else {
-            return intent
+            return normalized
         }
         guard let nextDay = parisCalendar.date(byAdding: .day, value: 1, to: requestedAt) else {
-            return intent
+            return normalized
         }
-        return intent.replacingRequestedAt(nextDay)
+        return normalized.replacingRequestedAt(nextDay)
     }
 }

@@ -2,6 +2,7 @@ export { naturalJourneysSubmitRelation } from './relation';
 export {
   naturalJourneyInputSchema,
   naturalJourneyInterpretationSchema,
+  naturalLineStatusIntentSchema,
   naturalJourneyModelInterpretationSchema,
   naturalJourneyPlaceReferenceSchema,
   naturalJourneyResultSchema,

@@ -197,6 +197,12 @@ struct MapShellView: View {
       searchSheetDestination = .journey(journeyID)
       searchViewModel.consumeNaturalResultJourney()
     }
+    .onChange(of: searchViewModel.naturalLineStatusNavigation) { _, navigation in
+      guard let navigation else { return }
+      linesViewModel.requestNaturalLineStatus(navigation)
+      activeTab = .lines
+      searchViewModel.consumeNaturalLineStatusNavigation()
+    }
     .onChange(of: activeJourneyModel.isActive) { _, isActive in
       // Once guidance is running, peek so the map behind stays visible.
       if isActive { journeySheetDetent = journeyPeekDetent }
@@ -265,7 +271,7 @@ struct MapShellView: View {
       ) {
       case .present:
         detentBeforeNaturalPanel = activeDetent
-        activeDetent = isLargeScreen ? .fraction(0.97) : .fraction(0.45)
+        activeDetent = MapShellPresentation.naturalPanelDetent(isLargeScreen: isLargeScreen)
       case .dismiss:
         if let detentBeforeNaturalPanel {
           activeDetent = detentBeforeNaturalPanel
@@ -859,6 +865,7 @@ struct MapShellView: View {
     linesViewModel: LinesViewModel(repository: PreviewLineStatusRepository()),
     selectedStationModel: SelectedStationModel(
       departuresRepository: departures,
+      crowdingRepository: InMemoryStationCrowdingRepository(crowding: .preview),
       reportRepository: InMemoryReportRepository(),
       account: accountModel,
       locationModel: locationModel

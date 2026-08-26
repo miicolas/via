@@ -159,6 +159,13 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /network/bike-stations`.
     /// - Remark: Generated from `#/paths//network/bike-stations/get(network.bikeStationsInArea)`.
     func network_period_bikeStationsInArea(_ input: Operations.network_period_bikeStationsInArea.Input) async throws -> Operations.network_period_bikeStationsInArea.Output
+    /// L’affluence habituelle d’une station
+    ///
+    /// Le profil horaire habituel des validations IDFM sur 24 heures, pour les trois types de jour que la source distingue : semaine, samedi, dimanche et fériés. Un profil type mis à jour chaque trimestre, pas du temps réel — et réseau ferré uniquement : une station de bus répond sans profil.
+    ///
+    /// - Remark: HTTP `GET /network/station-crowding`.
+    /// - Remark: Generated from `#/paths//network/station-crowding/get(network.stationCrowding)`.
+    func network_period_stationCrowding(_ input: Operations.network_period_stationCrowding.Input) async throws -> Operations.network_period_stationCrowding.Output
     /// Recherche unifiée
     ///
     /// Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.
@@ -477,6 +484,21 @@ extension APIProtocol {
         headers: Operations.network_period_bikeStationsInArea.Input.Headers = .init()
     ) async throws -> Operations.network_period_bikeStationsInArea.Output {
         try await network_period_bikeStationsInArea(Operations.network_period_bikeStationsInArea.Input(
+            query: query,
+            headers: headers
+        ))
+    }
+    /// L’affluence habituelle d’une station
+    ///
+    /// Le profil horaire habituel des validations IDFM sur 24 heures, pour les trois types de jour que la source distingue : semaine, samedi, dimanche et fériés. Un profil type mis à jour chaque trimestre, pas du temps réel — et réseau ferré uniquement : une station de bus répond sans profil.
+    ///
+    /// - Remark: HTTP `GET /network/station-crowding`.
+    /// - Remark: Generated from `#/paths//network/station-crowding/get(network.stationCrowding)`.
+    internal func network_period_stationCrowding(
+        query: Operations.network_period_stationCrowding.Input.Query,
+        headers: Operations.network_period_stationCrowding.Input.Headers = .init()
+    ) async throws -> Operations.network_period_stationCrowding.Output {
+        try await network_period_stationCrowding(Operations.network_period_stationCrowding.Input(
             query: query,
             headers: headers
         ))
@@ -7594,6 +7616,7 @@ internal enum Operations {
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/scope`.
                                 internal enum scopePayload: String, Codable, Hashable, Sendable, CaseIterable {
                                     case journey = "journey"
+                                    case line_status = "line_status"
                                     case unsupported = "unsupported"
                                 }
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/scope`.
@@ -7958,6 +7981,58 @@ internal enum Operations {
                                 internal var unsupportedConstraints: [Swift.String]
                                 /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/unexplainedText`.
                                 internal var unexplainedText: Swift.String
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lineStatus`.
+                                internal struct lineStatusPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lineStatus/kind`.
+                                    internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case specific = "specific"
+                                        case network_overview = "network_overview"
+                                        case disruptions = "disruptions"
+                                    }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lineStatus/kind`.
+                                    internal var kind: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.lineStatusPayload.kindPayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lineStatus/code`.
+                                    internal var code: Swift.String
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lineStatus/mode`.
+                                    internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case any = "any"
+                                        case metro = "metro"
+                                        case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
+                                        case bus = "bus"
+                                    }
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lineStatus/mode`.
+                                    internal var mode: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.lineStatusPayload.modePayload
+                                    /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lineStatus/evidence`.
+                                    internal var evidence: Swift.String
+                                    /// Creates a new `lineStatusPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - kind:
+                                    ///   - code:
+                                    ///   - mode:
+                                    ///   - evidence:
+                                    internal init(
+                                        kind: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.lineStatusPayload.kindPayload,
+                                        code: Swift.String,
+                                        mode: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.lineStatusPayload.modePayload,
+                                        evidence: Swift.String
+                                    ) {
+                                        self.kind = kind
+                                        self.code = code
+                                        self.mode = mode
+                                        self.evidence = evidence
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case kind
+                                        case code
+                                        case mode
+                                        case evidence
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation/lineStatus`.
+                                internal var lineStatus: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.lineStatusPayload?
                                 /// Creates a new `interpretationPayload`.
                                 ///
                                 /// - Parameters:
@@ -7973,6 +8048,7 @@ internal enum Operations {
                                 ///   - preferredModes:
                                 ///   - unsupportedConstraints:
                                 ///   - unexplainedText:
+                                ///   - lineStatus:
                                 internal init(
                                     scope: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.scopePayload,
                                     origin: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.originPayload? = nil,
@@ -7985,7 +8061,8 @@ internal enum Operations {
                                     excludedModes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.excludedModesPayload,
                                     preferredModes: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.preferredModesPayload,
                                     unsupportedConstraints: [Swift.String],
-                                    unexplainedText: Swift.String
+                                    unexplainedText: Swift.String,
+                                    lineStatus: Operations.naturalJourneys_period_submit.Output.Ok.Body.jsonPayload.Value1Payload.interpretationPayload.lineStatusPayload? = nil
                                 ) {
                                     self.scope = scope
                                     self.origin = origin
@@ -7999,6 +8076,7 @@ internal enum Operations {
                                     self.preferredModes = preferredModes
                                     self.unsupportedConstraints = unsupportedConstraints
                                     self.unexplainedText = unexplainedText
+                                    self.lineStatus = lineStatus
                                 }
                                 internal enum CodingKeys: String, CodingKey {
                                     case scope
@@ -8013,6 +8091,7 @@ internal enum Operations {
                                     case preferredModes
                                     case unsupportedConstraints
                                     case unexplainedText
+                                    case lineStatus
                                 }
                             }
                             /// - Remark: Generated from `#/paths/natural-journeys/POST/responses/200/content/json/value1/interpretation`.
@@ -11785,6 +11864,291 @@ internal enum Operations {
             /// - Throws: An error if `self` is not `.ok`.
             /// - SeeAlso: `.ok`.
             internal var ok: Operations.network_period_bikeStationsInArea.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// L’affluence habituelle d’une station
+    ///
+    /// Le profil horaire habituel des validations IDFM sur 24 heures, pour les trois types de jour que la source distingue : semaine, samedi, dimanche et fériés. Un profil type mis à jour chaque trimestre, pas du temps réel — et réseau ferré uniquement : une station de bus répond sans profil.
+    ///
+    /// - Remark: HTTP `GET /network/station-crowding`.
+    /// - Remark: Generated from `#/paths//network/station-crowding/get(network.stationCrowding)`.
+    internal enum network_period_stationCrowding {
+        internal static let id: Swift.String = "network.stationCrowding"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/network/station-crowding/GET/query`.
+            internal struct Query: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/network/station-crowding/GET/query/stationId`.
+                internal var stationId: Swift.String
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - stationId:
+                internal init(stationId: Swift.String) {
+                    self.stationId = stationId
+                }
+            }
+            internal var query: Operations.network_period_stationCrowding.Input.Query
+            /// - Remark: Generated from `#/paths/network/station-crowding/GET/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.network_period_stationCrowding.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.network_period_stationCrowding.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.network_period_stationCrowding.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            internal init(
+                query: Operations.network_period_stationCrowding.Input.Query,
+                headers: Operations.network_period_stationCrowding.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles`.
+                        internal struct profilesPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/weekdayPayload`.
+                            internal struct weekdayPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/weekdayPayload/hour`.
+                                internal var hour: Swift.Int
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/weekdayPayload/ratio`.
+                                internal var ratio: Swift.Double
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/weekdayPayload/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case off = "off"
+                                    case moderate = "moderate"
+                                    case peak = "peak"
+                                }
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/weekdayPayload/level`.
+                                internal var level: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.weekdayPayloadPayload.levelPayload
+                                /// Creates a new `weekdayPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - hour:
+                                ///   - ratio:
+                                ///   - level:
+                                internal init(
+                                    hour: Swift.Int,
+                                    ratio: Swift.Double,
+                                    level: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.weekdayPayloadPayload.levelPayload
+                                ) {
+                                    self.hour = hour
+                                    self.ratio = ratio
+                                    self.level = level
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case hour
+                                    case ratio
+                                    case level
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/weekday`.
+                            internal typealias weekdayPayload = [Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.weekdayPayloadPayload]
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/weekday`.
+                            internal var weekday: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.weekdayPayload
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/saturdayPayload`.
+                            internal struct saturdayPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/saturdayPayload/hour`.
+                                internal var hour: Swift.Int
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/saturdayPayload/ratio`.
+                                internal var ratio: Swift.Double
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/saturdayPayload/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case off = "off"
+                                    case moderate = "moderate"
+                                    case peak = "peak"
+                                }
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/saturdayPayload/level`.
+                                internal var level: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.saturdayPayloadPayload.levelPayload
+                                /// Creates a new `saturdayPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - hour:
+                                ///   - ratio:
+                                ///   - level:
+                                internal init(
+                                    hour: Swift.Int,
+                                    ratio: Swift.Double,
+                                    level: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.saturdayPayloadPayload.levelPayload
+                                ) {
+                                    self.hour = hour
+                                    self.ratio = ratio
+                                    self.level = level
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case hour
+                                    case ratio
+                                    case level
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/saturday`.
+                            internal typealias saturdayPayload = [Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.saturdayPayloadPayload]
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/saturday`.
+                            internal var saturday: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.saturdayPayload
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/sundayPayload`.
+                            internal struct sundayPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/sundayPayload/hour`.
+                                internal var hour: Swift.Int
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/sundayPayload/ratio`.
+                                internal var ratio: Swift.Double
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/sundayPayload/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case off = "off"
+                                    case moderate = "moderate"
+                                    case peak = "peak"
+                                }
+                                /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/sundayPayload/level`.
+                                internal var level: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.sundayPayloadPayload.levelPayload
+                                /// Creates a new `sundayPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - hour:
+                                ///   - ratio:
+                                ///   - level:
+                                internal init(
+                                    hour: Swift.Int,
+                                    ratio: Swift.Double,
+                                    level: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.sundayPayloadPayload.levelPayload
+                                ) {
+                                    self.hour = hour
+                                    self.ratio = ratio
+                                    self.level = level
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case hour
+                                    case ratio
+                                    case level
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/sunday`.
+                            internal typealias sundayPayload = [Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.sundayPayloadPayload]
+                            /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles/sunday`.
+                            internal var sunday: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.sundayPayload
+                            /// Creates a new `profilesPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - weekday:
+                            ///   - saturday:
+                            ///   - sunday:
+                            internal init(
+                                weekday: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.weekdayPayload,
+                                saturday: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.saturdayPayload,
+                                sunday: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload.sundayPayload
+                            ) {
+                                self.weekday = weekday
+                                self.saturday = saturday
+                                self.sunday = sunday
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case weekday
+                                case saturday
+                                case sunday
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/json/profiles`.
+                        internal var profiles: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload?
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - profiles:
+                        internal init(profiles: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.profilesPayload? = nil) {
+                            self.profiles = profiles
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case profiles
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/network/station-crowding/GET/responses/200/content/application\/json`.
+                    case json(Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.network_period_stationCrowding.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.network_period_stationCrowding.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//network/station-crowding/get(network.stationCrowding)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.network_period_stationCrowding.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.network_period_stationCrowding.Output.Ok {
                 get throws {
                     switch self {
                     case let .ok(response):

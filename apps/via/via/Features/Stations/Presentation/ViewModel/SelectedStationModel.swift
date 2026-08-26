@@ -12,23 +12,31 @@ final class SelectedStationModel {
   private(set) var liveStatus: StationLiveStatus?
   private(set) var liveStatusError: ViaError?
   private(set) var pendingRecoveryCategory: ReportCategory?
+  private(set) var crowding: StationCrowding?
+  /// `true` once the profile answered, even empty or failed — `nil` crowding
+  /// then means "no profile", so the section hides instead of skeletoning.
+  private(set) var isCrowdingLoaded = false
 
   @ObservationIgnored private let departuresRepository: any DeparturesRepository
+  @ObservationIgnored private let crowdingRepository: any StationCrowdingRepository
   @ObservationIgnored private let reportRepository: any ReportRepository
   @ObservationIgnored private let account: AccountModel
   @ObservationIgnored private let locationModel: LocationModel
   @ObservationIgnored private let now: @Sendable () -> Date
   @ObservationIgnored private var loadTask: Task<Void, Never>?
+  @ObservationIgnored private var crowdingTask: Task<Void, Never>?
   @ObservationIgnored private var selectionGeneration = 0
 
   init(
     departuresRepository: any DeparturesRepository,
+    crowdingRepository: any StationCrowdingRepository,
     reportRepository: any ReportRepository,
     account: AccountModel,
     locationModel: LocationModel,
     now: @escaping @Sendable () -> Date = { .now }
   ) {
     self.departuresRepository = departuresRepository
+    self.crowdingRepository = crowdingRepository
     self.reportRepository = reportRepository
     self.account = account
     self.locationModel = locationModel
@@ -74,11 +82,15 @@ final class SelectedStationModel {
     selectionGeneration &+= 1
     loadTask?.cancel()
     loadTask = nil
+    crowdingTask?.cancel()
+    crowdingTask = nil
     overview = nil
     loadingState = .idle
     liveStatus = nil
     liveStatusError = nil
     pendingRecoveryCategory = nil
+    crowding = nil
+    isCrowdingLoaded = false
   }
 
   func retry() {
@@ -182,11 +194,15 @@ final class SelectedStationModel {
     selectionGeneration &+= 1
     let generation = selectionGeneration
     loadTask?.cancel()
+    crowdingTask?.cancel()
     overview = initialOverview
     liveStatus = nil
     liveStatusError = nil
     pendingRecoveryCategory = nil
+    crowding = nil
+    isCrowdingLoaded = false
     loadingState = refreshDepartures ? .loading : .loaded
+    loadCrowding(for: initialOverview.id, generation: generation)
 
     guard refreshDepartures else {
       loadTask = nil
@@ -235,6 +251,25 @@ final class SelectedStationModel {
         }
         loadingState = .failed(error.via)
       }
+    }
+  }
+
+  /// The habitual profile is supplementary and quarterly-stable, so it loads
+  /// once per selection, outside the departures lifecycle, and fails silently:
+  /// an unreachable profile just means no chart, never an error banner.
+  private func loadCrowding(for stationID: StationID, generation: Int) {
+    let crowdingRepository = self.crowdingRepository
+    crowdingTask = Task { [weak self] in
+      let crowding = try? await crowdingRepository.crowding(stationID: stationID)
+      guard let self,
+        !Task.isCancelled,
+        selectionGeneration == generation,
+        overview?.id == stationID
+      else {
+        return
+      }
+      self.crowding = crowding
+      isCrowdingLoaded = true
     }
   }
 

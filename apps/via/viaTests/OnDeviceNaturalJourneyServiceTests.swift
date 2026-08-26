@@ -4,6 +4,47 @@ import XCTest
 final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
     private let now = ISO8601.parse("2026-08-17T09:00:00+02:00")!
 
+    func testSaintLazareToGareDuNordPlansImmediately() async throws {
+        let saintLazare = station("saint-lazare", "Gare Saint-Lazare")
+        let gareDuNord = station("gare-du-nord", "Gare du Nord")
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: { [] },
+            serverFallbackAllowed: { false },
+        )
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let service = OnDeviceNaturalJourneyService(
+            understanding: understanding,
+            places: OnDevicePlaceResolver { query, _ in
+                let result: SearchResult? = switch OnDevicePlaceResolver.normalize(query) {
+                case "gare saint lazare": saintLazare
+                case "gare du nord": gareDuNord
+                default: nil
+                }
+                return SearchResponse(results: [result].compactMap { $0 }, addressSource: .ok)
+            },
+            journeys: journeys,
+            now: { [now = now] in now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "gare saint lazare pour aller ensuite à gare du nord",
+            currentLocation: nil,
+        ))
+
+        guard case let .ready(interpretation, _) = result else {
+            return XCTFail("Ce trajet explicite doit être planifié sans clarification")
+        }
+        XCTAssertEqual(interpretation.originResult, saintLazare)
+        XCTAssertEqual(interpretation.destinationResult, gareDuNord)
+        XCTAssertEqual(interpretation.requestedAt, now)
+        XCTAssertEqual(interpretation.datetimeRepresents, JourneyDatetimeRepresents.departure)
+        let requests = await journeys.requests
+        XCTAssertEqual(requests.count, 1)
+        XCTAssertEqual(requests.first?.originStationID, StationID(rawValue: "saint-lazare"))
+    }
+
     func testMissingHomeRequiresDedicatedChoiceWithoutGeocodingItsAlias() async throws {
         let auber = address("auber", "Auber")
         let search = NaturalJourneyQueryRecorder(results: [auber])
@@ -348,7 +389,7 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         )
         let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
         let service = makeService(
-            parser: InMemoryNaturalIntentParser(),
+            parser: InMemoryNaturalIntentParser(intent: draft.intent),
             results: [destination],
             journeys: journeys,
         )
@@ -393,11 +434,11 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         )
 
         let decision = try await service.submit(.submit(
-            query: "Nation plutôt en bus mais sans bus",
+            query: "de ma position à Nation plutôt en bus mais sans bus",
             currentLocation: GeoCoordinate(latitude: 48.85, longitude: 2.35),
         ))
         guard case let .needsDecision(_, .modeConflict(mode, choices)) = decision else {
-            return XCTFail("Expected a preferred/excluded conflict")
+            return XCTFail("Expected a preferred/excluded conflict, got \(decision)")
         }
         XCTAssertEqual(mode, .bus)
         XCTAssertEqual(choices, [.preferred, .excluded])
@@ -821,6 +862,38 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         XCTAssertEqual(requests.first?.requestedAt, now)
     }
 
+    func testImplicitAmbiguousTimeDefaultsToDepartureNow() async throws {
+        let destination = address("nation", "Nation")
+        let parser = InMemoryNaturalIntentParser(intent: RouteIntent(
+            scope: .journey,
+            origin: .currentLocation,
+            destinationQuery: "Nation",
+            requestedAt: now,
+            datetimeRepresents: .ambiguous,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            dateWasExplicit: false,
+            timeWasExplicit: false,
+            originWasExplicit: true,
+        ))
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let service = makeService(parser: parser, results: [destination], journeys: journeys)
+
+        let result = try await service.submit(.submit(
+            query: "Je veux aller à Nation",
+            currentLocation: .init(latitude: 48.85, longitude: 2.35),
+        ))
+
+        guard case let .ready(interpretation, _) = result else {
+            return XCTFail("Une heure implicite ne doit pas demander départ ou arrivée")
+        }
+        XCTAssertEqual(interpretation.requestedAt, now)
+        XCTAssertEqual(interpretation.datetimeRepresents, .departure)
+        let requests = await journeys.requests
+        XCTAssertEqual(requests.first?.datetimeRepresents, .departure)
+    }
+
     func testJourneyNetworkFailurePreservesTheVerifiedInterpretation() async throws {
         let destination = address("nation", "Nation")
         let parser = InMemoryNaturalIntentParser(intent: RouteIntent(
@@ -973,6 +1046,86 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         }
         XCTAssertEqual(message, "Via peut t’aider à préparer un trajet en Île-de-France")
         XCTAssertEqual(examples.count, 2)
+    }
+
+    func testLineStatusQuestionOpensTheOfficialMatchedLineWithoutPlanningAJourney() async throws {
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let parser = InMemoryNaturalIntentParser(intent: RouteIntent(
+            scope: .lineStatus,
+            origin: .currentLocation,
+            destinationQuery: nil,
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            originWasExplicit: false,
+            lineStatus: NaturalLineStatusIntent(
+                kind: .specific,
+                code: "4",
+                mode: .metro,
+                evidence: "métro 4",
+            ),
+        ))
+        let service = OnDeviceNaturalJourneyService(
+            parser: parser,
+            places: OnDevicePlaceResolver { _, _ in .init(results: [], addressSource: .ok) },
+            journeys: journeys,
+            lineStatuses: PreviewLineStatusRepository(),
+            now: { [now = now] in now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "Y a-t-il des perturbations sur le métro 4 ?",
+            currentLocation: nil,
+        ))
+
+        guard case .lineStatus(let navigation) = result else {
+            return XCTFail("Expected a line-status navigation")
+        }
+        XCTAssertEqual(navigation.route?.route.shortName, "4")
+        XCTAssertEqual(navigation.route?.condition, .disrupted)
+        XCTAssertEqual(navigation.mode, .metro)
+        let requests = await journeys.requests
+        XCTAssertTrue(requests.isEmpty)
+    }
+
+    func testDisruptionOverviewOpensTheFilteredLinesBoard() async throws {
+        let parser = InMemoryNaturalIntentParser(intent: RouteIntent(
+            scope: .lineStatus,
+            origin: .currentLocation,
+            destinationQuery: nil,
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            originWasExplicit: false,
+            lineStatus: NaturalLineStatusIntent(
+                kind: .disruptions,
+                code: "",
+                mode: .rer,
+                evidence: "RER sont perturbés",
+            ),
+        ))
+        let service = OnDeviceNaturalJourneyService(
+            parser: parser,
+            places: OnDevicePlaceResolver { _, _ in .init(results: [], addressSource: .ok) },
+            journeys: InMemoryJourneyRepository(result: .mapPreview),
+            now: { [now = now] in now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "Quels RER sont perturbés ?",
+            currentLocation: nil,
+        ))
+
+        guard case .lineStatus(let navigation) = result else {
+            return XCTFail("Expected a filtered line board")
+        }
+        XCTAssertNil(navigation.route)
+        XCTAssertEqual(navigation.mode, .rer)
+        XCTAssertTrue(navigation.disruptionsOnly)
     }
 
     func testMissingCurrentLocationAsksForOrigin() async throws {

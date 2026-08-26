@@ -132,6 +132,9 @@ final class SearchViewModel {
   /// One-shot signal: a natural-language search resolved to this journey, so
   /// the shell can close the IA sheet and open the journey sheet on it.
   private(set) var naturalResultJourneyID: JourneyID?
+  /// One-shot signal: the model identified a line-status question and the
+  /// official repository resolved how the Lines tab should present it.
+  private(set) var naturalLineStatusNavigation: NaturalLineStatusNavigation?
 
   var query = ""
   var departureQuery = ""
@@ -240,12 +243,17 @@ final class SearchViewModel {
     lastNaturalJourneyRequest = nil
     naturalJourneyUnresolvedDraft = nil
     naturalSavedPlaceSelectionRequest = nil
+    naturalLineStatusNavigation = nil
     naturalSearchState = .dismissed
   }
 
   /// Clears the one-shot journey signal once the shell has opened the sheet.
   func consumeNaturalResultJourney() {
     naturalResultJourneyID = nil
+  }
+
+  func consumeNaturalLineStatusNavigation() {
+    naturalLineStatusNavigation = nil
   }
 
   func retryNaturalSearch() {
@@ -534,6 +542,14 @@ final class SearchViewModel {
       naturalJourneyCriteria = nil
       naturalJourneyUnresolvedDraft = draft
       naturalSearchState = .failed(message: Self.offlineMessage)
+    case .lineStatus(let navigation):
+      recordNaturalMetric(.success)
+      naturalLineStatusNavigation = navigation
+      naturalSearchState = .dismissed
+      naturalQuery = ""
+      lastNaturalJourneyRequest = nil
+      naturalJourneyUnresolvedDraft = nil
+      naturalSavedPlaceSelectionRequest = nil
     case .unsupported(let message, let examples):
       recordNaturalMetric(.unsupported)
       naturalSearchState = .unsupported(message: message, examples: examples)
@@ -905,6 +921,7 @@ final class SearchViewModel {
     naturalJourneyCriteria = nil
     naturalJourneyUnresolvedDraft = nil
     naturalResultJourneyID = nil
+    naturalLineStatusNavigation = nil
     naturalSearchStartedAt = nil
     naturalCorrectionCount = 0
     lastSearchedQuery = ""

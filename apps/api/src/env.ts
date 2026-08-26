@@ -1,6 +1,7 @@
 import * as z from "zod";
 
 const isTest = process.env.NODE_ENV === "test";
+const isProduction = process.env.NODE_ENV === "production";
 const testOnlyApplePrivateKey = `-----BEGIN PRIVATE KEY-----
 MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgqpkXoLd3+EqE6nz1
 Jphj6OCZr4c52j0/TTC7d2GG4EShRANCAAQSuz3cNXv84QDkzqfD0BAWxo/4d7YY
@@ -163,24 +164,26 @@ const envSchema = z.object({
    * the key never leaves this backend. See docs/adr for the fallback contract.
    */
   OPENAI_API_KEY: z.string().min(1).optional(),
-  /** OpenAI presents gpt-5.6-luna as its high-volume GPT-5.6 model; override per env. */
+  /** High-volume GPT-5.6 model, with reasoning raised for this specialist step. */
   OPENAI_MODEL: z.string().min(1).default("gpt-5.6-luna"),
   /**
-   * Global per-submission timeout. The plan mandates no automatic retry. The
-   * iOS URLSession gives up at 15 s, so this stays below it — a server still
-   * working past the client's deadline is pure waste.
+   * Global per-submission timeout. Five seconds is the latency objective, not
+   * a safe hard deadline: structured generation can legitimately finish just
+   * after it. The iOS request gives up at 15 s, so 12 s leaves room for the
+   * response to cross the network without keeping orphaned work alive.
    */
   OPENAI_TIMEOUT_MS: z
     .string()
-    .default("5000")
+    .default("12000")
     .transform(Number)
     .pipe(z.number().int().min(1_000).max(60_000)),
   /**
-   * Thinking budget for the single structured interpretation. `none` keeps
-   * the fallback inside its latency budget; gpt-5.6-luna rejects the older
-   * `minimal` value.
+   * High reasoning is the strongest release-gated setting within the iOS
+   * deadline. `max` remains configurable, but exceeds the critical-corpus gate.
    */
-  OPENAI_REASONING_EFFORT: z.enum(["none", "low", "medium"]).default("none"),
+  OPENAI_REASONING_EFFORT: z
+    .enum(["none", "low", "medium", "high", "xhigh", "max"])
+    .default("high"),
   /** Per-person fallback ceiling: 20 submissions per 15-minute window. */
   OPENAI_PERSONAL_LIMIT: z
     .string()
@@ -212,7 +215,9 @@ const envSchema = z.object({
   /** Stable remote interpretation rollout. Set to 0 for the kill switch. */
   NATURAL_JOURNEYS_REMOTE_ROLLOUT_PERCENT: z
     .string()
-    .default("0")
+    // Local and test builds must exercise the fallback. Production still
+    // starts closed until its release gate explicitly raises the percentage.
+    .default(isProduction ? "0" : "100")
     .transform(Number)
     .pipe(z.number().int().min(0).max(100)),
 });

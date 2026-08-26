@@ -6,6 +6,7 @@ import {
   transitRoutes,
   stationFacts,
   stationElevators,
+  stationHourProfiles,
   transitStopRoutes,
   transitStops,
   type AccessibilityStationFactCondition,
@@ -159,8 +160,24 @@ export function selectStationsInArea(area: StationsInAreaInput) {
     .orderBy(asc(transitStops.name));
 }
 
+/** The full 72-row hourly validations profile of one station (3 day types × 24 h). */
+export function selectStationHourProfiles(stopId: string) {
+  return db
+    .select({
+      dayType: stationHourProfiles.dayType,
+      hour: stationHourProfiles.hour,
+      ratio: stationHourProfiles.peakRatio,
+    })
+    .from(stationHourProfiles)
+    .where(eq(stationHourProfiles.stopId, stopId))
+    .orderBy(asc(stationHourProfiles.dayType), asc(stationHourProfiles.hour));
+}
+
 export type NetworkPatternRow = Awaited<ReturnType<typeof selectDrawnPatterns>>[number];
 export type RailStationPositionRow = Awaited<
   ReturnType<typeof selectRailStationPositions>
 >[number];
 export type StationInAreaRow = Awaited<ReturnType<typeof selectStationsInArea>>[number];
+export type StationHourProfileRow = Awaited<
+  ReturnType<typeof selectStationHourProfiles>
+>[number];

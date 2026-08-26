@@ -51,6 +51,8 @@ type JourneyPlannerDependencies = {
   config: JourneyPlanningConfig;
   /** Volatile community state is deliberately applied after the planner cache. */
   reports?: JourneyReportOverlay;
+  /** Official network disruptions are volatile and also applied after the planner cache. */
+  disruptions?: JourneyDisruptionOverlay;
   /** Enrichment seams stay injectable so planner tests do not need Postgres. */
   annotators?: JourneyPlannerAnnotators;
   /** The default gate is per planner instance, not hidden global state. */
@@ -81,6 +83,8 @@ export type JourneyReportOverlay = {
   apply(response: JourneysResponse, input: JourneyInput, at: Date): Promise<JourneysResponse>;
 };
 
+export type JourneyDisruptionOverlay = JourneyReportOverlay;
+
 type PlanContext = {
   identity: string;
   signal?: AbortSignal;
@@ -102,6 +106,7 @@ export function createJourneyPlanner({
   clock,
   config,
   reports,
+  disruptions,
   annotators = defaultJourneyAnnotators,
   gtfsPlanGate = createAsyncGate(1),
 }: JourneyPlannerDependencies): JourneyPlanner {
@@ -245,12 +250,20 @@ export function createJourneyPlanner({
       });
 
       const stable = response ?? unavailable(now);
-      if (!reports) return stable;
+      let live = stable;
+      if (disruptions) {
+        try {
+          live = await disruptions.apply(live, input, now);
+        } catch (cause) {
+          console.error('[journeys] perturbations officielles indisponibles', cause);
+        }
+      }
+      if (!reports) return live;
       try {
-        return await reports.apply(stable, input, now);
+        return await reports.apply(live, input, now);
       } catch (cause) {
         console.error('[journeys] signalements communautaires indisponibles', cause);
-        return stable;
+        return live;
       }
     },
   };

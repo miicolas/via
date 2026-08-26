@@ -11,3 +11,7 @@ export const BIKE_STATIONS_CACHE_CONTROL = 'private, max-age=30, stale-while-rev
 
 /** Rail geometry only changes after a reference-data import. */
 export const RAIL_MAP_CACHE_CONTROL = 'private, max-age=86400, stale-while-revalidate=604800';
+
+/** Hourly crowding profiles come from a quarterly IDFM import. */
+export const STATION_CROWDING_CACHE_CONTROL =
+  'private, max-age=86400, stale-while-revalidate=604800';

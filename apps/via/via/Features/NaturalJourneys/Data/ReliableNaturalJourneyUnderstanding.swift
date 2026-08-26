@@ -42,7 +42,7 @@ struct ReliableNaturalJourneyUnderstanding: NaturalJourneyUnderstanding {
             now: turn.now,
             savedPlaces: availableSavedPlaces,
         ).resolvingConversationReferences(in: state)
-        if grounding.canBypassModel {
+        if grounding.canBypassModel || (state != nil && grounding.canBypassModelAsRevision) {
             return transition(merging: grounding, into: state)
         }
 
@@ -517,9 +517,24 @@ private struct NaturalJourneyGrounding: Sendable, Hashable {
 
     var canBypassModel: Bool {
         guard fullyCovered else { return false }
-        if origin != nil && destination != nil { return true }
+        // A grounded destination with no explicit origin means the current
+        // position. It is already a complete journey request and does not need
+        // a probabilistic model merely to restate that default.
+        if destination != nil { return true }
         return origin?.value.isConversationReference == true
-            || destination?.value.isConversationReference == true
+    }
+
+    /// In an active search, a fully grounded field is already a typed patch.
+    /// Requiring a model to repeat « non, depuis Opéra » would make an explicit
+    /// correction less reliable than the initial request.
+    var canBypassModelAsRevision: Bool {
+        fullyCovered && (
+            origin != nil
+                || destination != nil
+                || timeMeaning != nil
+                || timeAnchorEvidence != nil
+                || modes != nil
+        )
     }
 }
 
@@ -532,12 +547,18 @@ private enum DeterministicNaturalJourneyGrounder {
     ) -> NaturalJourneyGrounding {
         let isEnglish = locale.language.languageCode?.identifier == "en"
         let pair = routePair(in: phrase, isEnglish: isEnglish)
+            ?? destinationThenOriginPair(in: phrase, isEnglish: isEnglish)
+        let modes = explicitModes(in: phrase)
         let explicitOrigin = pair?.origin ?? placeAfterOriginMarker(in: phrase, isEnglish: isEnglish)
         let explicitDestination = pair?.destination
             ?? placeAfterDestinationMarker(in: phrase, isEnglish: isEnglish)
+            ?? commandDestination(in: phrase, isEnglish: isEnglish)
+            ?? (modes == nil ? nil : bareDestinationBeforeConstraint(
+                in: phrase,
+                isEnglish: isEnglish,
+            ))
         let timeMeaning = explicitTimeMeaning(in: phrase, isEnglish: isEnglish)
         let timeAnchorEvidence = lastServiceEvidence(in: phrase, isEnglish: isEnglish)
-        let modes = explicitModes(in: phrase)
 
         let origin = explicitOrigin.map {
             groundedPlace(
@@ -605,8 +626,7 @@ private enum DeterministicNaturalJourneyGrounder {
                     origin?.evidence,
                     destination?.evidence,
                     timeAnchorEvidence,
-                    modes?.evidence.joined(separator: " "),
-                ].compactMap { $0 },
+                ].compactMap { $0 } + (modes?.evidence ?? []),
                 isEnglish: isEnglish,
             ),
         )
@@ -653,14 +673,16 @@ private enum DeterministicNaturalJourneyGrounder {
         let ignored = isEnglish
             ? Set([
                 "get", "take", "bring", "go", "return", "me", "please", "i", "want",
-                "would", "like", "from", "to", "towards",
+                "would", "like", "no", "but", "from", "frm", "to", "towards",
             ])
             : Set([
                 "aller", "allez", "emmene", "emmenez", "ramene", "ramenez", "rentre",
-                "rentrer", "rentrez", "retour", "retourner", "je", "veux", "voudrais",
+                "rentres", "rentrer", "rentrez", "rentrons", "retour", "retourne",
+                "retournez", "retourner", "non", "je", "veux", "voudrais",
                 "souhaite", "moi", "s", "il", "vous", "plait", "stp", "svp", "va",
-                "vas", "de", "depuis", "depui", "vers", "a", "direction", "pour",
-                "prendre", "pars",
+                "vas", "de", "depuis", "depui", "depuiss", "dpeuis", "vers", "a",
+                "au", "aux", "direction", "pour", "mais",
+                "prendre", "pars", "ensuite",
             ])
         let tokens = residue
             .replacingOccurrences(of: "[^a-z0-9]+", with: " ", options: .regularExpression)
@@ -679,12 +701,18 @@ private enum DeterministicNaturalJourneyGrounder {
             let aliases: [String] = switch place.kind {
             case .home:
                 isEnglish
-                    ? ["at my home", "my home", "home"]
-                    : ["à la maison", "a la maison", "chez moi", "mon domicile", "ma maison", "maison"]
+                    ? ["at my home", "back home", "my home", "home"]
+                    : [
+                        "à la maison", "a la maison", "chez-moi", "chez moi", "chez mois",
+                        "che moi", "mon domicile", "domicile", "ma maison", "maison",
+                    ]
             case .work:
                 isEnglish
                     ? ["my workplace", "the office", "work"]
-                    : ["à mon travail", "a mon travail", "au travail", "mon travail", "au bureau", "mon bureau", "travail", "bureau"]
+                    : [
+                        "à mon travail", "a mon travail", "au travail", "mon travail",
+                        "au bureau", "mon bureau", "travail", "bureau", "boulot", "taf",
+                    ]
             case .custom:
                 [place.label]
             }
@@ -712,21 +740,62 @@ private enum DeterministicNaturalJourneyGrounder {
         origin: (value: String, evidence: String),
         destination: (value: String, evidence: String)
     )? {
+        let patterns = isEnglish
+            ? [#"(?:^|\s)(?:from|frm)\s+(.+?)\s+(?:to|towards)\s+(.+)$"#]
+            : [
+                #"(?:^|\s)(?:depuis|depui|depuiss|dpeuis|de|au départ de|[àa] partir de)\s+(.+?)\s+(?:vers|jusqu['’]?[àa]|[àa])\s+(.+)$"#,
+                #"^((?:la\s+)?gare\s+.+?)\s+pour\s+(?:aller|me rendre|se rendre)(?:\s+ensuite)?\s+(?:[àa]|vers)\s+((?:la\s+)?gare\s+.+)$"#,
+            ]
+        let fullRange = NSRange(phrase.startIndex..., in: phrase)
+        for pattern in patterns {
+            guard let expression = try? NSRegularExpression(
+                pattern: pattern,
+                options: [.caseInsensitive],
+            ),
+            let match = expression.firstMatch(in: phrase, range: fullRange),
+            let originRange = Range(match.range(at: 1), in: phrase),
+            let destinationRange = Range(match.range(at: 2), in: phrase)
+            else { continue }
+
+            let origin = trimPlace(String(phrase[originRange]), isEnglish: isEnglish)
+            let destination = trimPlace(String(phrase[destinationRange]), isEnglish: isEnglish)
+            guard !origin.isEmpty, !destination.isEmpty else { continue }
+            return (
+                origin: (origin, origin),
+                destination: (destination, destination),
+            )
+        }
+        return nil
+    }
+
+    /// Natural speech often names the destination first: « emmène-moi à Nation
+    /// depuis Auber » / “take me to Nation from Auber”. Preserve the semantic
+    /// markers instead of letting a model guess which side is which.
+    private static func destinationThenOriginPair(
+        in phrase: String,
+        isEnglish: Bool,
+    ) -> (
+        origin: (value: String, evidence: String),
+        destination: (value: String, evidence: String)
+    )? {
         let pattern = isEnglish
-            ? #"(?:^|\s)(?:from)\s+(.+?)\s+(?:to|towards)\s+(.+)$"#
-            : #"(?:^|\s)(?:depuis|depui|de|au départ de|[àa] partir de)\s+(.+?)\s+(?:vers|jusqu['’]?[àa]|[àa])\s+(.+)$"#
+            ? #"(?:^|\s)(?:to|towards)\s+(.+?)\s+(?:from|frm)\s+(.+)$"#
+            : #"(?:^|\s)(?:vers|direction|[àa])\s+(.+?)\s+(?:depuis|depui|depuiss|dpeuis)\s+(.+)$"#
         guard let expression = try? NSRegularExpression(
             pattern: pattern,
             options: [.caseInsensitive],
         ) else { return nil }
         let fullRange = NSRange(phrase.startIndex..., in: phrase)
         guard let match = expression.firstMatch(in: phrase, range: fullRange),
-              let originRange = Range(match.range(at: 1), in: phrase),
-              let destinationRange = Range(match.range(at: 2), in: phrase)
+              let destinationRange = Range(match.range(at: 1), in: phrase),
+              let originRange = Range(match.range(at: 2), in: phrase)
         else { return nil }
-        let origin = trimPlace(String(phrase[originRange]), isEnglish: isEnglish)
         let destination = trimPlace(String(phrase[destinationRange]), isEnglish: isEnglish)
-        guard !origin.isEmpty, !destination.isEmpty else { return nil }
+        let origin = trimPlace(String(phrase[originRange]), isEnglish: isEnglish)
+        guard !origin.isEmpty,
+              !destination.isEmpty,
+              destination.range(of: #"^\d{1,2}\s*(?::|h)"#, options: .regularExpression) == nil
+        else { return nil }
         return (
             origin: (origin, origin),
             destination: (destination, destination),
@@ -738,8 +807,11 @@ private enum DeterministicNaturalJourneyGrounder {
         isEnglish: Bool,
     ) -> (value: String, evidence: String)? {
         let markers = isEnglish
-            ? ["from"]
-            : ["depuis", "depui", "au départ de", "a partir de", "à partir de"]
+            ? ["from", "frm"]
+            : [
+                "depuis", "depui", "depuiss", "dpeuis", "au départ de",
+                "a partir de", "à partir de",
+            ]
         for marker in markers {
             guard let markerRange = wholePhraseRange(
                 of: marker,
@@ -780,14 +852,53 @@ private enum DeterministicNaturalJourneyGrounder {
         return nil
     }
 
+    private static func commandDestination(
+        in phrase: String,
+        isEnglish: Bool,
+    ) -> (value: String, evidence: String)? {
+        let pattern = isEnglish
+            ? #"(?:^|\s)(?:go|get|return|take\s+me|bring\s+me)\s+(?:to|towards)\s+(.+)$"#
+            : #"(?:^|\s)(?:aller|allez|va|vas|rentre|rentrez|emm[eè]ne(?:z)?(?:-moi)?|ram[eè]ne(?:z)?(?:-moi)?)\s+(?:[àa]|au|aux|vers)\s+(.+)$"#
+        guard let expression = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.caseInsensitive],
+        ), let match = expression.firstMatch(
+            in: phrase,
+            range: NSRange(phrase.startIndex..., in: phrase),
+        ), let range = Range(match.range(at: 1), in: phrase)
+        else { return nil }
+        let value = trimPlace(String(phrase[range]), isEnglish: isEnglish)
+        guard !value.isEmpty else { return nil }
+        return (value, value)
+    }
+
+    /// A destination can be the bare leading phrase when a recognized mode
+    /// constraint follows it: « Nation plutôt en bus mais sans bus ». Requiring
+    /// `trimPlace` to remove an actual suffix prevents arbitrary prose from
+    /// becoming a geographic query.
+    private static func bareDestinationBeforeConstraint(
+        in phrase: String,
+        isEnglish: Bool,
+    ) -> (value: String, evidence: String)? {
+        let raw = phrase
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: .punctuationCharacters)
+        let value = trimPlace(raw, isEnglish: isEnglish)
+        guard !value.isEmpty,
+              OnDevicePlaceResolver.normalize(value) != OnDevicePlaceResolver.normalize(raw)
+        else { return nil }
+        return (value, value)
+    }
+
     private static func trimPlace(_ raw: String, isEnglish: Bool) -> String {
         let markers = isEnglish
             ? [
-                "from", "to", "towards", "by", "after", "before", "without",
+                "from", "frm", "to", "towards", "by", "after", "before", "without",
                 "with", "only", "prefer", "tomorrow", "today",
             ]
             : [
-                "depuis", "vers", "direction", "pour", "avant", "après", "apres",
+                "depuis", "depui", "depuiss", "dpeuis", "vers", "direction", "pour",
+                "avant", "après", "apres",
                 "sans", "avec", "uniquement", "seulement", "plutôt", "plutot",
                 "demain", "aujourd’hui", "aujourd'hui",
             ]
@@ -866,8 +977,14 @@ private enum DeterministicNaturalJourneyGrounder {
             ]
         for marker in markers {
             guard let range = wholePhraseRange(of: marker, in: phrase) else { continue }
+            let referenceKey: String
+            if marker.contains("destination") {
+                referenceKey = isEnglish ? "same destination" : "meme destination"
+            } else {
+                referenceKey = isEnglish ? "there" : "y"
+            }
             let reference = conversationReference(
-                for: marker.contains("destination") ? "same destination" : (isEnglish ? "there" : "y"),
+                for: referenceKey,
                 isEnglish: isEnglish,
             ) ?? .uniquelyConfirmedPlace
             return (reference, String(phrase[range]))
@@ -956,7 +1073,7 @@ private enum DeterministicNaturalJourneyGrounder {
         var evidence: [String] = []
 
         for (mode, token) in modes {
-            let optionalArticle = #"(?:(?:en|le|la|the)\s+|l['’]\s*)?"#
+            let optionalArticle = #"(?:(?:en|by|le|la|the)\s+|l['’]\s*)?"#
             let requiredPattern =
                 #"(?<!\p{L})(?:uniquement|seulement|only)\s+"#
                 + optionalArticle + token + #"(?!\p{L})|(?<!\p{L})"#

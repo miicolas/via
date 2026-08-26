@@ -65,8 +65,19 @@ export const naturalJourneyTimeConstraintSchema = z.object({
   evidence: z.string().max(160),
 });
 
+export const naturalLineStatusIntentSchema = z.object({
+  /** A concrete line, a mode/network overview, or only currently disrupted lines. */
+  kind: z.enum(['specific', 'network_overview', 'disruptions']),
+  /** Visible line code copied from the turn (4, A, T3a, N, 38); empty for an overview. */
+  code: z.string().max(12),
+  /** Explicit mode only; `any` when the person did not name one. */
+  mode: z.enum(['any', 'metro', 'rer', 'transilien', 'tram', 'bus']),
+  /** Exact fragment copied from the user turn that grounds the line-status request. */
+  evidence: z.string().min(1).max(160),
+});
+
 export const naturalJourneyModelInterpretationSchema = z.object({
-  scope: z.enum(['journey', 'unsupported']),
+  scope: z.enum(['journey', 'line_status', 'unsupported']),
   origin: naturalJourneyPlaceReferenceSchema.optional(),
   destination: naturalJourneyPlaceReferenceSchema.optional(),
   originWasExplicit: z.boolean(),
@@ -79,6 +90,8 @@ export const naturalJourneyModelInterpretationSchema = z.object({
   unsupportedConstraints: z.array(z.string().min(1).max(160)).max(3),
   /** Significant fragment the model could not account for; empty when fully covered. */
   unexplainedText: z.string().max(200),
+  /** Present only for `scope=line_status`; it never contains a live service answer. */
+  lineStatus: naturalLineStatusIntentSchema.optional(),
 });
 
 /**

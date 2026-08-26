@@ -4,7 +4,12 @@ import { healthRelation } from './health';
 import { journeyDepartureChoicesRelation, journeysPlanRelation } from './journeys';
 import { lineDetailRelation, lineSearchRelation, lineStatusesRelation } from './lines';
 import { naturalJourneysSubmitRelation } from './natural-journeys';
-import { bikeStationsInAreaRelation, railMapRelation, stationsInAreaRelation } from './network';
+import {
+  bikeStationsInAreaRelation,
+  railMapRelation,
+  stationCrowdingRelation,
+  stationsInAreaRelation,
+} from './network';
 import {
   notificationsRegisterActivityRelation,
   notificationsRegisterActiveJourneyRelation,
@@ -59,6 +64,7 @@ export const contract = {
     railMap: railMapRelation,
     stationsInArea: stationsInAreaRelation,
     bikeStationsInArea: bikeStationsInAreaRelation,
+    stationCrowding: stationCrowdingRelation,
   },
   search: {
     query: searchQueryRelation,

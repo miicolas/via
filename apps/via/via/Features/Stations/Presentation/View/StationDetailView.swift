@@ -53,6 +53,15 @@ struct StationDetailView: View {
               loadingState: selection.loadingState,
               onRetry: selection.retry
             )
+
+            // A station without a validations profile — every bus stop — gets
+            // no crowding card at all rather than an empty chart.
+            if !(selection.isCrowdingLoaded && selection.crowding == nil) {
+              StationCrowdingSection(
+                crowding: selection.crowding,
+                isLoaded: selection.isCrowdingLoaded
+              )
+            }
           }
           .padding(.horizontal, 20)
           .padding(.top, 16)
@@ -138,6 +147,7 @@ private struct LiveStatusPollingIdentity: Hashable {
   let selection: SelectedStationModel = {
     let model = SelectedStationModel(
       departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+      crowdingRepository: InMemoryStationCrowdingRepository(crowding: .preview),
       reportRepository: InMemoryReportRepository(),
       account: accountModel,
       locationModel: locationModel

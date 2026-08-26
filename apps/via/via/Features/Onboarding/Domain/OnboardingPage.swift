@@ -78,17 +78,17 @@ enum OnboardingPage: Int, CaseIterable, Hashable {
         switch self {
         case .welcome, .liveActivity: 1
         case .stations: 1.15
-        case .disruptions, .intelligentSearch: 1.2
-        case .preferences: 1.08
+        case .disruptions: 1.2
+        case .intelligentSearch, .preferences: 1.08
         }
     }
 
     var zoomAnchor: UnitPoint {
         switch self {
         case .welcome, .liveActivity: .center
-        case .stations: UnitPoint(x: 0.5, y: 0.3)
+        case .stations: UnitPoint(x: 0.5, y: 0.75)
         case .disruptions: UnitPoint(x: 0.5, y: 0.25)
-        case .intelligentSearch: UnitPoint(x: 0.5, y: 0.3)
+        case .intelligentSearch: .center
         case .preferences: UnitPoint(x: 0.5, y: 0.38)
         }
     }

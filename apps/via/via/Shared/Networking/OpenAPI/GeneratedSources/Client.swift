@@ -1622,6 +1622,75 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// L’affluence habituelle d’une station
+    ///
+    /// Le profil horaire habituel des validations IDFM sur 24 heures, pour les trois types de jour que la source distingue : semaine, samedi, dimanche et fériés. Un profil type mis à jour chaque trimestre, pas du temps réel — et réseau ferré uniquement : une station de bus répond sans profil.
+    ///
+    /// - Remark: HTTP `GET /network/station-crowding`.
+    /// - Remark: Generated from `#/paths//network/station-crowding/get(network.stationCrowding)`.
+    internal func network_period_stationCrowding(_ input: Operations.network_period_stationCrowding.Input) async throws -> Operations.network_period_stationCrowding.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.network_period_stationCrowding.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/network/station-crowding",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "stationId",
+                    value: input.query.stationId
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.network_period_stationCrowding.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.network_period_stationCrowding.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
     /// Recherche unifiée
     ///
     /// Arrêts de métro, RER, Transilien, tram et bus, stations Vélib’ filtrées et adresses d’Île-de-France (géocodage BAN) en une seule liste classée. Avec une position, chaque résultat porte sa distance en mètres.

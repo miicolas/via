@@ -69,6 +69,7 @@ struct ApplicationEntry: App {
         _selectedStationModel = State(
             initialValue: SelectedStationModel(
                 departuresRepository: dependencies.departuresRepository,
+                crowdingRepository: dependencies.stationCrowdingRepository,
                 reportRepository: dependencies.reportRepository,
                 account: dependencies.accountModel,
                 locationModel: dependencies.locationModel,
