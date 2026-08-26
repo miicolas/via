@@ -6,6 +6,7 @@ import {
   deviceNotificationPayload as buildDeviceNotificationPayload,
   type DeviceNotification,
 } from "./payload";
+import { createAPNsHTTP2Client } from "./apns-http2";
 
 export type APNsPriority = 5 | 10;
 
@@ -124,10 +125,8 @@ export type APNsFetcher = (
 export function createAPNsProvider(
   options: CreateAPNsProviderOptions,
 ): APNsProvider {
-  const fetcher =
-    options.fetcher ??
-    ((input: string | URL, init?: APNsRequestInit) =>
-      fetch(input, init as RequestInit));
+  const http2Client = createAPNsHTTP2Client();
+  const fetcher = options.fetcher;
   const now = options.now ?? (() => new Date());
   const requestTimeoutMilliseconds =
     options.requestTimeoutMilliseconds ?? 15_000;
@@ -170,7 +169,8 @@ export function createAPNsProvider(
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const apnsId = crypto.randomUUID();
         const providerToken = await authorizationToken();
-        const response = await fetcher(`${host}/3/device/${request.token}`, {
+        const requestURL = `${host}/3/device/${request.token}`;
+        const requestInit: APNsRequestInit = {
           method: "POST",
           protocol: "http2",
           headers: {
@@ -193,7 +193,10 @@ export function createAPNsProvider(
           },
           body: JSON.stringify(request.payload),
           signal: AbortSignal.timeout(requestTimeoutMilliseconds),
-        });
+        };
+        const response = await (fetcher
+          ? fetcher(requestURL, requestInit)
+          : http2Client.request(requestURL, requestInit));
 
         const responseApnsId = response.headers.get("apns-id") ?? apnsId;
         if (response.ok) return { apnsId: responseApnsId };

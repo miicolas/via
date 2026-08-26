@@ -6,6 +6,8 @@ struct SearchResultRow: View {
     let action: () -> Void
     let onDelete: (() -> Void)?
 
+    @State private var tapTick = 0
+
     init(
         result: SearchResult,
         accessibilityHint: String = "Sélectionne cette destination",
@@ -30,7 +32,10 @@ struct SearchResultRow: View {
     }
 
     private var rowContent: some View {
-        Button(action: action) {
+        Button {
+            tapTick += 1
+            action()
+        } label: {
             HStack(alignment: .center, spacing: 14) {
                 resultIcon
 
@@ -50,6 +55,9 @@ struct SearchResultRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Choosing a result replaces the screen underneath: the most frequent
+        // decision of the search flow, and the one the thumb aims at blind.
+        .haptic(Haptic.commit, on: tapTick)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(accessibilityHint)
     }

@@ -2,6 +2,52 @@
 import XCTest
 
 final class NaturalJourneyUnderstandingTests: XCTestCase {
+    func testShortReplyFillsTheOriginClarificationWithoutCallingAModel() async throws {
+        let previousIntent = RouteIntent(
+            scope: .journey,
+            originPlace: .currentLocation,
+            destinationPlace: .query("Bonne Nouvelle"),
+            requestedAt: ISO8601.parse("2026-08-26T18:00:00+02:00")!,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            dateWasExplicit: false,
+            timeWasExplicit: false,
+            originWasExplicit: false,
+        )
+        var previous = NaturalJourneyDialogueState(intent: previousIntent)
+        previous[field: .destination] = .grounded(
+            evidence: "Bonne Nouvelle",
+            provenance: .deterministic,
+        )
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: { [] },
+            serverFallbackAllowed: { false },
+        )
+
+        let transition = try await understanding.interpret(
+            NaturalJourneyTurn(
+                phrase: "Chatou",
+                locale: Locale(identifier: "fr_FR"),
+                now: ISO8601.parse("2026-08-26T18:01:00+02:00")!,
+                focusedField: .origin,
+            ),
+            state: previous,
+        )
+
+        XCTAssertEqual(transition.state.intent.originPlace, .query("Chatou"))
+        XCTAssertEqual(
+            transition.state.intent.destinationPlace,
+            .query("Bonne Nouvelle"),
+        )
+        XCTAssertEqual(transition.changedFields, [.origin])
+        XCTAssertTrue(transition.conflicts.isEmpty)
+        XCTAssertEqual(transition.state.processingPath, .deterministic)
+    }
+
     func testExplicitAuberToHomeIsGroundedWithoutCallingAModel() async throws {
         let home = NaturalJourneySavedPlaceReference(
             id: "home",

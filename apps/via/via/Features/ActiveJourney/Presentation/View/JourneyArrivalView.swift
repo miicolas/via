@@ -31,6 +31,9 @@ struct JourneyArrivalView: View {
             .frame(maxWidth: .infinity, minHeight: 260)
         }
         .accessibilityElement(children: .contain)
+        // The screen auto-dismisses after three seconds: a traveller still
+        // putting the phone away has this as their only cue that it is over.
+        .hapticOnAppear(Haptic.saved)
         .task {
             guard !isVoiceOverEnabled, !dynamicTypeSize.isAccessibilitySize else { return }
             try? await Task.sleep(for: .seconds(3))

@@ -14,10 +14,14 @@ struct NaturalJourneyInputView: View {
   // Valeur écrite par l'interception du "\n" : son onChange ré-entrant ne doit
   // pas repasser par onEdit, qui sortirait l'écran de l'état .loading.
   @State private var newlineStrippedQuery: String?
+  @State private var submitTick = 0
 
   var body: some View {
     field
       .frame(maxWidth: .infinity)
+      // The keyboard drops and a spinner takes the glyph's place, but the
+      // answer is seconds away: the phrase is acknowledged as it leaves.
+      .haptic(Haptic.commit, on: submitTick)
   }
 
   private var field: some View {
@@ -54,7 +58,10 @@ struct NaturalJourneyInputView: View {
           .lineLimit(1...3)
           .textInputAutocapitalization(.sentences)
           .submitLabel(.search)
-          .onSubmit(onSubmit)
+          .onSubmit {
+            submitTick += 1
+            onSubmit()
+          }
           .accessibilityLabel("Description du trajet")
           .transition(swapTransition)
           .onChange(of: query) { _, newValue in
@@ -75,6 +82,7 @@ struct NaturalJourneyInputView: View {
             newlineStrippedQuery = cleaned
             query = cleaned
             if !cleaned.isEmpty {
+              submitTick += 1
               onSubmit()
             }
           }
@@ -96,6 +104,7 @@ struct NaturalJourneyInputView: View {
 
         if canSend {
           Button("Envoyer", systemImage: "arrow.up") {
+            submitTick += 1
             onSubmit()
           }
           .labelStyle(.iconOnly)

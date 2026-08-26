@@ -4,6 +4,12 @@ struct ReportConfirmationView: View {
     let onDone: () -> Void
 
     var body: some View {
+        confirmation
+            // The report left the device with nothing else to show for it.
+            .hapticOnAppear(Haptic.saved)
+    }
+
+    private var confirmation: some View {
         GeometryReader { proxy in
             ScrollView {
                 VStack(spacing: 18) {

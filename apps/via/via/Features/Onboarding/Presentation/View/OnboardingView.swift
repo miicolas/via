@@ -9,6 +9,7 @@ struct OnboardingView: View {
 
     @State private var currentIndex = 0
     @State private var deviceCornerRadius: CGFloat = 0
+    @State private var completionTick = 0
 
     private let pages = OnboardingPage.allCases
 
@@ -33,6 +34,10 @@ struct OnboardingView: View {
                 continueButton
             }
         }
+        // A page turning is not something the traveller asked for, only
+        // something they let happen; getting to the end of the tour is.
+        .haptic(Haptic.advanced, on: currentIndex)
+        .haptic(Haptic.saved, on: completionTick)
     }
 
     /// The box takes the capture's ratio rather than measuring the capture:
@@ -136,6 +141,7 @@ struct OnboardingView: View {
 
     private func advance() {
         guard !currentPage.isFinal else {
+            completionTick += 1
             onComplete()
             return
         }

@@ -3,6 +3,8 @@ import SwiftUI
 struct JourneyAlternativeCard: View {
     let alternative: ActiveJourneyAlternative
     let onAccept: () -> Void
+
+    @State private var acceptTick = 0
     let onShowOthers: () -> Void
     let onDismiss: () -> Void
 
@@ -38,8 +40,14 @@ struct JourneyAlternativeCard: View {
                         .iconAction()
                 }
 
-                Button("Changer de trajet", systemImage: "arrow.triangle.swap", action: onAccept)
-                    .iconAction(isProminent: true)
+                Button("Changer de trajet", systemImage: "arrow.triangle.swap") {
+                    acceptTick += 1
+                    onAccept()
+                }
+                .iconAction(isProminent: true)
+                // Swapping route mid-journey rewrites the timeline underneath;
+                // it is a decision, not a glance.
+                .haptic(Haptic.commit, on: acceptTick)
             }
             .tint(.orange)
         }

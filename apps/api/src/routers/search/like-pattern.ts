@@ -8,3 +8,18 @@
 export function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
+
+/**
+ * Station names and spoken queries do not use punctuation consistently:
+ * `Saint Lazare`, `Saint-Lazare` and `Saint–Lazare` name the same place. Keep
+ * every user token escaped, but let PostgreSQL match any separator between
+ * tokens. The wildcard is ours, never one supplied by the user.
+ */
+export function looseLikePattern(value: string): string {
+  return value
+    .trim()
+    .split(/[\s\p{Pd}'’]+/u)
+    .filter(Boolean)
+    .map(escapeLikePattern)
+    .join('%');
+}

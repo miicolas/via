@@ -33,7 +33,9 @@ struct JourneyReminderMinutePicker: View {
       in: RoundedRectangle(cornerRadius: 28, style: .continuous)
     )
     .animation(reduceMotion ? nil : .snappy, value: selection)
-    .sensoryFeedback(.selection, trigger: selection)
+    // Triggered off the value, so a lead time restored from storage used to
+    // buzz a sheet nobody had scrolled yet; `haptic` waits for the screen.
+    .haptic(Haptic.selection, on: selection)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Délai avant le départ")
     .accessibilityValue("\(selection.rawValue) minutes")

@@ -407,11 +407,62 @@ final class SearchViewModelTests: XCTestCase {
         await waitUntil { await repository.requests.count == 2 }
 
         let requests = await repository.requests
-        guard case let .revise(query, revisedDraft, _) = requests.last else {
+        guard case let .revise(query, revisedDraft, focusedField, _) = requests.last else {
             return XCTFail("La correction doit modifier la recherche en cours")
         }
         XCTAssertEqual(query, "Non, plutôt Bastille")
         XCTAssertEqual(revisedDraft, draft)
+        XCTAssertNil(focusedField)
+    }
+
+    func testFreeTextReplyCarriesTheClarifiedOriginSlot() async {
+        let draft = NaturalJourneyDraft(
+            intent: RouteIntent(
+                scope: .journey,
+                origin: .currentLocation,
+                destinationQuery: "Bonne Nouvelle",
+                requestedAt: ISO8601.parse("2026-08-21T08:00:00+02:00")!,
+                datetimeRepresents: .departure,
+                requiredModes: [],
+                excludedModes: [],
+                preferredModes: [],
+                originWasExplicit: false,
+            ),
+            origin: nil,
+            destination: .previewStation,
+        )
+        let clarification = NaturalJourneyClarification(
+            target: .origin,
+            question: "D’où pars-tu ?",
+            candidates: [],
+        )
+        let repository = NaturalJourneyRepositoryRecorder(results: [
+            .needsClarification(draft: draft, fields: [clarification]),
+            .unsupported(message: "fin", examples: []),
+        ])
+        let model = makeModel(
+            naturalJourneyRepository: repository,
+            naturalLanguageAvailability: .available,
+        )
+        model.naturalQuery = "Bonne Nouvelle"
+        model.submitNaturalSearch()
+        await waitForNaturalState(model) {
+            if case .clarification = $0 { return true }
+            return false
+        }
+
+        model.modifyNaturalQuery()
+        model.naturalQuery = "Chatou"
+        model.submitNaturalSearch()
+        await waitUntil { await repository.requests.count == 2 }
+
+        let requests = await repository.requests
+        guard case let .revise(query, revisedDraft, focusedField, _) = requests.last else {
+            return XCTFail("La réponse doit réviser la demande en cours")
+        }
+        XCTAssertEqual(query, "Chatou")
+        XCTAssertEqual(revisedDraft, draft)
+        XCTAssertEqual(focusedField, .origin)
     }
 
     func testMissingHomeCanBeChosenAndSavedBeforeResuming() async {

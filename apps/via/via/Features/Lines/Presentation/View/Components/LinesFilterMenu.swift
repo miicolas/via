@@ -36,6 +36,8 @@ struct LinesFilterMenu: View {
       Image(systemName: "line.3.horizontal.decrease")
         .foregroundStyle(filter.isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
     }
+    .haptic(Haptic.selection, on: filter) { _, new in new.isActive }
+    .haptic(Haptic.cleared, on: filter.isActive) { $0 && !$1 }
     .accessibilityLabel("Filtrer les lignes")
     .accessibilityValue(accessibilityValue)
   }

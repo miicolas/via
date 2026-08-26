@@ -89,6 +89,7 @@ struct StationDetailView: View {
                 Image(systemName: StateSymbol.bell(isOn: selection.isNotificationFollowed))
               }
               .stateSymbolTransition(value: selection.isNotificationFollowed)
+              .toggleHaptic(on: selection.isNotificationFollowed)
               .tint(selection.isNotificationFollowed ? .orange : .primary)
               .accessibilityLabel("Suivre la station")
               .accessibilityValue(selection.isNotificationFollowed ? "Activé" : "Désactivé")
@@ -102,6 +103,9 @@ struct StationDetailView: View {
                 Image(systemName: StateSymbol.star(isOn: selection.isFavorite))
                   .stateSymbolTransition(value: selection.isFavorite)
               }
+              // The reference toggle: adding confirms, removing detaches. The
+              // star swaps too fast to watch, so the two must be felt apart.
+              .toggleHaptic(on: selection.isFavorite)
               .tint(selection.isFavorite ? .orange : .primary)
               .accessibilityLabel("Favoris")
               .accessibilityValue(selection.isFavorite ? "Ajoutée" : "Non ajoutée")

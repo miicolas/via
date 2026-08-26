@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Habitual crowding under the departures board: one 24-hour chart per day of
-/// the current week, swiped or stepped a day at a time, opening on today.
+/// Habitual crowding under the departures board: one 24-hour chart standing
+/// for the current week, stepped or swiped a day at a time and morphing
+/// between day shapes, opening on today.
 struct StationCrowdingSection: View {
     let crowding: StationCrowding?
     let isLoaded: Bool
@@ -54,7 +55,7 @@ struct StationCrowdingSection: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: .rect(cornerRadius: 20))
-        .sensoryFeedback(.selection, trigger: hapticTick)
+        .haptic(Haptic.selection, on: hapticTick)
     }
 
     private var focusedIndex: Int {
@@ -72,10 +73,10 @@ struct StationCrowdingSection: View {
             Button {
                 step(to: focusedIndex - 1)
             } label: {
-                Image(systemName: "chevron.left")
+                Label("Jour précédent", systemImage: "chevron.left")
             }
+            .iconAction(size: .small)
             .disabled(focusedIndex == 0)
-            .accessibilityLabel("Jour précédent")
 
             Text(StationCrowdingPresentation.title(for: focusedDay.date, calendar: calendar))
                 .font(.subheadline.weight(.semibold))
@@ -86,12 +87,11 @@ struct StationCrowdingSection: View {
             Button {
                 step(to: focusedIndex + 1)
             } label: {
-                Image(systemName: "chevron.right")
+                Label("Jour suivant", systemImage: "chevron.right")
             }
+            .iconAction(size: .small)
             .disabled(focusedIndex == days.count - 1)
-            .accessibilityLabel("Jour suivant")
         }
-        .buttonStyle(.borderless)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Jour affiché")
         .accessibilityValue(accessibilityValue)
@@ -121,40 +121,24 @@ struct StationCrowdingSection: View {
 
     private func pager(for crowding: StationCrowding) -> some View {
         GeometryReader { proxy in
-            let pageWidth = proxy.size.width
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
-                    ForEach(days) { day in
-                        StationCrowdingChart(
-                            hours: StationCrowdingPresentation.hours(
-                                for: day.dayType,
-                                in: crowding
-                            ),
-                            isTodayPage: day.index == todayIndex,
-                            currentHour: currentHour
-                        )
-                        .frame(width: pageWidth)
-                        .id(day.index)
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollIndicators(.hidden)
-            .scrollTargetBehavior(.viewAligned)
-            .scrollPosition(id: $focusedDayIndex)
-            .scrollDisabled(true)
+            StationCrowdingChart(
+                hours: StationCrowdingPresentation.hours(
+                    for: focusedDay.dayType,
+                    in: crowding
+                ),
+                isTodayPage: focusedDay.index == todayIndex,
+                currentHour: currentHour
+            )
             .contentShape(.rect)
-            .gesture(stepGesture(pageWidth: pageWidth))
+            .gesture(stepGesture(pageWidth: proxy.size.width))
         }
         .frame(height: 132)
         .accessibilityHidden(true)
     }
 
-    /// The pager never scrolls on its own: an interactive horizontal scroll
-    /// inside the detail sheet claims vertical drags that begin on it and pins
-    /// the sheet. A clearly horizontal drag steps the day instead, and the
-    /// scroll position only ever moves programmatically.
+    /// One chart stands for the whole week and morphs in place when the day
+    /// steps — sliding pages would claim vertical drags that belong to the
+    /// sheet. A clearly horizontal drag steps the day instead.
     private func stepGesture(pageWidth: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 12)
             .updating($dragBaseIndex) { value, state, _ in

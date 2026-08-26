@@ -22,6 +22,17 @@
 - A symbol that changes with state animates the change: `contentTransition(.symbolEffect(.replace.magic(fallback: .offUp.byLayer), options: .nonRepeating))`, degraded to `.identity` when `accessibilityReduceMotion` is on. `StationDetailView`'s favourite star is the reference.
 - This holds for every symbol that flips with state, not just toolbar icons: the reminder bell, the favourite star, a play/pause, a mute. A control the user toggles never swaps its glyph abruptly. When the control is a full-width labelled action, build the `Label` with an explicit `Image(systemName:)` and put `contentTransition` on that image — the transition belongs to the symbol, not to the wording next to it. A state that lands from an `async` task carries no transaction, so pair the transition with `.animation(reduceMotion ? nil : .default, value:)` — otherwise the glyph still swaps in one frame.
 
+## Haptic feedback
+
+- A state that flips animates **and** is felt. The symbol rule above says what the eye gets; this says what the thumb gets. Both are bound at the same place, so a control cannot ship with one and not the other.
+- Intensities are named once, in `Haptic` (`via/Shared/Presentation/Modifier/Haptics.swift`), never written as a literal at a call site — the same way `StateSymbol` owns the glyphs. `selection` for a value moved one notch, `tap` for a tap the screen barely acknowledges, `commit` for a decision that opens or replaces a screen, `advanced` for something that moved on its own, `saved`/`cleared` for on and off, `started`/`ended` for guidance, `warned` and `failed` for what must be read.
+- Use `.haptic(_:on:when:)`, `.toggleHaptic(on:)`, `.hapticOnAppear(_:)` and `.hapticRefreshable` — never `.sensoryFeedback` directly, and never a UIKit feedback generator. `.sensoryFeedback` is the only path that honours Réglages › Sons et haptique, so Via needs no switch of its own; the wrappers add the guard that raw `.sensoryFeedback` lacks.
+- **One gesture, one buzz.** A chip that both flips a filter and re-runs a search answers once, at the flip.
+- **Never for a state nobody touched.** A filter restored from `UserDefaults`, a favourite arriving from the account, a `scrollTo` the code called: silent. That is what the settle guard inside `haptic` is for — where the state can also land from the network, bind the trigger to a counter incremented in the action closure instead, since only a gesture can move it.
+- **Continuous never buzzes; its notches do.** Not a scroll offset, not a sheet height — the index or the detent that changed.
+- `saved` and `failed` report an outcome, never a tap. The tap gets `commit`; the answer gets the outcome. A debounced list that reloads per keystroke gets neither.
+- A view that is torn down in the same update plays nothing: put the cue on whatever survives. The journey ending is felt by `MapShellView`, not by the panel leaving.
+
 ## Empty states
 
 - Nothing to show is a designed screen, not an absence. Every empty, unavailable, or failed state goes through `EmptyStateView` with an `EmptyState` (`via/Shared/Presentation/View/`) — one centred column, one optional glyph, one title, one sentence, and the way out underneath.

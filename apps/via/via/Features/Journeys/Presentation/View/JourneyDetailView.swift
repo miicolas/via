@@ -118,6 +118,7 @@ struct JourneyDetailView: View {
             .presentationCornerRadius(36)
             .presentationDragIndicator(.visible)
         }
+        .haptic(Haptic.failed, on: isDraftErrorPresented) { !$0 && $1 }
         .alert("Trajet non prévu", isPresented: $isDraftErrorPresented) {
             Button("OK", role: .cancel) {}
         } message: {

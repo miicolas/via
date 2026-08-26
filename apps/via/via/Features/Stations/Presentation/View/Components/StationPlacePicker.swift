@@ -13,6 +13,7 @@ struct StationPlacePicker: View {
     let onManage: () -> Void
 
     @State private var destinationPendingRemoval: SavedDestination?
+    @State private var addTick = 0
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -25,7 +26,10 @@ struct StationPlacePicker: View {
                     destinationButton(destination)
                 }
 
-                Button(action: onAdd) {
+                Button {
+                    addTick += 1
+                    onAdd()
+                } label: {
                     Image(systemName: "plus")
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(.white)
@@ -34,6 +38,7 @@ struct StationPlacePicker: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(destinations.count >= AccountLocalSnapshot.destinationLimit)
+                .haptic(Haptic.tap, on: addTick)
                 .accessibilityLabel("Ajouter un lieu favori")
                 .accessibilityHint(
                     destinations.count >= AccountLocalSnapshot.destinationLimit
@@ -47,6 +52,9 @@ struct StationPlacePicker: View {
         .scrollClipDisabled()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Destinations enregistrées")
+        // Removing a favourite is confirmed in a dialog that covers the rail:
+        // the warning is what tells the thumb the destructive path opened.
+        .haptic(Haptic.warned, on: destinationPendingRemoval != nil) { !$0 && $1 }
         .confirmationDialog(
             "Supprimer \(destinationPendingRemoval?.label ?? "ce favori") ?",
             isPresented: removalPresentation,

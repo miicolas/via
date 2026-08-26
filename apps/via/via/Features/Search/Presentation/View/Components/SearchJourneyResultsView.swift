@@ -13,9 +13,14 @@ struct SearchJourneyResultsView: View {
   let onRetry: () -> Void
   let onEdit: () -> Void
 
+  @State private var selectionTick = 0
+
   var body: some View {
     content
     .frame(maxWidth: .infinity, alignment: .leading)
+    // Reminders are set from a context menu that closes over the result: the
+    // list underneath is the only thing left to answer.
+    .toggleHaptic(on: scheduledReminderJourneyID != nil)
   }
 
   private var isPlanning: Bool {
@@ -123,6 +128,7 @@ struct SearchJourneyResultsView: View {
 
   private func journeyCard(_ journey: Journey, in result: JourneyResult) -> some View {
     Button {
+      selectionTick += 1
       onSelectJourney(journey)
     } label: {
       JourneySummaryCard(
@@ -132,6 +138,9 @@ struct SearchJourneyResultsView: View {
       )
     }
     .buttonStyle(.plain)
+    // Retaining an itinerary opens the detail over the map: the decision that
+    // ends the search.
+    .haptic(Haptic.commit, on: selectionTick)
     .accessibilityHint("Ouvre le détail de cet itinéraire et l’affiche sur la carte")
     .contextMenu {
       JourneyReminderContextMenu(

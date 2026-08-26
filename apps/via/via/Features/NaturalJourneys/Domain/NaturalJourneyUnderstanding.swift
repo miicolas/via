@@ -80,25 +80,37 @@ struct NaturalJourneyTurn: Sendable, Hashable {
     let locale: Locale
     let now: Date
     let hasCurrentLocation: Bool
+    /// The slot whose clarification the person is answering. This is dialogue
+    /// state, not something a language model should have to infer again from a
+    /// short reply such as « Chatou ».
+    let focusedField: NaturalJourneyIntentField?
 
     init(
         phrase: String,
         locale: Locale,
         now: Date,
         hasCurrentLocation: Bool = false,
+        focusedField: NaturalJourneyIntentField? = nil,
     ) {
         self.phrase = phrase
         self.locale = locale
         self.now = now
         self.hasCurrentLocation = hasCurrentLocation
+        self.focusedField = focusedField
     }
 
-    init(phrase: String, now: Date, hasCurrentLocation: Bool = false) {
+    init(
+        phrase: String,
+        now: Date,
+        hasCurrentLocation: Bool = false,
+        focusedField: NaturalJourneyIntentField? = nil,
+    ) {
         self.init(
             phrase: phrase,
             locale: Self.detectedLocale(for: phrase),
             now: now,
             hasCurrentLocation: hasCurrentLocation,
+            focusedField: focusedField,
         )
     }
 

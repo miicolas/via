@@ -1,3 +1,4 @@
+import { createServer } from "node:http2";
 import { exportPKCS8, generateKeyPair } from "jose";
 import { expect, test } from "bun:test";
 
@@ -7,6 +8,45 @@ import {
   type APNsRequestInit,
   createAPNsProvider,
 } from "./apns";
+import { createAPNsHTTP2Client } from "./apns-http2";
+
+test("the APNs HTTP/2 client reads an empty successful response", async () => {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "apns-id": "response-id" });
+    response.end();
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    server.close();
+    throw new Error("The HTTP/2 test server did not expose a port.");
+  }
+
+  const client = createAPNsHTTP2Client();
+  try {
+    const response = await client.request(
+      `http://127.0.0.1:${address.port}/3/device/test`,
+      {
+        method: "POST",
+        headers: { "apns-topic": "dev.via.app" },
+        body: JSON.stringify({ aps: { alert: "test" } }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("apns-id")).toBe("response-id");
+    expect(await response.text()).toBe("");
+  } finally {
+    client.close();
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+});
 
 test("APNs provider targets the token environment and signs a reusable bearer token", async () => {
   const keyPair = await generateKeyPair("ES256", { extractable: true });

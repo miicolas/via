@@ -80,39 +80,59 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         switch request {
         case let .submit(query, location):
             let interpretationStartedAt = metricsNow()
+            let catalogDraft: NaturalJourneyDraft?
             do {
-                let transition = try await understanding.interpret(
-                    NaturalJourneyTurn(
-                        phrase: query,
-                        now: currentTime,
-                        hasCurrentLocation: location != nil,
-                    ),
-                    state: nil,
-                )
-                recordInterpretation(
-                    startedAt: interpretationStartedAt,
-                    path: transition.state.processingPath,
-                )
-                var dialogueState = transition.state
-                dialogueState.intent = Self.normalizedTime(
-                    in: dialogueState.intent,
+                catalogDraft = try await catalogGroundedDraft(
+                    for: query,
                     now: currentTime,
+                    near: location,
                 )
-                draft = NaturalJourneyDraft(
-                    dialogueState: dialogueState,
-                    origin: nil,
-                    destination: nil,
-                )
-                understandingConflicts = transition.conflicts
-                unexplainedText = transition.unexplainedText
-            } catch NaturalIntentParsingError.cancelled {
+            } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                recordInterpretation(startedAt: interpretationStartedAt, path: .unknown)
-                throw error
+                // Place resolution will surface its own connectivity state
+                // later. A failed preflight must not prevent either model from
+                // interpreting a richer sentence.
+                catalogDraft = nil
+            }
+            if let catalogDraft {
+                draft = catalogDraft
+                recordInterpretation(startedAt: interpretationStartedAt, path: .deterministic)
+            } else {
+                do {
+                    let transition = try await understanding.interpret(
+                        NaturalJourneyTurn(
+                            phrase: query,
+                            now: currentTime,
+                            hasCurrentLocation: location != nil,
+                        ),
+                        state: nil,
+                    )
+                    recordInterpretation(
+                        startedAt: interpretationStartedAt,
+                        path: transition.state.processingPath,
+                    )
+                    var dialogueState = transition.state
+                    dialogueState.intent = Self.normalizedTime(
+                        in: dialogueState.intent,
+                        now: currentTime,
+                    )
+                    draft = NaturalJourneyDraft(
+                        dialogueState: dialogueState,
+                        origin: nil,
+                        destination: nil,
+                    )
+                    understandingConflicts = transition.conflicts
+                    unexplainedText = transition.unexplainedText
+                } catch NaturalIntentParsingError.cancelled {
+                    throw CancellationError()
+                } catch {
+                    recordInterpretation(startedAt: interpretationStartedAt, path: .unknown)
+                    throw error
+                }
             }
             currentLocation = location
-        case let .revise(query, submittedDraft, location):
+        case let .revise(query, submittedDraft, focusedField, location):
             let interpretationStartedAt = metricsNow()
             do {
                 let transition = try await understanding.interpret(
@@ -120,6 +140,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                         phrase: query,
                         now: currentTime,
                         hasCurrentLocation: location != nil,
+                        focusedField: focusedField,
                     ),
                     state: submittedDraft.dialogueState,
                 )
@@ -620,11 +641,25 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
         } else {
             nil
         }
+        let originHint = NaturalPlaceKindHint.inferred(
+            from: draft.dialogueState[field: .origin]?.evidence,
+        )
+        let destinationHint = NaturalPlaceKindHint.inferred(
+            from: draft.dialogueState[field: .destination]?.evidence,
+        )
 
         // The two lookups are independent network searches: waiting for one
         // before starting the other doubled the geocoding latency.
-        async let resolvedOrigin = resolve(pendingOriginQuery, near: currentLocation)
-        async let resolvedDestination = resolve(pendingDestinationQuery, near: currentLocation)
+        async let resolvedOrigin = resolve(
+            pendingOriginQuery,
+            hint: originHint,
+            near: currentLocation,
+        )
+        async let resolvedDestination = resolve(
+            pendingDestinationQuery,
+            hint: destinationHint,
+            near: currentLocation,
+        )
         async let resolvedCustomOrigin = resolveCustomAlias(customOrigin, near: currentLocation)
         async let resolvedCustomDestination = resolveCustomAlias(customDestination, near: currentLocation)
         let (
@@ -726,8 +761,201 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             : .clarification(.needsClarification(draft: next, fields: fields))
     }
 
+    /// Ground terse place-only input with the same authoritative catalog used
+    /// for execution. A complete catalog match wins first; otherwise every
+    /// token boundary is tried and only one uniquely strong pair is accepted.
+    /// This is what makes « Chatou Bonne Nouvelle » deterministic without
+    /// teaching a model a brittle list of station names.
+    private func catalogGroundedDraft(
+        for phrase: String,
+        now: Date,
+        near currentLocation: GeoCoordinate?,
+    ) async throws -> NaturalJourneyDraft? {
+        guard Self.looksLikeBarePlaceInput(phrase) else { return nil }
+
+        let whole = try await places.resolve(phrase, near: currentLocation)
+        if case .resolved(let destination) = whole,
+           OnDevicePlaceResolver.isStrongMatch(destination, for: phrase)
+        {
+            return Self.catalogDraft(
+                originQuery: nil,
+                origin: nil,
+                destinationQuery: phrase,
+                destination: destination,
+                now: now,
+            )
+        }
+
+        let fragments = Self.barePlacePairs(in: phrase)
+        guard !fragments.isEmpty else { return nil }
+        let matches = try await withThrowingTaskGroup(
+            of: CatalogPairMatch?.self,
+            returning: [CatalogPairMatch].self,
+        ) { group in
+            for fragment in fragments {
+                group.addTask { [places] in
+                    async let originTask = places.resolve(
+                        fragment.origin,
+                        near: currentLocation,
+                    )
+                    async let destinationTask = places.resolve(
+                        fragment.destination,
+                        near: currentLocation,
+                    )
+                    let (originResolution, destinationResolution) = try await (
+                        originTask,
+                        destinationTask,
+                    )
+                    guard case .resolved(let origin) = originResolution,
+                          case .resolved(let destination) = destinationResolution,
+                          OnDevicePlaceResolver.isStrongMatch(origin, for: fragment.origin),
+                          OnDevicePlaceResolver.isStrongMatch(
+                              destination,
+                              for: fragment.destination,
+                          )
+                    else { return nil }
+                    return CatalogPairMatch(
+                        originQuery: fragment.origin,
+                        origin: origin,
+                        destinationQuery: fragment.destination,
+                        destination: destination,
+                    )
+                }
+            }
+
+            var found: [CatalogPairMatch] = []
+            for try await match in group {
+                if let match { found.append(match) }
+            }
+            return found
+        }
+
+        var seen: Set<String> = []
+        let unique = matches.filter {
+            seen.insert("\($0.origin.id)|\($0.destination.id)").inserted
+        }
+        guard unique.count == 1, let pair = unique.first else { return nil }
+        return Self.catalogDraft(
+            originQuery: pair.originQuery,
+            origin: pair.origin,
+            destinationQuery: pair.destinationQuery,
+            destination: pair.destination,
+            now: now,
+        )
+    }
+
+    private static func catalogDraft(
+        originQuery: String?,
+        origin: SearchResult?,
+        destinationQuery: String,
+        destination: SearchResult,
+        now: Date,
+    ) -> NaturalJourneyDraft {
+        let intent = RouteIntent(
+            scope: .journey,
+            originPlace: originQuery.map(RoutePlaceIntent.query) ?? .currentLocation,
+            destinationPlace: .query(destinationQuery),
+            requestedAt: now,
+            datetimeRepresents: .departure,
+            requiredModes: [],
+            excludedModes: [],
+            preferredModes: [],
+            dateWasExplicit: false,
+            timeWasExplicit: false,
+            originWasExplicit: originQuery != nil,
+        )
+        var state = NaturalJourneyDialogueState(intent: intent)
+        let scopeEvidence = if let originQuery {
+            "\(originQuery) \(destinationQuery)"
+        } else {
+            destinationQuery
+        }
+        state[field: .scope] = .grounded(
+            evidence: scopeEvidence,
+            provenance: .deterministic,
+        )
+        if let originQuery {
+            state[field: .origin] = .grounded(
+                evidence: originQuery,
+                provenance: .deterministic,
+            )
+        }
+        state[field: .destination] = .grounded(
+            evidence: destinationQuery,
+            provenance: .deterministic,
+        )
+        return NaturalJourneyDraft(
+            dialogueState: state,
+            origin: origin,
+            destination: destination,
+        )
+    }
+
+    private static func looksLikeBarePlaceInput(_ phrase: String) -> Bool {
+        let raw = phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty, raw.count <= 120 else { return false }
+        guard raw.range(of: #"[?!;,]"#, options: .regularExpression) == nil else {
+            return false
+        }
+        let words = OnDevicePlaceResolver.normalize(raw)
+            .replacingOccurrences(
+                of: #"[^\p{L}\p{N}]+"#,
+                with: " ",
+                options: .regularExpression,
+            )
+            .split(separator: " ")
+            .map(String.init)
+        guard (1 ... 7).contains(words.count) else { return false }
+        let sentenceVocabulary: Set<String> = [
+            "aller", "arrive", "arriver", "cherche", "depuis", "direction",
+            "emmene", "jusqu", "pars", "partir", "ramene", "rentre", "vais",
+            "vers", "veux", "voudrais", "demain", "aujourd", "matin", "soir",
+            "avant", "apres", "dernier", "sans", "seulement", "uniquement",
+            "plutot", "prefere", "trafic", "perturbation", "perturbations",
+            "ligne", "from", "towards", "leave", "arrive", "tomorrow", "today",
+            "before", "after", "without", "only", "prefer", "traffic",
+            "comment", "fera", "itineraire", "peux", "pourrais", "quel", "quelle",
+            "quelles", "quels", "temps", "trajet", "trouve",
+        ]
+        guard Set(words).isDisjoint(with: sentenceVocabulary) else { return false }
+        return raw.range(
+            of: #"\b\d{1,2}\s*(?::|h)\s*\d{0,2}\b"#,
+            options: [.regularExpression, .caseInsensitive],
+        ) == nil
+    }
+
+    private static func barePlacePairs(
+        in phrase: String
+    ) -> [(origin: String, destination: String)] {
+        let words = phrase
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: \Character.isWhitespace)
+        guard words.count >= 2 else { return [] }
+        let nonTerminalConnectors: Set<String> = [
+            "a", "au", "aux", "d", "de", "des", "du", "en", "l", "la", "le", "les",
+            "of", "the",
+        ]
+        return (1 ..< words.count).compactMap { boundary in
+            let left = words[..<boundary]
+            let lastLeft = OnDevicePlaceResolver.normalize(String(left.last!))
+                .trimmingCharacters(in: .punctuationCharacters)
+            guard !nonTerminalConnectors.contains(lastLeft) else { return nil }
+            let origin = left.joined(separator: " ")
+            let destination = words[boundary...].joined(separator: " ")
+            return (origin, destination)
+        }
+    }
+
+    private struct CatalogPairMatch: Sendable {
+        let originQuery: String
+        let origin: SearchResult
+        let destinationQuery: String
+        let destination: SearchResult
+    }
+
     private func resolve(
         _ query: String?,
+        hint: NaturalPlaceKindHint = .automatic,
         near currentLocation: GeoCoordinate?,
     ) async throws -> OnDevicePlaceResolution? {
         guard let query else { return nil }
@@ -738,7 +966,7 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
             guard let favorite = await favorites(role) else { return .notFound }
             return .resolved(favorite)
         }
-        return try await places.resolve(query, near: currentLocation)
+        return try await places.resolve(query, hint: hint, near: currentLocation)
     }
 
     /// Home and Work are personal, unambiguous concepts. A custom alias can

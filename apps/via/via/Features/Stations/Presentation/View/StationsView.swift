@@ -177,7 +177,7 @@ struct StationsView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .refreshable {
+        .hapticRefreshable {
             await viewModel.refresh()
         }
     }
@@ -280,7 +280,7 @@ struct StationsView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .refreshable {
+        .hapticRefreshable {
             await viewModel.refresh()
         }
     }

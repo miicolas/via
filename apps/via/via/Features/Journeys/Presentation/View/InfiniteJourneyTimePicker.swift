@@ -63,7 +63,7 @@ struct InfiniteJourneyTimePicker: View {
             }
         }
         .frame(height: 224)
-        .sensoryFeedback(.selection, trigger: hapticTick)
+        .haptic(Haptic.selection, on: hapticTick)
         .onAppear { selection = anchorDate }
         .onChange(of: focusedIndex) { _, index in
             guard let index else { return }

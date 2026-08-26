@@ -123,6 +123,8 @@ struct FoundationModelsIntentParser: NaturalIntentParsing {
         N’invente pas de lieu. Garde les libellés assez complets pour que Via les résolve ensuite.
         Pour « chez moi », « la maison », « le bureau », « au travail », utilise uniquement le fait verrouillé saved fourni dans le contexte. Dans le schéma texte, recopie son label fourni ; ne transforme jamais ces mots en adresse et n’invente jamais un lieu personnel.
         Un nom de commune seul est déjà un lieu complet : conserve-le comme destination et ne lui invente ni rue ni numéro.
+        Une saisie composée uniquement de deux lieux juxtaposés est le raccourci « origine destination » : le premier lieu est le départ et le second l’arrivée. Applique cette règle à tous les noms, sans liste spéciale ni nombre fixe de mots, et préserve les noms composés. Par exemple « Chatou Bonne Nouvelle » signifie origine « Chatou » et destination « Bonne Nouvelle », tandis que « La Défense Porte de Versailles » signifie origine « La Défense » et destination « Porte de Versailles ». Si la frontière entre deux vrais lieux n’est pas suffisamment claire, conserve le fragment dans unexplainedText au lieu d’inventer une coupure.
+        Si expected_slot vaut origin ou destination, la saisie répond à une question de clarification : affecte le lieu formulé uniquement à ce champ. Le rôle fourni est un fait de dialogue verrouillé.
         Via fournit parfois des faits verrouillés. Ne les ré-extrais pas et ne les reformule jamais : si locked_origin n’est pas none, rends l’origine neutre currentLocation avec evidence vide et originWasExplicit false ; si locked_destination n’est pas none, laisse destinationQuery absent et destinationEvidence vide. Via réinjecte ces ancres après ta réponse. Chaque autre lieu et contrainte temporelle explicite porte un fragment evidence copié exactement depuis la saisie. Signale tout fragment significatif restant dans unexplainedText.
         In English, “from” marks the origin, “to/towards/home/work” marks the destination, “arrive by” is arrival, “leave/after” is departure, “only” is required, “without/avoid” is excluded, and “prefer” is preferred.
         Si l’origine n’est pas indiquée, utilise currentLocation et originWasExplicit vaut false. Si l’utilisateur dit « ma position », originWasExplicit vaut true. Si la destination manque, destinationQuery est absent.
@@ -150,11 +152,17 @@ struct FoundationModelsIntentParser: NaturalIntentParsing {
     private static func modelContext(for request: NaturalIntentModelRequest) -> String {
         let origin = request.originAnchor.map(anchorDescription) ?? "none"
         let destination = request.destinationAnchor.map(anchorDescription) ?? "none"
+        let expectedSlot = switch request.focusedField {
+        case .origin: "origin"
+        case .destination: "destination"
+        case .time: "time"
+        default: "none"
+        }
         let aliases = request.savedPlaces.map {
             "id=\($0.id);label=\($0.label);kind=\($0.kind.rawValue)"
         }.joined(separator: " | ")
         return """
-        <context locale="\(request.locale.identifier)" current_location="\(request.hasCurrentLocation)">
+        <context locale="\(request.locale.identifier)" current_location="\(request.hasCurrentLocation)" expected_slot="\(expectedSlot)">
         locked_origin=\(origin)
         locked_destination=\(destination)
         saved_aliases=\(aliases.isEmpty ? "none" : aliases)

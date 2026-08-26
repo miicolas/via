@@ -154,6 +154,28 @@ const corpus: LiveCase[] = [
     expected: { origin: 'query:Châtelet', destination: 'query:Montparnasse' },
   },
   {
+    id: 'fr-bare-place-pair',
+    input: input('Chatou Bonne Nouvelle', 'fr-FR'),
+    expected: { origin: 'query:Chatou', destination: 'query:Bonne Nouvelle' },
+  },
+  {
+    id: 'fr-bare-station-pair',
+    input: input('Chatou Balard', 'fr-FR'),
+    expected: { origin: 'query:Chatou', destination: 'query:Balard' },
+  },
+  {
+    id: 'fr-bare-multiword-pair',
+    input: input('La Défense Porte de Versailles', 'fr-FR'),
+    expected: {
+      origin: 'query:La Défense', destination: 'query:Porte de Versailles',
+    },
+  },
+  {
+    id: 'fr-bare-canonical-gare-pair',
+    input: input('Gare de Lyon République', 'fr-FR'),
+    expected: { origin: 'query:Gare de Lyon', destination: 'query:République' },
+  },
+  {
     id: 'en-destination-first-unanchored',
     input: input('take me to Nation from Auber', 'en'),
     expected: { origin: 'query:Auber', destination: 'query:Nation' },
