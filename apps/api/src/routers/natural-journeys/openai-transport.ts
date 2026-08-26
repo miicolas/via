@@ -31,7 +31,7 @@ export type ResponsesInputItem =
   | { type: 'function_call'; call_id: string; name: string; arguments: string }
   | { type: 'function_call_output'; call_id: string; output: string };
 
-export type ReasoningEffort = 'minimal' | 'low' | 'medium';
+export type ReasoningEffort = 'none' | 'low' | 'medium';
 
 export type ResponsesRequest = {
   model: string;

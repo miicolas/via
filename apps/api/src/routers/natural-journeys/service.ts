@@ -146,6 +146,10 @@ export function createNaturalJourneyService(deps: NaturalJourneyServiceDeps): Na
           emit('cancelled');
           throw cancellation(externalSignal);
         }
+        console.error(
+          '[natural-journeys] openai request failed',
+          error instanceof Error ? error.message : error,
+        );
         await breaker.recordFailure();
         emit(timeoutSignal.aborted ? 'timeout' : 'openai-error');
         return unavailable();

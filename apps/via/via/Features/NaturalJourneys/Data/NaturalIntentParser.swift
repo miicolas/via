@@ -9,6 +9,9 @@ enum NaturalIntentParsingError: Error, Sendable, Hashable {
     case contentRefused
     case invalidResponse
     case modelFailed
+    /// The server declined to interpret (rollout gate, missing key, breaker,
+    /// rate limit). Nothing is wrong with the device or the phrase.
+    case remoteUnavailable
 }
 
 struct NaturalIntentModelAnchor: Sendable, Hashable {

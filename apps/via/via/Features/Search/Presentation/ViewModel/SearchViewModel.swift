@@ -571,6 +571,8 @@ final class SearchViewModel {
       "Reformule ta demande de trajet."
     case .invalidResponse, .modelFailed:
       "Je n’ai pas compris. Vérifie les lieux et l’heure."
+    case .remoteUnavailable:
+      "Le service est momentanément indisponible. Réessaie dans un instant."
     case .cancelled, .modelNotReady:
       "La demande n’a pas pu être interprétée."
     }

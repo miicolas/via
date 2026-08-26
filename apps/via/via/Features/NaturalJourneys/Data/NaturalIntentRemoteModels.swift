@@ -64,7 +64,7 @@ enum NaturalIntentResponseDTO: Decodable {
     func proposal(
         for request: NaturalIntentModelRequest
     ) throws(NaturalIntentParsingError) -> NaturalIntentProposal {
-        guard case .interpreted(let dto) = self else { throw .modelFailed }
+        guard case .interpreted(let dto) = self else { throw .remoteUnavailable }
         guard ["journey", "unsupported"].contains(dto.scope),
               dto.requiredModes.count <= 3,
               dto.excludedModes.count <= 3,
