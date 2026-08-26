@@ -414,6 +414,7 @@ struct StationsView: View {
         nearby: nil,
         selectedStation: SelectedStationModel(
             departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+            crowdingRepository: InMemoryStationCrowdingRepository(crowding: .preview),
             reportRepository: InMemoryReportRepository(),
             account: accountModel,
             locationModel: locationModel,

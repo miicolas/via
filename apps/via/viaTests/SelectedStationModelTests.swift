@@ -80,6 +80,57 @@ final class SelectedStationModelTests: XCTestCase {
     XCTAssertEqual(model.overview?.departureSource, .realtime)
   }
 
+  func testCrowdingProfileLoadsOnSelectionAndClearsOnDismiss() async {
+    let route = makeRoute(id: "metro-1", shortName: "1")
+    let item = makeItem(id: "crowded", route: route)
+    let model = makeModel(
+      departures: InMemoryDeparturesRepository(),
+      crowding: InMemoryStationCrowdingRepository(crowding: .preview),
+      now: .now
+    )
+
+    model.select(item)
+    XCTAssertFalse(model.isCrowdingLoaded)
+
+    await waitUntil { model.isCrowdingLoaded }
+    XCTAssertEqual(model.crowding, .preview)
+
+    model.dismiss()
+    XCTAssertNil(model.crowding)
+    XCTAssertFalse(model.isCrowdingLoaded)
+  }
+
+  func testStationWithoutProfileLoadsAsEmptyCrowding() async {
+    let route = makeRoute(id: "bus-38", shortName: "38")
+    let item = makeItem(id: "bus-stop", route: route)
+    let model = makeModel(
+      departures: InMemoryDeparturesRepository(),
+      crowding: InMemoryStationCrowdingRepository(crowding: nil),
+      now: .now
+    )
+
+    model.select(item)
+    await waitUntil { model.isCrowdingLoaded }
+
+    XCTAssertNil(model.crowding)
+  }
+
+  func testCrowdingFailureDegradesSilently() async {
+    let route = makeRoute(id: "metro-1", shortName: "1")
+    let item = makeItem(id: "offline", route: route)
+    let model = makeModel(
+      departures: InMemoryDeparturesRepository(),
+      crowding: FailingStationCrowdingRepository(),
+      now: .now
+    )
+
+    model.select(item)
+    await waitUntil { model.isCrowdingLoaded }
+
+    XCTAssertNil(model.crowding)
+    XCTAssertEqual(model.loadingState, .loaded)
+  }
+
   func testFavoriteMutationIsPersistedByAccountModel() {
     let route = makeRoute(id: "metro-1", shortName: "1")
     let item = makeItem(id: "favorite", route: route)
@@ -147,14 +198,16 @@ final class SelectedStationModelTests: XCTestCase {
 
   private func makeModel(
     departures: any DeparturesRepository,
+    crowding: any StationCrowdingRepository = InMemoryStationCrowdingRepository(),
     reports: any ReportRepository = InMemoryReportRepository(),
     now: Date
   ) -> SelectedStationModel {
-    makeModelAndAccount(departures: departures, reports: reports, now: now).0
+    makeModelAndAccount(departures: departures, crowding: crowding, reports: reports, now: now).0
   }
 
   private func makeModelAndAccount(
     departures: any DeparturesRepository,
+    crowding: any StationCrowdingRepository = InMemoryStationCrowdingRepository(),
     reports: any ReportRepository = InMemoryReportRepository(),
     now: Date = .now
   ) -> (SelectedStationModel, AccountModel) {
@@ -174,6 +227,7 @@ final class SelectedStationModelTests: XCTestCase {
     return (
       SelectedStationModel(
         departuresRepository: departures,
+        crowdingRepository: crowding,
         reportRepository: reports,
         account: account,
         locationModel: location,
@@ -268,6 +322,12 @@ private actor DelayedSelectedDeparturesRepository: DeparturesRepository {
 
 private struct FailingSelectedDeparturesRepository: DeparturesRepository {
   func board(stationID: StationID) async throws -> DepartureBoard {
+    throw ViaError.unavailable
+  }
+}
+
+private struct FailingStationCrowdingRepository: StationCrowdingRepository {
+  func crowding(stationID: StationID) async throws -> StationCrowding? {
     throw ViaError.unavailable
   }
 }

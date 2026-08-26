@@ -4410,6 +4410,7 @@
                             "scope": {
                               "enum": [
                                 "journey",
+                                "line_status",
                                 "unsupported"
                               ],
                               "type": "string"
@@ -4726,6 +4727,45 @@
                             "unexplainedText": {
                               "type": "string",
                               "maxLength": 200
+                            },
+                            "lineStatus": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "enum": [
+                                    "specific",
+                                    "network_overview",
+                                    "disruptions"
+                                  ],
+                                  "type": "string"
+                                },
+                                "code": {
+                                  "type": "string",
+                                  "maxLength": 12
+                                },
+                                "mode": {
+                                  "enum": [
+                                    "any",
+                                    "metro",
+                                    "rer",
+                                    "transilien",
+                                    "tram",
+                                    "bus"
+                                  ],
+                                  "type": "string"
+                                },
+                                "evidence": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 160
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "code",
+                                "mode",
+                                "evidence"
+                              ]
                             }
                           },
                           "required": [
@@ -6718,6 +6758,152 @@
                     "bikeStations",
                     "sources"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/station-crowding": {
+      "get": {
+        "operationId": "network.stationCrowding",
+        "summary": "L’affluence habituelle d’une station",
+        "description": "Le profil horaire habituel des validations IDFM sur 24 heures, pour les trois types de jour que la source distingue : semaine, samedi, dimanche et fériés. Un profil type mis à jour chaque trimestre, pas du temps réel — et réseau ferré uniquement : une station de bus répond sans profil.",
+        "tags": [
+          "network"
+        ],
+        "parameters": [
+          {
+            "name": "stationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "profiles": {
+                      "type": "object",
+                      "properties": {
+                        "weekday": {
+                          "type": "array",
+                          "minItems": 24,
+                          "maxItems": 24,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "hour": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 23
+                              },
+                              "ratio": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "level": {
+                                "enum": [
+                                  "off",
+                                  "moderate",
+                                  "peak"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "hour",
+                              "ratio",
+                              "level"
+                            ]
+                          }
+                        },
+                        "saturday": {
+                          "type": "array",
+                          "minItems": 24,
+                          "maxItems": 24,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "hour": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 23
+                              },
+                              "ratio": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "level": {
+                                "enum": [
+                                  "off",
+                                  "moderate",
+                                  "peak"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "hour",
+                              "ratio",
+                              "level"
+                            ]
+                          }
+                        },
+                        "sunday": {
+                          "type": "array",
+                          "minItems": 24,
+                          "maxItems": 24,
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "hour": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 23
+                              },
+                              "ratio": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "level": {
+                                "enum": [
+                                  "off",
+                                  "moderate",
+                                  "peak"
+                                ],
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "hour",
+                              "ratio",
+                              "level"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "weekday",
+                        "saturday",
+                        "sunday"
+                      ]
+                    }
+                  }
                 }
               }
             }

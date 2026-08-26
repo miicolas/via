@@ -236,6 +236,40 @@ function isGroundedInterpretation(
     ...interpretation.excludedModes,
     ...interpretation.preferredModes,
   ];
+  const validLineStatus = (() => {
+    if (interpretation.scope !== 'line_status') {
+      return interpretation.lineStatus === undefined;
+    }
+
+    const line = interpretation.lineStatus;
+    if (!line || !containsEvidence(line.evidence)) return false;
+    if (interpretation.origin || interpretation.destination || interpretation.originWasExplicit) {
+      return false;
+    }
+    if (interpretation.lastServiceOfDay || modes.length > 0) return false;
+    if (interpretation.unsupportedConstraints.length > 0) return false;
+    if (interpretation.timeConstraint.reference !== 'implicit_today'
+      || interpretation.timeConstraint.timePrecision !== 'unspecified'
+      || interpretation.timeConstraint.meaning !== 'departure'
+      || interpretation.timeConstraint.yearWasExplicit
+      || interpretation.timeConstraint.relativeAmount !== 0
+      || interpretation.timeConstraint.evidence.length > 0
+      || interpretation.alternateTimeConstraint !== undefined) {
+      return false;
+    }
+
+    const evidence = normalize(line.evidence);
+    if (line.kind === 'specific') {
+      const code = normalize(line.code);
+      if (code.length === 0 || !containsStandaloneLineCode(evidence, code)) return false;
+    } else if (line.code.length > 0) {
+      return false;
+    }
+
+    if (line.mode === 'any') return true;
+    return evidence.includes(line.mode)
+      || (line.mode === 'transilien' && evidence.includes('train'));
+  })();
 
   return validPlace(interpretation.origin, true)
     && validPlace(interpretation.destination, false)
@@ -254,7 +288,13 @@ function isGroundedInterpretation(
       || normalizedInput.includes('dernier')
       || normalizedInput.includes('last'))
     && containsEvidence(interpretation.unexplainedText)
-    && interpretation.unsupportedConstraints.every(containsEvidence);
+    && interpretation.unsupportedConstraints.every(containsEvidence)
+    && validLineStatus;
+}
+
+function containsStandaloneLineCode(evidence: string, code: string): boolean {
+  const escaped = code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i').test(evidence);
 }
 
 function normalize(value: string): string {

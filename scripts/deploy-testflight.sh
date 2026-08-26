@@ -19,7 +19,7 @@ Options:
 Environment overrides:
   ASC_DEPLOY_APP_ID, ASC_DEPLOY_BUNDLE_ID, ASC_DEPLOY_VERSION,
   ASC_DEPLOY_TESTFLIGHT_GROUP, ASC_DEPLOY_TIMEOUT,
-  ASC_NATURAL_JOURNEY_EVAL_DESTINATION
+  ASC_NATURAL_JOURNEY_EVAL_DESTINATION, NATURAL_JOURNEY_EVAL_P95_MS
 USAGE
 }
 
@@ -158,9 +158,16 @@ if [ "$DRY_RUN" -eq 1 ]; then
 fi
 
 if [ -z "$NATURAL_EVAL_DESTINATION" ]; then
-  log "Déploiement bloqué: ASC_NATURAL_JOURNEY_EVAL_DESTINATION doit cibler un appareil ou simulateur iOS 26 compatible avec Foundation Models."
+  log "Déploiement bloqué: ASC_NATURAL_JOURNEY_EVAL_DESTINATION doit cibler un iPhone physique iOS 26 compatible avec Foundation Models."
   exit 1
 fi
+
+case "$NATURAL_EVAL_DESTINATION" in
+  *"iOS Simulator"*|*"iphonesimulator"*)
+    log "Déploiement bloqué: le gate Foundation Models doit tourner sur un iPhone physique; le simulateur peut annoncer le modèle disponible sans posséder tous ses assets."
+    exit 1
+    ;;
+esac
 
 log "Validation des contrats, du serveur et des tests non iOS"
 bun run typecheck
@@ -168,16 +175,30 @@ bun run test
 bun run check:openapi
 
 log "Gate IA: invariants critiques à 100 %, corpus FR/EN à 99 %"
+
+if ! bun --env-file=.env -e 'process.exit(process.env.OPENAI_API_KEY?.trim() ? 0 : 1)'; then
+  log "Déploiement bloqué: OPENAI_API_KEY est requise pour le corpus réel du fallback serveur."
+  exit 1
+fi
+
+(
+  cd apps/api
+  NATURAL_JOURNEY_LIVE_EVAL=1 \
+    NATURAL_JOURNEY_EVAL_P95_MS="${NATURAL_JOURNEY_EVAL_P95_MS:-12000}" \
+    bun --env-file=../../.env test src/routers/natural-journeys/live-interpreter.eval.test.ts
+)
+
 xcodebuild \
   -project "$PROJECT_PATH" \
   -scheme "$SCHEME" \
   -configuration Debug \
   -destination "$NATURAL_EVAL_DESTINATION" \
   'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) VIA_RELEASE_EVAL_GATE' \
-  -only-testing:viaTests/NaturalJourneyUnderstandingTests \
-  -only-testing:viaTests/OnDeviceNaturalJourneyServiceTests \
-  -only-testing:viaTests/NaturalJourneyFallbackTests \
-  -only-testing:viaTests/NaturalJourneyIntentEvalTests \
+  -only-testing:ViaTests/NaturalJourneyUnderstandingTests \
+  -only-testing:ViaTests/NaturalJourneyCriticalCorpusTests \
+  -only-testing:ViaTests/OnDeviceNaturalJourneyServiceTests \
+  -only-testing:ViaTests/NaturalJourneyFallbackTests \
+  -only-testing:ViaTests/NaturalJourneyIntentEvalTests \
   test
 
 mkdir -p .asc/artifacts

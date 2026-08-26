@@ -67,6 +67,33 @@ final class NaturalJourneyUnderstandingTests: XCTestCase {
         XCTAssertTrue(transition.conflicts.isEmpty)
     }
 
+    func testSequentialJourneyWordingPreservesStationNamesAndDoesNotInventATime() async throws {
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: { [] },
+            serverFallbackAllowed: { false },
+        )
+
+        let transition = try await understanding.interpret(
+            NaturalJourneyTurn(
+                phrase: "gare saint lazare pour aller ensuite à gare du nord",
+                locale: Locale(identifier: "fr_FR"),
+                now: ISO8601.parse("2026-08-26T09:10:00+02:00")!,
+            ),
+            state: nil,
+        )
+
+        XCTAssertEqual(transition.state.intent.originPlace, .query("gare saint lazare"))
+        XCTAssertEqual(transition.state.intent.destinationPlace, .query("gare du nord"))
+        XCTAssertEqual(transition.state.intent.datetimeRepresents, .departure)
+        XCTAssertFalse(transition.state.intent.dateWasExplicit)
+        XCTAssertFalse(transition.state.intent.timeWasExplicit)
+        XCTAssertNil(transition.state.intent.alternateTimeConstraint)
+        XCTAssertEqual(transition.state.processingPath, .deterministic)
+        XCTAssertTrue(transition.conflicts.isEmpty)
+    }
+
     func testSavedPlaceAfterFromIsOriginAndIsNeverInverted() async throws {
         let home = NaturalJourneySavedPlaceReference(
             id: "home",

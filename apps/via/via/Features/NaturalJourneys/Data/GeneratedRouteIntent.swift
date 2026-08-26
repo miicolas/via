@@ -4,6 +4,7 @@ import FoundationModels
 @Generable(description: "Périmètre de la demande utilisateur")
 enum GeneratedRouteScope {
     case journey
+    case lineStatus
     case unsupported
 }
 
@@ -115,6 +116,37 @@ enum GeneratedTransitMode {
     case bus
 }
 
+@Generable(description: "Type de consultation de l’état du réseau")
+enum GeneratedLineStatusKind {
+    case specific
+    case networkOverview
+    case disruptions
+}
+
+@Generable(description: "Mode explicitement cité dans une question de trafic")
+enum GeneratedLineStatusMode {
+    case any
+    case metro
+    case rer
+    case transilien
+    case tram
+    case bus
+}
+
+@Generable(description: "Question structurée sur l’état réel d’une ligne, sans réponse de trafic")
+struct GeneratedLineStatusIntent {
+    var kind: GeneratedLineStatusKind
+
+    @Guide(description: "Code visible exact de la ligne, par exemple 4, A, T3a, N ou 38; vide pour une vue réseau")
+    var code: String
+
+    @Guide(description: "Mode cité explicitement, sinon any")
+    var mode: GeneratedLineStatusMode
+
+    @Guide(description: "Fragment exact de la saisie qui justifie la question de trafic")
+    var evidence: String
+}
+
 @Generable(description: "Intention de trajet francilien structurée et sans géocodage")
 struct GeneratedRouteIntent {
     var scope: GeneratedRouteScope
@@ -153,7 +185,15 @@ struct GeneratedRouteIntent {
     @Guide(description: "Fragment significatif non expliqué, ou chaîne vide si toute la demande est couverte")
     var unexplainedText: String
 
-    func domain(now: Date, phrase: String) throws(NaturalIntentParsingError) -> RouteIntent {
+    @Guide(description: "Obligatoire seulement lorsque scope vaut lineStatus; ne contient jamais la réponse temps réel")
+    var lineStatus: GeneratedLineStatusIntent?
+
+    func domain(
+        now: Date,
+        phrase: String,
+        originAnchor: NaturalIntentModelAnchor? = nil,
+        destinationAnchor: NaturalIntentModelAnchor? = nil,
+    ) throws(NaturalIntentParsingError) -> RouteIntent {
         let mappedOrigin: RouteOriginIntent
         switch origin.kind {
         case .currentLocation:
@@ -174,9 +214,11 @@ struct GeneratedRouteIntent {
             }
             mappedOrigin = .currentLocation
         case .place:
-            guard originWasExplicit else { throw .invalidResponse }
+            guard originWasExplicit || originAnchor != nil else { throw .invalidResponse }
             guard let query = Self.validPlace(origin.query) else { throw .invalidResponse }
-            guard Self.isPlace(query, groundedBy: origin.evidence, in: phrase) else {
+            guard originAnchor != nil
+                    || Self.isPlace(query, groundedBy: origin.evidence, in: phrase)
+            else {
                 throw .invalidResponse
             }
             mappedOrigin = .place(query: query)
@@ -187,7 +229,9 @@ struct GeneratedRouteIntent {
             guard let validDestination = Self.validPlace(destinationQuery) else {
                 throw .invalidResponse
             }
-            guard Self.isPlace(validDestination, groundedBy: destinationEvidence, in: phrase) else {
+            guard destinationAnchor != nil
+                    || Self.isPlace(validDestination, groundedBy: destinationEvidence, in: phrase)
+            else {
                 throw .invalidResponse
             }
             destination = validDestination
@@ -212,6 +256,21 @@ struct GeneratedRouteIntent {
         }
         guard constraints.count == unsupportedConstraints.count else { throw .invalidResponse }
 
+        let mappedLineStatus = try Self.validLineStatus(
+            lineStatus,
+            scope: scope,
+            phrase: phrase,
+            originWasExplicit: originWasExplicit,
+            hasDestination: destination != nil,
+            lastServiceOfDay: lastServiceOfDay,
+            hasJourneyModes: !requiredModes.isEmpty
+                || !excludedModes.isEmpty
+                || !preferredModes.isEmpty,
+            hasUnsupportedConstraints: !constraints.isEmpty,
+            timeConstraint: timeConstraint,
+            hasAlternateTimeConstraint: alternateTimeConstraint != nil,
+        )
+
         let timeMeaning: RouteIntent.TimeMeaning = switch timeConstraint.meaning {
         case .departure: .departure
         case .arrival: .arrival
@@ -220,7 +279,7 @@ struct GeneratedRouteIntent {
 
         let resolvedTime: ResolvedNaturalDateTime
         let alternateTimeConstraint: RouteTimeConstraint?
-        if scope == .unsupported {
+        if scope != .journey {
             resolvedTime = ResolvedNaturalDateTime(
                 date: now,
                 dateWasExplicit: false,
@@ -269,8 +328,13 @@ struct GeneratedRouteIntent {
             }
         }
 
+        let domainScope: RouteIntent.Scope = switch scope {
+        case .journey: .journey
+        case .lineStatus: .lineStatus
+        case .unsupported: .unsupported
+        }
         return RouteIntent(
-            scope: scope == .journey ? .journey : .unsupported,
+            scope: domainScope,
             origin: mappedOrigin,
             destinationQuery: destination,
             requestedAt: resolvedTime.date,
@@ -283,7 +347,89 @@ struct GeneratedRouteIntent {
             dateWasExplicit: resolvedTime.dateWasExplicit,
             timeWasExplicit: resolvedTime.timeWasExplicit,
             alternateTimeConstraint: alternateTimeConstraint,
-            originWasExplicit: originWasExplicit
+            originWasExplicit: originAnchor == nil ? originWasExplicit : true,
+            lineStatus: mappedLineStatus,
+        )
+    }
+
+    private static func validLineStatus(
+        _ line: GeneratedLineStatusIntent?,
+        scope: GeneratedRouteScope,
+        phrase: String,
+        originWasExplicit: Bool,
+        hasDestination: Bool,
+        lastServiceOfDay: Bool,
+        hasJourneyModes: Bool,
+        hasUnsupportedConstraints: Bool,
+        timeConstraint: GeneratedRouteTimeConstraint,
+        hasAlternateTimeConstraint: Bool,
+    ) throws(NaturalIntentParsingError) -> NaturalLineStatusIntent? {
+        guard scope == .lineStatus else {
+            guard line == nil else { throw .invalidResponse }
+            return nil
+        }
+        guard let line,
+              !originWasExplicit,
+              !hasDestination,
+              !lastServiceOfDay,
+              !hasJourneyModes,
+              !hasUnsupportedConstraints,
+              timeConstraint.dateTime.reference == .implicitToday,
+              !timeConstraint.dateTime.yearWasExplicit,
+              timeConstraint.dateTime.timePrecision == .unspecified,
+              timeConstraint.dateTime.relativeAmount == 0,
+              timeConstraint.meaning == .departure,
+              timeConstraint.evidence.isEmpty,
+              !hasAlternateTimeConstraint,
+              isEvidence(line.evidence, groundedIn: phrase)
+        else { throw .invalidResponse }
+
+        let kind: NaturalLineStatusIntent.Kind = switch line.kind {
+        case .specific: .specific
+        case .networkOverview: .networkOverview
+        case .disruptions: .disruptions
+        }
+        let mode: TransitMode? = switch line.mode {
+        case .any: nil
+        case .metro: .metro
+        case .rer: .rer
+        case .transilien: .transilien
+        case .tram: .tram
+        case .bus: .bus
+        }
+        if let mode {
+            let evidence = OnDevicePlaceResolver.normalize(line.evidence)
+            guard evidence.contains(mode.rawValue)
+                    || (mode == .transilien && evidence.contains("train"))
+            else { throw .invalidResponse }
+        }
+
+        let code = line.code.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch kind {
+        case .specific:
+            let escaped = NSRegularExpression.escapedPattern(
+                for: OnDevicePlaceResolver.normalize(code)
+            )
+            let evidence = OnDevicePlaceResolver.normalize(line.evidence)
+            guard !code.isEmpty,
+                  code.count <= 12,
+                  let expression = try? NSRegularExpression(
+                    pattern: "(^|[^a-z0-9])\(escaped)([^a-z0-9]|$)",
+                    options: [.caseInsensitive],
+                  ),
+                  expression.firstMatch(
+                    in: evidence,
+                    range: NSRange(evidence.startIndex..., in: evidence),
+                  ) != nil
+            else { throw .invalidResponse }
+        case .networkOverview, .disruptions:
+            guard code.isEmpty else { throw .invalidResponse }
+        }
+        return NaturalLineStatusIntent(
+            kind: kind,
+            code: code,
+            mode: mode,
+            evidence: line.evidence,
         )
     }
 
@@ -293,11 +439,18 @@ struct GeneratedRouteIntent {
         return trimmed.isEmpty || trimmed.count > 160 ? nil : trimmed
     }
 
-    func proposal(now: Date, phrase: String) throws(NaturalIntentParsingError) -> NaturalIntentProposal {
-        let intent = try domain(now: now, phrase: phrase)
+    func proposal(
+        for request: NaturalIntentModelRequest
+    ) throws(NaturalIntentParsingError) -> NaturalIntentProposal {
+        let intent = try domain(
+            now: request.now,
+            phrase: request.phrase,
+            originAnchor: request.originAnchor,
+            destinationAnchor: request.destinationAnchor,
+        )
         let residue = unexplainedText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard residue.count <= 200,
-              residue.isEmpty || Self.isEvidence(residue, groundedIn: phrase)
+              residue.isEmpty || Self.isEvidence(residue, groundedIn: request.phrase)
         else {
             throw .invalidResponse
         }

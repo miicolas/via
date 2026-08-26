@@ -8,6 +8,7 @@ struct ApplicationDependencies {
     let locationModel: LocationModel
     let networkRepository: any NetworkRepository
     let departuresRepository: any DeparturesRepository
+    let stationCrowdingRepository: any StationCrowdingRepository
     let searchRepository: any SearchRepository
     let reportRepository: any ReportRepository
     let activeJourneyStore: any ActiveJourneyStore
@@ -58,6 +59,9 @@ enum ApplicationDependencyFactory {
                 ),
                 networkRepository: InMemoryNetworkRepository.mapPreview,
                 departuresRepository: InMemoryDeparturesRepository.stationsPreview,
+                stationCrowdingRepository: InMemoryStationCrowdingRepository(
+                    crowding: .preview
+                ),
                 searchRepository: InMemorySearchRepository.preview,
                 reportRepository: InMemoryReportRepository(),
                 activeJourneyStore: InMemoryActiveJourneyStore(),
@@ -115,6 +119,7 @@ enum ApplicationDependencyFactory {
             account: accountModel,
         )
         let searchRepository = LiveSearchRepository(transport: transport)
+        let lineStatusRepository = LiveLineStatusRepository(transport: transport)
         let naturalIntentParser = FoundationModelsIntentParser()
         let naturalJourneyMetrics = AppLogNaturalJourneyMetrics()
         let naturalJourneyUnderstanding = ReliableNaturalJourneyUnderstanding(
@@ -152,6 +157,7 @@ enum ApplicationDependencyFactory {
                 try await searchRepository.search(query: query, near: coordinate)
             },
             journeys: journeyRepository,
+            lineStatuses: lineStatusRepository,
             metrics: naturalJourneyMetrics,
             requiresAccessibleStations: {
                 UserDefaultsSearchFilterStore().load().requiresAccessibleStations
@@ -169,6 +175,7 @@ enum ApplicationDependencyFactory {
             locationModel: LocationModel(adapter: CoreLocationAdapter()),
             networkRepository: LiveNetworkRepository(transport: transport),
             departuresRepository: LiveDeparturesRepository(transport: transport),
+            stationCrowdingRepository: LiveStationCrowdingRepository(transport: transport),
             searchRepository: searchRepository,
             reportRepository: LiveReportRepository(transport: transport),
             activeJourneyStore: UserDefaultsActiveJourneyStore(),
@@ -182,7 +189,7 @@ enum ApplicationDependencyFactory {
             naturalJourneyRepository: naturalJourneyRepository,
             naturalLanguageAvailability: { naturalJourneyUnderstanding.availability },
             naturalJourneyMetrics: naturalJourneyMetrics,
-            lineStatusRepository: LiveLineStatusRepository(transport: transport),
+            lineStatusRepository: lineStatusRepository,
             accountModel: accountModel,
             authSessionViewModel: AuthSessionViewModel(
                 client: BetterAuthClient(

@@ -13,6 +13,7 @@ final class LinesViewModel {
     didSet { rebuildDerivedState() }
   }
   private(set) var requestedRouteID: RouteID?
+  private(set) var requestedRoute: LineStatus?
   var searchText: String = "" {
     didSet { rebuildDerivedState() }
   }
@@ -111,8 +112,18 @@ final class LinesViewModel {
     requestedRouteID = routeID
   }
 
+  func requestNaturalLineStatus(_ navigation: NaturalLineStatusNavigation) {
+    searchText = navigation.searchText
+    filter = LineStatusFilter(
+      mode: navigation.mode,
+      disruptionsOnly: navigation.disruptionsOnly
+    )
+    requestedRoute = navigation.route
+  }
+
   func consumeRequestedRoute() {
     requestedRouteID = nil
+    requestedRoute = nil
   }
 
   private func rebuildDerivedState() {

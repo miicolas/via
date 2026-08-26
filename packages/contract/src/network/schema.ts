@@ -113,6 +113,42 @@ export const stationsInAreaSchema = z.object({
   routes: z.array(routeBadgeSchema),
 });
 
+export const stationCrowdingInputSchema = z.object({
+  stationId: z.string().min(1),
+});
+
+/**
+ * Named after the shared habitual-peak vocabulary (`station-peak`), not
+ * `crowdingLevelSchema`: that name belongs to the reports contract, whose
+ * live community levels (low…saturated) are a different scale.
+ */
+export const peakLevelSchema = z.enum(['off', 'moderate', 'peak']);
+
+export const crowdingHourSchema = z.object({
+  hour: z.int().min(0).max(23),
+  /** peakRatio des validations IDFM, normalisé par station et type de jour (0..1). */
+  ratio: z.number().min(0).max(1),
+  level: peakLevelSchema,
+});
+
+export const crowdingDayProfileSchema = z.array(crowdingHourSchema).length(24);
+
+/**
+ * The station's habitual hourly crowding, from the quarterly IDFM validations
+ * dataset. Three day types only — the source never distinguishes Monday from
+ * Thursday — and rail coverage only: a bus stop legitimately has no profile.
+ */
+export const stationCrowdingSchema = z.object({
+  /** Absent quand la station (bus notamment) n'a aucun profil de validations. */
+  profiles: z
+    .object({
+      weekday: crowdingDayProfileSchema,
+      saturday: crowdingDayProfileSchema,
+      sunday: crowdingDayProfileSchema,
+    })
+    .optional(),
+});
+
 /**
  * Vélib' docks in the same tile as `stationsInArea`, on their own route.
  *

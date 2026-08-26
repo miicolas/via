@@ -20,6 +20,7 @@ import { notificationsRouter } from './notifications/router';
 import { searchRouter } from './search/router';
 import { reportsRouter } from './reports/router';
 import { createDatabaseJourneyReportOverlay } from './journeys/community-reports';
+import { createOfficialJourneyDisruptionOverlay } from './journeys/official-disruptions';
 import { readCachedStationSnapshot } from './departures/cache';
 import {
   transitNetworkCacheVersion,
@@ -43,6 +44,7 @@ const baseJourneyPlanner = createJourneyPlanner({
     dailyBudget: env.PRIM_JOURNEYS_DAILY_BUDGET,
   },
   reports: createDatabaseJourneyReportOverlay(),
+  disruptions: createOfficialJourneyDisruptionOverlay(redis),
 });
 
 /**

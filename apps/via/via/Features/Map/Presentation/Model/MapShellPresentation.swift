@@ -41,6 +41,12 @@ enum MapShellPresentation {
         return nil
     }
 
+    /// Clarifications and recovery panels stack above the persistent composer.
+    /// The middle phone detent cannot fit both without compressing the panel.
+    static func naturalPanelDetent(isLargeScreen: Bool) -> PresentationDetent {
+        isLargeScreen ? .fraction(0.97) : .large
+    }
+
     static func remapDetents(
         _ detents: Detents,
         isLargeScreen: Bool,

@@ -4,10 +4,14 @@ import {
   bikeStationAvailabilitySchema,
   bikeStationSchema,
   bikeStationsInAreaSchema,
+  crowdingHourSchema,
+  peakLevelSchema,
   networkRouteSchema,
   networkSegmentSchema,
   networkStationSchema,
   railMapSchema,
+  stationCrowdingInputSchema,
+  stationCrowdingSchema,
   stationToiletsSchema,
   stationsInAreaInputSchema,
   stationsInAreaSchema,
@@ -23,3 +27,7 @@ export type StationToilets = z.infer<typeof stationToiletsSchema>;
 export type RailMap = z.infer<typeof railMapSchema>;
 export type StationsInAreaInput = z.infer<typeof stationsInAreaInputSchema>;
 export type StationsInArea = z.infer<typeof stationsInAreaSchema>;
+export type PeakLevel = z.infer<typeof peakLevelSchema>;
+export type CrowdingHour = z.infer<typeof crowdingHourSchema>;
+export type StationCrowdingInput = z.infer<typeof stationCrowdingInputSchema>;
+export type StationCrowding = z.infer<typeof stationCrowdingSchema>;

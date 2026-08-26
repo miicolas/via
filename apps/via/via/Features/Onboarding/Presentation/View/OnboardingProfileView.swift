@@ -7,6 +7,7 @@ struct OnboardingProfileView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var step = 0
+    @State private var movesForward = true
 
     private let steps = OnboardingQuestion.allCases
 
@@ -113,10 +114,16 @@ struct OnboardingProfileView: View {
         }
     }
 
-    /// The presentation blurs one page out as the next arrives; a question
-    /// leaves the same way rather than cutting.
+    /// The presentation's pages ride sideways in their carousel; a question
+    /// leaves the same way — sliding towards where the traveller is headed —
+    /// rather than dissolving in place.
     private var stepTransition: AnyTransition {
-        reduceMotion ? .opacity : AnyTransition(.blurReplace)
+        guard !reduceMotion else { return .opacity }
+        return .asymmetric(
+            insertion: .move(edge: movesForward ? .trailing : .leading),
+            removal: .move(edge: movesForward ? .leading : .trailing)
+        )
+        .combined(with: .opacity)
     }
 
     private func advance() {
@@ -127,6 +134,7 @@ struct OnboardingProfileView: View {
             return
         }
 
+        movesForward = true
         withAnimation(stepAnimation) {
             step += 1
         }
@@ -140,13 +148,18 @@ struct OnboardingProfileView: View {
             return
         }
 
+        movesForward = false
         withAnimation(stepAnimation) {
             step -= 1
         }
     }
 
+    /// The same spring the presentation's carousel rides, so a question
+    /// arriving feels like one more page of the same deck.
     private var stepAnimation: Animation? {
-        reduceMotion ? nil : .snappy
+        reduceMotion
+            ? nil
+            : .interpolatingSpring(duration: 0.65, bounce: 0, initialVelocity: 0)
     }
 }
 

@@ -30,6 +30,18 @@ final class OnDevicePlaceResolverTests: XCTestCase {
         XCTAssertEqual(resolution, .resolved(expected))
     }
 
+    func testGareSaintLazareDoesNotResolveToRueSaintLazare() async throws {
+        let expected = station("saint-lazare", "Gare Saint-Lazare")
+        let resolver = resolver(results: [
+            address("rue-saint-lazare", "Rue Saint-Lazare"),
+            expected,
+        ])
+
+        let resolution = try await resolver.resolve("gare saint lazare", near: nil)
+
+        XCTAssertEqual(resolution, .resolved(expected))
+    }
+
     func testSeveralRelevantCandidatesAreAmbiguousAndCappedAtFive() async throws {
         let candidates = (1...7).map { station("gare-\($0)", "Gare \($0)") }
         let resolver = resolver(results: candidates)

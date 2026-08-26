@@ -58,24 +58,33 @@ struct NaturalIntentProposal: Sendable, Hashable {
         in request: NaturalIntentModelRequest
     ) -> Self {
         var reconciled = intent
+        var reconciledOriginEvidence = originEvidence
+        var reconciledDestinationEvidence = destinationEvidence
         if let anchor = request.originAnchor,
            Self.matches(intent.originPlace, anchor: anchor)
+            || Self.isNeutralOriginOmission(
+                intent.originPlace,
+                evidence: originEvidence,
+                anchor: anchor,
+            )
         {
             reconciled = reconciled.replacingPlaces(origin: anchor.place)
+            reconciledOriginEvidence = anchor.evidence
         }
         if let anchor = request.destinationAnchor,
-           let destination = intent.destinationPlace,
-           Self.matches(destination, anchor: anchor)
+           intent.destinationPlace == nil
+            || intent.destinationPlace.map({ Self.matches($0, anchor: anchor) }) == true
         {
             reconciled = reconciled.replacingPlaces(
                 destination: anchor.place,
                 replaceDestination: true,
             )
+            reconciledDestinationEvidence = anchor.evidence
         }
         return Self(
             intent: reconciled,
-            originEvidence: request.originAnchor?.evidence ?? originEvidence,
-            destinationEvidence: request.destinationAnchor?.evidence ?? destinationEvidence,
+            originEvidence: reconciledOriginEvidence,
+            destinationEvidence: reconciledDestinationEvidence,
             timeEvidence: timeEvidence,
             unexplainedText: unexplainedText,
         )
@@ -136,6 +145,18 @@ struct NaturalIntentProposal: Sendable, Hashable {
         default:
             false
         }
+    }
+
+    private static func isNeutralOriginOmission(
+        _ proposed: RoutePlaceIntent,
+        evidence: String?,
+        anchor: NaturalIntentModelAnchor,
+    ) -> Bool {
+        guard case .currentLocation = proposed,
+              evidence?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false
+        else { return false }
+        if case .currentLocation = anchor.place { return false }
+        return true
     }
 
     private static func equivalent(_ lhs: String, to rhs: String) -> Bool {

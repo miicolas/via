@@ -57,8 +57,38 @@ struct RouteTimeConstraint: Sendable, Hashable {
     let meaning: JourneyDatetimeRepresents
 }
 
+/// A model can identify what live line information the traveller wants, but
+/// never supplies the answer. The executor resolves this intent against Via's
+/// official line-status repository.
+struct NaturalLineStatusIntent: Sendable, Hashable {
+    enum Kind: String, Sendable, Hashable {
+        case specific
+        case networkOverview = "network_overview"
+        case disruptions
+    }
+
+    let kind: Kind
+    let code: String
+    let mode: TransitMode?
+    let evidence: String
+}
+
+/// One-shot handoff from natural language to the existing Lines experience.
+/// A unique official match opens directly; broader questions configure the
+/// line browser without generating a prose answer.
+struct NaturalLineStatusNavigation: Sendable, Hashable {
+    let route: LineStatus?
+    let searchText: String
+    let mode: TransitMode?
+    let disruptionsOnly: Bool
+}
+
 struct RouteIntent: Sendable, Hashable {
-    enum Scope: String, Sendable, Hashable { case journey, unsupported }
+    enum Scope: String, Sendable, Hashable {
+        case journey
+        case lineStatus = "line_status"
+        case unsupported
+    }
     enum TimeMeaning: String, Sendable, Hashable {
         case departure, arrival, ambiguous
 
@@ -84,6 +114,7 @@ struct RouteIntent: Sendable, Hashable {
     private(set) var timeWasExplicit: Bool
     private(set) var alternateTimeConstraint: RouteTimeConstraint?
     private(set) var originWasExplicit: Bool
+    private(set) var lineStatus: NaturalLineStatusIntent?
 
     /// Compatibility vocabulary for the existing planning and clarification
     /// views. New understanding code uses the typed place slots above.
@@ -130,6 +161,7 @@ struct RouteIntent: Sendable, Hashable {
         timeWasExplicit: Bool = true,
         alternateTimeConstraint: RouteTimeConstraint? = nil,
         originWasExplicit: Bool = true,
+        lineStatus: NaturalLineStatusIntent? = nil,
     ) {
         self.scope = scope
         originPlace = switch origin {
@@ -148,6 +180,7 @@ struct RouteIntent: Sendable, Hashable {
         self.timeWasExplicit = timeWasExplicit
         self.alternateTimeConstraint = alternateTimeConstraint
         self.originWasExplicit = originWasExplicit
+        self.lineStatus = lineStatus
     }
 
     init(
@@ -165,6 +198,7 @@ struct RouteIntent: Sendable, Hashable {
         timeWasExplicit: Bool = true,
         alternateTimeConstraint: RouteTimeConstraint? = nil,
         originWasExplicit: Bool = true,
+        lineStatus: NaturalLineStatusIntent? = nil,
     ) {
         self.scope = scope
         self.originPlace = originPlace
@@ -180,6 +214,7 @@ struct RouteIntent: Sendable, Hashable {
         self.timeWasExplicit = timeWasExplicit
         self.alternateTimeConstraint = alternateTimeConstraint
         self.originWasExplicit = originWasExplicit
+        self.lineStatus = lineStatus
     }
 
     func resolvingTime(
@@ -521,6 +556,7 @@ enum NaturalJourneyResult: Sendable, Hashable {
     case needsDecision(draft: NaturalJourneyDraft, decision: NaturalJourneyDecision)
     case networkUnavailable(interpretation: NaturalJourneyInterpretation)
     case networkUnavailableDraft(draft: NaturalJourneyDraft)
+    case lineStatus(NaturalLineStatusNavigation)
     case unsupported(message: String, examples: [String])
     case unavailable(message: String)
 }

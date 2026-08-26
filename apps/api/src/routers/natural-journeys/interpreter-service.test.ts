@@ -13,8 +13,8 @@ import { createNaturalJourneyService } from './service';
 
 const MODEL_INTERPRETATION: Omit<
   NaturalJourneyModelInterpretation,
-  'alternateTimeConstraint'
-> & { alternateTimeConstraint: null } = {
+  'alternateTimeConstraint' | 'lineStatus'
+> & { alternateTimeConstraint: null; lineStatus: null } = {
   scope: 'journey',
   origin: { kind: 'query', value: 'Auber', evidence: 'depuis Auber' },
   destination: { kind: 'saved', value: 'home', evidence: 'chez moi' },
@@ -40,14 +40,108 @@ const MODEL_INTERPRETATION: Omit<
   preferredModes: [],
   unsupportedConstraints: [],
   unexplainedText: '',
+  lineStatus: null,
 };
 
 const INTERPRETATION: NaturalJourneyModelInterpretation = {
   ...MODEL_INTERPRETATION,
   alternateTimeConstraint: undefined,
+  lineStatus: undefined,
 };
 
 describe('natural-journey server interpreter', () => {
+  test('classifies a grounded line-disruption question without inventing its live answer', async () => {
+    const lineStatusInterpretation = {
+      ...MODEL_INTERPRETATION,
+      scope: 'line_status',
+      origin: null,
+      destination: null,
+      originWasExplicit: false,
+      lineStatus: {
+        kind: 'specific',
+        code: '4',
+        mode: 'metro',
+        evidence: 'métro 4',
+      },
+      // Luna may fill schema-required numeric placeholders from `now`; they
+      // carry no user evidence and are ignored for a current line-status query.
+      timeConstraint: {
+        ...MODEL_INTERPRETATION.timeConstraint,
+        year: 2026,
+        month: 8,
+        day: 26,
+        hour: 16,
+      },
+      unexplainedText: '',
+    } as const;
+    const { transport } = scriptedTransport([finalTurn(lineStatusInterpretation)]);
+    const service = createNaturalJourneyService({
+      redis: fakeRedis().client,
+      transport,
+      clock: { now: () => NOW },
+      config: CONFIG,
+    });
+
+    const result = await service.submit(
+      {
+        query: 'Y a-t-il des perturbations sur le métro 4 ?',
+        locale: 'fr-FR',
+        requestedAt: '2026-08-26T16:00:00.000Z',
+        hasCurrentLocation: false,
+        anchors: {},
+        savedPlaces: [],
+      },
+      { identity: 'person-line-status' },
+    );
+
+    expect(result).toEqual({
+      outcome: 'interpreted',
+      interpretation: {
+        ...lineStatusInterpretation,
+        origin: undefined,
+        destination: undefined,
+        alternateTimeConstraint: undefined,
+      },
+    });
+  });
+
+  test('rejects a line code that was not copied from the question', async () => {
+    const invalid = {
+      ...MODEL_INTERPRETATION,
+      scope: 'line_status',
+      origin: null,
+      destination: null,
+      originWasExplicit: false,
+      lineStatus: {
+        kind: 'specific',
+        code: '14',
+        mode: 'metro',
+        evidence: 'métro 4',
+      },
+    };
+    const { transport } = scriptedTransport([finalTurn(invalid)]);
+    const service = createNaturalJourneyService({
+      redis: fakeRedis().client,
+      transport,
+      clock: { now: () => NOW },
+      config: CONFIG,
+    });
+
+    const result = await service.submit(
+      {
+        query: 'Le métro 4 fonctionne ?',
+        locale: 'fr-FR',
+        requestedAt: '2026-08-26T16:00:00.000Z',
+        hasCurrentLocation: false,
+        anchors: {},
+        savedPlaces: [],
+      },
+      { identity: 'person-invented-line' },
+    );
+
+    expect(result.outcome).toBe('unavailable');
+  });
+
   test('without a server key it fails closed and records no request content', async () => {
     const metrics: Array<{ category: string }> = [];
     const service = createNaturalJourneyService({

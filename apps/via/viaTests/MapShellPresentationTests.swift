@@ -36,4 +36,15 @@ final class MapShellPresentationTests: XCTestCase {
         )
         XCTAssertNil(MapShellPresentation.naturalPanelTransition(wasVisible: true, isVisible: true))
     }
+
+    func testNaturalPanelUsesAnAccessibleDetent() {
+        XCTAssertEqual(
+            MapShellPresentation.naturalPanelDetent(isLargeScreen: false),
+            .large
+        )
+        XCTAssertEqual(
+            MapShellPresentation.naturalPanelDetent(isLargeScreen: true),
+            .fraction(0.97)
+        )
+    }
 }

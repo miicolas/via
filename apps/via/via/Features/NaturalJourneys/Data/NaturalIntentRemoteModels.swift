@@ -25,6 +25,13 @@ enum NaturalIntentResponseDTO: Decodable {
         let evidence: String
     }
 
+    struct LineStatusDTO: Decodable {
+        let kind: String
+        let code: String
+        let mode: String
+        let evidence: String
+    }
+
     struct InterpretationDTO: Decodable {
         let scope: String
         let origin: PlaceDTO?
@@ -38,6 +45,7 @@ enum NaturalIntentResponseDTO: Decodable {
         let preferredModes: [String]
         let unsupportedConstraints: [String]
         let unexplainedText: String
+        let lineStatus: LineStatusDTO?
     }
 
     private enum CodingKeys: String, CodingKey { case outcome, interpretation, message }
@@ -65,7 +73,7 @@ enum NaturalIntentResponseDTO: Decodable {
         for request: NaturalIntentModelRequest
     ) throws(NaturalIntentParsingError) -> NaturalIntentProposal {
         guard case .interpreted(let dto) = self else { throw .remoteUnavailable }
-        guard ["journey", "unsupported"].contains(dto.scope),
+        guard ["journey", "line_status", "unsupported"].contains(dto.scope),
               dto.requiredModes.count <= 3,
               dto.excludedModes.count <= 3,
               dto.preferredModes.count <= 3,
@@ -73,6 +81,8 @@ enum NaturalIntentResponseDTO: Decodable {
         else {
             throw .invalidResponse
         }
+
+        let lineStatus = try Self.lineStatus(dto, request: request)
 
         let originPlace: RoutePlaceIntent
         let originEvidence: String?
@@ -127,8 +137,14 @@ enum NaturalIntentResponseDTO: Decodable {
             throw .invalidResponse
         }
 
+        let scope: RouteIntent.Scope = switch dto.scope {
+        case "journey": .journey
+        case "line_status": .lineStatus
+        case "unsupported": .unsupported
+        default: throw .invalidResponse
+        }
         let intent = RouteIntent(
-            scope: dto.scope == "journey" ? .journey : .unsupported,
+            scope: scope,
             originPlace: originPlace,
             destinationPlace: destinationPlace,
             requestedAt: primary.resolved.date,
@@ -147,6 +163,7 @@ enum NaturalIntentResponseDTO: Decodable {
                 )
             },
             originWasExplicit: dto.originWasExplicit,
+            lineStatus: lineStatus,
         )
         return try NaturalIntentProposal(
             intent: intent,
@@ -222,6 +239,82 @@ enum NaturalIntentResponseDTO: Decodable {
             modes.insert(mode)
         }
         return modes
+    }
+
+    private static func lineStatus(
+        _ dto: InterpretationDTO,
+        request: NaturalIntentModelRequest,
+    ) throws(NaturalIntentParsingError) -> NaturalLineStatusIntent? {
+        guard dto.scope == "line_status" else {
+            guard dto.lineStatus == nil else { throw .invalidResponse }
+            return nil
+        }
+        guard let line = dto.lineStatus,
+              dto.origin == nil,
+              dto.destination == nil,
+              !dto.originWasExplicit,
+              !dto.lastServiceOfDay,
+              dto.requiredModes.isEmpty,
+              dto.excludedModes.isEmpty,
+              dto.preferredModes.isEmpty,
+              dto.unsupportedConstraints.isEmpty,
+              dto.timeConstraint.reference == "implicit_today",
+              !dto.timeConstraint.yearWasExplicit,
+              dto.timeConstraint.timePrecision == "unspecified",
+              dto.timeConstraint.relativeAmount == 0,
+              dto.timeConstraint.meaning == "departure",
+              dto.timeConstraint.evidence.isEmpty,
+              dto.alternateTimeConstraint == nil,
+              isEvidence(line.evidence, in: request.phrase),
+              let kind = NaturalLineStatusIntent.Kind(rawValue: line.kind)
+        else {
+            throw .invalidResponse
+        }
+
+        let mode: TransitMode?
+        if line.mode == "any" {
+            mode = nil
+        } else if let parsed = TransitMode(rawValue: line.mode) {
+            let evidence = OnDevicePlaceResolver.normalize(line.evidence)
+            guard evidence.contains(line.mode)
+                    || (parsed == .transilien && evidence.contains("train"))
+            else { throw .invalidResponse }
+            mode = parsed
+        } else {
+            throw .invalidResponse
+        }
+
+        let code = line.code.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch kind {
+        case .specific:
+            guard !code.isEmpty,
+                  code.count <= 12,
+                  containsLineCode(code, in: line.evidence)
+            else { throw .invalidResponse }
+        case .networkOverview, .disruptions:
+            guard code.isEmpty else { throw .invalidResponse }
+        }
+        return NaturalLineStatusIntent(
+            kind: kind,
+            code: code,
+            mode: mode,
+            evidence: line.evidence,
+        )
+    }
+
+    private static func containsLineCode(_ code: String, in evidence: String) -> Bool {
+        let escaped = NSRegularExpression.escapedPattern(
+            for: OnDevicePlaceResolver.normalize(code)
+        )
+        guard let expression = try? NSRegularExpression(
+            pattern: "(^|[^a-z0-9])\(escaped)([^a-z0-9]|$)",
+            options: [.caseInsensitive],
+        ) else { return false }
+        let normalized = OnDevicePlaceResolver.normalize(evidence)
+        return expression.firstMatch(
+            in: normalized,
+            range: NSRange(normalized.startIndex..., in: normalized),
+        ) != nil
     }
 
     private static func isEvidence(_ evidence: String, in phrase: String) -> Bool {

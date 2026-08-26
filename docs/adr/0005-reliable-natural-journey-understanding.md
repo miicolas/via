@@ -54,10 +54,21 @@ suggestions qu’un modèle peut inverser ou transformer en requête géographiq
     résultat.
 12. Le repli serveur est activé progressivement par identité pseudonymisée.
     `NATURAL_JOURNEYS_REMOTE_ROLLOUT_PERCENT=0` est le kill switch immédiat.
-    La valeur serveur par défaut reste 0 ; chaque environnement l’augmente
-    explicitement après validation des gates.
+    La valeur serveur par défaut reste 0 en production ; les environnements de
+    développement et de test l’exercent à 100 %. Chaque environnement de
+    production l’augmente explicitement après validation des gates.
     Aucun lancement n’est accepté sans 100 % sur le corpus critique, 99 % sur le
     corpus général et le scénario Auber → Maison validé de bout en bout.
+13. Le même interprète peut classifier une **consultation d’état de ligne**, mais
+    il ne produit jamais la réponse de trafic. Il extrait seulement le type de
+    consultation, le code visible, le mode explicitement cité et leur fragment
+    justificatif. L’app résout ensuite cette intention avec le dépôt officiel
+    des lignes IDFM et ouvre la fiche ou la vue filtrée correspondante.
+14. Toute réponse d’itinéraire, y compris le repli GTFS théorique, est recroisée
+    après cache avec le snapshot officiel des perturbations à l’heure des
+    sections empruntées. Une interruption bloquante exclut le trajet concerné ;
+    une perturbation non bloquante conserve le trajet avec son avertissement
+    officiel. Le modèle n’est jamais une source d’état temps réel.
 
 ## Conséquences
 
@@ -70,6 +81,8 @@ suggestions qu’un modèle peut inverser ou transformer en requête géographiq
   second fallback.
 - La promesse publique est précise : « traité sur cet iPhone quand c’est
   possible, sinon par le serveur sécurisé », avec contrôle local uniquement.
+- Une question de trafic aboutit à une donnée officielle navigable, pas à une
+  phrase plausible générée de mémoire par le modèle.
 
 ## Références
 

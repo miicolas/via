@@ -6,6 +6,7 @@ import {
   createJourneyPlanner,
   rankPreferredJourney,
   type GtfsJourneyPlanner,
+  type JourneyDisruptionOverlay,
   type IdfmJourneyPlanner,
   type JourneyReportOverlay,
 } from './service';
@@ -34,6 +35,7 @@ function setup(options: {
   personalLimit?: number;
   dailyBudget?: number;
   reports?: JourneyReportOverlay;
+  disruptions?: JourneyDisruptionOverlay;
 } = {}) {
   const { client, store, expiries } = fakeRedis();
   let currentNow = now;
@@ -76,6 +78,7 @@ function setup(options: {
       dailyBudget: options.dailyBudget ?? 1_000,
     },
     reports: options.reports,
+    disruptions: options.disruptions,
   });
 
   return {
@@ -148,6 +151,33 @@ describe('journey planning module', () => {
 
     expect(first.journeys[0]?.wheelchairReport?.reporterCount).toBe(1);
     expect(second.journeys[0]?.wheelchairReport?.reporterCount).toBe(2);
+    expect(calls.idfm).toBe(1);
+  });
+
+  test('reapplies official disruptions to the same stable cached plan', async () => {
+    let warning = 'Perturbation officielle initiale';
+    const journey = modalJourney('metro', 1_800);
+    const disruptions: JourneyDisruptionOverlay = {
+      apply: async (response) => ({
+        ...response,
+        journeys: response.journeys.map((value) => ({
+          ...value,
+          status: 'disrupted' as const,
+          warnings: [warning],
+        })),
+      }),
+    };
+    const { planner, calls } = setup({
+      idfmResult: { status: 'ready', journeys: [journey] },
+      disruptions,
+    });
+
+    const first = await plan(planner);
+    warning = 'Perturbation officielle actualisée';
+    const second = await plan(planner);
+
+    expect(first.journeys[0]?.warnings).toEqual(['Perturbation officielle initiale']);
+    expect(second.journeys[0]?.warnings).toEqual(['Perturbation officielle actualisée']);
     expect(calls.idfm).toBe(1);
   });
 
