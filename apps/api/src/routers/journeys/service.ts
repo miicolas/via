@@ -1,4 +1,4 @@
-import { crowdingSeverity, type Journey, type JourneyInput, type JourneyMode, type JourneysResponse } from '@via/contract';
+import { crowdingSeverity, isDirectJourney, type Journey, type JourneyInput, type JourneyMode, type JourneysResponse } from '@via/contract';
 
 import type { RedisClient } from '../../redis';
 import { parisDay, parisDayType } from '../../time/paris';
@@ -218,18 +218,17 @@ export function createJourneyPlanner({
             }
           }
         }
+        const base = realtime ?? (await planWithGtfsConstraint(
+          gtfs,
+          input,
+          requestedAt,
+          now,
+          annotators,
+          gtfsPlanGate,
+          signal
+        ));
         return {
-          value:
-            realtime ??
-            (await planWithGtfsConstraint(
-              gtfs,
-              input,
-              requestedAt,
-              now,
-              annotators,
-              gtfsPlanGate,
-              signal
-            )),
+          value: base,
           ttlSeconds: IDFM_TTL_SECONDS,
         };
       };
@@ -398,6 +397,15 @@ function requestedInstant(input: JourneyInput, now: Date) {
 }
 
 function matchesModePolicy(journey: Journey, input: JourneyInput) {
+  if (isDirectJourney(journey)) {
+    const required = input.requiredModes ?? [];
+    const hasBike = journey.sections.some((section) => section.type === 'bike');
+    return (
+      required.length === 0 &&
+      (!hasBike || (!input.requiresAccessibleStations && !input.requiresOperationalElevators))
+    );
+  }
+
   const modes = journey.sections.flatMap((section) =>
     section.type === 'transit' && section.route ? [section.route.mode] : []
   );
@@ -411,21 +419,25 @@ function matchesModePolicy(journey: Journey, input: JourneyInput) {
 }
 
 export function rankPreferredJourney(journeys: Journey[], preferredModes: JourneyMode[]) {
-  const baseline = journeys[0];
-  if (!baseline) return journeys;
+  const transit = journeys.filter((journey) => !isDirectJourney(journey));
+  const direct = journeys.filter(isDirectJourney);
+  if (transit.length === 0) return direct;
+
+  const baseline = transit[0]!;
   const preferred = new Set(preferredModes);
-  if (preferredModes.length === 0) {
-    const ranked = [...journeys].sort((a, b) => compareJourneyPreference(a, b, preferred));
-    const candidate = ranked[0];
-    return candidate && candidate.id !== baseline.id
-      ? promoteJourney(ranked, candidate, baseline)
-      : ranked;
-  }
-  const candidate = journeys
-    .filter((journey) => isReasonablePreferred(journey, baseline, preferred))
-    .sort((a, b) => compareJourneyPreference(a, b, preferred))[0];
-  if (!candidate || candidate.id === baseline.id) return journeys;
-  return promoteJourney(journeys, candidate, baseline);
+  const ranked = preferredModes.length === 0
+    ? [...transit].sort((a, b) => compareJourneyPreference(a, b, preferred))
+    : transit;
+  const candidate = preferredModes.length === 0
+    ? ranked[0]
+    : transit
+        .filter((journey) => isReasonablePreferred(journey, baseline, preferred))
+        .sort((a, b) => compareJourneyPreference(a, b, preferred))[0];
+
+  const rankedTransit = candidate && candidate.id !== baseline.id
+    ? promoteJourney(ranked, candidate, baseline)
+    : ranked;
+  return [...rankedTransit, ...direct];
 }
 
 function promoteJourney(journeys: Journey[], candidate: Journey, baseline: Journey) {

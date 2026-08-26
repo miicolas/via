@@ -20,6 +20,8 @@ filter:
     - health
     - journeys.plan
     - journeys.departureChoices
+    - journeyShares.create
+    - journeyShares.get
     - lines.detail
     - lines.search
     - lines.statuses
@@ -27,6 +29,7 @@ filter:
     - network.railMap
     - network.stationsInArea
     - network.bikeStationsInArea
+    - network.sharedMobilityInArea
     - network.stationCrowding
     - search.query
     - reports.submit

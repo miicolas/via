@@ -217,6 +217,82 @@ final class StationsViewModelTests: XCTestCase {
         XCTAssertNil(departures.first?.departureAt)
     }
 
+    func testDepartureBoardKeepsEveryUpcomingPassageForTheStationDetail() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let metro = route(id: "metro", shortName: "1", mode: .metro)
+        let bus = route(id: "bus", shortName: "38", mode: .bus)
+        let board = DepartureBoard(
+            source: .realtime,
+            generatedAt: now,
+            groups: [
+                DepartureGroup(
+                    route: metro,
+                    destination: "La Défense",
+                    departureItems: [
+                        DepartureItem(
+                            id: "metro-first",
+                            scheduledAt: now.addingTimeInterval(120),
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .onTime
+                        ),
+                        DepartureItem(
+                            id: "metro-second",
+                            scheduledAt: now.addingTimeInterval(420),
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .onTime
+                        ),
+                        DepartureItem(
+                            id: "metro-departed",
+                            scheduledAt: now.addingTimeInterval(-60),
+                            expectedAt: now.addingTimeInterval(-60),
+                            delaySeconds: nil,
+                            status: .departed
+                        ),
+                    ]
+                ),
+                DepartureGroup(
+                    route: bus,
+                    destination: "Gare du Nord",
+                    departureItems: [
+                        DepartureItem(
+                            id: "bus-first",
+                            scheduledAt: now.addingTimeInterval(180),
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .onTime
+                        ),
+                        DepartureItem(
+                            id: "bus-second",
+                            scheduledAt: now.addingTimeInterval(600),
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .onTime
+                        ),
+                    ]
+                ),
+            ]
+        )
+
+        let fullBoard = StationOverviewBuilder.departureBoard(
+            from: board,
+            routes: [metro, bus],
+            now: now
+        )
+        let compactSummary = StationOverviewBuilder.nextDepartures(
+            from: board,
+            routes: [metro, bus],
+            now: now
+        )
+
+        XCTAssertEqual(
+            fullBoard.map(\.id),
+            ["metro-first", "metro-second", "bus-first", "bus-second"]
+        )
+        XCTAssertEqual(compactSummary.map(\.id), ["metro-first", "bus-first"])
+    }
+
     @MainActor
     func testViewModelLoadsNearestStationAndDepartureBoard() async {
         let location = InMemoryLocationAdapter(

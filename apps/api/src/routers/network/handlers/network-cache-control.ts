@@ -9,6 +9,9 @@ export const STATIONS_AREA_CACHE_CONTROL = 'private, max-age=86400, stale-while-
 /** Dock counts move by the minute; the API's shared snapshot is 55 s wide. */
 export const BIKE_STATIONS_CACHE_CONTROL = 'private, max-age=30, stale-while-revalidate=120';
 
+/** Shared vehicles move quickly; source TTL enforcement happens before this cache. */
+export const SHARED_MOBILITY_CACHE_CONTROL = 'private, no-store';
+
 /** Rail geometry only changes after a reference-data import. */
 export const RAIL_MAP_CACHE_CONTROL = 'private, max-age=86400, stale-while-revalidate=604800';
 

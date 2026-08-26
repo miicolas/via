@@ -78,8 +78,33 @@ final class NaturalJourneyCriticalCorpusTests: XCTestCase {
                 "query:Auber", "saved:home", timeAnchor: .lastOfDay
             ),
             .init(
+                "fr-last-service-natural-order",
+                "rentrer chez moi depuis Châtelet ce soir avec le dernier train", "fr_FR",
+                "query:Châtelet", "saved:home", timeAnchor: .lastOfDay
+            ),
+            .init(
+                "fr-last-service-punctuated",
+                "depuis Châtelet, je veux rentrer chez moi ce soir avec le dernier train", "fr_FR",
+                "query:Châtelet", "saved:home", timeAnchor: .lastOfDay
+            ),
+            .init(
+                "fr-last-service-origin-first",
+                "je pars de Châtelet ce soir pour rentrer à la maison avec le dernier train", "fr_FR",
+                "query:Châtelet", "saved:home", timeAnchor: .lastOfDay
+            ),
+            .init(
+                "fr-last-service-origin-after-train",
+                "le dernier train de Châtelet pour rentrer chez moi ce soir", "fr_FR",
+                "query:Châtelet", "saved:home", timeAnchor: .lastOfDay
+            ),
+            .init(
                 "en-last-service", "last train home from Auber", "en_US",
                 "query:Auber", "saved:home", timeAnchor: .lastOfDay
+            ),
+            .init(
+                "en-last-service-natural-order",
+                "get home from Châtelet tonight with the last train", "en_US",
+                "query:Châtelet", "saved:home", timeAnchor: .lastOfDay
             ),
             .init(
                 "fr-bare-destination-conflicting-bus",

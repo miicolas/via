@@ -76,6 +76,15 @@ extension EmptyState {
         )
     }
 
+    /// One wording for a dock whose operator published no live inventory. Two
+    /// screens reach it — the map's sheet and the nearby list — and the state
+    /// is the same state on both.
+    static let bikeAvailabilityUnknown = EmptyState(
+        systemImage: "parkingsign",
+        title: "Disponibilité inconnue",
+        message: "Vélib’ n’a pas fourni l’état en temps réel de cette station.",
+    )
+
     static func offline(
         title: String,
         message: String = "Vérifiez votre connexion puis réessayez.",
@@ -140,6 +149,18 @@ extension EmptyState {
     static let noBikeStationsInArea = EmptyState(
         systemImage: "bicycle",
         title: "Aucune station Vélib’ dans cette zone",
+        message: "Déplace la carte pour explorer une autre zone.",
+    )
+
+    static let sharedMobilityUnavailable = EmptyState(
+        systemImage: "bicycle",
+        title: "Mobilité partagée indisponible",
+        message: "Les disponibilités des opérateurs ne répondent pas. Réessaie dans un instant.",
+    )
+
+    static let noSharedMobilityInArea = EmptyState(
+        systemImage: "bicycle",
+        title: "Aucun véhicule dans cette zone",
         message: "Déplace la carte pour explorer une autre zone.",
     )
 

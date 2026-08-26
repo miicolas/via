@@ -87,7 +87,7 @@ struct StationsView: View {
     /// screen and says so inline instead.
     private var isInitialLoading: Bool {
         if let nearby {
-            guard nearby.results.isEmpty else { return false }
+            guard nearby.transitResults.isEmpty else { return false }
             switch nearby.loading {
             // `.idle` means the map has not reported a centre yet — still a
             // first load, not an answer.
@@ -117,7 +117,7 @@ struct StationsView: View {
     /// are and why they matched, because a board is one request per station.
     @ViewBuilder
     private func nearbyContent(_ nearby: NearbyStationsModel) -> some View {
-        if nearby.results.isEmpty {
+        if nearby.transitResults.isEmpty {
             if case let .failed(error) = nearby.loading {
                 errorContent(for: error)
             } else if nearby.filter.isActive {
@@ -132,7 +132,7 @@ struct StationsView: View {
 
     private func nearbyList(_ nearby: NearbyStationsModel) -> some View {
         let hero = viewModel.state.overview
-        let others = nearby.results.filter { $0.id != hero?.id }
+        let others = nearby.transitResults.filter { $0.id != hero?.id }
 
         return List {
             placePicker

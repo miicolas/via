@@ -46,6 +46,37 @@ export const transitLines = {
     color: "#62259d",
     textColor: "#ffffff",
   },
+  /*
+   * Les lignes du Grand Paris Express n’ont pas encore de rame en service (la
+   * 18 ouvre le 30 novembre 2026, la 15 Sud à l’automne 2027), donc aucun GTFS
+   * ne les porte et l’instantané du réseau les ignore. Leurs couleurs sont
+   * celles de la charte du projet ; un article qui les mentionne déclare ses
+   * gares dans son frontmatter.
+   */
+  m15: {
+    mode: "metro",
+    shortName: "15",
+    color: "#b90845",
+    textColor: "#ffffff",
+  },
+  m16: {
+    mode: "metro",
+    shortName: "16",
+    color: "#f3a4ba",
+    textColor: "#111111",
+  },
+  m17: {
+    mode: "metro",
+    shortName: "17",
+    color: "#d5c900",
+    textColor: "#111111",
+  },
+  m18: {
+    mode: "metro",
+    shortName: "18",
+    color: "#00a88f",
+    textColor: "#ffffff",
+  },
   rerA: { mode: "rer", shortName: "A", color: "#e3051c", textColor: "#ffffff" },
   rerB: { mode: "rer", shortName: "B", color: "#5291ce", textColor: "#ffffff" },
   rerC: { mode: "rer", shortName: "C", color: "#ffcc30", textColor: "#111111" },

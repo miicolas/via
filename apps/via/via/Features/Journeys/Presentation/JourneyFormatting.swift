@@ -23,6 +23,25 @@ enum JourneyFormatting {
         return minutes >= 60 ? duration(minutes * 60) : "\(minutes) min"
     }
 
+    static func carbonEmission(grams: Double) -> String {
+        carbon(grams: grams, kilogramUnit: "kg CO₂e", gramUnit: "g CO₂e")
+    }
+
+    static func carbonEmissionAccessibility(grams: Double) -> String {
+        carbon(grams: grams, kilogramUnit: "kilogrammes de CO₂e", gramUnit: "grammes de CO₂e")
+    }
+
+    /// One rounding rule for the number the eye reads and the one VoiceOver
+    /// speaks: only the unit differs, and two copies would let them disagree
+    /// about the same estimate.
+    private static func carbon(grams: Double, kilogramUnit: String, gramUnit: String) -> String {
+        let value = max(0, grams)
+        if value >= 1_000 {
+            return "\(number(value / 1_000, maximumFractionDigits: 1)) \(kilogramUnit)"
+        }
+        return "\(number(value, maximumFractionDigits: value < 10 ? 1 : 0)) \(gramUnit)"
+    }
+
     /// Under 50 m the exit is right there and a number is noise. Above it, the
     /// walk is rounded to the nearest 50 m — the planner's metre is a guess and
     /// reading it back exactly would claim a precision it does not have.
@@ -63,5 +82,13 @@ enum JourneyFormatting {
         let distance = exitDistance(meters: walkingMeters)
             .map { ", à environ \($0) de votre destination" } ?? ""
         return "Sortie recommandée, \(number)\(name)\(distance)"
+    }
+
+    private static func number(_ value: Double, maximumFractionDigits: Int) -> String {
+        value.formatted(
+            .number
+                .precision(.fractionLength(0...maximumFractionDigits))
+                .locale(Locale(identifier: "fr_FR"))
+        )
     }
 }

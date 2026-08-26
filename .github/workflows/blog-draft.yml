@@ -1,0 +1,106 @@
+# La fabrique d'articles « Travaux & trafic ».
+#
+# Deux étages, volontairement séparés :
+#
+#   1. Le job planifié `disruptions:history` (côté Railway) enregistre chaque
+#      jour ce que PRIM a diffusé et produit un rapport de sujets. Il ne rédige
+#      rien.
+#   2. Ce workflow lit ce rapport, vérifie les faits sur les pages officielles,
+#      écrit un brouillon Markdown et ouvre une pull request.
+#
+# Ce qui n'arrive jamais : une publication automatique. Chaque article passe par
+# une relecture humaine. Les contrôles ci-dessous attrapent la syntaxe ; ils
+# n'attrapent pas le contresens sur « la station est-elle desservie ou non »,
+# et c'est ce contresens-là qui se paie en avis une étoile.
+#
+# Déclenchement manuel tant que la couche de détection n'a pas tourné plusieurs
+# jours : un radar qu'on n'a pas encore lu ne doit pas commander une rédaction.
+name: Brouillon d'article travaux
+
+on:
+  workflow_dispatch:
+    inputs:
+      sujet:
+        description: "Le sujet à rédiger, en une phrase (ex. « fermeture de Porte de Clichy du 29 octobre au 1er novembre »)"
+        required: true
+        type: string
+      lignes:
+        description: "Les clés de ligne concernées, séparées par des virgules (ex. m13)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: blog-draft
+  cancel-in-progress: false
+
+jobs:
+  rediger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: staging
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      - run: bun install --frozen-lockfile
+
+      - name: Rédiger le brouillon
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Écris un brouillon d'article pour la rubrique « Travaux & trafic » du
+            blog Metyro, sur ce sujet : ${{ inputs.sujet }}
+            Lignes concernées : ${{ inputs.lignes }}
+
+            RÈGLES, dans l'ordre d'importance :
+
+            1. AUCUNE DATE INVENTÉE. Vérifie chaque date sur la page officielle
+               de la ligne (ratp.fr, iledefrance-mobilites.fr,
+               grandparisexpress.fr). Si une date n'est pas confirmée par une
+               source officielle, mets `datesProvisional: true` et dis-le dans
+               le texte. Ne reprends jamais un numéro de bus qu'une source
+               officielle ne nomme pas.
+            2. Remplis `sources` avec les pages réellement consultées, et
+               `lastVerifiedAt` avec la date du jour.
+            3. Respecte le gabarit : `::essentiel`, `::line-strip{line="…"}`,
+               `::phases` quand le chantier a des phases, `::sources` en fin
+               d'article, et au moins trois questions dans `faq`.
+            4. Le frontmatter est validé par
+               `apps/marketing/src/lib/blog/schema.ts`. Lis-le avant d'écrire.
+            5. Prends `apps/marketing/content/blog/travaux/travaux-ligne-13-automne-2026.md`
+               comme référence de ton et de structure. Ton factuel-service,
+               signé « l'équipe Metyro », jamais d'éditorial.
+
+            Écris le fichier dans `apps/marketing/content/blog/travaux/`, puis
+            vérifie que `bun run --filter=@via/marketing build` passe.
+
+      - name: Contrôles bloquants
+        run: |
+          bun run --filter=@via/marketing build
+          bun run check:blog-freshness
+
+      - name: Ouvrir la pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: staging
+          branch: blog/brouillon-${{ github.run_id }}
+          commit-message: "blog: brouillon — ${{ inputs.sujet }}"
+          title: "Brouillon d'article : ${{ inputs.sujet }}"
+          body: |
+            Brouillon produit automatiquement. **À relire avant publication.**
+
+            Points à vérifier en priorité :
+
+            - [ ] Chaque date correspond à ce qu'affiche la page officielle citée
+            - [ ] Aucun numéro de bus qui ne soit pas dans la source
+            - [ ] « fermée » / « non desservie » : la nuance est-elle juste ?
+            - [ ] `lastVerifiedAt` est bien la date de la vérification
+          draft: true

@@ -1,5 +1,6 @@
 export { journeyDepartureChoicesRelation, journeysPlanRelation } from './relation';
 export {
+  isDirectJourney,
   journeyDepartureChoiceGroupSchema,
   journeyDepartureChoicesInputSchema,
   journeyDepartureChoicesResponseSchema,

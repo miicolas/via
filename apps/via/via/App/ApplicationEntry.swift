@@ -29,6 +29,8 @@ struct ApplicationEntry: App {
     @State private var pushNotificationManager: PushNotificationManager
     @State private var journeyNotificationCoordinator: JourneyNotificationCoordinator
     @State private var notificationInboxRemote: any NotificationInboxRemote
+    @State private var pendingJourneyShareToken: String?
+    private let journeyShareRepository: any JourneyShareRepository
     private let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
 
     init() {
@@ -36,6 +38,7 @@ struct ApplicationEntry: App {
         let dependencies = ApplicationDependencyFactory.make(
             pushNotificationManager: pushNotificationManager
         )
+        journeyShareRepository = dependencies.journeyShareRepository
         journeyDepartureChoicesRepository = dependencies.journeyDepartureChoicesRepository
         // One filter and one nearby set for the whole shell: the map's
         // annotations and the Stations list are two views of it, and the
@@ -134,6 +137,13 @@ struct ApplicationEntry: App {
     var body: some Scene {
         WindowGroup {
             applicationRoot
+            .onOpenURL { url in
+                guard case .sharedJourney(let token) = MapRoute(url: url) else { return }
+                // MapShellView owns the normal case. Keeping a copy here also
+                // covers a universal link received during launch animation or
+                // onboarding, before the shell exists in the view hierarchy.
+                pendingJourneyShareToken = token
+            }
             .task(id: onboardingModel.isCompleted) {
                 guard onboardingModel.isCompleted else { return }
                 await preloadInitialData()
@@ -234,6 +244,9 @@ struct ApplicationEntry: App {
                     profileModel: profileModel,
                     pushNotificationManager: pushNotificationManager,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
+                    journeyShareRepository: journeyShareRepository,
+                    initialSharedJourneyToken: pendingJourneyShareToken,
+                    onConsumeSharedJourney: { pendingJourneyShareToken = nil },
                     journeyDepartureChoicesRepository: journeyDepartureChoicesRepository,
                     onReplayOnboarding: replayOnboarding,
                     notificationInboxRemote: notificationInboxRemote,

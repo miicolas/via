@@ -1100,6 +1100,44 @@ final class SearchViewModelTests: XCTestCase {
         }
     }
 
+    func testSavedDestinationOriginsUseTheirSavedCoordinates() async {
+        let defaultsName = "via.search-saved-destination-tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
+
+        let account = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: InMemoryAccountRemote(),
+            synchronizationEnabled: false,
+        )
+        account.activateAnonymous()
+        account.saveDestination(
+            .previewAddress,
+            label: "Salle de sport",
+            systemImage: "dumbbell.fill",
+        )
+
+        guard let destination = account.destinations.first else {
+            return XCTFail("Expected a saved destination")
+        }
+
+        let journeys = JourneyRepositoryRecorder(result: .mapPreview)
+        let model = makeModel(
+            journeyRepository: journeys,
+            location: LocationModel(adapter: InMemoryLocationAdapter(authorization: .denied, coordinate: nil)),
+            account: account,
+        )
+
+        XCTAssertEqual(model.savedDestinations.map(\.label), ["Salle de sport"])
+
+        model.selectDeparture(.savedDestination(destination))
+        model.selectDestination(.previewStation)
+        await waitForStep(model, .results)
+
+        let requests = await journeys.requests()
+        XCTAssertEqual(requests.first?.origin, destination.coordinate)
+    }
+
     func testCurrentLocationFailureBlocksOnlyTheCurrentOrigin() async {
         let journeys = JourneyRepositoryRecorder(result: .mapPreview)
         let location = LocationModel(adapter: InMemoryLocationAdapter(authorization: .denied, coordinate: nil))

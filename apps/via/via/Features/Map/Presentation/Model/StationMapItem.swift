@@ -9,6 +9,8 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
     let hasElevators: Bool
     let toilets: StationToilets?
     let bikeStation: BikeStation?
+    let sharedMobility: SharedMobilityItem?
+    let sharedMobilityCluster: SharedMobilityCluster?
     /// Stored rather than derived: annotation bodies read it on every render.
     let modes: [TransitMode]
 
@@ -20,7 +22,9 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
         accessibility: StationAccessibility? = nil,
         hasElevators: Bool = false,
         toilets: StationToilets? = nil,
-        bikeStation: BikeStation? = nil
+        bikeStation: BikeStation? = nil,
+        sharedMobility: SharedMobilityItem? = nil,
+        sharedMobilityCluster: SharedMobilityCluster? = nil
     ) {
         self.id = id
         self.name = name
@@ -30,6 +34,8 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
         self.hasElevators = hasElevators
         self.toilets = toilets
         self.bikeStation = bikeStation
+        self.sharedMobility = sharedMobility
+        self.sharedMobilityCluster = sharedMobilityCluster
         self.modes = routes.modes
     }
 
@@ -37,6 +43,7 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
     /// id is namespaced before it becomes a `StationID`. Local to the map: the
     /// wire format tells the two apart by kind, not by prefix.
     static let bikeStationIDPrefix = "velib:"
+    static let sharedMobilityIDPrefix = "mobility:"
 
     init(bikeStation: BikeStation) {
         self.init(
@@ -45,6 +52,26 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
             coordinate: bikeStation.coordinate,
             routes: [],
             bikeStation: bikeStation
+        )
+    }
+
+    init(sharedMobility: SharedMobilityItem) {
+        self.init(
+            id: StationID(rawValue: "\(Self.sharedMobilityIDPrefix)\(sharedMobility.id)"),
+            name: sharedMobility.name,
+            coordinate: sharedMobility.coordinate,
+            routes: [],
+            sharedMobility: sharedMobility
+        )
+    }
+
+    init(sharedMobilityCluster: SharedMobilityCluster) {
+        self.init(
+            id: StationID(rawValue: "mobility-cluster:\(sharedMobilityCluster.id)"),
+            name: "\(sharedMobilityCluster.count) \(sharedMobilityCluster.mode.displayName)",
+            coordinate: sharedMobilityCluster.coordinate,
+            routes: [],
+            sharedMobilityCluster: sharedMobilityCluster
         )
     }
 }
@@ -70,8 +97,117 @@ extension StationsArea {
 
 }
 
+extension StationMapItem {
+    /// The dock behind this pin, whichever route delivered it — the Vélib'
+    /// layer or the generic one.
+    ///
+    /// Asking the two questions separately is what let a screen answer for one
+    /// source and not the other: the same station arrived as a `BikeStation`
+    /// here and as a `SharedMobilityItem` there, and every reader had to
+    /// remember both.
+    var dock: BikeStation? {
+        if let bikeStation { return bikeStation }
+        if case .station(let generic)? = sharedMobility { return generic.station }
+        return nil
+    }
+
+    /// Whether this pin is shared mobility its source still vouches for.
+    ///
+    /// Written once: the map and the nearby list must expire a scooter on the
+    /// same tick, and a TTL rule kept in two places lets it vanish from one
+    /// screen while the other still offers to unlock it.
+    func isCurrentSharedMobility(
+        in sources: [SharedMobilityProvider: SharedMobilitySourceStatus],
+        at date: Date = .now
+    ) -> Bool {
+        guard let mobility = sharedMobility else { return false }
+        return sources[mobility.provider]?.isCurrent(at: date) ?? false
+    }
+}
+
 extension BikeStationsArea {
     var mapItems: [StationMapItem] {
         stations.map(StationMapItem.init(bikeStation:))
     }
+}
+
+extension SharedMobilityArea {
+    var mapItems: [StationMapItem] {
+        items.map(StationMapItem.init(sharedMobility:))
+    }
+}
+
+extension Array where Element == StationMapItem {
+    /// Keeps close zoom individual and makes a dezoomed vehicle layer readable.
+    /// Physical Vélib’ stations are intentionally never merged.
+    func groupedSharedMobility(for viewport: NetworkViewport) -> [StationMapItem] {
+        viewport.groupsSharedMobility ? groupedSharedMobility() : self
+    }
+
+    /// The grid alone, with no camera in it.
+    ///
+    /// Only the 850 m threshold above depends on the viewport; the 250 m cells
+    /// do not, so a caller that already knows which side of the threshold it is
+    /// on can group once and reuse the result across frames instead of
+    /// rebuilding the dictionary, the cosines and the sort on every one.
+    func groupedSharedMobility() -> [StationMapItem] {
+        // The default map carries no vehicles at all, and every snapshot
+        // publish came through here — a viewport change, a filter tap, both
+        // sides of every refresh. Without this the whole station list was
+        // partitioned and string-sorted to return itself.
+        guard contains(where: { item in
+            if case .vehicle = item.sharedMobility { return true }
+            return false
+        }) else { return self }
+
+        let cellSizeMeters = 250.0
+        let latitudeCellSize = cellSizeMeters / 111_000
+        var grouped: [SharedMobilityClusterKey: [StationMapItem]] = [:]
+        var untouched: [StationMapItem] = []
+
+        for item in self {
+            guard let mobility = item.sharedMobility,
+                  case .vehicle(let vehicle) = mobility
+            else {
+                untouched.append(item)
+                continue
+            }
+
+            let longitudeCellSize = cellSizeMeters
+                / Swift.max(0.01, 111_000 * cos(vehicle.coordinate.latitude * .pi / 180))
+            let key = SharedMobilityClusterKey(
+                provider: vehicle.provider,
+                mode: vehicle.mode,
+                latitudeIndex: Int(floor(vehicle.coordinate.latitude / latitudeCellSize)),
+                longitudeIndex: Int(floor(vehicle.coordinate.longitude / longitudeCellSize))
+            )
+            grouped[key, default: []].append(item)
+        }
+
+        let clusters = grouped.compactMap { key, items -> StationMapItem? in
+            guard items.count > 1 else { return items.first }
+            let latitude = items.map(\.coordinate.latitude).reduce(0, +) / Double(items.count)
+            let longitude = items.map(\.coordinate.longitude).reduce(0, +) / Double(items.count)
+            return StationMapItem(sharedMobilityCluster: SharedMobilityCluster(
+                id: "\(key.provider.rawValue):\(key.mode.rawValue):\(key.latitudeIndex):\(key.longitudeIndex)",
+                coordinate: GeoCoordinate(latitude: latitude, longitude: longitude),
+                provider: key.provider,
+                mode: key.mode,
+                count: items.count
+            ))
+        }
+
+        // Only the clusters need ordering: they come out of a dictionary, whose
+        // iteration order is not stable between publishes, and an annotation
+        // that changes index flickers. `untouched` already arrives in the
+        // source's own order.
+        return untouched + clusters.sorted { $0.id.rawValue < $1.id.rawValue }
+    }
+}
+
+private struct SharedMobilityClusterKey: Hashable {
+    let provider: SharedMobilityProvider
+    let mode: SharedMobilityMode
+    let latitudeIndex: Int
+    let longitudeIndex: Int
 }

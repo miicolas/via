@@ -25,8 +25,26 @@ final class MapRouteTests: XCTestCase {
         )
     }
 
+    func testParsesPublicJourneyLinksForUniversalLinksAndFallbackScheme() {
+        let token = String(repeating: "A", count: 43)
+
+        XCTAssertEqual(
+            MapRoute(url: URL(string: "https://metyro.app/trip/\(token)")!),
+            .sharedJourney(token)
+        )
+        XCTAssertEqual(
+            MapRoute(url: URL(string: "via://trip/\(token)")!),
+            .sharedJourney(token)
+        )
+        XCTAssertEqual(
+            MapRoute(url: URL(string: "via://journey?mode=shared&token=\(token)")!),
+            .sharedJourney(token)
+        )
+    }
+
     func testRejectsUnknownOrIncompleteRoutes() {
         XCTAssertNil(MapRoute(url: URL(string: "https://example.com")!))
+        XCTAssertNil(MapRoute(url: URL(string: "https://metyro.app/trip/short")!))
         XCTAssertNil(MapRoute(url: URL(string: "via://journey/journey-1")!))
         XCTAssertNil(MapRoute(url: URL(string: "via://station")!))
     }

@@ -23,13 +23,37 @@ final class NetworkViewModel {
   @ObservationIgnored private var positionedRoutes: [NetworkRoute] = []
   @ObservationIgnored private var positionedViewport: TransitMapViewport?
   @ObservationIgnored private var routesGeneration = 0
-  @ObservationIgnored private var loadedStations: [StationMapItem] = []
+  @ObservationIgnored private var loadedStations: [StationMapItem] = [] {
+    didSet { rebuildDrawableItems() }
+  }
   /// Kept apart from `loadedStations`: the layer is off by default, and
   /// `publishSnapshot` runs on every camera frame — no reason to walk a
   /// thousand docks per frame only to reject them.
-  @ObservationIgnored private var loadedBikeStations: [StationMapItem] = []
-  @ObservationIgnored private var bikeSourceAvailable = true
-  @ObservationIgnored private var bikeRefreshTask: Task<Void, Never>?
+  @ObservationIgnored private var loadedBikeStations: [StationMapItem] = [] {
+    didSet { rebuildDrawableItems() }
+  }
+  @ObservationIgnored private var loadedSharedMobility: [StationMapItem] = [] {
+    didSet { rebuildDrawableItems() }
+  }
+  @ObservationIgnored private var sharedMobilitySources: [SharedMobilityProvider: SharedMobilitySourceStatus] = [:] {
+    didSet { rebuildDrawableItems() }
+  }
+
+  /// What the map can draw, before it knows where the camera is.
+  ///
+  /// `publishSnapshot` runs on every frame of a pan, and none of the work below
+  /// depends on the frame: the filter criteria, the source TTLs and the 250 m
+  /// grid are functions of the loaded sets alone. Doing them here leaves the
+  /// frame with a bounds test, and has the side benefit that a cluster's count
+  /// no longer changes as its members cross the edge of the viewport.
+  ///
+  /// A `didSet` on each input rather than a call at each load and refresh path:
+  /// there are five of those, and the one that forgets shows stale vehicles.
+  @ObservationIgnored private var drawableStations: [StationMapItem] = []
+  @ObservationIgnored private var drawableBikeStations: [StationMapItem] = []
+  @ObservationIgnored private var drawableVehicles: [StationMapItem] = []
+  @ObservationIgnored private var groupedVehicles: [StationMapItem] = []
+  @ObservationIgnored private var sharedMobilityRefreshTask: Task<Void, Never>?
   @ObservationIgnored private var viewportTask: Task<Void, Never>?
   @ObservationIgnored private var viewportRevision = 0
   @ObservationIgnored private var lastViewport: NetworkViewport?
@@ -51,7 +75,8 @@ final class NetworkViewModel {
   }
 
   private func filterChanged() {
-    scheduleBikeRefresh()
+    scheduleSharedMobilityRefresh()
+    rebuildDrawableItems()
     guard let lastViewport else { return }
     publishSnapshot(for: lastViewport, loading: state.loading)
   }
@@ -153,20 +178,26 @@ final class NetworkViewModel {
 
       if viewport.showsStations {
         // The two payloads are independent routes with independent caches, so
-        // they travel together; the docks are skipped entirely with the layer
-        // off, which is the default.
+        // they travel together. Shared mobility is skipped entirely with its
+        // filters off, which keeps the default map on the transit path only.
         async let stationsArea = repository.viewport(in: viewport.bounds)
-        async let bikeArea: BikeStationsArea? =
-          stationFilter.contains(.bikeStations)
-          ? try await repository.bikeStations(in: viewport.bounds)
+        async let sharedArea: SharedMobilityArea? =
+          stationFilter.wantsSharedMobility
+          ? try await repository.sharedMobility(in: viewport.bounds)
           : nil
 
-        let (fetchedStations, fetchedBikes) = try await (stationsArea, bikeArea)
+        let (fetchedStations, fetchedShared) = try await (stationsArea, sharedArea)
         try Task.checkCancellation()
         guard revision == viewportRevision else { return }
         loadedStations = fetchedStations.transitMapItems
-        loadedBikeStations = fetchedBikes?.mapItems ?? []
-        bikeSourceAvailable = fetchedBikes?.sourceAvailable ?? true
+        loadedSharedMobility = fetchedShared?.currentItems().map { StationMapItem(sharedMobility: $0) } ?? []
+        sharedMobilitySources = fetchedShared?.sources ?? [:]
+
+        loadedBikeStations = try await repository.legacyBikeStations(
+          in: viewport.bounds,
+          whenGenericSourcesAre: sharedMobilitySources,
+          wanted: stationFilter.contains(.bikeStations)
+        ).mapItems
       }
       publishSnapshot(for: viewport, loading: .loaded)
       AppLog.network.debug(
@@ -185,53 +216,114 @@ final class NetworkViewModel {
   func stationMapItem(for stationID: StationID) -> StationMapItem? {
     loadedStations.first { $0.id == stationID }
       ?? loadedBikeStations.first { $0.id == stationID }
+      ?? loadedSharedMobility.first { $0.id == stationID }
       ?? nearby?.results.first { $0.id == stationID }?.item
   }
 
-  /// Dock counts move by the minute while the rest of a tile is reference
-  /// data, so the layer being on is what decides the refresh — not the view
-  /// that happens to be drawing it. Only the docks are refetched: the stations
-  /// and their badges have not changed since the tile was first loaded.
-  private func scheduleBikeRefresh() {
-    bikeRefreshTask?.cancel()
-    guard stationFilter.contains(.bikeStations) else {
+  /// Shared mobility moves by the minute, so the layer being on is what
+  /// decides the refresh — not the view that happens to be drawing it.
+  private func scheduleSharedMobilityRefresh() {
+    sharedMobilityRefreshTask?.cancel()
+    guard stationFilter.wantsSharedMobility else {
       loadedBikeStations = []
-      bikeSourceAvailable = true
+      loadedSharedMobility = []
+      sharedMobilitySources = [:]
       return
     }
-    bikeRefreshTask = Task { [weak self] in
+    sharedMobilityRefreshTask = Task { [weak self] in
       // Turning the layer on is itself a request for counts; the loop below
       // only keeps them from going stale afterwards.
-      await self?.refreshBikeStations()
+      await self?.refreshSharedMobility()
       while !Task.isCancelled {
+        guard let delay = await self?.nextSharedMobilityRefreshDelay() else { return }
         do {
-          try await Task.sleep(for: BikeStation.freshness)
+          try await Task.sleep(for: .milliseconds(Int64(delay * 1_000)))
         } catch {
           return
         }
         guard let self else { return }
-        await refreshBikeStations()
+        await refreshSharedMobility()
       }
     }
   }
 
-  private func refreshBikeStations() async {
+  private func refreshSharedMobility() async {
     guard let viewport = lastViewport,
-          viewport.showsStations,
-          stationFilter.contains(.bikeStations) else { return }
+          stationFilter.wantsSharedMobility else { return }
+
+    // At overview scale the nearby model owns the bounded result set. It must
+    // refresh too; otherwise a valid nearby payload would outlive its GBFS TTL
+    // while the map is still zoomed out.
+    guard viewport.showsStations else {
+      nearby?.refreshSharedMobility()
+      return
+    }
+
     let revision = viewportRevision
+    publishSnapshot(for: viewport, loading: state.loading)
     do {
-      let area = try await repository.bikeStations(in: viewport.bounds)
-      guard revision == viewportRevision, stationFilter.contains(.bikeStations) else { return }
-      loadedBikeStations = area.mapItems
-      bikeSourceAvailable = area.sourceAvailable
+      let area = try await repository.sharedMobility(in: viewport.bounds)
+      guard revision == viewportRevision, stationFilter.wantsSharedMobility else { return }
+      loadedSharedMobility = area.currentItems().map { StationMapItem(sharedMobility: $0) }
+      sharedMobilitySources = area.sources
+      let legacy = try await repository.legacyBikeStations(
+        in: viewport.bounds,
+        whenGenericSourcesAre: area.sources,
+        wanted: stationFilter.contains(.bikeStations)
+      )
+      guard revision == viewportRevision else { return }
+      loadedBikeStations = legacy.mapItems
       publishSnapshot(for: viewport, loading: state.loading)
     } catch is CancellationError {
     } catch {
+      guard revision == viewportRevision else { return }
+      // A source that just crossed its TTL must disappear even if its next
+      // refresh is unavailable. The old payload is never a fallback. Nothing
+      // was assigned here, so the rebuild has to be asked for.
+      rebuildDrawableItems()
+      publishSnapshot(for: viewport, loading: state.loading)
       AppLog.network.error(
-        "Bike refresh failed: \(String(describing: error), privacy: .private(mask: .hash))"
+        "Shared mobility refresh failed: \(String(describing: error), privacy: .private(mask: .hash))"
       )
     }
+  }
+
+  /// A source whose expiry is already behind us has just been refreshed
+  /// without moving forward — its GBFS feed is stalled, not late. Counting it
+  /// would clamp the interval to its floor and poll every second for as long as
+  /// the feed stays stuck, so only a future expiry sets the pace and a stalled
+  /// layer retries on the same cadence the API uses for a failed provider.
+  private static let stalledSharedMobilityRetry: TimeInterval = 15
+  private static let sharedMobilityRefreshCeiling: TimeInterval = 60
+
+  private func nextSharedMobilityRefreshDelay() -> TimeInterval? {
+    guard stationFilter.wantsSharedMobility else { return nil }
+    let secondsUntilExpiry = sharedMobilitySources.values
+      .compactMap { $0.expiresAt?.timeIntervalSinceNow }
+      .filter { $0 > 0 }
+      .min()
+    guard let secondsUntilExpiry else {
+      let hasExpiry = sharedMobilitySources.values.contains { $0.expiresAt != nil }
+      return hasExpiry ? Self.stalledSharedMobilityRetry : Self.sharedMobilityRefreshCeiling
+    }
+    return min(Self.sharedMobilityRefreshCeiling, max(1, secondsUntilExpiry))
+  }
+
+  /// Applies everything the camera has no say in: the active criteria, the
+  /// per-source TTL, and the 250 m grouping the dezoomed map draws.
+  private func rebuildDrawableItems() {
+    let now = Date.now
+    drawableStations = loadedStations.filter(stationFilter.matches)
+    drawableBikeStations = stationFilter.contains(.bikeStations)
+      ? loadedBikeStations.filter(stationFilter.matches)
+      : []
+    drawableVehicles = stationFilter.wantsSharedMobility
+      ? loadedSharedMobility.filter {
+          $0.isCurrentSharedMobility(in: sharedMobilitySources, at: now)
+            && stationFilter.matches($0)
+        }
+      : []
+    groupedVehicles = drawableVehicles.groupedSharedMobility()
   }
 
   private func publishSnapshot(
@@ -240,17 +332,13 @@ final class NetworkViewModel {
   ) {
     var visibleStations: [StationMapItem] = []
     var bypassZoomFade = false
-    var sourceAvailable = bikeSourceAvailable
+    var sources = sharedMobilitySources
     if viewport.showsStations {
       let bounds = viewport.bounds
-      visibleStations = loadedStations.filter {
-        bounds.contains($0.coordinate) && stationFilter.matches($0)
-      }
-      if stationFilter.contains(.bikeStations) {
-        visibleStations += loadedBikeStations.filter {
-          bounds.contains($0.coordinate) && stationFilter.matches($0)
-        }
-      }
+      let vehicles = viewport.groupsSharedMobility ? groupedVehicles : drawableVehicles
+      visibleStations = drawableStations.filter { bounds.contains($0.coordinate) }
+        + drawableBikeStations.filter { bounds.contains($0.coordinate) }
+        + vehicles.filter { bounds.contains($0.coordinate) }
     } else if stationFilter.isActive,
               let nearby,
               viewport.fitsInside(radiusMeters: NearbyStationsModel.radiusMeters) {
@@ -259,7 +347,12 @@ final class NetworkViewModel {
       // of revealing the circular edge of the loaded data.
       visibleStations = nearby.annotationItems
       bypassZoomFade = !visibleStations.isEmpty
-      sourceAvailable = nearby.bikeSourceAvailable
+      sources = nearby.sharedMobilitySources
+    }
+    // The map's own vehicles are already grouped; only the nearby set drawn at
+    // overview scale still arrives ungrouped.
+    if !viewport.showsStations {
+      visibleStations = visibleStations.groupedSharedMobility(for: viewport)
     }
     // A mode criterion narrows the drawn network too: filtering on the métro
     // keeps every RER and tram polyline off the map, not just their stations.
@@ -276,10 +369,11 @@ final class NetworkViewModel {
         lineStyle: viewport.lineStyle,
         stationOpacity: viewport.stationOpacity,
         stationsBypassZoomFade: bypassZoomFade,
-        bikeSourceAvailable: sourceAvailable
+        sharedMobilitySources: sources
       ),
       loading: loading
     )
     if state != refreshed { state = refreshed }
   }
+
 }

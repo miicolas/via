@@ -3,6 +3,7 @@ import SwiftUI
 struct SearchDeparturePickerView: View {
     let viewModel: SearchViewModel
     let savedPlaces: [SavedPlace]
+    let savedDestinations: [SavedDestination]
     let selection: SearchDepartureSelection
     let onSelect: (SearchDepartureSelection) -> Void
 
@@ -11,11 +12,13 @@ struct SearchDeparturePickerView: View {
     init(
         viewModel: SearchViewModel,
         savedPlaces: [SavedPlace] = [],
+        savedDestinations: [SavedDestination] = [],
         selection: SearchDepartureSelection = .currentLocation,
         onSelect: @escaping (SearchDepartureSelection) -> Void
     ) {
         self.viewModel = viewModel
         self.savedPlaces = savedPlaces
+        self.savedDestinations = savedDestinations
         self.selection = selection
         self.onSelect = onSelect
     }
@@ -108,6 +111,16 @@ struct SearchDeparturePickerView: View {
                     systemImage: place.role.systemImage,
                     isSelected: selection == .saved(place),
                     action: { select(.saved(place)) },
+                )
+            }
+
+            ForEach(savedDestinations) { destination in
+                shortcutRow(
+                    title: destination.label,
+                    subtitle: destination.label == destination.name ? "Lieu enregistré" : destination.name,
+                    systemImage: SavedDestinationSymbols.resolved(destination.systemImage),
+                    isSelected: selection == .savedDestination(destination),
+                    action: { select(.savedDestination(destination)) },
                 )
             }
         }

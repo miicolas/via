@@ -48,7 +48,13 @@ struct StationOverview: Sendable, Hashable, Identifiable {
     let accessibility: StationAccessibility?
     let toilets: StationToilets?
     let distanceMeters: Double?
+    /// One representative passage per direction, used by the compact station
+    /// row in the Stations tab.
     let departures: [StationDeparture]
+    /// Every upcoming passage returned by the board, used by the station detail.
+    /// Keeping this separate prevents the compact row from losing the rest of
+    /// the board just because it only has room for one passage per direction.
+    let departureBoard: [StationDeparture]
     let departureSource: DepartureBoard.Source
     let departureFetchedAt: Date?
     let peak: StationPeak?
@@ -66,7 +72,8 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         departureSource: DepartureBoard.Source,
         departureFetchedAt: Date? = nil,
         peak: StationPeak? = nil,
-        elevators: StationElevatorSnapshot = .unavailable
+        elevators: StationElevatorSnapshot = .unavailable,
+        departureBoard: [StationDeparture]? = nil
     ) {
         self.id = id
         self.name = name
@@ -76,6 +83,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         self.toilets = toilets
         self.distanceMeters = distanceMeters
         self.departures = departures
+        self.departureBoard = departureBoard ?? departures
         self.departureSource = departureSource
         self.departureFetchedAt = departureFetchedAt
         self.peak = peak

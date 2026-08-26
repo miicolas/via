@@ -13,3 +13,25 @@ export type ErrorBody = {
     requestId?: string;
   };
 };
+
+/**
+ * The one way to build that envelope.
+ *
+ * `requestId` is the whole point of the shape: it is what turns "the page said
+ * it was unavailable" into a line in the logs. Spelled per mount, one of them
+ * forgets it — so the mounts spell nothing and call this.
+ */
+export function errorBody(
+  c: { get: (key: 'requestId') => string | undefined },
+  code: string,
+  message: string
+): ErrorBody {
+  const requestId = c.get('requestId');
+  return {
+    error: {
+      code,
+      message,
+      ...(requestId === undefined ? {} : { requestId }),
+    },
+  };
+}

@@ -580,6 +580,9 @@ private enum DeterministicNaturalJourneyGrounder {
         }
         let timeMeaning = explicitTimeMeaning(in: phrase, isEnglish: isEnglish)
         let timeAnchorEvidence = lastServiceEvidence(in: phrase, isEnglish: isEnglish)
+        let timeAnchorQualifierEvidence = timeAnchorEvidence == nil
+            ? []
+            : lastServiceQualifierEvidence(in: phrase, isEnglish: isEnglish)
 
         let origin = explicitOrigin.map {
             groundedPlace(
@@ -647,7 +650,9 @@ private enum DeterministicNaturalJourneyGrounder {
                     origin?.evidence,
                     destination?.evidence,
                     timeAnchorEvidence,
-                ].compactMap { $0 } + (modes?.evidence ?? []),
+                ].compactMap { $0 }
+                    + timeAnchorQualifierEvidence
+                    + (modes?.evidence ?? []),
                 isEnglish: isEnglish,
             ),
         )
@@ -884,7 +889,7 @@ private enum DeterministicNaturalJourneyGrounder {
             ? ["from", "frm"]
             : [
                 "depuis", "depui", "depuiss", "dpeuis", "au départ de",
-                "a partir de", "à partir de",
+                "a partir de", "à partir de", "de",
             ]
         for marker in markers {
             guard let markerRange = wholePhraseRange(
@@ -999,6 +1004,29 @@ private enum DeterministicNaturalJourneyGrounder {
         }
         for marker in markers {
             if let range = wholePhraseRange(of: marker, in: value) {
+                consider(range.lowerBound)
+            }
+        }
+        let semanticBoundaries = isEnglish
+            ? [
+                #"\s+(?:tonight|this\s+(?:morning|afternoon|evening)|today|tomorrow(?:\s+(?:morning|evening))?|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b"#,
+                #"\s+(?:in\s+\d+\s+(?:minutes?|hours?|days?))\b"#,
+                #"\s+(?:the\s+)?last\s+(?:train|subway|metro|RER|bus|tram)\b"#,
+                #"\s+(?:I\s+(?:want|need|would)|please)\b"#,
+                #"\s+(?:to\s+(?:go|return|get)|for\s+(?:going|returning))\b"#,
+            ]
+            : [
+                #"\s+(?:ce\s+soir|ce\s+matin|cet\s+(?:apr[eè]s[-\s]?midi)|ce\s+midi|aujourd['’]?hui|demain(?:\s+(?:matin|soir))?|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b"#,
+                #"\s+(?:dans\s+\d+\s+(?:minutes?|heures?|jours?))\b"#,
+                #"\s+(?:le\s+)?dernier\s+(?:train|m[eé]tro|RER|bus|tram(?:way)?)\b"#,
+                #"\s+(?:je\s+(?:veux|dois|pars|rentre|vais)|j['’]aimerais|je\s+souhaite)\b"#,
+                #"\s+pour\s+(?:aller|rentrer|me\s+rendre|[eê]tre|arriver)\b"#,
+            ]
+        for pattern in semanticBoundaries {
+            if let range = value.range(
+                of: pattern,
+                options: [.regularExpression, .caseInsensitive],
+            ) {
                 consider(range.lowerBound)
             }
         }
@@ -1119,18 +1147,29 @@ private enum DeterministicNaturalJourneyGrounder {
         in phrase: String,
         isEnglish: Bool,
     ) -> String? {
+        let pattern = isEnglish
+            ? #"\b(?:tonight\s+)?(?:with\s+)?(?:the\s+)?last\s+(?:train|subway|metro|RER|bus|tram)(?:\s+tonight)?\b"#
+            : #"\b(?:ce\s+soir\s+)?(?:avec\s+)?(?:le\s+)?dernier\s+(?:train|m[eé]tro|RER|bus|tram(?:way)?)(?:\s+ce\s+soir)?\b"#
+        return firstEvidence(matching: pattern, in: phrase)
+    }
+
+    /// A time-of-day qualifier can be separated from the service phrase by
+    /// the place or route clause. It is evidence for coverage only: the
+    /// public field remains the smaller service phrase used to explain the
+    /// `lastOfDay` anchor.
+    private static func lastServiceQualifierEvidence(
+        in phrase: String,
+        isEnglish: Bool,
+    ) -> [String] {
         let markers = isEnglish
-            ? ["last train", "last subway", "last metro", "last RER", "last bus", "last tram"]
+            ? ["tonight", "this morning", "this afternoon", "this evening", "today"]
             : [
-                "dernier train", "dernier métro", "dernier metro", "dernier RER",
-                "dernier bus", "dernier tram",
+                "ce soir", "ce matin", "cet après-midi", "cet apres-midi", "ce midi",
+                "aujourd’hui", "aujourd'hui",
             ]
-        for marker in markers {
-            if let range = wholePhraseRange(of: marker, in: phrase) {
-                return String(phrase[range])
-            }
+        return markers.compactMap { marker in
+            wholePhraseRange(of: marker, in: phrase).map { String(phrase[$0]) }
         }
-        return nil
     }
 
     private static func explicitModes(in phrase: String) -> GroundedModes? {

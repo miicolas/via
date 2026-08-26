@@ -1,15 +1,27 @@
-import { accountDeleteRelation, accountSyncRelation } from './account';
-import { departuresForStationRelation } from './departures';
-import { healthRelation } from './health';
-import { journeyDepartureChoicesRelation, journeysPlanRelation } from './journeys';
-import { lineDetailRelation, lineSearchRelation, lineStatusesRelation } from './lines';
-import { naturalJourneysSubmitRelation } from './natural-journeys';
+import { accountDeleteRelation, accountSyncRelation } from "./account";
+import { departuresForStationRelation } from "./departures";
+import { healthRelation } from "./health";
+import {
+  journeyShareCreateRelation,
+  journeyShareGetRelation,
+} from "./journey-shares";
+import {
+  journeyDepartureChoicesRelation,
+  journeysPlanRelation,
+} from "./journeys";
+import {
+  lineDetailRelation,
+  lineSearchRelation,
+  lineStatusesRelation,
+} from "./lines";
+import { naturalJourneysSubmitRelation } from "./natural-journeys";
 import {
   bikeStationsInAreaRelation,
   railMapRelation,
+  sharedMobilityInAreaRelation,
   stationCrowdingRelation,
   stationsInAreaRelation,
-} from './network';
+} from "./network";
 import {
   notificationsRegisterActivityRelation,
   notificationsRegisterActiveJourneyRelation,
@@ -22,9 +34,12 @@ import {
   notificationsMarkInboxReadRelation,
   notificationsSnoozeRelation,
   notificationsMuteRelation,
-} from './notifications';
-import { searchQueryRelation } from './search';
-import { reportSubmitRelation, stationStatusRelation } from './reports/relation';
+} from "./notifications";
+import { searchQueryRelation } from "./search";
+import {
+  reportSubmitRelation,
+  stationStatusRelation,
+} from "./reports/relation";
 
 export const contract = {
   account: {
@@ -38,6 +53,10 @@ export const contract = {
   journeys: {
     plan: journeysPlanRelation,
     departureChoices: journeyDepartureChoicesRelation,
+  },
+  journeyShares: {
+    create: journeyShareCreateRelation,
+    get: journeyShareGetRelation,
   },
   naturalJourneys: {
     submit: naturalJourneysSubmitRelation,
@@ -64,6 +83,7 @@ export const contract = {
     railMap: railMapRelation,
     stationsInArea: stationsInAreaRelation,
     bikeStationsInArea: bikeStationsInAreaRelation,
+    sharedMobilityInArea: sharedMobilityInAreaRelation,
     stationCrowding: stationCrowdingRelation,
   },
   search: {
@@ -75,23 +95,24 @@ export const contract = {
   },
 };
 
-export * from './account';
-export * from './departures/schema';
-export * from './departures/type';
-export * from './health/schema';
-export * from './health/type';
-export * from './journeys/schema';
-export * from './journeys/type';
-export * from './lines/schema';
-export * from './lines/type';
-export * from './natural-journeys/schema';
-export * from './natural-journeys/type';
-export * from './notifications';
-export * from './network/schema';
-export * from './network/type';
-export { RAIL_MAP_PATH, RAIL_MAP_RPC_PATH } from './network/rail-map-relation';
-export * from './search/schema';
-export * from './search/type';
-export * from './reports/schema';
-export * from './reports/type';
-export * from './shared';
+export * from "./account";
+export * from "./departures/schema";
+export * from "./departures/type";
+export * from "./health/schema";
+export * from "./health/type";
+export * from "./journeys/schema";
+export * from "./journeys/type";
+export * from "./journey-shares";
+export * from "./lines/schema";
+export * from "./lines/type";
+export * from "./natural-journeys/schema";
+export * from "./natural-journeys/type";
+export * from "./notifications";
+export * from "./network/schema";
+export * from "./network/type";
+export { RAIL_MAP_PATH, RAIL_MAP_RPC_PATH } from "./network/rail-map-relation";
+export * from "./search/schema";
+export * from "./search/type";
+export * from "./reports/schema";
+export * from "./reports/type";
+export * from "./shared";

@@ -89,7 +89,14 @@ struct NetworkMapView: View {
               anchor: .bottom
             ) {
               Group {
-                if let bikeStation = station.bikeStation {
+                if let cluster = station.sharedMobilityCluster {
+                  SharedMobilityClusterAnnotationView(cluster: cluster)
+                } else if let sharedMobility = station.sharedMobility {
+                  SharedMobilityAnnotationView(
+                    item: sharedMobility,
+                    isCompact: annotationIsCompact(in: geometry.size)
+                  )
+                } else if let bikeStation = station.bikeStation {
                   BikeStationAnnotationView(
                     station: bikeStation,
                     isCompact: annotationIsCompact(in: geometry.size)
@@ -168,16 +175,16 @@ struct NetworkMapView: View {
         .padding(.top, 8)
         .padding(.horizontal, 12)
 
-        if bikeSourceUnavailable {
-          EmptyStateView(.bikeStationsUnavailable) {
+        if sharedMobilitySourcesUnavailable {
+          EmptyStateView(.sharedMobilityUnavailable) {
             RetryButton(action: viewModel.retry)
               .primaryAction()
           }
           .background(.regularMaterial, in: .rect(cornerRadius: 24))
           .padding(.horizontal, 24)
           .frame(maxHeight: .infinity)
-        } else if bikeFilterHasNoResults {
-          EmptyStateView(.noBikeStationsInArea)
+        } else if sharedMobilityHasNoResults {
+          EmptyStateView(.noSharedMobilityInArea)
             .background(.regularMaterial, in: .rect(cornerRadius: 24))
             .padding(.horizontal, 24)
             .frame(maxHeight: .infinity)
@@ -220,19 +227,30 @@ struct NetworkMapView: View {
     visibleRegion.networkViewport(size: size).usesCompactStationAnnotations
   }
 
-  private var bikeSourceUnavailable: Bool {
-    viewModel.state.loading == .loaded
-      && viewModel.stationFilter.contains(.bikeStations)
-      && !viewModel.state.snapshot.bikeSourceAvailable
+  private var sharedMobilitySourcesUnavailable: Bool {
+    guard viewModel.state.loading == .loaded,
+          viewModel.stationFilter.wantsSharedMobility
+    else { return false }
+
+    let statuses = requestedSharedMobilityProviders.map {
+      viewModel.state.snapshot.sourceStatus($0)
+    }
+    guard !statuses.isEmpty,
+          viewModel.state.snapshot.sharedMobilitySources.isEmpty == false
+    else { return false }
+    return statuses.allSatisfy { !$0.isAvailable }
   }
 
-  /// Only read in the `else` of `bikeSourceUnavailable`, so the source is
-  /// known to be up by the time this is asked.
-  private var bikeFilterHasNoResults: Bool {
+  private var sharedMobilityHasNoResults: Bool {
     viewModel.state.loading == .loaded
-      && viewModel.stationFilter.contains(.bikeStations)
+      && viewModel.stationFilter.wantsSharedMobility
+      && !sharedMobilitySourcesUnavailable
       && viewModel.state.snapshot.resolvedStationOpacity > 0
       && viewModel.state.snapshot.stations.isEmpty
+  }
+
+  private var requestedSharedMobilityProviders: Set<SharedMobilityProvider> {
+    viewModel.stationFilter.requestedSharedMobilityProviders
   }
 
   /// A selected journey owns the map: the rest of the network drops to a

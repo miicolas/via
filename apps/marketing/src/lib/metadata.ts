@@ -78,3 +78,49 @@ export function createPageMetadata({
     },
   };
 }
+
+/**
+ * Les métadonnées d’un article daté.
+ *
+ * Diffère de `createPageMetadata` sur trois points qui comptent tous pour un
+ * contenu périssable : `openGraph.type` vaut `article`, les dates de
+ * publication et de mise à jour sont déclarées, et l’image partagée est celle
+ * que la route `opengraph-image` dessine pour cet article — pas la vignette
+ * générique du site, qui ne dirait rien de quelle ligne est coupée.
+ */
+export function createArticleMetadata({
+  title,
+  description,
+  path,
+  publishedTime,
+  modifiedTime,
+}: {
+  title: string;
+  description: string;
+  path: string;
+  publishedTime: string;
+  modifiedTime?: string;
+}): Metadata {
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      type: "article",
+      locale: "fr_FR",
+      title,
+      description,
+      url: `${metadata.url}${path}`,
+      publishedTime,
+      ...(modifiedTime === undefined ? {} : { modifiedTime }),
+      // Pas d'`images` ici : le fichier `opengraph-image.tsx` du segment la
+      // fournit, avec l'URL versionnée que Next lui donne. L'écrire à la main
+      // reviendrait à pointer vers une adresse qui n'existe pas.
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}

@@ -58,6 +58,32 @@ final class NearbyStationsModelTests: XCTestCase {
     }
 
     @MainActor
+    func testDenseSharedMobilityResultsRemainAvailableForDezoomedClusters() async {
+        let store = StationMapFilterStore()
+        store.filter.criteria = [.sharedBikes]
+        let vehicles = (1...80).map { index in
+            SharedMobilityItem.vehicle(SharedMobilityVehicle(
+                id: "dott-bike-\(index)",
+                provider: .dott,
+                mode: .bicycle,
+                coordinate: GeoCoordinate.anchor.offset(byMeters: Double(index) * 10)
+            ))
+        }
+        let sources = Dictionary(uniqueKeysWithValues: SharedMobilityProvider.allCases.map {
+            ($0, SharedMobilitySourceStatus(state: .ok))
+        })
+        let repository = NearbyRepositorySpy(area: area(offsetsInMeters: []))
+        await repository.setSharedMobilityArea(SharedMobilityArea(items: vehicles, sources: sources))
+        let model = NearbyStationsModel(repository: repository, filterStore: store)
+
+        model.anchorChanged(to: .anchor)
+        await waitUntil { model.loading == .loaded && model.matchingResultCount == 80 }
+
+        XCTAssertEqual(model.results.count, NearbyStationsModel.resultLimit)
+        XCTAssertEqual(model.annotationItems.count, 80)
+    }
+
+    @MainActor
     func testFilterNarrowsTheResultsWithoutAnotherRequest() async {
         let store = StationMapFilterStore()
         let repository = NearbyRepositorySpy(
@@ -231,6 +257,7 @@ extension GeoCoordinate {
 private actor NearbyRepositorySpy: NetworkRepository {
     private var area: StationsArea
     private var bikeArea = BikeStationsArea()
+    private var sharedMobilityArea = SharedMobilityArea()
     private(set) var viewportCallCount = 0
     private(set) var bikeCallCount = 0
 
@@ -252,7 +279,15 @@ private actor NearbyRepositorySpy: NetworkRepository {
         return bikeArea
     }
 
+    func sharedMobility(in bounds: GeoBounds) async throws -> SharedMobilityArea {
+        sharedMobilityArea
+    }
+
     func setBikeArea(_ bikeArea: BikeStationsArea) {
         self.bikeArea = bikeArea
+    }
+
+    func setSharedMobilityArea(_ sharedMobilityArea: SharedMobilityArea) {
+        self.sharedMobilityArea = sharedMobilityArea
     }
 }

@@ -27,6 +27,9 @@ struct MapShellView: View {
   let profileModel: ProfileModel
   let pushNotificationManager: PushNotificationManager
   let journeyNotificationCoordinator: JourneyNotificationCoordinator
+  let journeyShareRepository: any JourneyShareRepository
+  let initialSharedJourneyToken: String?
+  let onConsumeSharedJourney: @MainActor () -> Void
   let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
   /// Replays the first run from the root, offered inside Réglages.
   let onReplayOnboarding: @MainActor () -> Void
@@ -40,6 +43,7 @@ struct MapShellView: View {
   @State private var position: MapCameraPosition = .region(.paris)
   @State private var selectedMapStation: StationMapItem?
   @State private var selectedBikeStation: BikeStation?
+  @State private var selectedSharedMobility: SharedMobilityItem?
 
   /// The opening region is a hardcoded Paris. Until the first fix lands it is
   /// also what anchors the nearby list, so the camera moves to the traveller
@@ -55,6 +59,7 @@ struct MapShellView: View {
   @State private var accountSheetDestination: AccountSheetDestination?
   @State private var accountSheetDetent: PresentationDetent = .height(80)
   @State private var favoritesFocus: FavoritesFocus?
+  @State private var journeyShareRoute: JourneyShareRoute?
   // Journey details use one stacked sheet slot above the tab sheet.
   @State private var searchSheetDestination: SearchSheetDestination?
   @State private var journeySheetDetent: PresentationDetent = .large
@@ -79,6 +84,9 @@ struct MapShellView: View {
     profileModel: ProfileModel,
     pushNotificationManager: PushNotificationManager = .preview,
     journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
+    journeyShareRepository: any JourneyShareRepository = InMemoryJourneyShareRepository(),
+    initialSharedJourneyToken: String? = nil,
+    onConsumeSharedJourney: @escaping @MainActor () -> Void = {},
     journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository =
       InMemoryJourneyDepartureChoicesRepository.unavailable,
     onReplayOnboarding: @escaping @MainActor () -> Void = {},
@@ -100,6 +108,9 @@ struct MapShellView: View {
     self.profileModel = profileModel
     self.pushNotificationManager = pushNotificationManager
     self.journeyNotificationCoordinator = journeyNotificationCoordinator
+    self.journeyShareRepository = journeyShareRepository
+    self.initialSharedJourneyToken = initialSharedJourneyToken
+    self.onConsumeSharedJourney = onConsumeSharedJourney
     self.journeyDepartureChoicesRepository = journeyDepartureChoicesRepository
     self.onReplayOnboarding = onReplayOnboarding
     self.notificationInboxRemote = notificationInboxRemote
@@ -152,8 +163,10 @@ struct MapShellView: View {
     }
     // Selection is cleared on the next line, so the trigger is the tap itself:
     // a pin taken under the thumb, and the journey surface leaving for good.
-    .haptic(Haptic.tap, on: selectedMapStation != nil) { !$0 && $1 }
-    .haptic(Haptic.tap, on: selectedBikeStation != nil) { !$0 && $1 }
+    // Every map annotation enters through selectedMapStation. Keeping the cue
+    // here avoids a second buzz when the selected item is then routed to a
+    // Vélib’ or shared-mobility sheet.
+    .haptic(Haptic.commit, on: selectedMapStation != nil) { !$0 && $1 }
     .haptic(Haptic.ended, on: activeJourneyModel.hasSurface) { $0 && !$1 }
     .onChange(of: selectedMapStation) { _, newValue in
       guard let newValue else { return }
@@ -259,6 +272,11 @@ struct MapShellView: View {
     .task {
       routePendingNotificationIfNeeded()
     }
+    .task(id: initialSharedJourneyToken) {
+      guard let initialSharedJourneyToken else { return }
+      journeyShareRoute = JourneyShareRoute(token: initialSharedJourneyToken)
+      onConsumeSharedJourney()
+    }
     .onChange(of: pushNotificationManager.pendingRoute) { _, _ in
       routePendingNotificationIfNeeded()
     }
@@ -307,11 +325,29 @@ struct MapShellView: View {
   /// the same sheet slot, so selecting one always clears the other — the
   /// invariant lives here rather than at each entry point.
   private func presentStation(_ item: StationMapItem) {
+    if item.sharedMobilityCluster != nil {
+      withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
+        position = .region(
+          MKCoordinateRegion(
+            center: item.coordinate.clLocationCoordinate,
+            latitudinalMeters: 500,
+            longitudinalMeters: 500
+          )
+        )
+      }
+      return
+    }
     detailSheetDetent = isLargeScreen ? .fraction(0.97) : .large
-    if let bikeStation = item.bikeStation {
+    if let sharedMobility = item.sharedMobility {
       selectedStationModel.dismiss()
+      selectedBikeStation = nil
+      selectedSharedMobility = sharedMobility
+    } else if let bikeStation = item.dock {
+      selectedStationModel.dismiss()
+      selectedSharedMobility = nil
       selectedBikeStation = bikeStation
     } else {
+      selectedSharedMobility = nil
       selectedBikeStation = nil
       selectedStationModel.select(item)
     }
@@ -424,6 +460,8 @@ struct MapShellView: View {
       Task { await routeScheduledJourney(journeyID) }
     case .activeJourney(let journeyID):
       Task { await routeActiveJourney(journeyID) }
+    case .sharedJourney(let token):
+      journeyShareRoute = JourneyShareRoute(token: token)
     }
   }
 
@@ -464,6 +502,7 @@ struct MapShellView: View {
       isLargeScreen: isLargeScreen,
       isAnotherSheetPresenting: selectedStationModel.overview != nil
         || selectedBikeStation != nil
+        || selectedSharedMobility != nil
         || reportViewModel.isPresentingAnotherSheet || accountSheetDestination != nil
         || searchSheetDestination != nil || savedDestinationDraft != nil,
       hidesTabBar: searchViewModel.isNaturalSearchPresented,
@@ -573,6 +612,31 @@ struct MapShellView: View {
         }
       )
     }
+    .sheet(item: $selectedSharedMobility) { item in
+      switch item {
+      case .station(let dock):
+        // The same screen the Vélib' layer opens, with the same actions: which
+        // route delivered the dock is not something the traveller should feel.
+        BikeStationDetailView(
+          station: dock.station,
+          isLargeScreen: isLargeScreen,
+          detailDetent: $detailSheetDetent,
+          onPlanJourney: {
+            selectedSharedMobility = nil
+            openJourney(dock.station.searchResult)
+          }
+        )
+      case .vehicle(let vehicle):
+        SharedMobilityDetailView(
+          vehicle: vehicle,
+          distanceMeters: locationModel.coordinate.map {
+            vehicle.coordinate.metersAway(from: $0)
+          },
+          isLargeScreen: isLargeScreen,
+          detailDetent: $detailSheetDetent
+        )
+      }
+    }
     .sheet(item: $accountSheetDestination, onDismiss: { favoritesFocus = nil }) { destination in
       switch destination {
       case .profile:
@@ -631,6 +695,7 @@ struct MapShellView: View {
           activeJourneyModel: activeJourneyModel,
           plannedJourneyDraftModel: plannedJourneyDraftModel,
           journeyNotificationCoordinator: journeyNotificationCoordinator,
+          journeyShareRepository: journeyShareRepository,
           departureChoicesRepository: journeyDepartureChoicesRepository,
           isLargeScreen: isLargeScreen,
           detent: $journeySheetDetent,
@@ -647,6 +712,7 @@ struct MapShellView: View {
           activeJourneyModel: activeJourneyModel,
           plannedJourneyDraftModel: plannedJourneyDraftModel,
           journeyNotificationCoordinator: journeyNotificationCoordinator,
+          journeyShareRepository: journeyShareRepository,
           departureChoicesRepository: journeyDepartureChoicesRepository,
           isPlannedJourney: true,
           isLargeScreen: isLargeScreen,
@@ -664,6 +730,7 @@ struct MapShellView: View {
           activeJourneyModel: activeJourneyModel,
           plannedJourneyDraftModel: plannedJourneyDraftModel,
           journeyNotificationCoordinator: journeyNotificationCoordinator,
+          journeyShareRepository: journeyShareRepository,
           departureChoicesRepository: journeyDepartureChoicesRepository,
           scheduledReminder: journeyNotificationCoordinator.reminder(for: journeyID),
           isLargeScreen: isLargeScreen,
@@ -695,6 +762,13 @@ struct MapShellView: View {
       reduceMotion ? nil : .snappy(duration: 0.3, extraBounce: 0),
       value: searchViewModel.isNaturalSearchPresented
     )
+    .sheet(item: $journeyShareRoute) { route in
+      JourneyShareSheetView(
+        token: route.token,
+        repository: journeyShareRepository,
+        onClose: { journeyShareRoute = nil }
+      )
+    }
   }
 
   private var isJourneySheetUp: Bool {

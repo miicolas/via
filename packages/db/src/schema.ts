@@ -1190,6 +1190,95 @@ export const cityDemandVotes = pgTable(
   ]
 );
 
+/**
+ * Public, expiring copies of journeys deliberately shared by a traveller.
+ *
+ * The token itself never lives in PostgreSQL: only its SHA-256 digest is stored,
+ * so a database read cannot be turned into a collection of working links. The
+ * JSON payload is a versioned projection validated by the API contract; keeping
+ * it in one column lets the app share the exact calculated journey without
+ * making the public page query private planner tables.
+ */
+export const journeyShares = pgTable(
+  'journey_shares',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    idempotencyKey: text('idempotency_key').notNull().unique(),
+    ownerUserId: text('owner_user_id').references(() => users.id, { onDelete: 'set null' }),
+    snapshot: jsonb('snapshot').$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('journey_shares_expires_idx').on(table.expiresAt),
+    index('journey_shares_owner_idx').on(table.ownerUserId),
+  ]
+);
+
+/**
+ * Every disruption PRIM has ever shown us, kept after the live path is done
+ * with it.
+ *
+ * The API reads disruptions straight through to Redis and serves them within a
+ * seven-day horizon (`routers/lines/disruptions/activity.ts`), which is the
+ * right window for a rider and the wrong one for an editor: an autumn closure
+ * has to be written about weeks before it starts, and the feed already carried
+ * it. Nothing here changes what the app sees — the worker persists the *parsed*
+ * feed, before any horizon filtering, so a long-dated period stops being thrown
+ * away three lines after it arrives.
+ *
+ * `contentHash` covers the fields an editor would care about, so the daily pass
+ * can tell "still there" from "the dates moved" without diffing prose.
+ */
+export const disruptionHistory = pgTable(
+  'disruption_history',
+  {
+    /** PRIM's own disruption id, stable across days. */
+    id: text('id').primaryKey(),
+    severity: text('severity', { enum: ['attention', 'disrupted', 'suspended'] }).notNull(),
+    cause: text('cause'),
+    title: text('title'),
+    /** Plain text, paragraphs separated by newlines — the feed sends HTML. */
+    message: text('message'),
+    routeIds: text('route_ids')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** Epoch seconds, as the parser produces them. */
+    periods: jsonb('periods').$type<DisruptionHistoryPeriod[]>().notNull(),
+    impactedSections: jsonb('impacted_sections')
+      .$type<DisruptionHistorySection[]>()
+      .notNull(),
+    /** The feed's own `lastUpdate`, when it sent one. */
+    upstreamUpdatedAt: timestamp('upstream_updated_at', { withTimezone: true }),
+    /** Earliest and latest start over all periods, lifted out for querying. */
+    beginsAt: timestamp('begins_at', { withTimezone: true }),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Bumped whenever `contentHash` changes — i.e. the disruption was edited. */
+    changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+    contentHash: text('content_hash').notNull(),
+  },
+  (table) => [
+    index('disruption_history_last_seen_idx').on(table.lastSeenAt),
+    index('disruption_history_begins_idx').on(table.beginsAt),
+    index('disruption_history_changed_idx').on(table.changedAt),
+    index('disruption_history_routes_idx').using('gin', table.routeIds),
+  ]
+);
+
+export type DisruptionHistoryPeriod = { beginsAt: number; endsAt: number };
+
+export type DisruptionHistorySection = {
+  routeId: string;
+  fromStopId: string;
+  fromName: string;
+  toStopId: string;
+  toName: string;
+};
+
 export type TransitRoute = typeof transitRoutes.$inferSelect;
 export type TransitRoutePattern = typeof transitRoutePatterns.$inferSelect;
 export type TransitStop = typeof transitStops.$inferSelect;
@@ -1208,3 +1297,5 @@ export type NotificationMute = typeof notificationMutes.$inferSelect;
 export type ReportCurrentVote = typeof reportCurrentVotes.$inferSelect;
 export type ReportEvent = typeof reportEvents.$inferSelect;
 export type CityDemandVote = typeof cityDemandVotes.$inferSelect;
+export type JourneyShareRow = typeof journeyShares.$inferSelect;
+export type DisruptionHistoryRow = typeof disruptionHistory.$inferSelect;

@@ -5,10 +5,15 @@ struct NotificationInboxRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: item.category.systemImage)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(item.readAt == nil ? .orange : .secondary)
-                .frame(width: 32)
+            if item.category == .line {
+                NotificationLineBadgeView(item: item)
+                    .frame(minWidth: 32, alignment: .leading)
+            } else {
+                Image(systemName: item.category.systemImage)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(item.readAt == nil ? .orange : .secondary)
+                    .frame(width: 32)
+            }
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {

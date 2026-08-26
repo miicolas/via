@@ -183,6 +183,38 @@ final class NetworkViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testSharedMobilityFilterRendersTheGenericVehicleLayer() async {
+        let bike = SharedMobilityItem.vehicle(SharedMobilityVehicle(
+            id: "dott:paris:bike",
+            provider: .dott,
+            mode: .bicycle,
+            coordinate: GeoCoordinate(latitude: 48.8505, longitude: 2.35),
+            batteryPercent: 72
+        ))
+        let sources = Dictionary(uniqueKeysWithValues: SharedMobilityProvider.allCases.map {
+            ($0, SharedMobilitySourceStatus(state: .ok))
+        })
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: StationsArea(stations: [], routes: [])
+        )
+        await repository.setSharedMobilityArea(
+            SharedMobilityArea(items: [bike], sources: sources)
+        )
+        let model = NetworkViewModel(repository: repository)
+        model.stationFilter.criteria = [.sharedBikes]
+
+        model.viewportChanged(to: viewport(), phase: .ended)
+        await waitUntil {
+            model.state.loading == .loaded && !model.state.snapshot.stations.isEmpty
+        }
+
+        XCTAssertEqual(model.state.snapshot.stations.count, 1)
+        XCTAssertEqual(model.state.snapshot.stations.first?.sharedMobility, bike)
+        XCTAssertEqual(model.state.snapshot.sourceStatus(.dott).state, .ok)
+    }
+
+    @MainActor
     func testStationThresholdSkipsViewportLoadingAndHidesAnnotations() async {
         let repository = NetworkRepositorySpy(
             network: network(),
@@ -519,11 +551,13 @@ private actor NetworkRepositorySpy: NetworkRepository {
     private let network: TransitNetwork
     private var area: StationsArea
     private var bikeArea = BikeStationsArea()
+    private var sharedMobilityArea = SharedMobilityArea()
     private var viewportError: ViaError?
     private var shouldSuspendNextViewport = false
     private var suspendedContinuation: CheckedContinuation<Void, Never>?
     private(set) var railCallCount = 0
     private(set) var viewportCallCount = 0
+    private(set) var sharedMobilityCallCount = 0
 
     init(network: TransitNetwork, area: StationsArea) {
         self.network = network
@@ -554,8 +588,17 @@ private actor NetworkRepositorySpy: NetworkRepository {
         return bikeArea
     }
 
+    func sharedMobility(in bounds: GeoBounds) async throws -> SharedMobilityArea {
+        sharedMobilityCallCount += 1
+        return sharedMobilityArea
+    }
+
     func setBikeArea(_ bikeArea: BikeStationsArea) {
         self.bikeArea = bikeArea
+    }
+
+    func setSharedMobilityArea(_ area: SharedMobilityArea) {
+        sharedMobilityArea = area
     }
 
     func setArea(_ area: StationsArea) {

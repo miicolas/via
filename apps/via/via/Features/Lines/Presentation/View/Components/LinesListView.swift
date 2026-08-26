@@ -3,6 +3,7 @@ import SwiftUI
 struct LinesListView: View {
   var summary: LineNetworkSummary
   var fetchedAt: Date?
+  var favoriteLines: [LineStatus]
   var sections: [LineStatusSection]
   var extraSearchResults: [LineStatus]
   var upcomingByDay: [UpcomingClosureDay]
@@ -13,6 +14,10 @@ struct LinesListView: View {
 
   var body: some View {
     List {
+      if !favoriteLines.isEmpty {
+        FavoriteLinesSection(lines: favoriteLines)
+      }
+
       if !isSearching {
         LinesNetworkSummaryView(
           summary: summary,

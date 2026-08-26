@@ -53,7 +53,13 @@ final class NearbyStationsModel {
     /// Count after filtering but before the list limit. If this exceeds the
     /// limit, the map hides the set instead of exposing a visible cutoff.
     private(set) var matchingResultCount = 0
-    private(set) var bikeSourceAvailable = true
+    private(set) var sharedMobilitySources: [SharedMobilityProvider: SharedMobilitySourceStatus] = [:]
+
+    /// Shared mobility is map/detail-only in the MVP. The Stations tab keeps
+    /// its existing transit list even while the map uses the same nearby cache.
+    var transitResults: [NearbyStation] {
+        results.filter { $0.item.bikeStation == nil && $0.item.sharedMobility == nil }
+    }
 
     var filter: StationMapFilter { filterStore.filter }
 
@@ -67,11 +73,13 @@ final class NearbyStationsModel {
     @ObservationIgnored private let filterStore: StationMapFilterStore
     @ObservationIgnored private var loadedStations: [StationMapItem] = []
     @ObservationIgnored private var loadedBikeStations: [StationMapItem] = []
-    /// Distinguishes "never asked for docks" from "asked, and there are none
-    /// here" — without it an area with no docks refetches on every filter tap.
-    @ObservationIgnored private var hasLoadedBikeStations = false
+    @ObservationIgnored private var loadedSharedMobility: [StationMapItem] = []
+    @ObservationIgnored private var matchingSharedMobility: [StationMapItem] = []
+    @ObservationIgnored private var publishedSharedMobilitySources: [SharedMobilityProvider: SharedMobilitySourceStatus] = [:]
+    @ObservationIgnored private var hasLoadedGenericMobility = false
     @ObservationIgnored private var loadedAnchor: GeoCoordinate?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var sharedMobilityRefreshTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
 
     init(repository: any NetworkRepository, filterStore: StationMapFilterStore) {
@@ -127,8 +135,15 @@ final class NearbyStationsModel {
     /// The map only draws a complete nearby result. Returning a nearest-only
     /// prefix creates a conspicuous circle surrounded by apparently empty map.
     var annotationItems: [StationMapItem] {
-        guard matchingResultCount <= Self.resultLimit else { return [] }
-        return results.map(\.item)
+        if matchingResultCount <= Self.resultLimit {
+            return results.map(\.item)
+        }
+
+        // A dense vehicle layer is exactly what the map's compact clusters are
+        // for. Keep the existing bounded nearby list for transit, but retain
+        // every matching mobility item so the cluster count is not a misleading
+        // prefix of the provider's fleet.
+        return matchingSharedMobility
     }
 
     /// The box the results occupy, for a camera that only ever tightens.
@@ -157,16 +172,61 @@ final class NearbyStationsModel {
 
     /// Docks carry no departure board, so the hero row skips them.
     var heroStation: NearbyStation? {
-        results.first { $0.item.bikeStation == nil }
+        results.first { $0.item.bikeStation == nil && $0.item.sharedMobility == nil }
     }
 
     private func filterChanged() {
+        sharedMobilityRefreshTask?.cancel()
         // Turning the dock layer on is a request for counts the last fetch had
         // no reason to make; everything else re-filters what is already held.
-        if filterStore.filter.contains(.bikeStations), !hasLoadedBikeStations {
+        if filterStore.filter.wantsSharedMobility, !hasLoadedGenericMobility {
             load()
         } else {
             publish()
+        }
+    }
+
+    /// Refreshes only the generic layer while the map is dezoomed. The nearby
+    /// query is bounded, so it remains safe to draw over the whole viewport.
+    func refreshSharedMobility() {
+        guard let anchor, filterStore.filter.wantsSharedMobility else { return }
+
+        sharedMobilityRefreshTask?.cancel()
+        let generation = self.generation
+        let bounds = GeoBounds.around(anchor, radiusMeters: Self.radiusMeters)
+        let repository = self.repository
+        let filter = filterStore.filter
+
+        sharedMobilityRefreshTask = Task { [weak self] in
+            do {
+                let sharedArea = try await repository.sharedMobility(in: bounds)
+                try Task.checkCancellation()
+
+                guard let self,
+                      self.generation == generation,
+                      self.filterStore.filter.wantsSharedMobility
+                else { return }
+
+                self.loadedSharedMobility = sharedArea.currentItems().map { StationMapItem(sharedMobility: $0) }
+                self.sharedMobilitySources = sharedArea.sources
+                self.hasLoadedGenericMobility = !sharedArea.sources.isEmpty
+
+                let legacy = try await repository.legacyBikeStations(
+                    in: bounds,
+                    whenGenericSourcesAre: sharedArea.sources,
+                    wanted: filter.contains(.bikeStations)
+                )
+                guard self.generation == generation else { return }
+                self.loadedBikeStations = legacy.mapItems
+                self.publish()
+            } catch is CancellationError {
+            } catch {
+                guard let self, self.generation == generation else { return }
+                self.publish()
+                AppLog.network.error(
+                    "Nearby shared mobility refresh failed: \(String(describing: error), privacy: .private(mask: .hash))"
+                )
+            }
         }
     }
 
@@ -178,25 +238,30 @@ final class NearbyStationsModel {
         let generation = self.generation
         loading = .loading
 
-        hasLoadedBikeStations = false
         let bounds = GeoBounds.around(anchor, radiusMeters: Self.radiusMeters)
         let repository = self.repository
-        let wantsBikeStations = filterStore.filter.contains(.bikeStations)
+        let wantsSharedMobility = filterStore.filter.wantsSharedMobility
 
         loadTask = Task { [weak self] in
             do {
                 async let area = repository.viewport(in: bounds)
-                async let bikeArea: BikeStationsArea? =
-                    wantsBikeStations ? try await repository.bikeStations(in: bounds) : nil
+                async let sharedArea: SharedMobilityArea? =
+                    wantsSharedMobility ? try await repository.sharedMobility(in: bounds) : nil
 
-                let (fetchedStations, fetchedBikes) = try await (area, bikeArea)
+                let (fetchedStations, fetchedShared) = try await (area, sharedArea)
                 try Task.checkCancellation()
 
                 guard let self, self.generation == generation else { return }
                 self.loadedStations = fetchedStations.transitMapItems
-                self.loadedBikeStations = fetchedBikes?.mapItems ?? []
-                self.hasLoadedBikeStations = fetchedBikes != nil
-                self.bikeSourceAvailable = fetchedBikes?.sourceAvailable ?? true
+                self.loadedSharedMobility = fetchedShared?.currentItems().map { StationMapItem(sharedMobility: $0) } ?? []
+                self.sharedMobilitySources = fetchedShared?.sources ?? [:]
+                self.hasLoadedGenericMobility = fetchedShared?.sources.isEmpty == false
+
+                self.loadedBikeStations = try await repository.legacyBikeStations(
+                    in: bounds,
+                    whenGenericSourcesAre: self.sharedMobilitySources,
+                    wanted: filterStore.filter.contains(.bikeStations)
+                ).mapItems
                 self.loadedAnchor = anchor
                 self.loading = .loaded
                 self.publish()
@@ -219,6 +284,11 @@ final class NearbyStationsModel {
         if filter.contains(.bikeStations) {
             candidates += loadedBikeStations
         }
+        if filter.wantsSharedMobility {
+            candidates += loadedSharedMobility.filter {
+                $0.isCurrentSharedMobility(in: sharedMobilitySources)
+            }
+        }
 
         let withinRadius = candidates.compactMap { item -> NearbyStation? in
             let distance = item.coordinate.metersAway(from: anchor)
@@ -227,17 +297,26 @@ final class NearbyStationsModel {
         }
 
         let previousMatchingResultCount = matchingResultCount
+        let previousPublishedSources = publishedSharedMobilitySources
         matchesBeforeFilter = withinRadius.count
         let matching = withinRadius
             .filter { filter.matches($0.item) }
             .sorted { $0.distanceMeters < $1.distanceMeters }
         matchingResultCount = matching.count
+        matchingSharedMobility = matching
+            .filter { $0.item.sharedMobility != nil }
+            .map(\.item)
 
         let updated = Array(matching.prefix(Self.resultLimit))
-        guard updated != results || matchingResultCount != previousMatchingResultCount else {
+        guard updated != results
+            || matchingResultCount != previousMatchingResultCount
+            || sharedMobilitySources != previousPublishedSources
+        else {
             return
         }
         results = updated
+        publishedSharedMobilitySources = sharedMobilitySources
         for observer in resultObservers { observer() }
     }
+
 }

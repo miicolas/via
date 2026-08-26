@@ -25,6 +25,32 @@ struct StationMapFilter: Sendable, Equatable {
     })
   }
 
+  var sharedMobilityCriteria: Set<StationMapFilterCriterion> {
+    criteria.intersection(Set(StationMapFilterCriterion.sharedMobility))
+  }
+
+  var wantsSharedMobility: Bool {
+    !sharedMobilityCriteria.isEmpty
+  }
+
+  /// The operators the active criteria actually ask for, so a screen can tell
+  /// "no vehicles here" from "every source we asked is down". The mode-to-
+  /// operator mapping is `SharedMobilityProvider.providers(for:)`; only the
+  /// criterion-to-mode step belongs to the filter.
+  var requestedSharedMobilityProviders: Set<SharedMobilityProvider> {
+    var providers: Set<SharedMobilityProvider> = []
+    if contains(.sharedBikes) {
+      providers.formUnion(SharedMobilityProvider.providers(for: .bicycle))
+    }
+    if contains(.sharedScooters) {
+      providers.formUnion(SharedMobilityProvider.providers(for: .scooter))
+    }
+    if contains(.bikeStations) {
+      providers.insert(.velib)
+    }
+    return providers
+  }
+
   func contains(_ criterion: StationMapFilterCriterion) -> Bool {
     criteria.contains(criterion)
   }
@@ -41,6 +67,12 @@ struct StationMapFilter: Sendable, Equatable {
     if station.bikeStation != nil {
       return criteria.contains(.bikeStations)
     }
+    if let cluster = station.sharedMobilityCluster {
+      return criteria.contains(cluster.mode == .bicycle ? .sharedBikes : .sharedScooters)
+    }
+    if station.sharedMobility != nil {
+      return !criteria.isEmpty && criteria.contains { $0.matches(station) }
+    }
     return criteria.isEmpty || criteria.contains { $0.matches(station) }
   }
 
@@ -53,11 +85,13 @@ enum StationMapFilterCriterion: Sendable, Hashable {
   case accessibility
   case elevators
   case toilets
+  case sharedBikes
+  case sharedScooters
   case bikeStations
   case mode(TransitMode)
 
   static let facilities: [Self] = [.accessibility, .elevators, .toilets]
-  static let sharedMobility: [Self] = [.bikeStations]
+  static let sharedMobility: [Self] = [.sharedBikes, .sharedScooters, .bikeStations]
   static let transportModes: [Self] = TransitMode.allCases.map(Self.mode)
   static let allInDisplayOrder = facilities + sharedMobility + transportModes
 
@@ -66,8 +100,19 @@ enum StationMapFilterCriterion: Sendable, Hashable {
     case .accessibility: "PMR"
     case .elevators: "Ascenseurs"
     case .toilets: "Sanitaires"
-    case .bikeStations: "Vélib’"
+    case .sharedBikes: "Vélos"
+    case .sharedScooters: "Scooters"
+    case .bikeStations: "Stations Vélib’"
     case .mode(let mode): mode.displayName
+    }
+  }
+
+  var sharedMobilityProviders: [SharedMobilityProvider] {
+    switch self {
+    case .sharedBikes: [.dott, .lime]
+    case .sharedScooters: [.dott, .yego]
+    case .bikeStations: [.velib]
+    default: []
     }
   }
 
@@ -76,7 +121,9 @@ enum StationMapFilterCriterion: Sendable, Hashable {
     case .accessibility: "figure.roll"
     case .elevators: "arrow.up.arrow.down.square"
     case .toilets: "toilet"
-    case .bikeStations: "bicycle"
+    case .sharedBikes: "bicycle"
+    case .sharedScooters: "scooter"
+    case .bikeStations: "parkingsign"
     case .mode(let mode): mode.chipSystemImage
     }
   }
@@ -84,15 +131,25 @@ enum StationMapFilterCriterion: Sendable, Hashable {
   fileprivate func matches(_ station: StationMapItem) -> Bool {
     switch self {
     case .accessibility:
-      station.accessibility != nil
+      return station.accessibility != nil
     case .elevators:
-      station.hasElevators
+      return station.hasElevators
     case .toilets:
-      station.toilets != nil
+      return station.toilets != nil
     case .bikeStations:
-      station.bikeStation != nil
+      return station.dock != nil
+    case .sharedBikes:
+      if case .vehicle(let vehicle) = station.sharedMobility {
+        return vehicle.mode == .bicycle
+      }
+      return false
+    case .sharedScooters:
+      if case .vehicle(let vehicle) = station.sharedMobility {
+        return vehicle.mode == .scooter
+      }
+      return false
     case .mode(let mode):
-      station.modes.contains(mode)
+      return station.modes.contains(mode)
     }
   }
 }
@@ -110,6 +167,8 @@ extension StationMapFilterCriterion {
     case .elevators: "elevators"
     case .toilets: "toilets"
     case .bikeStations: "bikeStations"
+    case .sharedBikes: "sharedBikes"
+    case .sharedScooters: "sharedScooters"
     case .mode(let mode): "mode.\(mode.rawValue)"
     }
   }
@@ -122,6 +181,8 @@ extension StationMapFilterCriterion {
     case "elevators": self = .elevators
     case "toilets": self = .toilets
     case "bikeStations": self = .bikeStations
+    case "sharedBikes": self = .sharedBikes
+    case "sharedScooters": self = .sharedScooters
     default:
       guard token.hasPrefix("mode."),
             let mode = TransitMode(rawValue: String(token.dropFirst("mode.".count)))

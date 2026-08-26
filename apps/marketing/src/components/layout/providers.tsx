@@ -6,6 +6,11 @@ import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 import { SmoothScroll } from "./smooth-scroll";
 
+/**
+ * Ce que toute page du site a besoin de savoir : son thème, le respect du
+ * mouvement réduit, le défilement. Ce qu’une seule route consomme — React Query
+ * et nuqs — est monté par cette route, dans `app/trip/[token]/providers.tsx`.
+ */
 export function Providers({
   children,
 }: {

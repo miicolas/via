@@ -10,6 +10,7 @@ struct JourneySheetView: View {
     let activeJourneyModel: ActiveJourneyModel
     let plannedJourneyDraftModel: PlannedJourneyDraftModel
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
+    let journeyShareRepository: any JourneyShareRepository
     let departureChoicesRepository: any JourneyDepartureChoicesRepository
     let scheduledReminder: ScheduledJourneyReminder?
     let isPlannedJourney: Bool
@@ -34,6 +35,7 @@ struct JourneySheetView: View {
         activeJourneyModel: ActiveJourneyModel,
         plannedJourneyDraftModel: PlannedJourneyDraftModel,
         journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
+        journeyShareRepository: any JourneyShareRepository = InMemoryJourneyShareRepository(),
         departureChoicesRepository: any JourneyDepartureChoicesRepository = InMemoryJourneyDepartureChoicesRepository.unavailable,
         scheduledReminder: ScheduledJourneyReminder? = nil,
         isPlannedJourney: Bool = false,
@@ -47,6 +49,7 @@ struct JourneySheetView: View {
         self.activeJourneyModel = activeJourneyModel
         self.plannedJourneyDraftModel = plannedJourneyDraftModel
         self.journeyNotificationCoordinator = journeyNotificationCoordinator
+        self.journeyShareRepository = journeyShareRepository
         self.departureChoicesRepository = departureChoicesRepository
         self.scheduledReminder = scheduledReminder
         self.isPlannedJourney = isPlannedJourney
@@ -72,6 +75,7 @@ struct JourneySheetView: View {
                         journeyNotificationCoordinator: journeyNotificationCoordinator,
                         planningPolicy: resolved.planningPolicy,
                         departureChoicesModel: departureChoicesModel,
+                        journeyShareRepository: journeyShareRepository,
                         onSelectDeparture: selectDeparture,
                         onRetryDepartures: refreshDepartureChoices,
                         onUpdateTime: updateTime,

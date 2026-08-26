@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["HZAYG4Q47N.dev.via.app"],
+        "components": [
+          { "/": "/trip/*" }
+        ]
+      }
+    ]
+  }
+}

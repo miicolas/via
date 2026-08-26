@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./methods": "./src/methods.ts",
+    "./public": "./src/public/index.ts",
     "./package.json": "./package.json"
   },
   "types": "./src/index.ts",

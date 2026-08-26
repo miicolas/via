@@ -1,3 +1,5 @@
+import { apiOrigin, readJson } from "@/lib/api";
+
 /**
  * The coverage poll, as the site sees it: counts and ranks keyed by slug, and
  * nothing else. The names and coordinates stay in `@/constants/cities` so the
@@ -28,51 +30,14 @@ export class CityVoteError extends Error {
   }
 }
 
-/**
- * `NEXT_PUBLIC_` because the vote is sent by the browser and must be: proxying
- * it through a route handler would hand every vote the same server address, and
- * the API counts one voice per address.
- *
- * Unset in production the poll simply does not run — a missing variable turns
- * the map read-only rather than pointing a live site at localhost.
- */
-function apiOrigin(): string | null {
-  const configured = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
-  if (configured) return configured;
-  return process.env.NODE_ENV === "production" ? null : "http://localhost:3000";
-}
-
 const ENDPOINT = "/public/city-demand";
-
-/**
- * The API answers the site and the app, nobody else. From the browser that is
- * settled by the `Origin` header, which no page can forge for another. Server
- * side there is no origin to send, so the render presents the shared key
- * instead — deliberately without `NEXT_PUBLIC_`, so it never reaches a bundle.
- */
-function serverHeaders(): HeadersInit {
-  const key = process.env.VIA_SITE_CLIENT_KEY?.trim();
-  return key ? { "x-via-client-key": key } : {};
-}
 
 /**
  * Read on the server so the counts are in the HTML, and never allowed to fail
  * the page: a poll that is down costs the section its numbers, not its map.
  */
 export async function fetchCityDemand(): Promise<CityDemandBoard | null> {
-  const origin = apiOrigin();
-  if (!origin) return null;
-
-  try {
-    const response = await fetch(`${origin}${ENDPOINT}`, {
-      headers: serverHeaders(),
-      next: { revalidate: 30 },
-    });
-    if (!response.ok) return null;
-    return (await response.json()) as CityDemandBoard;
-  } catch {
-    return null;
-  }
+  return readJson<CityDemandBoard>(ENDPOINT, 30);
 }
 
 export async function submitCityVote(slug: string): Promise<CityVoteResult> {

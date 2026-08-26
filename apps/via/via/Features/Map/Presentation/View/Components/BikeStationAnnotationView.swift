@@ -9,7 +9,7 @@ struct BikeStationAnnotationView: View {
     VStack(spacing: 2) {
       ZStack {
         if isCompact {
-          bikeSymbol(size: 30)
+          providerLogo(size: 30)
             .transition(.scale(scale: 0.7).combined(with: .opacity))
         } else {
           detailCard
@@ -31,7 +31,7 @@ struct BikeStationAnnotationView: View {
 
   private var detailCard: some View {
     HStack(spacing: 7) {
-      bikeSymbol(size: 26)
+      providerLogo(size: 26)
       inventory
     }
     .padding(.leading, 5)
@@ -45,13 +45,8 @@ struct BikeStationAnnotationView: View {
     .shadow(color: .black.opacity(0.14), radius: 7, y: 3)
   }
 
-  private func bikeSymbol(size: CGFloat) -> some View {
-    Image(systemName: "bicycle")
-      .font(.caption.weight(.bold))
-      .foregroundStyle(.white)
-      .frame(width: size, height: size)
-      .background(statusColor, in: .circle)
-      .shadow(color: .black.opacity(isCompact ? 0.12 : 0), radius: 3, y: 1)
+  private func providerLogo(size: CGFloat) -> some View {
+    SharedMobilityProviderLogoView(provider: .velib, size: size)
   }
 
   @ViewBuilder

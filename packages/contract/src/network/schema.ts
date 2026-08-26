@@ -165,3 +165,72 @@ export const bikeStationsInAreaSchema = z.object({
     velib: z.enum(['ok', 'unavailable']),
   }),
 });
+
+export const sharedMobilityProviderSchema = z.enum(['dott', 'lime', 'velib', 'yego']);
+export const sharedMobilityModeSchema = z.enum(['bicycle', 'scooter']);
+
+/** The only vehicle state exposed by this MVP: the map contains rentable items only. */
+export const sharedMobilityVehicleAvailabilitySchema = z.enum(['available']);
+
+const sharedMobilityVehicleKindSchema = z.enum(['vehicle']);
+const sharedMobilityStationKindSchema = z.enum(['station']);
+const sharedMobilityVelibProviderSchema = z.enum(['velib']);
+export const sharedMobilityRestrictionSchema = z.enum(['no-ride']);
+
+export const sharedMobilitySourceStatusSchema = z.object({
+  status: z.enum(['ok', 'unavailable']),
+  sourceUpdatedAt: z.iso.datetime({ offset: true }).optional(),
+  expiresAt: z.iso.datetime({ offset: true }).optional(),
+});
+
+export const sharedMobilityVehicleSchema = z.object({
+  kind: sharedMobilityVehicleKindSchema,
+  id: z.string(),
+  provider: sharedMobilityProviderSchema,
+  mode: sharedMobilityModeSchema,
+  /** The provider's vehicle type name when the feed supplies one. */
+  vehicleType: z.string().optional(),
+  availability: sharedMobilityVehicleAvailabilitySchema,
+  coordinate: coordinateSchema,
+  batteryPercent: z.number().min(0).max(100).optional(),
+  rangeMeters: z.number().int().min(0).optional(),
+  lastReportedAt: z.iso.datetime({ offset: true }).optional(),
+  /**
+   * What the provider's geofencing feed forbids at this position, as a fact
+   * rather than a sentence: the wording — and the operator's name in it — is
+   * the client's to build, so a second operator's zones need no second string
+   * in the parser and no translation lives in the API.
+   */
+  restriction: sharedMobilityRestrictionSchema.optional(),
+  /** Feed iOS URI first; absent when neither the feed nor a website is known. */
+  rentalUrl: z.string().min(1).optional(),
+  operatorUrl: z.url().optional(),
+});
+
+/**
+ * A dock on the generic layer is the same dock `bikeStationSchema` describes —
+ * extended, not restated, so the two routes cannot drift into two different
+ * ideas of a Vélib' station. Only what the generic layer adds is written here.
+ */
+export const sharedMobilityStationSchema = bikeStationSchema.extend({
+  kind: sharedMobilityStationKindSchema,
+  provider: sharedMobilityVelibProviderSchema,
+  operatorUrl: z.url().optional(),
+});
+
+export const sharedMobilityItemSchema = z.discriminatedUnion('kind', [
+  sharedMobilityVehicleSchema,
+  sharedMobilityStationSchema,
+]);
+
+export const sharedMobilitySourcesSchema = z.object({
+  dott: sharedMobilitySourceStatusSchema,
+  lime: sharedMobilitySourceStatusSchema,
+  velib: sharedMobilitySourceStatusSchema,
+  yego: sharedMobilitySourceStatusSchema,
+});
+
+export const sharedMobilityInAreaSchema = z.object({
+  items: z.array(sharedMobilityItemSchema),
+  sources: sharedMobilitySourcesSchema,
+});

@@ -1,5 +1,6 @@
 export { bikeStationsInAreaRelation } from './bike-stations-in-area-relation';
 export { railMapRelation } from './rail-map-relation';
+export { sharedMobilityInAreaRelation } from './shared-mobility';
 export {
   bikeStationAvailabilitySchema,
   bikeStationSchema,
@@ -16,6 +17,16 @@ export {
   stationCrowdingSchema,
   stationsInAreaInputSchema,
   stationsInAreaSchema,
+  sharedMobilityInAreaSchema,
+  sharedMobilityItemSchema,
+  sharedMobilityModeSchema,
+  sharedMobilityProviderSchema,
+  sharedMobilitySourceStatusSchema,
+  sharedMobilitySourcesSchema,
+  sharedMobilityStationSchema,
+  sharedMobilityRestrictionSchema,
+  sharedMobilityVehicleAvailabilitySchema,
+  sharedMobilityVehicleSchema,
 } from './schema';
 export { stationCrowdingRelation } from './station-crowding-relation';
 export { stationsInAreaRelation } from './stations-in-area-relation';
@@ -33,4 +44,12 @@ export type {
   StationCrowdingInput,
   StationsInArea,
   StationsInAreaInput,
+  SharedMobilityInArea,
+  SharedMobilityItem,
+  SharedMobilityMode,
+  SharedMobilityProvider,
+  SharedMobilitySourceStatus,
+  SharedMobilityStation,
+  SharedMobilityRestriction,
+  SharedMobilityVehicle,
 } from './type';

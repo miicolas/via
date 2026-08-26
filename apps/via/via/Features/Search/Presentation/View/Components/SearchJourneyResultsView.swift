@@ -114,7 +114,7 @@ struct SearchJourneyResultsView: View {
 
       if !direct.isEmpty {
         if !transit.isEmpty {
-          Text("Sans transports")
+          Label("À pied ou à vélo", systemImage: "figure.walk")
             .font(.headline)
             .padding(.top, 8)
         }
