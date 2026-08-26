@@ -27,6 +27,27 @@ struct NaturalIntentModelRequest: Sendable, Hashable {
     let originAnchor: NaturalIntentModelAnchor?
     let destinationAnchor: NaturalIntentModelAnchor?
     let savedPlaces: [NaturalJourneySavedPlaceReference]
+    let focusedField: NaturalJourneyIntentField?
+
+    init(
+        phrase: String,
+        locale: Locale,
+        now: Date,
+        hasCurrentLocation: Bool,
+        originAnchor: NaturalIntentModelAnchor?,
+        destinationAnchor: NaturalIntentModelAnchor?,
+        savedPlaces: [NaturalJourneySavedPlaceReference],
+        focusedField: NaturalJourneyIntentField? = nil,
+    ) {
+        self.phrase = phrase
+        self.locale = locale
+        self.now = now
+        self.hasCurrentLocation = hasCurrentLocation
+        self.originAnchor = originAnchor
+        self.destinationAnchor = destinationAnchor
+        self.savedPlaces = savedPlaces
+        self.focusedField = focusedField
+    }
 }
 
 struct NaturalIntentProposal: Sendable, Hashable {

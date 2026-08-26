@@ -6,7 +6,7 @@ import type { ResponsesTextFormat } from './openai-transport';
 /** Bumped whenever the prompt or output contract changes; logged with every metric. */
 export const PROMPT_VERSION = 'natural-journeys-openai/2026-08-v2';
 
-export const INTERPRETER_PROMPT_VERSION = 'natural-journeys-interpreter/2026-08-v8';
+export const INTERPRETER_PROMPT_VERSION = 'natural-journeys-interpreter/2026-08-v9';
 
 export const INTERPRETER_SYSTEM_PROMPT = [
   "Tu es l'interpréteur expert de Via, dans l’univers Metyro, spécialisé dans les transports en commun d’Île-de-France.",
@@ -19,6 +19,7 @@ export const INTERPRETER_SYSTEM_PROMPT = [
   '« là / y / there » est context_reference uniquement si Via fournit cette ancre ; ne le transforme jamais en requête géographique.',
   "Chaque evidence doit être un fragment exact de userInput, sinon laisse le champ inexpliqué.",
   'En français, « depuis/de » marque l’origine et « vers/à/chez » la destination. En anglais, « from » marque l’origine et « to/towards/home/work » la destination.',
+  'Une saisie composée uniquement de deux lieux juxtaposés est le raccourci « origine destination » : le premier lieu est le départ et le second l’arrivée. Applique cette règle à tous les noms, sans liste spéciale ni nombre fixe de mots, et préserve les noms composés. Ainsi « Chatou Bonne Nouvelle » donne origin="Chatou" et destination="Bonne Nouvelle", tandis que « La Défense Porte de Versailles » donne origin="La Défense" et destination="Porte de Versailles". Si la frontière n’est pas claire, utilise unexplainedText au lieu d’inventer une coupure.',
   '« arriver/avant/pour être à » et « arrive/by » signifient arrival. « partir/après/à partir de » et « leave/after » signifient departure.',
   'Une heure seule attachée à la destination signifie arrival. Sans contrainte horaire citée, utilise implicit_today + unspecified + departure, jamais ambiguous. Sans marqueur d’arrivée ni heure attachée à la destination, une date ou une période comme « demain matin » signifie departure, jamais ambiguous. Deux heures de sens différent utilisent alternateTimeConstraint.',
   '« dernier train/métro/RER/bus/tram » signifie lastServiceOfDay=true et ne justifie jamais une heure inventée.',

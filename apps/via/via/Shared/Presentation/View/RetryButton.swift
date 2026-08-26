@@ -33,7 +33,7 @@ struct RetryButton: View {
                     )
             }
         }
-        .sensoryFeedback(.impact(weight: .light), trigger: turns)
+        .haptic(Haptic.tap, on: turns)
     }
 }
 

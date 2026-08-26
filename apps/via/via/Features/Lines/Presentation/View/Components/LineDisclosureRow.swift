@@ -27,8 +27,13 @@ struct LineDisclosureRow: View {
     var accessibilityHint: String?
     let action: () -> Void
 
+    @State private var tapTick = 0
+
     var body: some View {
-        Button(action: action) {
+        Button {
+            tapTick += 1
+            action()
+        } label: {
             HStack(spacing: spacing) {
                 mark
 
@@ -58,6 +63,10 @@ struct LineDisclosureRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // The chevron already says which of the two this row is: one turns a
+        // fold open, the other points on to a sheet. The finger is told the
+        // same thing — a notch for the fold, a decision for the sheet.
+        .haptic(isOpen == nil ? Haptic.commit : Haptic.selection, on: tapTick)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(accessibilityValue ?? "")
         .accessibilityHint(accessibilityHint ?? "")

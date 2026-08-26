@@ -11,6 +11,8 @@ struct JourneyDetailActionBar: View {
     let onAction: (JourneyActivationAction) -> Void
     let onReminder: () -> Void
 
+    @State private var actionTick = 0
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             let action = actionAt(context.date)
@@ -18,6 +20,7 @@ struct JourneyDetailActionBar: View {
             GlassEffectContainer(spacing: 12) {
                 HStack(spacing: 12) {
                     Button {
+                        actionTick += 1
                         onAction(action)
                     } label: {
                         HStack(spacing: 9) {
@@ -33,6 +36,10 @@ struct JourneyDetailActionBar: View {
                     }
                     .primaryAction(tint: tint(for: action))
                     .disabled(isActivating || action == .active || action == .planned)
+                    // The single most consequential tap in Via. What follows is
+                    // an alert or a spinner, so the decision is acknowledged
+                    // here rather than left to whatever lands next.
+                    .haptic(Haptic.commit, on: actionTick)
                     .accessibilityHint(action.accessibilityHint)
 
                     Button(action: onReminder) {
@@ -50,6 +57,7 @@ struct JourneyDetailActionBar: View {
                     }
                     .iconAction()
                     .disabled(isUpdatingReminder)
+                    .toggleHaptic(on: isReminderScheduled)
                     .accessibilityValue(
                         isUpdatingReminder
                             ? "Mise à jour"

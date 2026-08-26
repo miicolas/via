@@ -150,6 +150,9 @@ final class SearchViewModel {
   @ObservationIgnored private let naturalLanguageAvailability:
     @Sendable () -> NaturalLanguageAvailability
   @ObservationIgnored private let naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring
+  /// Survives the transition from a clarification panel back to the composer,
+  /// so a short free-text answer keeps the role of the question it answers.
+  @ObservationIgnored private var naturalJourneyFocusedField: NaturalJourneyIntentField? = nil
   @ObservationIgnored private let naturalJourneyMetrics: any NaturalJourneyMetricsRecording
   @ObservationIgnored private let now: @Sendable () -> Date
   @ObservationIgnored private var searchTask: Task<Void, Never>?
@@ -242,6 +245,7 @@ final class SearchViewModel {
     naturalInputErrorMessage = nil
     lastNaturalJourneyRequest = nil
     naturalJourneyUnresolvedDraft = nil
+    naturalJourneyFocusedField = nil
     naturalSavedPlaceSelectionRequest = nil
     naturalLineStatusNavigation = nil
     naturalSearchState = .dismissed
@@ -289,6 +293,7 @@ final class SearchViewModel {
       performNaturalRequest(.revise(
         query: phrase,
         draft: existingDraft,
+        focusedField: naturalJourneyFocusedField,
         currentLocation: locationModel.coordinate,
       ))
     } else {
@@ -429,8 +434,16 @@ final class SearchViewModel {
 
   func modifyNaturalQuery() {
     switch naturalSearchState {
-    case let .clarification(draft, _), let .decision(draft, _):
+    case let .clarification(draft, field):
       naturalJourneyUnresolvedDraft = draft
+      naturalJourneyFocusedField = switch field.target {
+      case .origin: .origin
+      case .destination: .destination
+      case .time: .time
+      }
+    case let .decision(draft, _):
+      naturalJourneyUnresolvedDraft = draft
+      naturalJourneyFocusedField = nil
     default:
       break
     }
@@ -520,6 +533,7 @@ final class SearchViewModel {
       naturalQuery = ""
       lastNaturalJourneyRequest = nil
       naturalJourneyUnresolvedDraft = nil
+      naturalJourneyFocusedField = nil
       naturalSavedPlaceSelectionRequest = nil
     case .needsClarification(let draft, let fields):
       recordNaturalMetric(.clarification, path: draft.dialogueState.processingPath)
@@ -528,10 +542,16 @@ final class SearchViewModel {
         return
       }
       naturalJourneyUnresolvedDraft = draft
+      naturalJourneyFocusedField = switch field.target {
+      case .origin: .origin
+      case .destination: .destination
+      case .time: .time
+      }
       naturalSearchState = .clarification(draft: draft, field: field)
     case .needsDecision(let draft, let decision):
       recordNaturalMetric(.clarification, path: draft.dialogueState.processingPath)
       naturalJourneyUnresolvedDraft = draft
+      naturalJourneyFocusedField = nil
       naturalSearchState = .decision(draft: draft, decision: decision)
     case .networkUnavailable(let interpretation):
       recordNaturalMetric(.failure, path: interpretation.processingPath)
@@ -541,6 +561,7 @@ final class SearchViewModel {
       recordNaturalMetric(.failure, path: draft.dialogueState.processingPath)
       naturalJourneyCriteria = nil
       naturalJourneyUnresolvedDraft = draft
+      naturalJourneyFocusedField = nil
       naturalSearchState = .failed(message: Self.offlineMessage)
     case .lineStatus(let navigation):
       recordNaturalMetric(.success)
@@ -549,6 +570,7 @@ final class SearchViewModel {
       naturalQuery = ""
       lastNaturalJourneyRequest = nil
       naturalJourneyUnresolvedDraft = nil
+      naturalJourneyFocusedField = nil
       naturalSavedPlaceSelectionRequest = nil
     case .unsupported(let message, let examples):
       recordNaturalMetric(.unsupported)
@@ -564,6 +586,7 @@ final class SearchViewModel {
   private func apply(_ interpretation: NaturalJourneyInterpretation) {
     naturalJourneyCriteria = NaturalJourneyCriteria(interpretation)
     naturalJourneyUnresolvedDraft = nil
+    naturalJourneyFocusedField = nil
     selectedDestination = interpretation.destinationResult
     selectedDeparture =
       interpretation.originResult.map(SearchDepartureSelection.manual)

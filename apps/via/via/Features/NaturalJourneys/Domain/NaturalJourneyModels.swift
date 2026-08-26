@@ -393,6 +393,7 @@ enum NaturalJourneyRequest: Sendable, Hashable {
     case revise(
         query: String,
         draft: NaturalJourneyDraft,
+        focusedField: NaturalJourneyIntentField?,
         currentLocation: GeoCoordinate?,
     )
     case resolve(

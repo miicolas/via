@@ -27,6 +27,9 @@ struct SearchDestinationField: View {
         self.onSubmit = onSubmit
     }
 
+    @State private var submitTick = 0
+    @State private var clearTick = 0
+
     var body: some View {
         HStack(spacing: 12) {
             TextField(prompt, text: $text)
@@ -36,10 +39,19 @@ struct SearchDestinationField: View {
                 .autocorrectionDisabled()
                 .submitLabel(.search)
                 .focused($isFocused)
-                .onSubmit(onSubmit)
+                .onSubmit {
+                    submitTick += 1
+                    onSubmit()
+                }
+                // The keyboard leaves and a list redraws below the fold: the
+                // search is acknowledged where the finger still is.
+                .haptic(Haptic.commit, on: submitTick)
 
             if !text.isEmpty {
-                Button(action: onClear) {
+                Button {
+                    clearTick += 1
+                    onClear()
+                } label: {
                     Image(systemName: "xmark")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.white)
@@ -48,6 +60,7 @@ struct SearchDestinationField: View {
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
+                .haptic(Haptic.cleared, on: clearTick)
                 .accessibilityLabel(clearAccessibilityLabel)
             }
         }

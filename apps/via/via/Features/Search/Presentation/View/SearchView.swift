@@ -29,6 +29,8 @@ struct SearchView: View {
   @State private var isAccessibilityInfoPresented = false
   @State private var isNaturalCriteriaFeedbackPresented = false
   @State private var isReminderErrorPresented = false
+  @State private var resetTick = 0
+  @State private var savedDestinationTick = 0
 
   init(
     viewModel: SearchViewModel,
@@ -82,9 +84,11 @@ struct SearchView: View {
           if viewModel.canResetSearch {
             ToolbarItem(placement: .topBarTrailing) {
               Button("Nouvelle recherche", systemImage: "arrow.counterclockwise") {
+                resetTick += 1
                 viewModel.resetSearch()
               }
               .labelStyle(.iconOnly)
+              .haptic(Haptic.cleared, on: resetTick)
               .accessibilityHint("Efface le trajet et le point de départ sélectionnés")
             }
           }
@@ -151,6 +155,14 @@ struct SearchView: View {
         NaturalJourneyCriteriaFeedbackView(criteria: criteria)
       }
     }
+    // Reminders are set and cancelled out of a context menu, with nothing on
+    // screen to watch: the outcome is the only thing that reports back.
+    .haptic(Haptic.failed, on: isReminderErrorPresented) { !$0 && $1 }
+    .haptic(Haptic.failed, on: hasSearchFailed) { !$0 && $1 }
+    // The natural-language answer lands after a wait long enough to put the
+    // phone down, so both outcomes have to reach the hand.
+    .haptic(Haptic.failed, on: hasNaturalSearchFailed) { !$0 && $1 }
+    .haptic(Haptic.saved, on: viewModel.naturalResultJourneyID != nil) { !$0 && $1 }
     .alert("Rappel non modifié", isPresented: $isReminderErrorPresented) {
       if journeyNotificationCoordinator.authorizationStatus == .denied {
         Button("Ouvrir les réglages iOS") {
@@ -164,6 +176,21 @@ struct SearchView: View {
         journeyNotificationCoordinator.lastError
           ?? "Votre rappel est mémorisé et sera réessayé plus tard."
       )
+    }
+  }
+
+  /// A search that could not run at all. `.empty` is deliberately excluded:
+  /// the destination list reloads on every debounced keystroke, and a buzz per
+  /// unmatched letter would make typing unbearable.
+  private var hasSearchFailed: Bool {
+    if case .failed = viewModel.loadState { return true }
+    return false
+  }
+
+  private var hasNaturalSearchFailed: Bool {
+    switch viewModel.naturalSearchState {
+    case .failed, .unsupported, .availability: true
+    default: false
     }
   }
 
@@ -497,6 +524,7 @@ struct SearchView: View {
   private func savedDestinationButton(_ destination: SearchResult) -> some View {
     let isSaved = isSavedDestination(destination)
     return Button {
+      savedDestinationTick += 1
       onEditSavedDestination(destination)
     } label: {
       Image(systemName: isSaved ? "star.fill" : "star")
@@ -511,6 +539,9 @@ struct SearchView: View {
     }
     .iconAction(isProminent: isSaved)
     .disabled(!isSaved && !canAddSavedDestination)
+    // The star opens an editor rather than saving on the spot, so this is the
+    // tap being taken, not the favourite being made.
+    .haptic(Haptic.tap, on: savedDestinationTick)
     .accessibilityLabel(isSaved ? "Modifier le favori" : "Ajouter aux favoris")
     .accessibilityHint(
       !isSaved && !canAddSavedDestination

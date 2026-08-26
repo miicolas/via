@@ -41,6 +41,7 @@ struct ReliableNaturalJourneyUnderstanding: NaturalJourneyUnderstanding {
             locale: turn.locale,
             now: turn.now,
             savedPlaces: availableSavedPlaces,
+            focusedField: turn.focusedField,
         ).resolvingConversationReferences(in: state)
         if grounding.canBypassModel || (state != nil && grounding.canBypassModelAsRevision) {
             return transition(merging: grounding, into: state)
@@ -58,6 +59,7 @@ struct ReliableNaturalJourneyUnderstanding: NaturalJourneyUnderstanding {
                 NaturalIntentModelAnchor(place: $0.value, evidence: $0.evidence)
             },
             savedPlaces: availableSavedPlaces,
+            focusedField: turn.focusedField,
         )
         let receivedProposal: NaturalIntentProposal
         let proposalProvenance: NaturalJourneyFieldProvenance
@@ -461,6 +463,7 @@ struct ParserBackedNaturalJourneyUnderstanding: NaturalJourneyUnderstanding {
             originAnchor: nil,
             destinationAnchor: nil,
             savedPlaces: [],
+            focusedField: turn.focusedField,
         ))
         return NaturalJourneyTransition(
             state: NaturalJourneyDialogueState(intent: proposal.intent),
@@ -544,19 +547,37 @@ private enum DeterministicNaturalJourneyGrounder {
         locale: Locale,
         now: Date,
         savedPlaces: [NaturalJourneySavedPlaceReference],
+        focusedField: NaturalJourneyIntentField? = nil,
     ) -> NaturalJourneyGrounding {
         let isEnglish = locale.language.languageCode?.identifier == "en"
         let pair = routePair(in: phrase, isEnglish: isEnglish)
             ?? destinationThenOriginPair(in: phrase, isEnglish: isEnglish)
         let modes = explicitModes(in: phrase)
-        let explicitOrigin = pair?.origin ?? placeAfterOriginMarker(in: phrase, isEnglish: isEnglish)
-        let explicitDestination = pair?.destination
+        var explicitOrigin = pair?.origin ?? placeAfterOriginMarker(in: phrase, isEnglish: isEnglish)
+        var explicitDestination = pair?.destination
             ?? placeAfterDestinationMarker(in: phrase, isEnglish: isEnglish)
             ?? commandDestination(in: phrase, isEnglish: isEnglish)
             ?? (modes == nil ? nil : bareDestinationBeforeConstraint(
                 in: phrase,
                 isEnglish: isEnglish,
             ))
+        if explicitOrigin == nil,
+           explicitDestination == nil,
+           let focusedPlace = focusedPlaceAnswer(
+               in: phrase,
+               focusedField: focusedField,
+               isEnglish: isEnglish,
+           )
+        {
+            switch focusedField {
+            case .origin:
+                explicitOrigin = focusedPlace
+            case .destination:
+                explicitDestination = focusedPlace
+            default:
+                break
+            }
+        }
         let timeMeaning = explicitTimeMeaning(in: phrase, isEnglish: isEnglish)
         let timeAnchorEvidence = lastServiceEvidence(in: phrase, isEnglish: isEnglish)
 
@@ -653,6 +674,59 @@ private enum DeterministicNaturalJourneyGrounder {
             return GroundedPlace(value: .saved(saved.place), evidence: evidence)
         }
         return GroundedPlace(value: .query(value), evidence: evidence)
+    }
+
+    /// A clarification reply inherits its role from the question. Treat the
+    /// complete reply as evidence so a short answer bypasses probabilistic
+    /// role assignment, while the place resolver still decides whether the
+    /// words name a real station, locality or address.
+    private static func focusedPlaceAnswer(
+        in phrase: String,
+        focusedField: NaturalJourneyIntentField?,
+        isEnglish: Bool,
+    ) -> (value: String, evidence: String)? {
+        guard focusedField == .origin || focusedField == .destination else {
+            return nil
+        }
+        let evidence = phrase
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: .punctuationCharacters)
+        guard !evidence.isEmpty else { return nil }
+        let normalizedEvidence = OnDevicePlaceResolver.normalize(evidence)
+        guard normalizedEvidence.range(
+            of: #"(?:^|\s)(?:avant|apres|aujourd|demain|matin|midi|soir|dans|before|after|today|tomorrow|morning|noon|evening|sans|seulement|uniquement|plutot|without|only|prefer)(?:\s|$)"#,
+            options: .regularExpression,
+        ) == nil,
+        evidence.range(
+            of: #"\b\d{1,2}\s*(?::|h)\s*\d{0,2}\b|\b\d{1,2}[/-]\d{1,2}\b"#,
+            options: [.regularExpression, .caseInsensitive],
+        ) == nil
+        else {
+            return nil
+        }
+
+        let prefixPattern: String = switch (focusedField, isEnglish) {
+        case (.origin, false):
+            #"^\s*(?:non[\s,]+)?(?:(?:je\s+)?(?:pars|partir)\s+(?:de|depuis)\s+|(?:de|depuis)\s+)?"#
+        case (.destination, false):
+            #"^\s*(?:non[\s,]+)?(?:(?:je\s+)?(?:vais|aller)\s+(?:[àa]|vers)\s+|(?:[àa]|vers)\s+)?"#
+        case (.origin, true):
+            #"^\s*(?:no[\s,]+)?(?:(?:i\s+)?(?:leave|start)\s+from\s+|from\s+)?"#
+        case (.destination, true):
+            #"^\s*(?:no[\s,]+)?(?:(?:i\s+)?(?:go|am\s+going)\s+(?:to|towards)\s+|(?:to|towards)\s+)?"#
+        default:
+            #"^\s*"#
+        }
+        let value = evidence
+            .replacingOccurrences(
+                of: prefixPattern,
+                with: "",
+                options: [.regularExpression, .caseInsensitive],
+            )
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: .punctuationCharacters)
+        guard !value.isEmpty else { return nil }
+        return (value, evidence)
     }
 
     /// A deterministic shortcut is allowed only when the remaining words are

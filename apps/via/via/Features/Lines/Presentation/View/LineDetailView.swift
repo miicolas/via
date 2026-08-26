@@ -5,6 +5,7 @@ struct LineDetailView: View {
 
     @State private var viewModel: LineDetailViewModel
     @State private var isNotificationAuthorizationRequested = false
+
     private let route: RouteBadge
     private let accountModel: AccountModel?
 
@@ -52,7 +53,7 @@ struct LineDetailView: View {
             .padding(.vertical, 20)
         }
         .background(Color(uiColor: .systemGroupedBackground))
-        .refreshable { await viewModel.refresh() }
+        .hapticRefreshable { await viewModel.refresh() }
         .task { await viewModel.runAutomaticRefresh() }
         .navigationTitle("\(route.mode.displayName) \(route.shortName)")
         .navigationBarTitleDisplayMode(.inline)
@@ -75,6 +76,10 @@ struct LineDetailView: View {
                         )))
                     }
                     .labelStyle(.iconOnly)
+                    .toggleHaptic(on: accountModel.isFollowingNotification(
+                        topicKind: .line,
+                        topicID: route.id.rawValue
+                    ))
                     .stateSymbolTransition(value: accountModel.isFollowingNotification(
                         topicKind: .line,
                         topicID: route.id.rawValue

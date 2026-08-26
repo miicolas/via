@@ -66,7 +66,7 @@ struct NotificationInboxView: View {
                 .background(.background)
             }
         }
-        .refreshable { await load() }
+        .hapticRefreshable { await load() }
         .task { await load() }
         .onDisappear {
             guard pageState.value?.unreadCount ?? 0 > 0 else { return }

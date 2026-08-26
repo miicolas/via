@@ -17,6 +17,9 @@ struct OptionChip: View {
             .buttonBorderShape(.capsule)
             .controlSize(.large)
             .tint(isActive ? Color.accentColor : nil)
+            // Every filter chip in Via is one of these, so the criterion turning
+            // on and the criterion turning off are told apart here once.
+            .toggleHaptic(on: isActive)
         } else {
             label
                 .padding(.horizontal, 14)

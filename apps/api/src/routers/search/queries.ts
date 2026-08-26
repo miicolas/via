@@ -12,7 +12,7 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import { networkRouteCondition } from '@via/db/network-scope';
 
 import type { RouteBadgeRow } from '../route-badge';
-import { escapeLikePattern } from './like-pattern';
+import { looseLikePattern } from './like-pattern';
 
 /**
  * Stations whose name contains the query, accents ignored on both sides so that
@@ -34,7 +34,7 @@ export function selectMatchingStations(
   // position() searches the literal text; LIKE additionally needs its
   // operators escaped. Same query, two spellings.
   const needle = sql`immutable_unaccent(lower(${query}))`;
-  const likeNeedle = sql`immutable_unaccent(lower(${escapeLikePattern(query)}))`;
+  const likeNeedle = sql`immutable_unaccent(lower(${looseLikePattern(query)}))`;
 
   const tiebreaker = origin
     ? sql`ST_Distance(${transitStops.location}::geography, ST_SetSRID(ST_MakePoint(${origin.longitude}, ${origin.latitude}), 4326)::geography)`

@@ -96,7 +96,7 @@ struct JourneyDepartureChoicesView: View {
             .gesture(stepGesture(itemWidth: itemWidth))
         }
         .frame(height: 48)
-        .sensoryFeedback(.selection, trigger: hapticTick)
+        .haptic(Haptic.selection, on: hapticTick)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Passages disponibles")
         .accessibilityValue(selectorAccessibilityValue)
@@ -184,10 +184,14 @@ struct JourneyDepartureChoicesView: View {
         return choices.firstIndex { $0.id == id }
     }
 
+    /// Every notch the rail crosses clicks, whether or not the passage under
+    /// the centre can be chosen: `commit` turns away cancelled services and the
+    /// one already held, and a rail that moves in silence reads as stuck.
     private func focus(_ id: String) {
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) {
             focusedID = id
         }
+        hapticTick += 1
         commit(id)
     }
 
@@ -215,7 +219,6 @@ struct JourneyDepartureChoicesView: View {
         guard let choice = choices.first(where: { $0.id == id }) else { return }
         guard !choice.isSelected, choice.status != .cancelled else { return }
         committedID = id
-        hapticTick += 1
         onSelect(choice)
     }
 

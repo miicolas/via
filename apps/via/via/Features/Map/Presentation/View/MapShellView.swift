@@ -150,6 +150,11 @@ struct MapShellView: View {
         )
       }
     }
+    // Selection is cleared on the next line, so the trigger is the tap itself:
+    // a pin taken under the thumb, and the journey surface leaving for good.
+    .haptic(Haptic.tap, on: selectedMapStation != nil) { !$0 && $1 }
+    .haptic(Haptic.tap, on: selectedBikeStation != nil) { !$0 && $1 }
+    .haptic(Haptic.ended, on: activeJourneyModel.hasSurface) { $0 && !$1 }
     .onChange(of: selectedMapStation) { _, newValue in
       guard let newValue else { return }
       // Clear right away so re-tapping the same annotation reopens the sheet.

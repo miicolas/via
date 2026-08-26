@@ -26,6 +26,7 @@ struct NaturalJourneyDatePickerView: View {
                         Text("Arrivée").tag(JourneyDatetimeRepresents.arrival)
                     }
                     .pickerStyle(.segmented)
+                    .haptic(Haptic.selection, on: meaning)
                 }
 
                 Section("Date et heure") {

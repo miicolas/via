@@ -49,7 +49,7 @@ struct LinesListView: View {
     }
     .listStyle(.plain)
     .scrollContentBackground(.hidden)
-    .refreshable { await onRefresh() }
+    .hapticRefreshable { await onRefresh() }
   }
 
   private func lineLink(_ status: LineStatus) -> some View {

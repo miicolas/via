@@ -41,6 +41,35 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
         XCTAssertEqual(intent.excludedModes, [.rer])
     }
 
+    func testBareChatouBonneNouvellePairKeepsTheCompoundStationName() async throws {
+        let parser = FoundationModelsIntentParser()
+        guard try requireLiveModel(parser) else { return }
+        let now = try XCTUnwrap(ISO8601.parse("2026-08-26T11:42:00+02:00"))
+
+        let intent = try await parser.parseIntent("Chatou Bonne Nouvelle", now: now)
+
+        XCTAssertEqual(intent.scope, .journey)
+        XCTAssertEqual(intent.originPlace, .query("Chatou"))
+        XCTAssertEqual(intent.destinationPlace, .query("Bonne Nouvelle"))
+        XCTAssertTrue(intent.originWasExplicit)
+    }
+
+    func testBareMultiwordPlacePairDoesNotAssumeOneWordPerPlace() async throws {
+        let parser = FoundationModelsIntentParser()
+        guard try requireLiveModel(parser) else { return }
+        let now = try XCTUnwrap(ISO8601.parse("2026-08-26T11:42:00+02:00"))
+
+        let intent = try await parser.parseIntent(
+            "La Défense Porte de Versailles",
+            now: now
+        )
+
+        XCTAssertEqual(intent.scope, .journey)
+        XCTAssertEqual(intent.originPlace, .query("La Défense"))
+        XCTAssertEqual(intent.destinationPlace, .query("Porte de Versailles"))
+        XCTAssertTrue(intent.originWasExplicit)
+    }
+
     func testStructuredInterpretationKeepsAnInvertedExplicitOriginGrounded() async throws {
         let parser = FoundationModelsIntentParser()
         guard try requireLiveModel(parser) else { return }

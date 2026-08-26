@@ -24,6 +24,13 @@ private struct SheetTabBarVisibility: ViewModifier {
     }
 }
 
+/// The detent paired with the tab it was measured against, so a detent that
+/// moved *because* the tab moved can be told apart from one the thumb dragged.
+private struct DetentWitness<Selection: Hashable>: Equatable {
+    let detent: PresentationDetent
+    let selection: Selection
+}
+
 /// Detent contract of the map sheet, shared with whoever drives `activeDetent`.
 enum SheetTabDetents {
     /// How far past the collapsed height the sheet has to travel before the tab
@@ -128,6 +135,15 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
         }))
         .presentationCornerRadius(isLargeScreen ? 45 : nil)
         .presentationBackgroundInteraction(.enabled)
+        // The root sheet is the most-dragged surface in the app: it snaps to a
+        // detent under the thumb and, once guidance runs, jumps on its own.
+        // Switching tab moves the detent too, and one gesture owes one answer —
+        // so the detent stays quiet whenever the tab moved with it.
+        .haptic(
+            Haptic.advanced,
+            on: DetentWitness(detent: activeDetent, selection: selection)
+        ) { $0.selection == $1.selection }
+        .haptic(Haptic.selection, on: selection)
         .interactiveDismissDisabled()
         .onHeightChange(for: contentProgress(sheetHeight:)) { newValue in
             tabVisibilityProgress = newValue

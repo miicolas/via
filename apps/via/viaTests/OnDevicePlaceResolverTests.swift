@@ -2,6 +2,34 @@ import XCTest
 @testable import Via
 
 final class OnDevicePlaceResolverTests: XCTestCase {
+    func testPlaceKindHintsAreInferredFromSemanticWordsNotPlaceNames() {
+        let transitEvidence = [
+            "station RER Auber",
+            "métro République",
+            "arrêt de bus Hôtel de Ville",
+            "gare de Lyon",
+        ]
+        for evidence in transitEvidence {
+            XCTAssertEqual(
+                NaturalPlaceKindHint.inferred(from: evidence),
+                .transit,
+                evidence
+            )
+        }
+        XCTAssertEqual(
+            NaturalPlaceKindHint.inferred(from: "centre-ville de Montreuil"),
+            .locality
+        )
+        XCTAssertEqual(
+            NaturalPlaceKindHint.inferred(from: "adresse de République"),
+            .address
+        )
+        XCTAssertEqual(
+            NaturalPlaceKindHint.inferred(from: "Porte de Versailles"),
+            .automatic
+        )
+    }
+
     func testExactStationNameIgnoresAccentsAndDashVariants() async throws {
         let expected = station("saint-remy", "Saint-Rémy-lès-Chevreuse")
         let resolver = resolver(results: [
@@ -28,6 +56,149 @@ final class OnDevicePlaceResolverTests: XCTestCase {
         let resolution = try await resolver.resolve("Nation", near: nil)
 
         XCTAssertEqual(resolution, .resolved(expected))
+    }
+
+    func testChatouPrefersTheUniqueRailStationOverIncidentalBusStops() async throws {
+        let expected = station("chatou-croissy", "Chatou - Croissy", modes: [.rer, .bus])
+        let resolver = resolver(results: [
+            expected,
+            station("route-chatou", "Route de Chatou", modes: [.bus]),
+            station("clemenceau-chatou", "Clémenceau / Rue de Chatou", modes: [.bus]),
+            address("chatou", "Chatou"),
+        ])
+
+        let resolution = try await resolver.resolve("Chatou", near: nil)
+
+        XCTAssertEqual(resolution, .resolved(expected))
+    }
+
+    func testExplicitTransitWordingSearchesTheCanonicalStationName() async throws {
+        let expected = station("bonne-nouvelle", "Bonne Nouvelle", modes: [.metro])
+        let recorder = PlaceResolverQueryRecorder(result: expected)
+        let resolver = OnDevicePlaceResolver { query, _ in
+            await recorder.response(for: query)
+        }
+
+        let resolution = try await resolver.resolve("station de métro Bonne Nouvelle", near: nil)
+
+        XCTAssertEqual(resolution, .resolved(expected))
+        let queries = await recorder.queries
+        XCTAssertEqual(queries, ["Bonne Nouvelle"])
+    }
+
+    func testCanonicalGareNameIsSearchedBeforeRemovingItsQualifier() async throws {
+        let expected = station("gare-de-lyon", "Gare de Lyon", modes: [.rer])
+        let recorder = PlaceResolverQueryRecorder(result: expected)
+        let resolver = OnDevicePlaceResolver { query, _ in
+            await recorder.response(for: query)
+        }
+
+        let resolution = try await resolver.resolve("Gare de Lyon", near: nil)
+
+        XCTAssertEqual(resolution, .resolved(expected))
+        let queries = await recorder.queries
+        XCTAssertEqual(queries, ["Gare de Lyon"])
+    }
+
+    func testComposedTransitQualifiersAreRemovedAsOneSemanticPrefix() async throws {
+        let cases: [(input: String, canonicalName: String, mode: TransitMode)] = [
+            ("station RER Auber", "Auber", .rer),
+            ("station de tram Porte de Versailles", "Porte de Versailles", .tram),
+            ("arrêt de bus République", "République", .bus),
+            ("métro Bonne Nouvelle", "Bonne Nouvelle", .metro),
+        ]
+
+        for (index, testCase) in cases.enumerated() {
+            let expected = station(
+                "qualified-station-\(index)",
+                testCase.canonicalName,
+                modes: [testCase.mode]
+            )
+            let recorder = PlaceResolverQueryRecorder(result: expected)
+            let resolver = OnDevicePlaceResolver { query, _ in
+                await recorder.response(for: query)
+            }
+
+            let resolution = try await resolver.resolve(testCase.input, near: nil)
+
+            XCTAssertEqual(resolution, .resolved(expected), testCase.input)
+            let queries = await recorder.queries
+            XCTAssertEqual(queries, [testCase.canonicalName], testCase.input)
+        }
+    }
+
+    func testExplicitTransitRequestNeverFallsBackToAnAddress() async throws {
+        let resolver = resolver(results: [
+            address("bonne-nouvelle-address", "Bonne Nouvelle"),
+        ])
+
+        let resolution = try await resolver.resolve("station Bonne Nouvelle", near: nil)
+
+        XCTAssertEqual(resolution, .notFound)
+    }
+
+    func testTransitHintFromGroundedEvidenceAlsoClosesTheCatalog() async throws {
+        let resolver = resolver(results: [
+            address("auber-address", "Auber"),
+        ])
+
+        let resolution = try await resolver.resolve(
+            "Auber",
+            hint: .transit,
+            near: nil
+        )
+
+        XCTAssertEqual(resolution, .notFound)
+    }
+
+    func testExplicitAddressRequestNeverFallsBackToAStation() async throws {
+        let resolver = resolver(results: [
+            station("republique", "République", modes: [.metro]),
+        ])
+
+        let resolution = try await resolver.resolve("adresse de République", near: nil)
+
+        XCTAssertEqual(resolution, .notFound)
+    }
+
+    func testAddressHintFromGroundedEvidenceAlsoClosesTheCatalog() async throws {
+        let resolver = resolver(results: [
+            station("republique", "République", modes: [.metro]),
+        ])
+
+        let resolution = try await resolver.resolve(
+            "République",
+            hint: .address,
+            near: nil
+        )
+
+        XCTAssertEqual(resolution, .notFound)
+    }
+
+    func testExactTransitNameWinsOverAnAddressShapedName() async throws {
+        let expected = station("place-italie", "Place d’Italie", modes: [.metro])
+        let resolver = resolver(results: [
+            address("place-italie-address", "Place d’Italie"),
+            expected,
+        ])
+
+        let resolution = try await resolver.resolve("Place d’Italie", near: nil)
+
+        XCTAssertEqual(resolution, .resolved(expected))
+    }
+
+    func testExplicitCityCenterWordingSelectsTheMunicipalityCandidate() async throws {
+        let expected = address("chatou-municipality", "Chatou")
+        let recorder = PlaceResolverQueryRecorder(result: expected)
+        let resolver = OnDevicePlaceResolver { query, _ in
+            await recorder.response(for: query)
+        }
+
+        let resolution = try await resolver.resolve("centre-ville de Chatou", near: nil)
+
+        XCTAssertEqual(resolution, .resolved(expected))
+        let queries = await recorder.queries
+        XCTAssertEqual(queries, ["Chatou"])
     }
 
     func testGareSaintLazareDoesNotResolveToRueSaintLazare() async throws {
@@ -101,12 +272,24 @@ final class OnDevicePlaceResolverTests: XCTestCase {
         }
     }
 
-    private func station(_ id: String, _ name: String) -> SearchResult {
+    private func station(
+        _ id: String,
+        _ name: String,
+        modes: [TransitMode] = [],
+    ) -> SearchResult {
         .station(StationSearchResult(
             id: StationID(rawValue: id),
             name: name,
             coordinate: .init(latitude: 48.85, longitude: 2.35),
-            routes: [],
+            routes: modes.enumerated().map { index, mode in
+                RouteBadge(
+                    id: RouteID(rawValue: "\(id)-\(index)"),
+                    shortName: "\(index)",
+                    mode: mode,
+                    colorHex: "#000000",
+                    textColorHex: "#FFFFFF"
+                )
+            },
             distanceMeters: nil
         ))
     }
@@ -119,5 +302,19 @@ final class OnDevicePlaceResolverTests: XCTestCase {
             coordinate: .init(latitude: 48.86, longitude: 2.34),
             distanceMeters: nil
         ))
+    }
+}
+
+private actor PlaceResolverQueryRecorder {
+    private(set) var queries: [String] = []
+    let result: SearchResult
+
+    init(result: SearchResult) {
+        self.result = result
+    }
+
+    func response(for query: String) -> SearchResponse {
+        queries.append(query)
+        return SearchResponse(results: [result], addressSource: .ok)
     }
 }

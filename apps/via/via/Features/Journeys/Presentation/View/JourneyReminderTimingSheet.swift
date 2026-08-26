@@ -61,6 +61,9 @@ struct JourneyReminderTimingSheet: View {
       }
     }
     .interactiveDismissDisabled(isSubmitting)
+    // Success dismisses this sheet, and a view on its way out plays nothing:
+    // the reminder itself reports back from the bar that owns the bell.
+    .haptic(Haptic.failed, on: isErrorPresented) { !$0 && $1 }
     .alert("Rappel non modifié", isPresented: $isErrorPresented) {
       if authorizationDenied {
         Button("Ouvrir les réglages iOS", systemImage: "gearshape") {

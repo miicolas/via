@@ -4,6 +4,115 @@ import XCTest
 final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
     private let now = ISO8601.parse("2026-08-17T09:00:00+02:00")!
 
+    func testBareChatouBonneNouvellePairIsSplitByCatalogEvidence() async throws {
+        let chatou = station("chatou-croissy", "Chatou - Croissy", modes: [.rer, .bus])
+        let routeDeChatou = station("route-chatou", "Route de Chatou", modes: [.bus])
+        let bonneNouvelle = station("bonne-nouvelle", "Bonne Nouvelle", modes: [.metro])
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: { [] },
+            serverFallbackAllowed: { false },
+        )
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let service = OnDeviceNaturalJourneyService(
+            understanding: understanding,
+            places: OnDevicePlaceResolver { query, _ in
+                let results: [SearchResult] = switch OnDevicePlaceResolver.normalize(query) {
+                case "chatou": [chatou, routeDeChatou]
+                case "bonne nouvelle": [bonneNouvelle]
+                default: []
+                }
+                return SearchResponse(results: results, addressSource: .ok)
+            },
+            journeys: journeys,
+            now: { [now = now] in now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "Chatou Bonne Nouvelle",
+            currentLocation: nil,
+        ))
+
+        guard case let .ready(interpretation, _) = result else {
+            return XCTFail("Le couple de lieux validé doit être planifié directement")
+        }
+        XCTAssertEqual(interpretation.originResult, chatou)
+        XCTAssertEqual(interpretation.destinationResult, bonneNouvelle)
+        XCTAssertEqual(interpretation.processingPath, .deterministic)
+    }
+
+    func testBareMultiwordStationPairUsesTheOnlyCatalogBackedBoundary() async throws {
+        let laDefense = station("la-defense", "La Défense", modes: [.metro, .rer])
+        let porteDeVersailles = station(
+            "porte-de-versailles",
+            "Porte de Versailles",
+            modes: [.metro, .tram]
+        )
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: { [] },
+            serverFallbackAllowed: { false },
+        )
+        let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
+        let service = OnDeviceNaturalJourneyService(
+            understanding: understanding,
+            places: OnDevicePlaceResolver { query, _ in
+                let results: [SearchResult] = switch OnDevicePlaceResolver.normalize(query) {
+                case "la defense": [laDefense]
+                case "porte de versailles": [porteDeVersailles]
+                default: []
+                }
+                return SearchResponse(results: results, addressSource: .ok)
+            },
+            journeys: journeys,
+            now: { [now = now] in now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "La Défense Porte de Versailles",
+            currentLocation: nil,
+        ))
+
+        guard case let .ready(interpretation, _) = result else {
+            return XCTFail("L’unique frontière soutenue par le catalogue doit être retenue")
+        }
+        XCTAssertEqual(interpretation.originResult, laDefense)
+        XCTAssertEqual(interpretation.destinationResult, porteDeVersailles)
+        XCTAssertEqual(interpretation.processingPath, .deterministic)
+    }
+
+    func testBareBonneNouvelleIsGroundedAsTheMetroStation() async throws {
+        let bonneNouvelle = station("bonne-nouvelle", "Bonne Nouvelle", modes: [.metro])
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: { [] },
+            serverFallbackAllowed: { false },
+        )
+        let service = OnDeviceNaturalJourneyService(
+            understanding: understanding,
+            places: OnDevicePlaceResolver { _, _ in
+                SearchResponse(results: [bonneNouvelle], addressSource: .ok)
+            },
+            journeys: OnDeviceJourneyRecorder(results: [.mapPreview]),
+            now: { [now = now] in now },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "Bonne Nouvelle",
+            currentLocation: nil,
+        ))
+
+        guard case let .needsClarification(draft, fields) = result else {
+            return XCTFail("Seul le départ doit encore être demandé")
+        }
+        XCTAssertEqual(draft.destination, bonneNouvelle)
+        XCTAssertEqual(fields.map(\.target), [.origin])
+        XCTAssertEqual(draft.dialogueState.processingPath, .deterministic)
+    }
+
     func testSaintLazareToGareDuNordPlansImmediately() async throws {
         let saintLazare = station("saint-lazare", "Gare Saint-Lazare")
         let gareDuNord = station("gare-du-nord", "Gare du Nord")
@@ -264,6 +373,7 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         let result = try await service.submit(.revise(
             query: "pars de là vers Bastille",
             draft: draft,
+            focusedField: nil,
             currentLocation: nil,
         ))
 
@@ -1250,12 +1360,24 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         )
     }
 
-    private func station(_ id: String, _ name: String) -> SearchResult {
+    private func station(
+        _ id: String,
+        _ name: String,
+        modes: [TransitMode] = [],
+    ) -> SearchResult {
         .station(.init(
             id: .init(rawValue: id),
             name: name,
             coordinate: .init(latitude: 48.85, longitude: 2.35),
-            routes: [],
+            routes: modes.enumerated().map { index, mode in
+                RouteBadge(
+                    id: RouteID(rawValue: "\(id)-\(index)"),
+                    shortName: "\(index)",
+                    mode: mode,
+                    colorHex: "#000000",
+                    textColorHex: "#FFFFFF",
+                )
+            },
             distanceMeters: nil,
         ))
     }

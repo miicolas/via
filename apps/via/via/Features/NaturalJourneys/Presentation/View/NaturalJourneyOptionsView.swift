@@ -38,6 +38,7 @@ struct NaturalJourneyOptionsView: View {
                                 Text(value.label).tag(value)
                             }
                         }
+                        .haptic(Haptic.selection, on: selection(for: mode).wrappedValue)
                     }
                 } footer: {
                     Text("Chaque mode peut être obligatoire, préféré, exclu ou sans préférence.")

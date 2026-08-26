@@ -99,6 +99,7 @@ struct NaturalJourneyClarificationView: View {
                     Text("Arrivée avant").tag(JourneyDatetimeRepresents.arrival)
                 }
                 .pickerStyle(.segmented)
+                .haptic(Haptic.selection, on: clarificationMeaning)
             }
             .padding(18)
             .glassEffect(.regular, in: .rect(cornerRadius: 22))

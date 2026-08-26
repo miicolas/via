@@ -12,6 +12,8 @@ struct ActiveJourneyPanelView: View {
   @State private var isStarting = false
   @State private var expandedSectionIDs: Set<String> = []
   @State private var hasScrolledAway = false
+  @State private var recenterTick = 0
+  @State private var alternativeTick = 0
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -49,6 +51,10 @@ struct ActiveJourneyPanelView: View {
                   onSelectDeparture: onSelectDeparture,
                   onRetryDepartures: { Task { await onRetryDepartures() } }
                 )
+                // The leg changed under the traveller's feet. Nobody asked for
+                // it, so it is the softest impact Via has — but it is the one
+                // cue that reaches a phone still in a pocket.
+                .haptic(Haptic.advanced, on: progress.sectionIndex)
                 .task(id: progress.sectionIndex) {
                   // The scroll target only exists after the timeline has joined
                   // the hierarchy. Yielding one render pass keeps a restored
@@ -82,6 +88,16 @@ struct ActiveJourneyPanelView: View {
     .navigationTitle(model.destinationName)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar { journeyToolbar }
+    // Guidance starting and guidance ending are the two states of the app the
+    // traveller must be able to tell apart without looking at the screen.
+    // Ending is felt by the map shell instead: this panel is torn down in the
+    // same update, and a view on its way out plays nothing.
+    .haptic(Haptic.started, on: model.isTracking) { !$0 && $1 }
+    // A faster route offered mid-journey, and a recalculation that came back
+    // empty: both are things to read before carrying on.
+    .haptic(Haptic.warned, on: model.alternative != nil) { !$0 && $1 }
+    .haptic(Haptic.failed, on: shouldRetryRecalculation) { !$0 && $1 }
+    .haptic(Haptic.warned, on: isFinishConfirmationPresented) { !$0 && $1 }
     .confirmationDialog(
       "Terminer ce trajet ?",
       isPresented: $isFinishConfirmationPresented,
@@ -200,6 +216,7 @@ struct ActiveJourneyPanelView: View {
     VStack(alignment: .trailing, spacing: 0) {
       if hasScrolledAway {
         recenterButton {
+          recenterTick += 1
           scrollToCurrentStep(using: scroll, at: date)
         }
         .padding(.horizontal, 16)
@@ -224,6 +241,9 @@ struct ActiveJourneyPanelView: View {
         .glassEffect(.regular, in: .circle)
     }
     .buttonStyle(.plain)
+    // The list scrolls back to where it already was whenever the traveller
+    // had not moved: without the tick the tap looks ignored.
+    .haptic(Haptic.tap, on: recenterTick)
     .accessibilityLabel("Revenir à l’étape actuelle")
     .accessibilityHint("Fait défiler le trajet jusqu’à votre position")
   }
@@ -286,7 +306,10 @@ struct ActiveJourneyPanelView: View {
   @ToolbarContentBuilder
   private var journeyToolbar: some ToolbarContent {
     ToolbarItem(placement: .topBarTrailing) {
-      Button(action: model.checkForAlternative) {
+      Button {
+        alternativeTick += 1
+        model.checkForAlternative()
+      } label: {
         Image(systemName: alternativeSystemImage)
           .contentTransition(
             reduceMotion
@@ -299,6 +322,9 @@ struct ActiveJourneyPanelView: View {
       }
       .tint(shouldRetryRecalculation ? .orange : .primary)
       .disabled(!canCheckForAlternative)
+      // The search runs off screen: without a tick the toolbar looks dead
+      // until an answer comes back.
+      .haptic(Haptic.tap, on: alternativeTick)
       .accessibilityLabel(alternativeTitle)
       .accessibilityHint("Recherche l’itinéraire le plus rapide")
     }

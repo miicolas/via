@@ -60,7 +60,10 @@ struct JourneyTimelineView: View {
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: mode)
         .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: expandedSectionIDs)
-        .sensoryFeedback(.selection, trigger: expandedSectionIDs)
+        // One leg folding open or shut moves the set by exactly one. A
+        // programmatic reset moves it by more, and is not something the
+        // traveller did.
+        .haptic(Haptic.selection, on: expandedSectionIDs) { abs($0.count - $1.count) == 1 }
     }
 
     /// Boarding at the origin and alighting at the destination already name
