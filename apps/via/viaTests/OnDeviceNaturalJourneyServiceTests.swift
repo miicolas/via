@@ -27,7 +27,7 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
                 await search.response(for: query)
             },
             journeys: journeys,
-            now: { self.now },
+            now: { [now = now] in now },
         )
 
         let result = try await service.submit(.submit(
@@ -76,7 +76,7 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
                 await search.response(for: query)
             },
             journeys: journeys,
-            now: { self.now },
+            now: { [now = now] in now },
         )
 
         let result = try await service.submit(.submit(
@@ -119,7 +119,7 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
                 SearchResponse(results: [], addressSource: .ok)
             },
             journeys: journeys,
-            now: { self.now },
+            now: { [now = now] in now },
         )
 
         let result = try await service.submit(.submit(
@@ -167,7 +167,7 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
                 SearchResponse(results: [publicPlace], addressSource: .ok)
             },
             journeys: journeys,
-            now: { self.now },
+            now: { [now = now] in now },
         )
 
         let result = try await service.submit(.submit(
@@ -217,7 +217,7 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
                 await search.response(for: query)
             },
             journeys: journeys,
-            now: { self.now },
+            now: { [now = now] in now },
         )
 
         let result = try await service.submit(.revise(

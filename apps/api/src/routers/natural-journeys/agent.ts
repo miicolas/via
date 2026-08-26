@@ -64,7 +64,7 @@ export async function runNaturalJourneyAgent({
   userMessage,
   timeoutMs,
   signal,
-  reasoningEffort = 'minimal',
+  reasoningEffort = 'none',
   maxTurns = DEFAULT_MAX_TURNS,
   clock = () => Date.now(),
 }: AgentParams): Promise<AgentRun> {

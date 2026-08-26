@@ -40,7 +40,7 @@ export const JOURNEYS: JourneysResponse = {
 
 export const CONFIG: NaturalJourneyServiceConfig = {
   model: 'gpt-5.6-luna',
-  reasoningEffort: 'minimal',
+  reasoningEffort: 'none',
   timeoutMs: 5_000,
   personalLimit: 20,
   personalWindowSeconds: 900,

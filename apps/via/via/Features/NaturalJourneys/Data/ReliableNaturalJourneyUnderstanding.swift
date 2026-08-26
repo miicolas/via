@@ -70,8 +70,15 @@ struct ReliableNaturalJourneyUnderstanding: NaturalJourneyUnderstanding {
             guard serverFallbackAllowed(), let remoteModel else {
                 throw error
             }
-            receivedProposal = try await remoteModel.proposeIntent(request)
-            proposalProvenance = .serverModel
+            do {
+                receivedProposal = try await remoteModel.proposeIntent(request)
+                proposalProvenance = .serverModel
+            } catch .remoteUnavailable {
+                // The server declining (rollout gate, breaker, rate limit) says
+                // nothing about the device: surface the local diagnosis, not a
+                // fake Apple Intelligence failure.
+                throw error
+            }
         }
         let proposal = receivedProposal
             .canonicalizingConversationReferences()

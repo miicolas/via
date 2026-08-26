@@ -215,6 +215,57 @@ final class NaturalJourneyFallbackTests: XCTestCase {
         XCTAssertEqual(remoteCount, 1)
     }
 
+    func testServerUnavailableOutcomeIsNotADeviceFailure() throws {
+        let json = #"{ "outcome": "unavailable", "message": "Réessaie dans un instant." }"#
+        let request = NaturalIntentModelRequest(
+            phrase: "Va à Nation",
+            locale: Locale(identifier: "fr_FR"),
+            now: now,
+            hasCurrentLocation: true,
+            originAnchor: nil,
+            destinationAnchor: nil,
+            savedPlaces: [],
+        )
+
+        let dto = try JSONDecoder.via.decode(
+            NaturalIntentResponseDTO.self,
+            from: Data(json.utf8),
+        )
+
+        XCTAssertThrowsError(try dto.proposal(for: request)) { error in
+            XCTAssertEqual(error as? NaturalIntentParsingError, .remoteUnavailable)
+        }
+    }
+
+    func testRemoteUnavailabilitySurfacesTheLocalDiagnosis() async throws {
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: RecordingNaturalIntentParser(
+                calls: NaturalIntentParserCallRecorder(),
+                result: .failure(.modelNotReady),
+            ),
+            remoteModel: RecordingNaturalIntentParser(
+                calls: NaturalIntentParserCallRecorder(),
+                result: .failure(.remoteUnavailable),
+            ),
+            savedPlaces: { [] },
+            serverFallbackAllowed: { true },
+        )
+
+        do {
+            _ = try await understanding.interpret(
+                NaturalJourneyTurn(
+                    phrase: "Je voudrais me rendre quelque part à Nation",
+                    locale: Locale(identifier: "fr_FR"),
+                    now: now,
+                ),
+                state: nil,
+            )
+            XCTFail("L’indisponibilité serveur doit rendre le diagnostic local")
+        } catch let error as NaturalIntentParsingError {
+            XCTAssertEqual(error, .modelNotReady)
+        }
+    }
+
     func testSafetyRefusalNeverFallsBackToTheServer() async throws {
         let remoteCalls = NaturalIntentParserCallRecorder()
         let understanding = ReliableNaturalJourneyUnderstanding(

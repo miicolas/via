@@ -176,10 +176,11 @@ const envSchema = z.object({
     .transform(Number)
     .pipe(z.number().int().min(1_000).max(60_000)),
   /**
-   * Thinking budget for the single structured interpretation. `minimal` keeps
-   * the fallback inside its latency budget.
+   * Thinking budget for the single structured interpretation. `none` keeps
+   * the fallback inside its latency budget; gpt-5.6-luna rejects the older
+   * `minimal` value.
    */
-  OPENAI_REASONING_EFFORT: z.enum(["minimal", "low", "medium"]).default("minimal"),
+  OPENAI_REASONING_EFFORT: z.enum(["none", "low", "medium"]).default("none"),
   /** Per-person fallback ceiling: 20 submissions per 15-minute window. */
   OPENAI_PERSONAL_LIMIT: z
     .string()
