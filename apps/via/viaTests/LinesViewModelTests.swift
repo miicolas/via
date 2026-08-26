@@ -110,6 +110,48 @@ final class LinesViewModelTests: XCTestCase {
   }
 
   @MainActor
+  func testFavoriteLinesStayAtTheTopAndIgnoreCatalogueFilters() async {
+    let metro1 = status("m1", "1", .metro)
+    let rerA = status("rer-a", "A", .rer, condition: .disrupted)
+    let suiteName = "dev.via.lines-favorites-tests.\(UUID().uuidString)"
+    let defaults = try! XCTUnwrap(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let viewModel = LinesViewModel(
+      repository: PreviewLineStatusRepository(board: board([metro1, rerA])),
+      favoriteStore: LineFavoritesStore(defaults: defaults)
+    )
+    await viewModel.refresh()
+
+    XCTAssertTrue(viewModel.toggleFavorite(route: metro1.route))
+    viewModel.filter = LineStatusFilter(mode: .rer, disruptionsOnly: true)
+
+    XCTAssertEqual(viewModel.favoriteLines.map(\.route.shortName), ["1"])
+    XCTAssertEqual(viewModel.sections.flatMap(\.lines).map(\.route.shortName), ["A"])
+  }
+
+  @MainActor
+  func testFavoriteLinesPersistInQuickAccessOrder() async {
+    let first = status("m1", "1", .metro)
+    let second = status("m4", "4", .metro)
+    let suiteName = "dev.via.lines-favorites-tests.\(UUID().uuidString)"
+    let defaults = try! XCTUnwrap(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let store = LineFavoritesStore(defaults: defaults)
+    let repository = PreviewLineStatusRepository(board: board([first, second]))
+
+    let viewModel = LinesViewModel(repository: repository, favoriteStore: store)
+    await viewModel.refresh()
+    _ = viewModel.toggleFavorite(route: first.route)
+    _ = viewModel.toggleFavorite(route: second.route)
+
+    let relaunched = LinesViewModel(repository: repository, favoriteStore: store)
+    await relaunched.refresh()
+
+    XCTAssertEqual(relaunched.favoriteLines.map(\.route.shortName), ["4", "1"])
+  }
+
+  @MainActor
   func testUpcomingClosuresGroupByDayInOrder() async {
     let calendar = Calendar.current
     let today = calendar.startOfDay(for: .now)

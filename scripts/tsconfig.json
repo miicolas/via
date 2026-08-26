@@ -10,7 +10,8 @@
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "paths": { "@/*": ["../apps/marketing/src/*"] }
   },
   "include": ["**/*.ts"]
 }

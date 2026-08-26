@@ -62,6 +62,75 @@ final class StationMapFilterTests: XCTestCase {
     XCTAssertFalse(StationMapFilter(criteria: [.mode(.metro)]).matches(bike))
   }
 
+  func testSharedMobilityCriteriaKeepBikesScootersAndStationsSeparate() {
+    let bike = StationMapItem(sharedMobility: .vehicle(SharedMobilityVehicle(
+      id: "dott-bike",
+      provider: .dott,
+      mode: .bicycle,
+      coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
+    )))
+    let scooter = StationMapItem(sharedMobility: .vehicle(SharedMobilityVehicle(
+      id: "yego-scooter",
+      provider: .yego,
+      mode: .scooter,
+      coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
+    )))
+    let station = StationMapItem(sharedMobility: .station(SharedMobilityStation(
+      station: BikeStation(
+        id: "velib-station",
+        stationCode: nil,
+        name: "Hôtel de Ville",
+        coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35),
+        capacity: 35,
+        availability: nil
+      )
+    )))
+
+    XCTAssertTrue(StationMapFilter(criteria: [.sharedBikes]).matches(bike))
+    XCTAssertFalse(StationMapFilter(criteria: [.sharedBikes]).matches(scooter))
+    XCTAssertTrue(StationMapFilter(criteria: [.sharedScooters]).matches(scooter))
+    XCTAssertFalse(StationMapFilter(criteria: [.sharedScooters]).matches(bike))
+    XCTAssertTrue(StationMapFilter(criteria: [.bikeStations]).matches(station))
+    XCTAssertFalse(StationMapFilter(criteria: [.sharedBikes]).matches(station))
+  }
+
+  func testScooterFilterRequestsDottAndYegoAndKeepsItsVisibleTitle() {
+    let filter = StationMapFilter(criteria: [.sharedScooters])
+
+    XCTAssertEqual(StationMapFilterCriterion.sharedScooters.title, "Scooters")
+    XCTAssertEqual(SharedMobilityMode.scooter.displayName, "Scooter")
+    XCTAssertEqual(filter.requestedSharedMobilityProviders, [.dott, .yego])
+    XCTAssertEqual(SharedMobilityProvider.providers(for: .scooter), [.dott, .yego])
+
+    let yego = SharedMobilityVehicle(
+      id: "yego-scooter",
+      provider: .yego,
+      mode: .scooter,
+      vehicleType: "Trottinette électrique",
+      coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
+    )
+    XCTAssertEqual(yego.displayTypeName, "Scooter électrique")
+  }
+
+  func testExpiredSharedMobilityItemsAreNotCurrent() {
+    let item = SharedMobilityItem.vehicle(SharedMobilityVehicle(
+      id: "expired-bike",
+      provider: .lime,
+      mode: .bicycle,
+      coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
+    ))
+    let area = SharedMobilityArea(
+      items: [item],
+      sources: [.lime: SharedMobilitySourceStatus(
+        state: .ok,
+        expiresAt: Date(timeIntervalSince1970: 100)
+      )]
+    )
+
+    XCTAssertTrue(area.currentItems(at: Date(timeIntervalSince1970: 99)).isEmpty == false)
+    XCTAssertTrue(area.currentItems(at: Date(timeIntervalSince1970: 100)).isEmpty)
+  }
+
   func testMultipleCriteriaUseOrSemanticsAndResetRestoresAllStations() {
     var filter = StationMapFilter(criteria: [.accessibility, .mode(.bus)])
 

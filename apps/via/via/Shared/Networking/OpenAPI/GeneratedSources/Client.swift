@@ -529,6 +529,146 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// Lire un trajet partagé
+    ///
+    /// Retourne un snapshot de trajet partagé identifié par son token opaque.
+    ///
+    /// - Remark: HTTP `GET /journeys/shares`.
+    /// - Remark: Generated from `#/paths//journeys/shares/get(journeyShares.get)`.
+    internal func journeyShares_period_get(_ input: Operations.journeyShares_period_get.Input) async throws -> Operations.journeyShares_period_get.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.journeyShares_period_get.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/journeys/shares",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "token",
+                    value: input.query.token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.journeyShares_period_get.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Créer un lien de partage de trajet
+    ///
+    /// Conserve le trajet choisi sous forme de snapshot immuable et retourne un lien web partageable.
+    ///
+    /// - Remark: HTTP `POST /journeys/shares`.
+    /// - Remark: Generated from `#/paths//journeys/shares/post(journeyShares.create)`.
+    internal func journeyShares_period_create(_ input: Operations.journeyShares_period_create.Input) async throws -> Operations.journeyShares_period_create.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.journeyShares_period_create.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/journeys/shares",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.journeyShares_period_create.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
     /// Interpréter une phrase de trajet
     ///
     /// Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres déterministes et des alias personnels opaques, puis renvoie le même patch typé que le modèle local. La résolution et la planification restent sur l’appareil.
@@ -1601,6 +1741,96 @@ internal struct Client: APIProtocol {
                     case "application/json":
                         body = try await converter.getResponseBodyAsJSON(
                             Operations.network_period_bikeStationsInArea.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Les véhicules et stations de mobilité partagée d’une zone
+    ///
+    /// Les vélos et trottinettes actuellement louables de Dott/TIER, Lime et YEGO, ainsi que les stations Vélib’ avec leur inventaire. Les données expirées et les véhicules réservés ou désactivés sont masqués. Le statut de chaque source est retourné séparément pour qu’une panne d’opérateur ne masque pas les autres.
+    ///
+    /// - Remark: HTTP `GET /network/shared-mobility`.
+    /// - Remark: Generated from `#/paths//network/shared-mobility/get(network.sharedMobilityInArea)`.
+    internal func network_period_sharedMobilityInArea(_ input: Operations.network_period_sharedMobilityInArea.Input) async throws -> Operations.network_period_sharedMobilityInArea.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.network_period_sharedMobilityInArea.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/network/shared-mobility",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "minLatitude",
+                    value: input.query.minLatitude
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "maxLatitude",
+                    value: input.query.maxLatitude
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "minLongitude",
+                    value: input.query.minLongitude
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "maxLongitude",
+                    value: input.query.maxLongitude
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.network_period_sharedMobilityInArea.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.self,
                             from: responseBody,
                             transforming: { value in
                                 .json(value)

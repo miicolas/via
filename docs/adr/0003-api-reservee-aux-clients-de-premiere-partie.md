@@ -19,6 +19,14 @@ Les deux clients ne peuvent pas prouver la même chose. Un binaire iOS peut emba
 6. Une variable non renseignée laisse la surface correspondante ouverte et le journal de démarrage la nomme. Un `.env` vide fait donc tourner le dépôt, et un déploiement se ferme en remplissant ses variables.
 7. La clé de l’app vit dans `apps/via/Configuration/Secrets.xcconfig`, non suivi par git, inclus optionnellement par `Shared.xcconfig`.
 
+## Amendement du 2026-08-26 — la surface `/public`
+
+Le blog « Travaux & trafic » du site a besoin de l’état des lignes et des perturbations, que seul le contrat sait produire. Plutôt que d’ouvrir le contrat au site, `/public` accueille une seconde exception explicite, `/public/lines/statuses` et `/public/lines/detail`, sur le modèle exact de `/public/city-demand`.
+
+Règle qui rend ces mounts sûrs : **chaque route `/public` est une projection écrite à la main** (`apps/api/src/public/lines/projection.ts`), jamais une réponse du contrat transmise telle quelle. Les deux routes sont en lecture seule, et la projection retire le schéma de ligne — le site en embarque son propre instantané commité — ainsi que le champ `message` du flux IDFM, dont la republication n’aurait aucune valeur éditoriale.
+
+La conséquence à tenir : ajouter une procédure au contrat ne doit jamais suffire à la rendre publique. Si un jour une route `/public` se contente de réexporter une réponse du contrat, cet ADR est violé même si aucune ligne de `client-gate.ts` n’a bougé.
+
 ## Conséquences
 
 - La clé de l’app est extractible du binaire. Elle relève le coût du clonage, elle ne remplace ni la session ni les quotas par personne. Le durcissement suivant est App Attest, qui prouve l’appareil au lieu de faire confiance au binaire.

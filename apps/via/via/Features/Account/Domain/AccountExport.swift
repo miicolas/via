@@ -21,7 +21,7 @@ struct AccountExport: Codable, Hashable, Sendable, Transferable {
         preferences = snapshot.transportPreferences
     }
 
-    static var transferRepresentation: some TransferRepresentation {
+    nonisolated static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(exportedContentType: .json) { export in
             try JSONEncoder.via.encode(export)
         }

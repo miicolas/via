@@ -8,15 +8,18 @@ struct LineDetailView: View {
 
     private let route: RouteBadge
     private let accountModel: AccountModel?
+    @Binding private var isFavorite: Bool
 
     init(
         viewModel: LineDetailViewModel,
         route: RouteBadge,
-        accountModel: AccountModel? = nil
+        accountModel: AccountModel? = nil,
+        isFavorite: Binding<Bool> = .constant(false)
     ) {
         _viewModel = State(initialValue: viewModel)
         self.route = route
         self.accountModel = accountModel
+        _isFavorite = isFavorite
     }
 
     var body: some View {
@@ -58,6 +61,25 @@ struct LineDetailView: View {
         .navigationTitle("\(route.mode.displayName) \(route.shortName)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isFavorite.toggle()
+                } label: {
+                    Image(systemName: StateSymbol.star(isOn: isFavorite))
+                }
+                .labelStyle(.iconOnly)
+                .stateSymbolTransition(value: isFavorite)
+                .toggleHaptic(on: isFavorite)
+                .tint(isFavorite ? .orange : .primary)
+                .accessibilityLabel(
+                    isFavorite
+                        ? "Retirer la ligne des favoris"
+                        : "Ajouter la ligne aux favoris"
+                )
+                .accessibilityValue(isFavorite ? "Ajoutée" : "Non ajoutée")
+                .accessibilityHint("Enregistre la ligne en accès rapide dans l’onglet Lignes.")
+            }
+
             if let accountModel {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

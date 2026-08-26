@@ -1,3 +1,4 @@
+import { isDirectJourney } from '@via/contract';
 import type {
   Coordinate,
   Journey,
@@ -16,14 +17,9 @@ export function parseIdfmJourneys(body: unknown, input: JourneyInput, generatedA
   // Direct paths are alternatives, not competitors: they neither consume the
   // requested transit slots nor outrank a transit journey, and the app draws
   // them in their own section under the list.
-  const transit = journeys.filter((journey) => !isDirectPath(journey)).slice(0, input.limit);
-  const direct = bestDirectPathPerMode(journeys.filter(isDirectPath));
+  const transit = journeys.filter((journey) => !isDirectJourney(journey)).slice(0, input.limit);
+  const direct = bestDirectPathPerMode(journeys.filter(isDirectJourney));
   return qualifyAlternatives(transit, direct);
-}
-
-/** A journey the traveller covers entirely on their own legs or wheels. */
-function isDirectPath(journey: Journey) {
-  return journey.sections.every((section) => section.type === 'walk' || section.type === 'bike');
 }
 
 function directPathQualifier(journey: Journey): Journey['qualifier'] {

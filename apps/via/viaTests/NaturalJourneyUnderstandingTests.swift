@@ -411,6 +411,65 @@ final class NaturalJourneyUnderstandingTests: XCTestCase {
         XCTAssertEqual(request.destination.coordinate, home.coordinate)
     }
 
+    func testNaturalOrderLastServicePlansWithOnlyTheStationNameSearched() async throws {
+        let chatelet = SearchResult.station(StationSearchResult(
+            id: StationID(rawValue: "stop_chatelet"),
+            name: "Châtelet",
+            coordinate: .init(latitude: 48.858, longitude: 2.347),
+            routes: [],
+            distanceMeters: nil,
+        ))
+        let home = SearchResult.address(AddressSearchResult(
+            id: "home-address",
+            name: "Maison",
+            context: "Paris",
+            coordinate: .init(latitude: 48.85, longitude: 2.31),
+            distanceMeters: nil,
+        ))
+        let placeSearch = NaturalJourneyPlaceSearchRecorder(result: chatelet)
+        let journeys = NaturalJourneyPlanningRecorder()
+        let understanding = ReliableNaturalJourneyUnderstanding(
+            localModel: InMemoryNaturalIntentParser(parsingError: .modelNotReady),
+            remoteModel: nil,
+            savedPlaces: {
+                [NaturalJourneySavedPlaceReference(
+                    id: "home",
+                    label: "Maison",
+                    kind: .home,
+                    result: home,
+                )]
+            },
+            serverFallbackAllowed: { false },
+        )
+        let service = OnDeviceNaturalJourneyService(
+            understanding: understanding,
+            places: OnDevicePlaceResolver { query, _ in
+                await placeSearch.search(query)
+            },
+            journeys: journeys,
+            now: { ISO8601.parse("2026-08-26T18:00:00+02:00")! },
+        )
+
+        let result = try await service.submit(.submit(
+            query: "rentrer chez moi depuis Châtelet ce soir avec le dernier train",
+            currentLocation: nil,
+        ))
+
+        guard case let .ready(interpretation, _) = result else {
+            return XCTFail("La demande naturelle complète doit être exécutée sans clarification")
+        }
+        XCTAssertEqual(interpretation.originResult, chatelet)
+        XCTAssertEqual(interpretation.destinationResult, home)
+        XCTAssertEqual(interpretation.timeAnchor, .lastOfDay)
+        let searchedQueries = await placeSearch.queries
+        XCTAssertEqual(searchedQueries, ["Châtelet"])
+        let plannedRequests = await journeys.requests
+        let request = try XCTUnwrap(plannedRequests.first)
+        XCTAssertEqual(request.origin, chatelet.coordinate)
+        XCTAssertEqual(request.destination.coordinate, home.coordinate)
+        XCTAssertEqual(request.timeAnchor, .lastOfDay)
+    }
+
     func testAConflictingModelCannotReplaceAnExplicitOrigin() async throws {
         let inverted = RouteIntent(
             scope: .journey,

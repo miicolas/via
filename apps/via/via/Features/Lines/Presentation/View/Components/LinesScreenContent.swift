@@ -28,6 +28,7 @@ struct LinesScreenContent: View {
       LinesListView(
         summary: viewModel.summary,
         fetchedAt: board.fetchedAt,
+        favoriteLines: viewModel.favoriteLines,
         sections: viewModel.sections,
         extraSearchResults: viewModel.extraSearchResults,
         upcomingByDay: viewModel.upcomingByDay,
@@ -48,7 +49,8 @@ struct LinesScreenContent: View {
   }
 
   private var hasVisibleLines: Bool {
-    !viewModel.sections.isEmpty
+    viewModel.hasFavoriteLines
+      || !viewModel.sections.isEmpty
       || (viewModel.isSearching && !viewModel.extraSearchResults.isEmpty)
   }
 }

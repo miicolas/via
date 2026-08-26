@@ -16,6 +16,7 @@ struct ApplicationDependencies {
     let activityManager: any JourneyActivityManaging
     let connectivityMonitor: any ConnectivityMonitoring
     let journeyRepository: any JourneyRepository
+    let journeyShareRepository: any JourneyShareRepository
     let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
     let naturalJourneyRepository: any NaturalJourneyRepository
     let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
@@ -72,6 +73,7 @@ enum ApplicationDependencyFactory {
                     base: InMemoryJourneyRepository(result: .mapPreview),
                     account: accountModel,
                 ),
+                journeyShareRepository: InMemoryJourneyShareRepository(),
                 journeyDepartureChoicesRepository: InMemoryJourneyDepartureChoicesRepository.unavailable,
                 naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
                 naturalLanguageAvailability: { .available },
@@ -115,9 +117,13 @@ enum ApplicationDependencyFactory {
         let accountModel = AccountModel(remote: LiveAccountRemote(transport: transport))
         accountModel.activateAnonymous()
         let journeyRepository = PreferenceAwareJourneyRepository(
-            base: LiveJourneyRepository(transport: transport),
+            base: LocalAlternativesJourneyRepository(
+                base: LiveJourneyRepository(transport: transport),
+                direct: MapKitDirectJourneyRouter(),
+            ),
             account: accountModel,
         )
+        let journeyShareRepository = LiveJourneyShareRepository(transport: transport)
         let searchRepository = LiveSearchRepository(transport: transport)
         let lineStatusRepository = LiveLineStatusRepository(transport: transport)
         let naturalIntentParser = FoundationModelsIntentParser()
@@ -183,6 +189,7 @@ enum ApplicationDependencyFactory {
             activityManager: JourneyActivityManager(),
             connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
+            journeyShareRepository: journeyShareRepository,
             journeyDepartureChoicesRepository: LiveJourneyDepartureChoicesRepository(
                 transport: transport
             ),

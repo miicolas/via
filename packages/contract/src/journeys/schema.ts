@@ -312,3 +312,15 @@ export const journeyDepartureChoicesResponseSchema = z.object({
   generatedAt: z.iso.datetime({ offset: true }),
   groups: z.array(journeyDepartureChoiceGroupSchema),
 });
+
+/**
+ * A route the traveller covers entirely on their own legs or wheels, with no
+ * transit section. Both the IDFM parser's partition and the ranking that reads
+ * it must agree on this, so it is defined once against the contract type.
+ */
+export function isDirectJourney(journey: { sections: z.infer<typeof journeySectionSchema>[] }) {
+  return (
+    journey.sections.length > 0 &&
+    journey.sections.every((section) => section.type === 'walk' || section.type === 'bike')
+  );
+}

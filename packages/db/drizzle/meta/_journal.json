@@ -267,6 +267,20 @@
       "when": 1787609121554,
       "tag": "0037_normal_korg",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1787749103886,
+      "tag": "0038_nostalgic_infant_terrible",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1787750830057,
+      "tag": "0039_omniscient_sunspot",
+      "breakpoints": true
     }
   ]
 }

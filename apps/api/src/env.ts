@@ -16,14 +16,20 @@ const splitList = (raw: string) =>
 
 /** A shared secret short enough to guess is not one, hence the floor. */
 const secretList = () =>
-  z.string().default("").transform(splitList).pipe(z.array(z.string().min(16)));
+  z
+    .string()
+    .default("")
+    .transform(splitList)
+    .pipe(z.array(z.string().min(16)));
 
 /** Origins compare as `scheme://host[:port]`, which is what a browser sends. */
 const originList = () =>
   z
     .string()
     .default("")
-    .transform((raw) => splitList(raw).map((value) => value.replace(/\/+$/, "")))
+    .transform((raw) =>
+      splitList(raw).map((value) => value.replace(/\/+$/, "")),
+    )
     .pipe(z.array(z.url()));
 
 /**
@@ -82,6 +88,8 @@ const envSchema = z.object({
   VIA_APP_CLIENT_KEYS: secretList(),
   VIA_SITE_CLIENT_KEYS: secretList(),
   VIA_ALLOWED_ORIGINS: originList(),
+  /** Canonical web origin embedded in links created by the iOS app. */
+  VIA_SITE_URL: z.url().default("https://metyro.app"),
   /** The Géoplateforme (BAN) geocoder. Overridable to point tests at a fake. */
   BAN_SEARCH_URL: z.url().default("https://data.geopf.fr/geocodage/search"),
   /** Public GBFS feeds published by Vélib' Métropole and refreshed every minute. */
@@ -95,6 +103,23 @@ const envSchema = z.object({
     .default(
       "https://velib-metropole-opendata.smovengo.cloud/opendata/Velib_Metropole/station_status.json",
     ),
+  /** Shared mobility manifests aggregated by the first-party network route. */
+  DOTT_GBFS_FRANCE_URL: z
+    .url()
+    .default("https://gbfs.api.ridedott.com/public/v2/countries/fr/gbfs.json"),
+  LIME_GBFS_URL: z
+    .url()
+    .default(
+      "https://data.lime.bike/api/partners/v2/gbfs/parisproper/gbfs.json",
+    ),
+  YEGO_GBFS_URL: z
+    .url()
+    .default("https://services.rideyego.com/gbfs/2-2/paris/fr/gbfs"),
+  SHARED_MOBILITY_TIMEOUT_MS: z
+    .string()
+    .default("8000")
+    .transform(Number)
+    .pipe(z.number().int().min(1_000).max(30_000)),
   /** Local or hosted Redis used for the PRIM cache and daily quota counter. */
   REDIS_URL: z.url().default("redis://localhost:6379"),
   /**

@@ -1,31 +1,32 @@
-import { env } from '../env';
-import { implementer } from '../orpc/implementer';
-import { redis } from '../redis';
-import { accountRouter } from './account/router';
-import { departuresRouter } from './departures/router';
-import { healthRouter } from './health/router';
-import { createGtfsJourneyPlanner } from './journeys/gtfs/loader';
-import { createIdfmJourneyPlanner } from './journeys/idfm/client';
-import { loadJourneyShapes } from './journeys/idfm/shape-loader';
-import { createJourneysRouter } from './journeys/router';
-import { withLastDeparture } from './journeys/last-departure';
-import { createJourneyPlanner } from './journeys/service';
-import { createJourneyDepartureChoicesModule } from './journeys/departure-choices';
-import { linesRouter } from './lines/router';
-import { createNaturalJourneysRouter } from './natural-journeys/router';
-import { createOpenAiResponsesTransport } from './natural-journeys/openai-transport';
-import { createNaturalJourneyService } from './natural-journeys/service';
-import { networkRouter } from './network/router';
-import { notificationsRouter } from './notifications/router';
-import { searchRouter } from './search/router';
-import { reportsRouter } from './reports/router';
-import { createDatabaseJourneyReportOverlay } from './journeys/community-reports';
-import { createOfficialJourneyDisruptionOverlay } from './journeys/official-disruptions';
-import { readCachedStationSnapshot } from './departures/cache';
+import { env } from "../env";
+import { implementer } from "../orpc/implementer";
+import { redis } from "../redis";
+import { accountRouter } from "./account/router";
+import { departuresRouter } from "./departures/router";
+import { healthRouter } from "./health/router";
+import { createGtfsJourneyPlanner } from "./journeys/gtfs/loader";
+import { createIdfmJourneyPlanner } from "./journeys/idfm/client";
+import { loadJourneyShapes } from "./journeys/idfm/shape-loader";
+import { createJourneysRouter } from "./journeys/router";
+import { withLastDeparture } from "./journeys/last-departure";
+import { createJourneyPlanner } from "./journeys/service";
+import { createJourneyDepartureChoicesModule } from "./journeys/departure-choices";
+import { journeySharesRouter } from "./journey-shares/router";
+import { linesRouter } from "./lines/router";
+import { createNaturalJourneysRouter } from "./natural-journeys/router";
+import { createOpenAiResponsesTransport } from "./natural-journeys/openai-transport";
+import { createNaturalJourneyService } from "./natural-journeys/service";
+import { networkRouter } from "./network/router";
+import { notificationsRouter } from "./notifications/router";
+import { searchRouter } from "./search/router";
+import { reportsRouter } from "./reports/router";
+import { createDatabaseJourneyReportOverlay } from "./journeys/community-reports";
+import { createOfficialJourneyDisruptionOverlay } from "./journeys/official-disruptions";
+import { readCachedStationSnapshot } from "./departures/cache";
 import {
   transitNetworkCacheVersion,
   transitStationSnapshotCacheKey,
-} from './departures/network-version';
+} from "./departures/network-version";
 
 const baseJourneyPlanner = createJourneyPlanner({
   redis,
@@ -110,6 +111,7 @@ export const apiRouter = implementer.router({
   departures: departuresRouter,
   health: healthRouter,
   journeys: createJourneysRouter(journeyPlanner, journeyDepartureChoices),
+  journeyShares: journeySharesRouter,
   naturalJourneys: createNaturalJourneysRouter(naturalJourneyService),
   notifications: notificationsRouter,
   lines: linesRouter,

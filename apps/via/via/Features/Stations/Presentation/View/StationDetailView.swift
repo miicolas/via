@@ -47,7 +47,7 @@ struct StationDetailView: View {
 
             StationDeparturesSection(
               routes: currentStation.routes,
-              departures: currentStation.departures,
+              departures: currentStation.departureBoard,
               source: currentStation.departureSource,
               fetchedAt: currentStation.departureFetchedAt,
               loadingState: selection.loadingState,

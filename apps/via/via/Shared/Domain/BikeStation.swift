@@ -24,7 +24,7 @@ struct BikeStationAvailability: Sendable, Hashable, Codable {
     }
 }
 
-struct BikeStation: Sendable, Hashable, Identifiable {
+struct BikeStation: Sendable, Hashable, Identifiable, Codable {
     /// How long a dock count stays believable. One owner for the cached tile's
     /// expiry and for the map's refresh cadence, so they cannot drift apart.
     static let freshness: Duration = .seconds(60)

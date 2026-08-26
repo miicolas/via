@@ -54,6 +54,20 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `POST /journeys/departure-choices`.
     /// - Remark: Generated from `#/paths//journeys/departure-choices/post(journeys.departureChoices)`.
     func journeys_period_departureChoices(_ input: Operations.journeys_period_departureChoices.Input) async throws -> Operations.journeys_period_departureChoices.Output
+    /// Lire un trajet partagé
+    ///
+    /// Retourne un snapshot de trajet partagé identifié par son token opaque.
+    ///
+    /// - Remark: HTTP `GET /journeys/shares`.
+    /// - Remark: Generated from `#/paths//journeys/shares/get(journeyShares.get)`.
+    func journeyShares_period_get(_ input: Operations.journeyShares_period_get.Input) async throws -> Operations.journeyShares_period_get.Output
+    /// Créer un lien de partage de trajet
+    ///
+    /// Conserve le trajet choisi sous forme de snapshot immuable et retourne un lien web partageable.
+    ///
+    /// - Remark: HTTP `POST /journeys/shares`.
+    /// - Remark: Generated from `#/paths//journeys/shares/post(journeyShares.create)`.
+    func journeyShares_period_create(_ input: Operations.journeyShares_period_create.Input) async throws -> Operations.journeyShares_period_create.Output
     /// Interpréter une phrase de trajet
     ///
     /// Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres déterministes et des alias personnels opaques, puis renvoie le même patch typé que le modèle local. La résolution et la planification restent sur l’appareil.
@@ -159,6 +173,13 @@ internal protocol APIProtocol: Sendable {
     /// - Remark: HTTP `GET /network/bike-stations`.
     /// - Remark: Generated from `#/paths//network/bike-stations/get(network.bikeStationsInArea)`.
     func network_period_bikeStationsInArea(_ input: Operations.network_period_bikeStationsInArea.Input) async throws -> Operations.network_period_bikeStationsInArea.Output
+    /// Les véhicules et stations de mobilité partagée d’une zone
+    ///
+    /// Les vélos et trottinettes actuellement louables de Dott/TIER, Lime et YEGO, ainsi que les stations Vélib’ avec leur inventaire. Les données expirées et les véhicules réservés ou désactivés sont masqués. Le statut de chaque source est retourné séparément pour qu’une panne d’opérateur ne masque pas les autres.
+    ///
+    /// - Remark: HTTP `GET /network/shared-mobility`.
+    /// - Remark: Generated from `#/paths//network/shared-mobility/get(network.sharedMobilityInArea)`.
+    func network_period_sharedMobilityInArea(_ input: Operations.network_period_sharedMobilityInArea.Input) async throws -> Operations.network_period_sharedMobilityInArea.Output
     /// L’affluence habituelle d’une station
     ///
     /// Le profil horaire habituel des validations IDFM sur 24 heures, pour les trois types de jour que la source distingue : semaine, samedi, dimanche et fériés. Un profil type mis à jour chaque trimestre, pas du temps réel — et réseau ferré uniquement : une station de bus répond sans profil.
@@ -271,6 +292,36 @@ extension APIProtocol {
         body: Operations.journeys_period_departureChoices.Input.Body
     ) async throws -> Operations.journeys_period_departureChoices.Output {
         try await journeys_period_departureChoices(Operations.journeys_period_departureChoices.Input(
+            headers: headers,
+            body: body
+        ))
+    }
+    /// Lire un trajet partagé
+    ///
+    /// Retourne un snapshot de trajet partagé identifié par son token opaque.
+    ///
+    /// - Remark: HTTP `GET /journeys/shares`.
+    /// - Remark: Generated from `#/paths//journeys/shares/get(journeyShares.get)`.
+    internal func journeyShares_period_get(
+        query: Operations.journeyShares_period_get.Input.Query,
+        headers: Operations.journeyShares_period_get.Input.Headers = .init()
+    ) async throws -> Operations.journeyShares_period_get.Output {
+        try await journeyShares_period_get(Operations.journeyShares_period_get.Input(
+            query: query,
+            headers: headers
+        ))
+    }
+    /// Créer un lien de partage de trajet
+    ///
+    /// Conserve le trajet choisi sous forme de snapshot immuable et retourne un lien web partageable.
+    ///
+    /// - Remark: HTTP `POST /journeys/shares`.
+    /// - Remark: Generated from `#/paths//journeys/shares/post(journeyShares.create)`.
+    internal func journeyShares_period_create(
+        headers: Operations.journeyShares_period_create.Input.Headers = .init(),
+        body: Operations.journeyShares_period_create.Input.Body
+    ) async throws -> Operations.journeyShares_period_create.Output {
+        try await journeyShares_period_create(Operations.journeyShares_period_create.Input(
             headers: headers,
             body: body
         ))
@@ -484,6 +535,21 @@ extension APIProtocol {
         headers: Operations.network_period_bikeStationsInArea.Input.Headers = .init()
     ) async throws -> Operations.network_period_bikeStationsInArea.Output {
         try await network_period_bikeStationsInArea(Operations.network_period_bikeStationsInArea.Input(
+            query: query,
+            headers: headers
+        ))
+    }
+    /// Les véhicules et stations de mobilité partagée d’une zone
+    ///
+    /// Les vélos et trottinettes actuellement louables de Dott/TIER, Lime et YEGO, ainsi que les stations Vélib’ avec leur inventaire. Les données expirées et les véhicules réservés ou désactivés sont masqués. Le statut de chaque source est retourné séparément pour qu’une panne d’opérateur ne masque pas les autres.
+    ///
+    /// - Remark: HTTP `GET /network/shared-mobility`.
+    /// - Remark: Generated from `#/paths//network/shared-mobility/get(network.sharedMobilityInArea)`.
+    internal func network_period_sharedMobilityInArea(
+        query: Operations.network_period_sharedMobilityInArea.Input.Query,
+        headers: Operations.network_period_sharedMobilityInArea.Input.Headers = .init()
+    ) async throws -> Operations.network_period_sharedMobilityInArea.Output {
+        try await network_period_sharedMobilityInArea(Operations.network_period_sharedMobilityInArea.Input(
             query: query,
             headers: headers
         ))
@@ -7377,6 +7443,2866 @@ internal enum Operations {
             }
         }
     }
+    /// Lire un trajet partagé
+    ///
+    /// Retourne un snapshot de trajet partagé identifié par son token opaque.
+    ///
+    /// - Remark: HTTP `GET /journeys/shares`.
+    /// - Remark: Generated from `#/paths//journeys/shares/get(journeyShares.get)`.
+    internal enum journeyShares_period_get {
+        internal static let id: Swift.String = "journeyShares.get"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/journeys/shares/GET/query`.
+            internal struct Query: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/journeys/shares/GET/query/token`.
+                internal var token: Swift.String
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - token:
+                internal init(token: Swift.String) {
+                    self.token = token
+                }
+            }
+            internal var query: Operations.journeyShares_period_get.Input.Query
+            /// - Remark: Generated from `#/paths/journeys/shares/GET/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.journeyShares_period_get.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.journeyShares_period_get.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.journeyShares_period_get.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            internal init(
+                query: Operations.journeyShares_period_get.Input.Query,
+                headers: Operations.journeyShares_period_get.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot`.
+                        internal struct snapshotPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/schemaVersion`.
+                            internal var schemaVersion: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey`.
+                            internal struct journeyPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/qualifier`.
+                                internal enum qualifierPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case recommended = "recommended"
+                                    case rapid = "rapid"
+                                    case less_hyphen_walking = "less-walking"
+                                    case comfort = "comfort"
+                                    case walking = "walking"
+                                    case bike = "bike"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/qualifier`.
+                                internal var qualifier: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.qualifierPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/durationSeconds`.
+                                internal var durationSeconds: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/walkingDurationSeconds`.
+                                internal var walkingDurationSeconds: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/transferCount`.
+                                internal var transferCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/departureAt`.
+                                internal var departureAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/arrivalAt`.
+                                internal var arrivalAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case normal = "normal"
+                                    case disrupted = "disrupted"
+                                    case theoretical = "theoretical"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/status`.
+                                internal var status: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/warnings`.
+                                internal var warnings: [Swift.String]
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/accessibility`.
+                                internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/accessibility/condition`.
+                                    internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case reservationRequired = "reservationRequired"
+                                        case staffAssistance = "staffAssistance"
+                                        case autonomous = "autonomous"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/accessibility/condition`.
+                                    internal var condition: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload.conditionPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/accessibility/label`.
+                                    internal var label: Swift.String
+                                    /// Creates a new `accessibilityPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - condition:
+                                    ///   - label:
+                                    internal init(
+                                        condition: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload.conditionPayload,
+                                        label: Swift.String
+                                    ) {
+                                        self.condition = condition
+                                        self.label = label
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case condition
+                                        case label
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/accessibility`.
+                                internal var accessibility: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/peak`.
+                                internal struct peakPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/peak/ratio`.
+                                    internal var ratio: Swift.Double
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/peak/level`.
+                                    internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case moderate = "moderate"
+                                        case peak = "peak"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/peak/level`.
+                                    internal var level: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload.levelPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/peak/stationId`.
+                                    internal var stationId: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/peak/stationName`.
+                                    internal var stationName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/peak/label`.
+                                    internal var label: Swift.String
+                                    /// Creates a new `peakPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - ratio:
+                                    ///   - level:
+                                    ///   - stationId:
+                                    ///   - stationName:
+                                    ///   - label:
+                                    internal init(
+                                        ratio: Swift.Double,
+                                        level: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload.levelPayload,
+                                        stationId: Swift.String? = nil,
+                                        stationName: Swift.String,
+                                        label: Swift.String
+                                    ) {
+                                        self.ratio = ratio
+                                        self.level = level
+                                        self.stationId = stationId
+                                        self.stationName = stationName
+                                        self.label = label
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case ratio
+                                        case level
+                                        case stationId
+                                        case stationName
+                                        case label
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/peak`.
+                                internal var peak: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/reportedCrowding`.
+                                internal struct reportedCrowdingPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/reportedCrowding/level`.
+                                    internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case low = "low"
+                                        case moderate = "moderate"
+                                        case high = "high"
+                                        case saturated = "saturated"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/reportedCrowding/level`.
+                                    internal var level: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload.levelPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/reportedCrowding/stationName`.
+                                    internal var stationName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/reportedCrowding/label`.
+                                    internal var label: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/reportedCrowding/reporterCount`.
+                                    internal var reporterCount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/reportedCrowding/expiresAt`.
+                                    internal var expiresAt: Foundation.Date
+                                    /// Creates a new `reportedCrowdingPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - level:
+                                    ///   - stationName:
+                                    ///   - label:
+                                    ///   - reporterCount:
+                                    ///   - expiresAt:
+                                    internal init(
+                                        level: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload.levelPayload,
+                                        stationName: Swift.String,
+                                        label: Swift.String,
+                                        reporterCount: Swift.Int,
+                                        expiresAt: Foundation.Date
+                                    ) {
+                                        self.level = level
+                                        self.stationName = stationName
+                                        self.label = label
+                                        self.reporterCount = reporterCount
+                                        self.expiresAt = expiresAt
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case level
+                                        case stationName
+                                        case label
+                                        case reporterCount
+                                        case expiresAt
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/reportedCrowding`.
+                                internal var reportedCrowding: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/wheelchairReport`.
+                                internal struct wheelchairReportPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/wheelchairReport/stationName`.
+                                    internal var stationName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/wheelchairReport/label`.
+                                    internal var label: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/wheelchairReport/reporterCount`.
+                                    internal var reporterCount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/wheelchairReport/confidence`.
+                                    internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case observed = "observed"
+                                        case confirmed = "confirmed"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/wheelchairReport/confidence`.
+                                    internal var confidence: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload.confidencePayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/wheelchairReport/expiresAt`.
+                                    internal var expiresAt: Foundation.Date
+                                    /// Creates a new `wheelchairReportPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - stationName:
+                                    ///   - label:
+                                    ///   - reporterCount:
+                                    ///   - confidence:
+                                    ///   - expiresAt:
+                                    internal init(
+                                        stationName: Swift.String,
+                                        label: Swift.String,
+                                        reporterCount: Swift.Int,
+                                        confidence: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload.confidencePayload,
+                                        expiresAt: Foundation.Date
+                                    ) {
+                                        self.stationName = stationName
+                                        self.label = label
+                                        self.reporterCount = reporterCount
+                                        self.confidence = confidence
+                                        self.expiresAt = expiresAt
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case stationName
+                                        case label
+                                        case reporterCount
+                                        case confidence
+                                        case expiresAt
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/wheelchairReport`.
+                                internal var wheelchairReport: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload`.
+                                internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/id`.
+                                    internal var id: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/type`.
+                                    internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case walk = "walk"
+                                        case bike = "bike"
+                                        case wait = "wait"
+                                        case transfer = "transfer"
+                                        case transit = "transit"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/type`.
+                                    internal var _type: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload._typePayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/durationSeconds`.
+                                    internal var durationSeconds: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/from`.
+                                    internal struct fromPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/from/name`.
+                                        internal var name: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/from/coordinate`.
+                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/from/coordinate/latitude`.
+                                            internal var latitude: Swift.Double
+                                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/from/coordinate/longitude`.
+                                            internal var longitude: Swift.Double
+                                            /// Creates a new `coordinatePayload`.
+                                            ///
+                                            /// - Parameters:
+                                            ///   - latitude:
+                                            ///   - longitude:
+                                            internal init(
+                                                latitude: Swift.Double,
+                                                longitude: Swift.Double
+                                            ) {
+                                                self.latitude = latitude
+                                                self.longitude = longitude
+                                            }
+                                            internal enum CodingKeys: String, CodingKey {
+                                                case latitude
+                                                case longitude
+                                            }
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/from/coordinate`.
+                                        internal var coordinate: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                        /// Creates a new `fromPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - name:
+                                        ///   - coordinate:
+                                        internal init(
+                                            name: Swift.String,
+                                            coordinate: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                        ) {
+                                            self.name = name
+                                            self.coordinate = coordinate
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case name
+                                            case coordinate
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/from`.
+                                    internal var from: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/to`.
+                                    internal struct toPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/to/name`.
+                                        internal var name: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/to/coordinate`.
+                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/to/coordinate/latitude`.
+                                            internal var latitude: Swift.Double
+                                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/to/coordinate/longitude`.
+                                            internal var longitude: Swift.Double
+                                            /// Creates a new `coordinatePayload`.
+                                            ///
+                                            /// - Parameters:
+                                            ///   - latitude:
+                                            ///   - longitude:
+                                            internal init(
+                                                latitude: Swift.Double,
+                                                longitude: Swift.Double
+                                            ) {
+                                                self.latitude = latitude
+                                                self.longitude = longitude
+                                            }
+                                            internal enum CodingKeys: String, CodingKey {
+                                                case latitude
+                                                case longitude
+                                            }
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/to/coordinate`.
+                                        internal var coordinate: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                        /// Creates a new `toPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - name:
+                                        ///   - coordinate:
+                                        internal init(
+                                            name: Swift.String,
+                                            coordinate: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                        ) {
+                                            self.name = name
+                                            self.coordinate = coordinate
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case name
+                                            case coordinate
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/to`.
+                                    internal var to: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/departureAt`.
+                                    internal var departureAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/arrivalAt`.
+                                    internal var arrivalAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/scheduledDepartureAt`.
+                                    internal var scheduledDepartureAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/scheduledArrivalAt`.
+                                    internal var scheduledArrivalAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/geometryPayload`.
+                                    internal struct geometryPayloadPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/geometryPayload/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/geometryPayload/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `geometryPayloadPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/geometry`.
+                                    internal typealias geometryPayload = [Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayloadPayload]
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/geometry`.
+                                    internal var geometry: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route`.
+                                    internal struct routePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route/id`.
+                                        internal var id: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route/shortName`.
+                                        internal var shortName: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route/longName`.
+                                        internal var longName: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route/mode`.
+                                        internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                            case metro = "metro"
+                                            case rer = "rer"
+                                            case transilien = "transilien"
+                                            case tram = "tram"
+                                            case bus = "bus"
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route/mode`.
+                                        internal var mode: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route/color`.
+                                        internal var color: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route/textColor`.
+                                        internal var textColor: Swift.String
+                                        /// Creates a new `routePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - id:
+                                        ///   - shortName:
+                                        ///   - longName:
+                                        ///   - mode:
+                                        ///   - color:
+                                        ///   - textColor:
+                                        internal init(
+                                            id: Swift.String,
+                                            shortName: Swift.String,
+                                            longName: Swift.String,
+                                            mode: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload,
+                                            color: Swift.String,
+                                            textColor: Swift.String
+                                        ) {
+                                            self.id = id
+                                            self.shortName = shortName
+                                            self.longName = longName
+                                            self.mode = mode
+                                            self.color = color
+                                            self.textColor = textColor
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case id
+                                            case shortName
+                                            case longName
+                                            case mode
+                                            case color
+                                            case textColor
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/route`.
+                                    internal var route: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/direction`.
+                                    internal var direction: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/platform`.
+                                    internal var platform: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload`.
+                                    internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/id`.
+                                        internal var id: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/stationId`.
+                                        internal var stationId: Swift.String?
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/name`.
+                                        internal var name: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate`.
+                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate/latitude`.
+                                            internal var latitude: Swift.Double
+                                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate/longitude`.
+                                            internal var longitude: Swift.Double
+                                            /// Creates a new `coordinatePayload`.
+                                            ///
+                                            /// - Parameters:
+                                            ///   - latitude:
+                                            ///   - longitude:
+                                            internal init(
+                                                latitude: Swift.Double,
+                                                longitude: Swift.Double
+                                            ) {
+                                                self.latitude = latitude
+                                                self.longitude = longitude
+                                            }
+                                            internal enum CodingKeys: String, CodingKey {
+                                                case latitude
+                                                case longitude
+                                            }
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate`.
+                                        internal var coordinate: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/arrivalAt`.
+                                        internal var arrivalAt: Foundation.Date?
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/departureAt`.
+                                        internal var departureAt: Foundation.Date?
+                                        /// Creates a new `stopsPayloadPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - id:
+                                        ///   - stationId:
+                                        ///   - name:
+                                        ///   - coordinate:
+                                        ///   - arrivalAt:
+                                        ///   - departureAt:
+                                        internal init(
+                                            id: Swift.String,
+                                            stationId: Swift.String? = nil,
+                                            name: Swift.String,
+                                            coordinate: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload,
+                                            arrivalAt: Foundation.Date? = nil,
+                                            departureAt: Foundation.Date? = nil
+                                        ) {
+                                            self.id = id
+                                            self.stationId = stationId
+                                            self.name = name
+                                            self.coordinate = coordinate
+                                            self.arrivalAt = arrivalAt
+                                            self.departureAt = departureAt
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case id
+                                            case stationId
+                                            case name
+                                            case coordinate
+                                            case arrivalAt
+                                            case departureAt
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stops`.
+                                    internal typealias stopsPayload = [Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload]
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/stops`.
+                                    internal var stops: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/serviceId`.
+                                    internal var serviceId: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/timingSource`.
+                                    internal enum timingSourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case realtime = "realtime"
+                                        case theoretical = "theoretical"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/timingSource`.
+                                    internal var timingSource: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/departureStatus`.
+                                    internal enum departureStatusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case on_time = "on_time"
+                                        case delayed = "delayed"
+                                        case early = "early"
+                                        case cancelled = "cancelled"
+                                        case missed = "missed"
+                                        case arrived = "arrived"
+                                        case departed = "departed"
+                                        case no_report = "no_report"
+                                        case scheduled = "scheduled"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/departureStatus`.
+                                    internal var departureStatus: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition`.
+                                    internal struct boardingPositionPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/car`.
+                                        internal var car: Swift.Int
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/carCount`.
+                                        internal var carCount: Swift.Int
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/zone`.
+                                        internal enum zonePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                            case front = "front"
+                                            case middle = "middle"
+                                            case rear = "rear"
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/zone`.
+                                        internal var zone: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/reason`.
+                                        internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                            case exit = "exit"
+                                            case transfer = "transfer"
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/reason`.
+                                        internal var reason: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/equipment`.
+                                        internal enum equipmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                            case escalator = "escalator"
+                                            case lift = "lift"
+                                            case stairs = "stairs"
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/equipment`.
+                                        internal var equipment: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload?
+                                        /// Creates a new `boardingPositionPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - car:
+                                        ///   - carCount:
+                                        ///   - zone:
+                                        ///   - reason:
+                                        ///   - equipment:
+                                        internal init(
+                                            car: Swift.Int,
+                                            carCount: Swift.Int,
+                                            zone: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload,
+                                            reason: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload,
+                                            equipment: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload? = nil
+                                        ) {
+                                            self.car = car
+                                            self.carCount = carCount
+                                            self.zone = zone
+                                            self.reason = reason
+                                            self.equipment = equipment
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case car
+                                            case carCount
+                                            case zone
+                                            case reason
+                                            case equipment
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition`.
+                                    internal var boardingPosition: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit`.
+                                    internal struct exitPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit/id`.
+                                        internal var id: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit/name`.
+                                        internal var name: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit/number`.
+                                        internal var number: Swift.Int?
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit/coordinate`.
+                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit/coordinate/latitude`.
+                                            internal var latitude: Swift.Double
+                                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit/coordinate/longitude`.
+                                            internal var longitude: Swift.Double
+                                            /// Creates a new `coordinatePayload`.
+                                            ///
+                                            /// - Parameters:
+                                            ///   - latitude:
+                                            ///   - longitude:
+                                            internal init(
+                                                latitude: Swift.Double,
+                                                longitude: Swift.Double
+                                            ) {
+                                                self.latitude = latitude
+                                                self.longitude = longitude
+                                            }
+                                            internal enum CodingKeys: String, CodingKey {
+                                                case latitude
+                                                case longitude
+                                            }
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit/coordinate`.
+                                        internal var coordinate: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit/walkingMeters`.
+                                        internal var walkingMeters: Swift.Int?
+                                        /// Creates a new `exitPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - id:
+                                        ///   - name:
+                                        ///   - number:
+                                        ///   - coordinate:
+                                        ///   - walkingMeters:
+                                        internal init(
+                                            id: Swift.String,
+                                            name: Swift.String,
+                                            number: Swift.Int? = nil,
+                                            coordinate: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload,
+                                            walkingMeters: Swift.Int? = nil
+                                        ) {
+                                            self.id = id
+                                            self.name = name
+                                            self.number = number
+                                            self.coordinate = coordinate
+                                            self.walkingMeters = walkingMeters
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case id
+                                            case name
+                                            case number
+                                            case coordinate
+                                            case walkingMeters
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sectionsPayload/exit`.
+                                    internal var exit: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload?
+                                    /// Creates a new `sectionsPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - _type:
+                                    ///   - durationSeconds:
+                                    ///   - from:
+                                    ///   - to:
+                                    ///   - departureAt:
+                                    ///   - arrivalAt:
+                                    ///   - scheduledDepartureAt:
+                                    ///   - scheduledArrivalAt:
+                                    ///   - geometry:
+                                    ///   - route:
+                                    ///   - direction:
+                                    ///   - platform:
+                                    ///   - stops:
+                                    ///   - serviceId:
+                                    ///   - timingSource:
+                                    ///   - departureStatus:
+                                    ///   - boardingPosition:
+                                    ///   - exit:
+                                    internal init(
+                                        id: Swift.String? = nil,
+                                        _type: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload._typePayload,
+                                        durationSeconds: Swift.Int,
+                                        from: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload,
+                                        to: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload,
+                                        departureAt: Foundation.Date? = nil,
+                                        arrivalAt: Foundation.Date? = nil,
+                                        scheduledDepartureAt: Foundation.Date? = nil,
+                                        scheduledArrivalAt: Foundation.Date? = nil,
+                                        geometry: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayload,
+                                        route: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload? = nil,
+                                        direction: Swift.String? = nil,
+                                        platform: Swift.String? = nil,
+                                        stops: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayload? = nil,
+                                        serviceId: Swift.String? = nil,
+                                        timingSource: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload? = nil,
+                                        departureStatus: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload? = nil,
+                                        boardingPosition: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload? = nil,
+                                        exit: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload? = nil
+                                    ) {
+                                        self.id = id
+                                        self._type = _type
+                                        self.durationSeconds = durationSeconds
+                                        self.from = from
+                                        self.to = to
+                                        self.departureAt = departureAt
+                                        self.arrivalAt = arrivalAt
+                                        self.scheduledDepartureAt = scheduledDepartureAt
+                                        self.scheduledArrivalAt = scheduledArrivalAt
+                                        self.geometry = geometry
+                                        self.route = route
+                                        self.direction = direction
+                                        self.platform = platform
+                                        self.stops = stops
+                                        self.serviceId = serviceId
+                                        self.timingSource = timingSource
+                                        self.departureStatus = departureStatus
+                                        self.boardingPosition = boardingPosition
+                                        self.exit = exit
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case _type = "type"
+                                        case durationSeconds
+                                        case from
+                                        case to
+                                        case departureAt
+                                        case arrivalAt
+                                        case scheduledDepartureAt
+                                        case scheduledArrivalAt
+                                        case geometry
+                                        case route
+                                        case direction
+                                        case platform
+                                        case stops
+                                        case serviceId
+                                        case timingSource
+                                        case departureStatus
+                                        case boardingPosition
+                                        case exit
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sections`.
+                                internal typealias sectionsPayload = [Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload]
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/sections`.
+                                internal var sections: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayload
+                                /// Creates a new `journeyPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - qualifier:
+                                ///   - durationSeconds:
+                                ///   - walkingDurationSeconds:
+                                ///   - transferCount:
+                                ///   - departureAt:
+                                ///   - arrivalAt:
+                                ///   - status:
+                                ///   - warnings:
+                                ///   - accessibility:
+                                ///   - peak:
+                                ///   - reportedCrowding:
+                                ///   - wheelchairReport:
+                                ///   - sections:
+                                internal init(
+                                    id: Swift.String,
+                                    qualifier: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.qualifierPayload,
+                                    durationSeconds: Swift.Int,
+                                    walkingDurationSeconds: Swift.Int,
+                                    transferCount: Swift.Int,
+                                    departureAt: Foundation.Date,
+                                    arrivalAt: Foundation.Date,
+                                    status: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload,
+                                    warnings: [Swift.String],
+                                    accessibility: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload? = nil,
+                                    peak: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload? = nil,
+                                    reportedCrowding: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload? = nil,
+                                    wheelchairReport: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload? = nil,
+                                    sections: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayload
+                                ) {
+                                    self.id = id
+                                    self.qualifier = qualifier
+                                    self.durationSeconds = durationSeconds
+                                    self.walkingDurationSeconds = walkingDurationSeconds
+                                    self.transferCount = transferCount
+                                    self.departureAt = departureAt
+                                    self.arrivalAt = arrivalAt
+                                    self.status = status
+                                    self.warnings = warnings
+                                    self.accessibility = accessibility
+                                    self.peak = peak
+                                    self.reportedCrowding = reportedCrowding
+                                    self.wheelchairReport = wheelchairReport
+                                    self.sections = sections
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case qualifier
+                                    case durationSeconds
+                                    case walkingDurationSeconds
+                                    case transferCount
+                                    case departureAt
+                                    case arrivalAt
+                                    case status
+                                    case warnings
+                                    case accessibility
+                                    case peak
+                                    case reportedCrowding
+                                    case wheelchairReport
+                                    case sections
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey`.
+                            internal var journey: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload
+                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/generatedAt`.
+                            internal var generatedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/locale`.
+                            internal var locale: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/timeZone`.
+                            internal var timeZone: Swift.String
+                            /// Creates a new `snapshotPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - schemaVersion:
+                            ///   - journey:
+                            ///   - generatedAt:
+                            ///   - locale:
+                            ///   - timeZone:
+                            internal init(
+                                schemaVersion: OpenAPIRuntime.OpenAPIValueContainer,
+                                journey: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload,
+                                generatedAt: Foundation.Date,
+                                locale: Swift.String,
+                                timeZone: Swift.String
+                            ) {
+                                self.schemaVersion = schemaVersion
+                                self.journey = journey
+                                self.generatedAt = generatedAt
+                                self.locale = locale
+                                self.timeZone = timeZone
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case schemaVersion
+                                case journey
+                                case generatedAt
+                                case locale
+                                case timeZone
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot`.
+                        internal var snapshot: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload
+                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/createdAt`.
+                        internal var createdAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/expiresAt`.
+                        internal var expiresAt: Foundation.Date
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - snapshot:
+                        ///   - createdAt:
+                        ///   - expiresAt:
+                        internal init(
+                            snapshot: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload,
+                            createdAt: Foundation.Date,
+                            expiresAt: Foundation.Date
+                        ) {
+                            self.snapshot = snapshot
+                            self.createdAt = createdAt
+                            self.expiresAt = expiresAt
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case snapshot
+                            case createdAt
+                            case expiresAt
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/application\/json`.
+                    case json(Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.journeyShares_period_get.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.journeyShares_period_get.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//journeys/shares/get(journeyShares.get)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.journeyShares_period_get.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.journeyShares_period_get.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Créer un lien de partage de trajet
+    ///
+    /// Conserve le trajet choisi sous forme de snapshot immuable et retourne un lien web partageable.
+    ///
+    /// - Remark: HTTP `POST /journeys/shares`.
+    /// - Remark: Generated from `#/paths//journeys/shares/post(journeyShares.create)`.
+    internal enum journeyShares_period_create {
+        internal static let id: Swift.String = "journeyShares.create"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/journeys/shares/POST/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.journeyShares_period_create.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.journeyShares_period_create.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.journeyShares_period_create.Input.Headers
+            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody`.
+            internal enum Body: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json`.
+                internal struct jsonPayload: Codable, Hashable, Sendable {
+                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot`.
+                    internal struct snapshotPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/schemaVersion`.
+                        internal var schemaVersion: OpenAPIRuntime.OpenAPIValueContainer
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey`.
+                        internal struct journeyPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/id`.
+                            internal var id: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/qualifier`.
+                            internal enum qualifierPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case recommended = "recommended"
+                                case rapid = "rapid"
+                                case less_hyphen_walking = "less-walking"
+                                case comfort = "comfort"
+                                case walking = "walking"
+                                case bike = "bike"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/qualifier`.
+                            internal var qualifier: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.qualifierPayload
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/durationSeconds`.
+                            internal var durationSeconds: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/walkingDurationSeconds`.
+                            internal var walkingDurationSeconds: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/transferCount`.
+                            internal var transferCount: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/departureAt`.
+                            internal var departureAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/arrivalAt`.
+                            internal var arrivalAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/status`.
+                            internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                case normal = "normal"
+                                case disrupted = "disrupted"
+                                case theoretical = "theoretical"
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/status`.
+                            internal var status: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/warnings`.
+                            internal var warnings: [Swift.String]
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/accessibility`.
+                            internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/accessibility/condition`.
+                                internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case reservationRequired = "reservationRequired"
+                                    case staffAssistance = "staffAssistance"
+                                    case autonomous = "autonomous"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/accessibility/condition`.
+                                internal var condition: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload.conditionPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/accessibility/label`.
+                                internal var label: Swift.String
+                                /// Creates a new `accessibilityPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - condition:
+                                ///   - label:
+                                internal init(
+                                    condition: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload.conditionPayload,
+                                    label: Swift.String
+                                ) {
+                                    self.condition = condition
+                                    self.label = label
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case condition
+                                    case label
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/accessibility`.
+                            internal var accessibility: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload?
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/peak`.
+                            internal struct peakPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/peak/ratio`.
+                                internal var ratio: Swift.Double
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/peak/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case moderate = "moderate"
+                                    case peak = "peak"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/peak/level`.
+                                internal var level: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload.levelPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/peak/stationId`.
+                                internal var stationId: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/peak/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/peak/label`.
+                                internal var label: Swift.String
+                                /// Creates a new `peakPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - ratio:
+                                ///   - level:
+                                ///   - stationId:
+                                ///   - stationName:
+                                ///   - label:
+                                internal init(
+                                    ratio: Swift.Double,
+                                    level: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload.levelPayload,
+                                    stationId: Swift.String? = nil,
+                                    stationName: Swift.String,
+                                    label: Swift.String
+                                ) {
+                                    self.ratio = ratio
+                                    self.level = level
+                                    self.stationId = stationId
+                                    self.stationName = stationName
+                                    self.label = label
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case ratio
+                                    case level
+                                    case stationId
+                                    case stationName
+                                    case label
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/peak`.
+                            internal var peak: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload?
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/reportedCrowding`.
+                            internal struct reportedCrowdingPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/reportedCrowding/level`.
+                                internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case low = "low"
+                                    case moderate = "moderate"
+                                    case high = "high"
+                                    case saturated = "saturated"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/reportedCrowding/level`.
+                                internal var level: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload.levelPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/reportedCrowding/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/reportedCrowding/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/reportedCrowding/reporterCount`.
+                                internal var reporterCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/reportedCrowding/expiresAt`.
+                                internal var expiresAt: Foundation.Date
+                                /// Creates a new `reportedCrowdingPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - level:
+                                ///   - stationName:
+                                ///   - label:
+                                ///   - reporterCount:
+                                ///   - expiresAt:
+                                internal init(
+                                    level: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload.levelPayload,
+                                    stationName: Swift.String,
+                                    label: Swift.String,
+                                    reporterCount: Swift.Int,
+                                    expiresAt: Foundation.Date
+                                ) {
+                                    self.level = level
+                                    self.stationName = stationName
+                                    self.label = label
+                                    self.reporterCount = reporterCount
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case level
+                                    case stationName
+                                    case label
+                                    case reporterCount
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/reportedCrowding`.
+                            internal var reportedCrowding: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload?
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/wheelchairReport`.
+                            internal struct wheelchairReportPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/wheelchairReport/stationName`.
+                                internal var stationName: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/wheelchairReport/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/wheelchairReport/reporterCount`.
+                                internal var reporterCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/wheelchairReport/confidence`.
+                                internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case observed = "observed"
+                                    case confirmed = "confirmed"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/wheelchairReport/confidence`.
+                                internal var confidence: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload.confidencePayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/wheelchairReport/expiresAt`.
+                                internal var expiresAt: Foundation.Date
+                                /// Creates a new `wheelchairReportPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - stationName:
+                                ///   - label:
+                                ///   - reporterCount:
+                                ///   - confidence:
+                                ///   - expiresAt:
+                                internal init(
+                                    stationName: Swift.String,
+                                    label: Swift.String,
+                                    reporterCount: Swift.Int,
+                                    confidence: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload.confidencePayload,
+                                    expiresAt: Foundation.Date
+                                ) {
+                                    self.stationName = stationName
+                                    self.label = label
+                                    self.reporterCount = reporterCount
+                                    self.confidence = confidence
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case stationName
+                                    case label
+                                    case reporterCount
+                                    case confidence
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/wheelchairReport`.
+                            internal var wheelchairReport: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload?
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload`.
+                            internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/id`.
+                                internal var id: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/type`.
+                                internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case walk = "walk"
+                                    case bike = "bike"
+                                    case wait = "wait"
+                                    case transfer = "transfer"
+                                    case transit = "transit"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/type`.
+                                internal var _type: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload._typePayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/durationSeconds`.
+                                internal var durationSeconds: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/from`.
+                                internal struct fromPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/from/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/from/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/from/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/from/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/from/coordinate`.
+                                    internal var coordinate: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                    /// Creates a new `fromPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - name:
+                                    ///   - coordinate:
+                                    internal init(
+                                        name: Swift.String,
+                                        coordinate: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                    ) {
+                                        self.name = name
+                                        self.coordinate = coordinate
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case name
+                                        case coordinate
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/from`.
+                                internal var from: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/to`.
+                                internal struct toPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/to/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/to/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/to/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/to/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/to/coordinate`.
+                                    internal var coordinate: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                    /// Creates a new `toPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - name:
+                                    ///   - coordinate:
+                                    internal init(
+                                        name: Swift.String,
+                                        coordinate: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                    ) {
+                                        self.name = name
+                                        self.coordinate = coordinate
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case name
+                                        case coordinate
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/to`.
+                                internal var to: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/departureAt`.
+                                internal var departureAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/arrivalAt`.
+                                internal var arrivalAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/scheduledDepartureAt`.
+                                internal var scheduledDepartureAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/scheduledArrivalAt`.
+                                internal var scheduledArrivalAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/geometryPayload`.
+                                internal struct geometryPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/geometryPayload/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/geometryPayload/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `geometryPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/geometry`.
+                                internal typealias geometryPayload = [Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayloadPayload]
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/geometry`.
+                                internal var geometry: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route`.
+                                internal struct routePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route/shortName`.
+                                    internal var shortName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route/longName`.
+                                    internal var longName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route/mode`.
+                                    internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case metro = "metro"
+                                        case rer = "rer"
+                                        case transilien = "transilien"
+                                        case tram = "tram"
+                                        case bus = "bus"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route/mode`.
+                                    internal var mode: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route/color`.
+                                    internal var color: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route/textColor`.
+                                    internal var textColor: Swift.String
+                                    /// Creates a new `routePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - shortName:
+                                    ///   - longName:
+                                    ///   - mode:
+                                    ///   - color:
+                                    ///   - textColor:
+                                    internal init(
+                                        id: Swift.String,
+                                        shortName: Swift.String,
+                                        longName: Swift.String,
+                                        mode: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload,
+                                        color: Swift.String,
+                                        textColor: Swift.String
+                                    ) {
+                                        self.id = id
+                                        self.shortName = shortName
+                                        self.longName = longName
+                                        self.mode = mode
+                                        self.color = color
+                                        self.textColor = textColor
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case shortName
+                                        case longName
+                                        case mode
+                                        case color
+                                        case textColor
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/route`.
+                                internal var route: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/direction`.
+                                internal var direction: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/platform`.
+                                internal var platform: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload`.
+                                internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/stationId`.
+                                    internal var stationId: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate`.
+                                    internal var coordinate: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/arrivalAt`.
+                                    internal var arrivalAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stopsPayload/departureAt`.
+                                    internal var departureAt: Foundation.Date?
+                                    /// Creates a new `stopsPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - stationId:
+                                    ///   - name:
+                                    ///   - coordinate:
+                                    ///   - arrivalAt:
+                                    ///   - departureAt:
+                                    internal init(
+                                        id: Swift.String,
+                                        stationId: Swift.String? = nil,
+                                        name: Swift.String,
+                                        coordinate: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload,
+                                        arrivalAt: Foundation.Date? = nil,
+                                        departureAt: Foundation.Date? = nil
+                                    ) {
+                                        self.id = id
+                                        self.stationId = stationId
+                                        self.name = name
+                                        self.coordinate = coordinate
+                                        self.arrivalAt = arrivalAt
+                                        self.departureAt = departureAt
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case stationId
+                                        case name
+                                        case coordinate
+                                        case arrivalAt
+                                        case departureAt
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stops`.
+                                internal typealias stopsPayload = [Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload]
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/stops`.
+                                internal var stops: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/serviceId`.
+                                internal var serviceId: Swift.String?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/timingSource`.
+                                internal enum timingSourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case realtime = "realtime"
+                                    case theoretical = "theoretical"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/timingSource`.
+                                internal var timingSource: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/departureStatus`.
+                                internal enum departureStatusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case on_time = "on_time"
+                                    case delayed = "delayed"
+                                    case early = "early"
+                                    case cancelled = "cancelled"
+                                    case missed = "missed"
+                                    case arrived = "arrived"
+                                    case departed = "departed"
+                                    case no_report = "no_report"
+                                    case scheduled = "scheduled"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/departureStatus`.
+                                internal var departureStatus: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition`.
+                                internal struct boardingPositionPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition/car`.
+                                    internal var car: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition/carCount`.
+                                    internal var carCount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition/zone`.
+                                    internal enum zonePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case front = "front"
+                                        case middle = "middle"
+                                        case rear = "rear"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition/zone`.
+                                    internal var zone: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition/reason`.
+                                    internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case exit = "exit"
+                                        case transfer = "transfer"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition/reason`.
+                                    internal var reason: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition/equipment`.
+                                    internal enum equipmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case escalator = "escalator"
+                                        case lift = "lift"
+                                        case stairs = "stairs"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition/equipment`.
+                                    internal var equipment: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload?
+                                    /// Creates a new `boardingPositionPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - car:
+                                    ///   - carCount:
+                                    ///   - zone:
+                                    ///   - reason:
+                                    ///   - equipment:
+                                    internal init(
+                                        car: Swift.Int,
+                                        carCount: Swift.Int,
+                                        zone: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload,
+                                        reason: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload,
+                                        equipment: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload? = nil
+                                    ) {
+                                        self.car = car
+                                        self.carCount = carCount
+                                        self.zone = zone
+                                        self.reason = reason
+                                        self.equipment = equipment
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case car
+                                        case carCount
+                                        case zone
+                                        case reason
+                                        case equipment
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/boardingPosition`.
+                                internal var boardingPosition: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit`.
+                                internal struct exitPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit/id`.
+                                    internal var id: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit/name`.
+                                    internal var name: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit/number`.
+                                    internal var number: Swift.Int?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit/coordinate`.
+                                    internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit/coordinate/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit/coordinate/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `coordinatePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit/coordinate`.
+                                    internal var coordinate: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit/walkingMeters`.
+                                    internal var walkingMeters: Swift.Int?
+                                    /// Creates a new `exitPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - name:
+                                    ///   - number:
+                                    ///   - coordinate:
+                                    ///   - walkingMeters:
+                                    internal init(
+                                        id: Swift.String,
+                                        name: Swift.String,
+                                        number: Swift.Int? = nil,
+                                        coordinate: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload,
+                                        walkingMeters: Swift.Int? = nil
+                                    ) {
+                                        self.id = id
+                                        self.name = name
+                                        self.number = number
+                                        self.coordinate = coordinate
+                                        self.walkingMeters = walkingMeters
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case name
+                                        case number
+                                        case coordinate
+                                        case walkingMeters
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sectionsPayload/exit`.
+                                internal var exit: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload?
+                                /// Creates a new `sectionsPayloadPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - _type:
+                                ///   - durationSeconds:
+                                ///   - from:
+                                ///   - to:
+                                ///   - departureAt:
+                                ///   - arrivalAt:
+                                ///   - scheduledDepartureAt:
+                                ///   - scheduledArrivalAt:
+                                ///   - geometry:
+                                ///   - route:
+                                ///   - direction:
+                                ///   - platform:
+                                ///   - stops:
+                                ///   - serviceId:
+                                ///   - timingSource:
+                                ///   - departureStatus:
+                                ///   - boardingPosition:
+                                ///   - exit:
+                                internal init(
+                                    id: Swift.String? = nil,
+                                    _type: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload._typePayload,
+                                    durationSeconds: Swift.Int,
+                                    from: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload,
+                                    to: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload,
+                                    departureAt: Foundation.Date? = nil,
+                                    arrivalAt: Foundation.Date? = nil,
+                                    scheduledDepartureAt: Foundation.Date? = nil,
+                                    scheduledArrivalAt: Foundation.Date? = nil,
+                                    geometry: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayload,
+                                    route: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload? = nil,
+                                    direction: Swift.String? = nil,
+                                    platform: Swift.String? = nil,
+                                    stops: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayload? = nil,
+                                    serviceId: Swift.String? = nil,
+                                    timingSource: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload? = nil,
+                                    departureStatus: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload? = nil,
+                                    boardingPosition: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload? = nil,
+                                    exit: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload? = nil
+                                ) {
+                                    self.id = id
+                                    self._type = _type
+                                    self.durationSeconds = durationSeconds
+                                    self.from = from
+                                    self.to = to
+                                    self.departureAt = departureAt
+                                    self.arrivalAt = arrivalAt
+                                    self.scheduledDepartureAt = scheduledDepartureAt
+                                    self.scheduledArrivalAt = scheduledArrivalAt
+                                    self.geometry = geometry
+                                    self.route = route
+                                    self.direction = direction
+                                    self.platform = platform
+                                    self.stops = stops
+                                    self.serviceId = serviceId
+                                    self.timingSource = timingSource
+                                    self.departureStatus = departureStatus
+                                    self.boardingPosition = boardingPosition
+                                    self.exit = exit
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case _type = "type"
+                                    case durationSeconds
+                                    case from
+                                    case to
+                                    case departureAt
+                                    case arrivalAt
+                                    case scheduledDepartureAt
+                                    case scheduledArrivalAt
+                                    case geometry
+                                    case route
+                                    case direction
+                                    case platform
+                                    case stops
+                                    case serviceId
+                                    case timingSource
+                                    case departureStatus
+                                    case boardingPosition
+                                    case exit
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sections`.
+                            internal typealias sectionsPayload = [Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload]
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/sections`.
+                            internal var sections: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayload
+                            /// Creates a new `journeyPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - id:
+                            ///   - qualifier:
+                            ///   - durationSeconds:
+                            ///   - walkingDurationSeconds:
+                            ///   - transferCount:
+                            ///   - departureAt:
+                            ///   - arrivalAt:
+                            ///   - status:
+                            ///   - warnings:
+                            ///   - accessibility:
+                            ///   - peak:
+                            ///   - reportedCrowding:
+                            ///   - wheelchairReport:
+                            ///   - sections:
+                            internal init(
+                                id: Swift.String,
+                                qualifier: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.qualifierPayload,
+                                durationSeconds: Swift.Int,
+                                walkingDurationSeconds: Swift.Int,
+                                transferCount: Swift.Int,
+                                departureAt: Foundation.Date,
+                                arrivalAt: Foundation.Date,
+                                status: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload,
+                                warnings: [Swift.String],
+                                accessibility: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload? = nil,
+                                peak: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload? = nil,
+                                reportedCrowding: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload? = nil,
+                                wheelchairReport: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload? = nil,
+                                sections: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayload
+                            ) {
+                                self.id = id
+                                self.qualifier = qualifier
+                                self.durationSeconds = durationSeconds
+                                self.walkingDurationSeconds = walkingDurationSeconds
+                                self.transferCount = transferCount
+                                self.departureAt = departureAt
+                                self.arrivalAt = arrivalAt
+                                self.status = status
+                                self.warnings = warnings
+                                self.accessibility = accessibility
+                                self.peak = peak
+                                self.reportedCrowding = reportedCrowding
+                                self.wheelchairReport = wheelchairReport
+                                self.sections = sections
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case id
+                                case qualifier
+                                case durationSeconds
+                                case walkingDurationSeconds
+                                case transferCount
+                                case departureAt
+                                case arrivalAt
+                                case status
+                                case warnings
+                                case accessibility
+                                case peak
+                                case reportedCrowding
+                                case wheelchairReport
+                                case sections
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey`.
+                        internal var journey: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/generatedAt`.
+                        internal var generatedAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/locale`.
+                        internal var locale: Swift.String
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/timeZone`.
+                        internal var timeZone: Swift.String
+                        /// Creates a new `snapshotPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - schemaVersion:
+                        ///   - journey:
+                        ///   - generatedAt:
+                        ///   - locale:
+                        ///   - timeZone:
+                        internal init(
+                            schemaVersion: OpenAPIRuntime.OpenAPIValueContainer,
+                            journey: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload,
+                            generatedAt: Foundation.Date,
+                            locale: Swift.String,
+                            timeZone: Swift.String
+                        ) {
+                            self.schemaVersion = schemaVersion
+                            self.journey = journey
+                            self.generatedAt = generatedAt
+                            self.locale = locale
+                            self.timeZone = timeZone
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case schemaVersion
+                            case journey
+                            case generatedAt
+                            case locale
+                            case timeZone
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot`.
+                    internal var snapshot: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload
+                    /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/idempotencyKey`.
+                    internal var idempotencyKey: Swift.String
+                    /// Creates a new `jsonPayload`.
+                    ///
+                    /// - Parameters:
+                    ///   - snapshot:
+                    ///   - idempotencyKey:
+                    internal init(
+                        snapshot: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload,
+                        idempotencyKey: Swift.String
+                    ) {
+                        self.snapshot = snapshot
+                        self.idempotencyKey = idempotencyKey
+                    }
+                    internal enum CodingKeys: String, CodingKey {
+                        case snapshot
+                        case idempotencyKey
+                    }
+                }
+                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/content/application\/json`.
+                case json(Operations.journeyShares_period_create.Input.Body.jsonPayload)
+            }
+            internal var body: Operations.journeyShares_period_create.Input.Body
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - headers:
+            ///   - body:
+            internal init(
+                headers: Operations.journeyShares_period_create.Input.Headers = .init(),
+                body: Operations.journeyShares_period_create.Input.Body
+            ) {
+                self.headers = headers
+                self.body = body
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot`.
+                        internal struct snapshotPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/schemaVersion`.
+                            internal var schemaVersion: OpenAPIRuntime.OpenAPIValueContainer
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey`.
+                            internal struct journeyPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/qualifier`.
+                                internal enum qualifierPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case recommended = "recommended"
+                                    case rapid = "rapid"
+                                    case less_hyphen_walking = "less-walking"
+                                    case comfort = "comfort"
+                                    case walking = "walking"
+                                    case bike = "bike"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/qualifier`.
+                                internal var qualifier: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.qualifierPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/durationSeconds`.
+                                internal var durationSeconds: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/walkingDurationSeconds`.
+                                internal var walkingDurationSeconds: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/transferCount`.
+                                internal var transferCount: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/departureAt`.
+                                internal var departureAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/arrivalAt`.
+                                internal var arrivalAt: Foundation.Date
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case normal = "normal"
+                                    case disrupted = "disrupted"
+                                    case theoretical = "theoretical"
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/status`.
+                                internal var status: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/warnings`.
+                                internal var warnings: [Swift.String]
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/accessibility`.
+                                internal struct accessibilityPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/accessibility/condition`.
+                                    internal enum conditionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case reservationRequired = "reservationRequired"
+                                        case staffAssistance = "staffAssistance"
+                                        case autonomous = "autonomous"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/accessibility/condition`.
+                                    internal var condition: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload.conditionPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/accessibility/label`.
+                                    internal var label: Swift.String
+                                    /// Creates a new `accessibilityPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - condition:
+                                    ///   - label:
+                                    internal init(
+                                        condition: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload.conditionPayload,
+                                        label: Swift.String
+                                    ) {
+                                        self.condition = condition
+                                        self.label = label
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case condition
+                                        case label
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/accessibility`.
+                                internal var accessibility: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/peak`.
+                                internal struct peakPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/peak/ratio`.
+                                    internal var ratio: Swift.Double
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/peak/level`.
+                                    internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case moderate = "moderate"
+                                        case peak = "peak"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/peak/level`.
+                                    internal var level: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload.levelPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/peak/stationId`.
+                                    internal var stationId: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/peak/stationName`.
+                                    internal var stationName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/peak/label`.
+                                    internal var label: Swift.String
+                                    /// Creates a new `peakPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - ratio:
+                                    ///   - level:
+                                    ///   - stationId:
+                                    ///   - stationName:
+                                    ///   - label:
+                                    internal init(
+                                        ratio: Swift.Double,
+                                        level: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload.levelPayload,
+                                        stationId: Swift.String? = nil,
+                                        stationName: Swift.String,
+                                        label: Swift.String
+                                    ) {
+                                        self.ratio = ratio
+                                        self.level = level
+                                        self.stationId = stationId
+                                        self.stationName = stationName
+                                        self.label = label
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case ratio
+                                        case level
+                                        case stationId
+                                        case stationName
+                                        case label
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/peak`.
+                                internal var peak: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/reportedCrowding`.
+                                internal struct reportedCrowdingPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/reportedCrowding/level`.
+                                    internal enum levelPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case low = "low"
+                                        case moderate = "moderate"
+                                        case high = "high"
+                                        case saturated = "saturated"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/reportedCrowding/level`.
+                                    internal var level: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload.levelPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/reportedCrowding/stationName`.
+                                    internal var stationName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/reportedCrowding/label`.
+                                    internal var label: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/reportedCrowding/reporterCount`.
+                                    internal var reporterCount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/reportedCrowding/expiresAt`.
+                                    internal var expiresAt: Foundation.Date
+                                    /// Creates a new `reportedCrowdingPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - level:
+                                    ///   - stationName:
+                                    ///   - label:
+                                    ///   - reporterCount:
+                                    ///   - expiresAt:
+                                    internal init(
+                                        level: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload.levelPayload,
+                                        stationName: Swift.String,
+                                        label: Swift.String,
+                                        reporterCount: Swift.Int,
+                                        expiresAt: Foundation.Date
+                                    ) {
+                                        self.level = level
+                                        self.stationName = stationName
+                                        self.label = label
+                                        self.reporterCount = reporterCount
+                                        self.expiresAt = expiresAt
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case level
+                                        case stationName
+                                        case label
+                                        case reporterCount
+                                        case expiresAt
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/reportedCrowding`.
+                                internal var reportedCrowding: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/wheelchairReport`.
+                                internal struct wheelchairReportPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/wheelchairReport/stationName`.
+                                    internal var stationName: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/wheelchairReport/label`.
+                                    internal var label: Swift.String
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/wheelchairReport/reporterCount`.
+                                    internal var reporterCount: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/wheelchairReport/confidence`.
+                                    internal enum confidencePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case observed = "observed"
+                                        case confirmed = "confirmed"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/wheelchairReport/confidence`.
+                                    internal var confidence: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload.confidencePayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/wheelchairReport/expiresAt`.
+                                    internal var expiresAt: Foundation.Date
+                                    /// Creates a new `wheelchairReportPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - stationName:
+                                    ///   - label:
+                                    ///   - reporterCount:
+                                    ///   - confidence:
+                                    ///   - expiresAt:
+                                    internal init(
+                                        stationName: Swift.String,
+                                        label: Swift.String,
+                                        reporterCount: Swift.Int,
+                                        confidence: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload.confidencePayload,
+                                        expiresAt: Foundation.Date
+                                    ) {
+                                        self.stationName = stationName
+                                        self.label = label
+                                        self.reporterCount = reporterCount
+                                        self.confidence = confidence
+                                        self.expiresAt = expiresAt
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case stationName
+                                        case label
+                                        case reporterCount
+                                        case confidence
+                                        case expiresAt
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/wheelchairReport`.
+                                internal var wheelchairReport: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload?
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload`.
+                                internal struct sectionsPayloadPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/id`.
+                                    internal var id: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/type`.
+                                    internal enum _typePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case walk = "walk"
+                                        case bike = "bike"
+                                        case wait = "wait"
+                                        case transfer = "transfer"
+                                        case transit = "transit"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/type`.
+                                    internal var _type: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload._typePayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/durationSeconds`.
+                                    internal var durationSeconds: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/from`.
+                                    internal struct fromPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/from/name`.
+                                        internal var name: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/from/coordinate`.
+                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/from/coordinate/latitude`.
+                                            internal var latitude: Swift.Double
+                                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/from/coordinate/longitude`.
+                                            internal var longitude: Swift.Double
+                                            /// Creates a new `coordinatePayload`.
+                                            ///
+                                            /// - Parameters:
+                                            ///   - latitude:
+                                            ///   - longitude:
+                                            internal init(
+                                                latitude: Swift.Double,
+                                                longitude: Swift.Double
+                                            ) {
+                                                self.latitude = latitude
+                                                self.longitude = longitude
+                                            }
+                                            internal enum CodingKeys: String, CodingKey {
+                                                case latitude
+                                                case longitude
+                                            }
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/from/coordinate`.
+                                        internal var coordinate: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                        /// Creates a new `fromPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - name:
+                                        ///   - coordinate:
+                                        internal init(
+                                            name: Swift.String,
+                                            coordinate: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload.coordinatePayload
+                                        ) {
+                                            self.name = name
+                                            self.coordinate = coordinate
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case name
+                                            case coordinate
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/from`.
+                                    internal var from: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/to`.
+                                    internal struct toPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/to/name`.
+                                        internal var name: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/to/coordinate`.
+                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/to/coordinate/latitude`.
+                                            internal var latitude: Swift.Double
+                                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/to/coordinate/longitude`.
+                                            internal var longitude: Swift.Double
+                                            /// Creates a new `coordinatePayload`.
+                                            ///
+                                            /// - Parameters:
+                                            ///   - latitude:
+                                            ///   - longitude:
+                                            internal init(
+                                                latitude: Swift.Double,
+                                                longitude: Swift.Double
+                                            ) {
+                                                self.latitude = latitude
+                                                self.longitude = longitude
+                                            }
+                                            internal enum CodingKeys: String, CodingKey {
+                                                case latitude
+                                                case longitude
+                                            }
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/to/coordinate`.
+                                        internal var coordinate: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                        /// Creates a new `toPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - name:
+                                        ///   - coordinate:
+                                        internal init(
+                                            name: Swift.String,
+                                            coordinate: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload.coordinatePayload
+                                        ) {
+                                            self.name = name
+                                            self.coordinate = coordinate
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case name
+                                            case coordinate
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/to`.
+                                    internal var to: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/departureAt`.
+                                    internal var departureAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/arrivalAt`.
+                                    internal var arrivalAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/scheduledDepartureAt`.
+                                    internal var scheduledDepartureAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/scheduledArrivalAt`.
+                                    internal var scheduledArrivalAt: Foundation.Date?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/geometryPayload`.
+                                    internal struct geometryPayloadPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/geometryPayload/latitude`.
+                                        internal var latitude: Swift.Double
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/geometryPayload/longitude`.
+                                        internal var longitude: Swift.Double
+                                        /// Creates a new `geometryPayloadPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - latitude:
+                                        ///   - longitude:
+                                        internal init(
+                                            latitude: Swift.Double,
+                                            longitude: Swift.Double
+                                        ) {
+                                            self.latitude = latitude
+                                            self.longitude = longitude
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case latitude
+                                            case longitude
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/geometry`.
+                                    internal typealias geometryPayload = [Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayloadPayload]
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/geometry`.
+                                    internal var geometry: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayload
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route`.
+                                    internal struct routePayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route/id`.
+                                        internal var id: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route/shortName`.
+                                        internal var shortName: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route/longName`.
+                                        internal var longName: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route/mode`.
+                                        internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                            case metro = "metro"
+                                            case rer = "rer"
+                                            case transilien = "transilien"
+                                            case tram = "tram"
+                                            case bus = "bus"
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route/mode`.
+                                        internal var mode: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route/color`.
+                                        internal var color: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route/textColor`.
+                                        internal var textColor: Swift.String
+                                        /// Creates a new `routePayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - id:
+                                        ///   - shortName:
+                                        ///   - longName:
+                                        ///   - mode:
+                                        ///   - color:
+                                        ///   - textColor:
+                                        internal init(
+                                            id: Swift.String,
+                                            shortName: Swift.String,
+                                            longName: Swift.String,
+                                            mode: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload.modePayload,
+                                            color: Swift.String,
+                                            textColor: Swift.String
+                                        ) {
+                                            self.id = id
+                                            self.shortName = shortName
+                                            self.longName = longName
+                                            self.mode = mode
+                                            self.color = color
+                                            self.textColor = textColor
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case id
+                                            case shortName
+                                            case longName
+                                            case mode
+                                            case color
+                                            case textColor
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/route`.
+                                    internal var route: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/direction`.
+                                    internal var direction: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/platform`.
+                                    internal var platform: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload`.
+                                    internal struct stopsPayloadPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/id`.
+                                        internal var id: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/stationId`.
+                                        internal var stationId: Swift.String?
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/name`.
+                                        internal var name: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate`.
+                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate/latitude`.
+                                            internal var latitude: Swift.Double
+                                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate/longitude`.
+                                            internal var longitude: Swift.Double
+                                            /// Creates a new `coordinatePayload`.
+                                            ///
+                                            /// - Parameters:
+                                            ///   - latitude:
+                                            ///   - longitude:
+                                            internal init(
+                                                latitude: Swift.Double,
+                                                longitude: Swift.Double
+                                            ) {
+                                                self.latitude = latitude
+                                                self.longitude = longitude
+                                            }
+                                            internal enum CodingKeys: String, CodingKey {
+                                                case latitude
+                                                case longitude
+                                            }
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/coordinate`.
+                                        internal var coordinate: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/arrivalAt`.
+                                        internal var arrivalAt: Foundation.Date?
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stopsPayload/departureAt`.
+                                        internal var departureAt: Foundation.Date?
+                                        /// Creates a new `stopsPayloadPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - id:
+                                        ///   - stationId:
+                                        ///   - name:
+                                        ///   - coordinate:
+                                        ///   - arrivalAt:
+                                        ///   - departureAt:
+                                        internal init(
+                                            id: Swift.String,
+                                            stationId: Swift.String? = nil,
+                                            name: Swift.String,
+                                            coordinate: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload.coordinatePayload,
+                                            arrivalAt: Foundation.Date? = nil,
+                                            departureAt: Foundation.Date? = nil
+                                        ) {
+                                            self.id = id
+                                            self.stationId = stationId
+                                            self.name = name
+                                            self.coordinate = coordinate
+                                            self.arrivalAt = arrivalAt
+                                            self.departureAt = departureAt
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case id
+                                            case stationId
+                                            case name
+                                            case coordinate
+                                            case arrivalAt
+                                            case departureAt
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stops`.
+                                    internal typealias stopsPayload = [Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayloadPayload]
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/stops`.
+                                    internal var stops: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/serviceId`.
+                                    internal var serviceId: Swift.String?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/timingSource`.
+                                    internal enum timingSourcePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case realtime = "realtime"
+                                        case theoretical = "theoretical"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/timingSource`.
+                                    internal var timingSource: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/departureStatus`.
+                                    internal enum departureStatusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                        case on_time = "on_time"
+                                        case delayed = "delayed"
+                                        case early = "early"
+                                        case cancelled = "cancelled"
+                                        case missed = "missed"
+                                        case arrived = "arrived"
+                                        case departed = "departed"
+                                        case no_report = "no_report"
+                                        case scheduled = "scheduled"
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/departureStatus`.
+                                    internal var departureStatus: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition`.
+                                    internal struct boardingPositionPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/car`.
+                                        internal var car: Swift.Int
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/carCount`.
+                                        internal var carCount: Swift.Int
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/zone`.
+                                        internal enum zonePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                            case front = "front"
+                                            case middle = "middle"
+                                            case rear = "rear"
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/zone`.
+                                        internal var zone: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/reason`.
+                                        internal enum reasonPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                            case exit = "exit"
+                                            case transfer = "transfer"
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/reason`.
+                                        internal var reason: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/equipment`.
+                                        internal enum equipmentPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                            case escalator = "escalator"
+                                            case lift = "lift"
+                                            case stairs = "stairs"
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition/equipment`.
+                                        internal var equipment: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload?
+                                        /// Creates a new `boardingPositionPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - car:
+                                        ///   - carCount:
+                                        ///   - zone:
+                                        ///   - reason:
+                                        ///   - equipment:
+                                        internal init(
+                                            car: Swift.Int,
+                                            carCount: Swift.Int,
+                                            zone: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.zonePayload,
+                                            reason: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.reasonPayload,
+                                            equipment: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload.equipmentPayload? = nil
+                                        ) {
+                                            self.car = car
+                                            self.carCount = carCount
+                                            self.zone = zone
+                                            self.reason = reason
+                                            self.equipment = equipment
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case car
+                                            case carCount
+                                            case zone
+                                            case reason
+                                            case equipment
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/boardingPosition`.
+                                    internal var boardingPosition: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload?
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit`.
+                                    internal struct exitPayload: Codable, Hashable, Sendable {
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit/id`.
+                                        internal var id: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit/name`.
+                                        internal var name: Swift.String
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit/number`.
+                                        internal var number: Swift.Int?
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit/coordinate`.
+                                        internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit/coordinate/latitude`.
+                                            internal var latitude: Swift.Double
+                                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit/coordinate/longitude`.
+                                            internal var longitude: Swift.Double
+                                            /// Creates a new `coordinatePayload`.
+                                            ///
+                                            /// - Parameters:
+                                            ///   - latitude:
+                                            ///   - longitude:
+                                            internal init(
+                                                latitude: Swift.Double,
+                                                longitude: Swift.Double
+                                            ) {
+                                                self.latitude = latitude
+                                                self.longitude = longitude
+                                            }
+                                            internal enum CodingKeys: String, CodingKey {
+                                                case latitude
+                                                case longitude
+                                            }
+                                        }
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit/coordinate`.
+                                        internal var coordinate: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload
+                                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit/walkingMeters`.
+                                        internal var walkingMeters: Swift.Int?
+                                        /// Creates a new `exitPayload`.
+                                        ///
+                                        /// - Parameters:
+                                        ///   - id:
+                                        ///   - name:
+                                        ///   - number:
+                                        ///   - coordinate:
+                                        ///   - walkingMeters:
+                                        internal init(
+                                            id: Swift.String,
+                                            name: Swift.String,
+                                            number: Swift.Int? = nil,
+                                            coordinate: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload.coordinatePayload,
+                                            walkingMeters: Swift.Int? = nil
+                                        ) {
+                                            self.id = id
+                                            self.name = name
+                                            self.number = number
+                                            self.coordinate = coordinate
+                                            self.walkingMeters = walkingMeters
+                                        }
+                                        internal enum CodingKeys: String, CodingKey {
+                                            case id
+                                            case name
+                                            case number
+                                            case coordinate
+                                            case walkingMeters
+                                        }
+                                    }
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sectionsPayload/exit`.
+                                    internal var exit: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload?
+                                    /// Creates a new `sectionsPayloadPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - id:
+                                    ///   - _type:
+                                    ///   - durationSeconds:
+                                    ///   - from:
+                                    ///   - to:
+                                    ///   - departureAt:
+                                    ///   - arrivalAt:
+                                    ///   - scheduledDepartureAt:
+                                    ///   - scheduledArrivalAt:
+                                    ///   - geometry:
+                                    ///   - route:
+                                    ///   - direction:
+                                    ///   - platform:
+                                    ///   - stops:
+                                    ///   - serviceId:
+                                    ///   - timingSource:
+                                    ///   - departureStatus:
+                                    ///   - boardingPosition:
+                                    ///   - exit:
+                                    internal init(
+                                        id: Swift.String? = nil,
+                                        _type: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload._typePayload,
+                                        durationSeconds: Swift.Int,
+                                        from: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.fromPayload,
+                                        to: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.toPayload,
+                                        departureAt: Foundation.Date? = nil,
+                                        arrivalAt: Foundation.Date? = nil,
+                                        scheduledDepartureAt: Foundation.Date? = nil,
+                                        scheduledArrivalAt: Foundation.Date? = nil,
+                                        geometry: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.geometryPayload,
+                                        route: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.routePayload? = nil,
+                                        direction: Swift.String? = nil,
+                                        platform: Swift.String? = nil,
+                                        stops: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.stopsPayload? = nil,
+                                        serviceId: Swift.String? = nil,
+                                        timingSource: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.timingSourcePayload? = nil,
+                                        departureStatus: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.departureStatusPayload? = nil,
+                                        boardingPosition: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.boardingPositionPayload? = nil,
+                                        exit: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload.exitPayload? = nil
+                                    ) {
+                                        self.id = id
+                                        self._type = _type
+                                        self.durationSeconds = durationSeconds
+                                        self.from = from
+                                        self.to = to
+                                        self.departureAt = departureAt
+                                        self.arrivalAt = arrivalAt
+                                        self.scheduledDepartureAt = scheduledDepartureAt
+                                        self.scheduledArrivalAt = scheduledArrivalAt
+                                        self.geometry = geometry
+                                        self.route = route
+                                        self.direction = direction
+                                        self.platform = platform
+                                        self.stops = stops
+                                        self.serviceId = serviceId
+                                        self.timingSource = timingSource
+                                        self.departureStatus = departureStatus
+                                        self.boardingPosition = boardingPosition
+                                        self.exit = exit
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case id
+                                        case _type = "type"
+                                        case durationSeconds
+                                        case from
+                                        case to
+                                        case departureAt
+                                        case arrivalAt
+                                        case scheduledDepartureAt
+                                        case scheduledArrivalAt
+                                        case geometry
+                                        case route
+                                        case direction
+                                        case platform
+                                        case stops
+                                        case serviceId
+                                        case timingSource
+                                        case departureStatus
+                                        case boardingPosition
+                                        case exit
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sections`.
+                                internal typealias sectionsPayload = [Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayloadPayload]
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/sections`.
+                                internal var sections: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayload
+                                /// Creates a new `journeyPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - qualifier:
+                                ///   - durationSeconds:
+                                ///   - walkingDurationSeconds:
+                                ///   - transferCount:
+                                ///   - departureAt:
+                                ///   - arrivalAt:
+                                ///   - status:
+                                ///   - warnings:
+                                ///   - accessibility:
+                                ///   - peak:
+                                ///   - reportedCrowding:
+                                ///   - wheelchairReport:
+                                ///   - sections:
+                                internal init(
+                                    id: Swift.String,
+                                    qualifier: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.qualifierPayload,
+                                    durationSeconds: Swift.Int,
+                                    walkingDurationSeconds: Swift.Int,
+                                    transferCount: Swift.Int,
+                                    departureAt: Foundation.Date,
+                                    arrivalAt: Foundation.Date,
+                                    status: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload,
+                                    warnings: [Swift.String],
+                                    accessibility: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload? = nil,
+                                    peak: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload? = nil,
+                                    reportedCrowding: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload? = nil,
+                                    wheelchairReport: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.wheelchairReportPayload? = nil,
+                                    sections: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.sectionsPayload
+                                ) {
+                                    self.id = id
+                                    self.qualifier = qualifier
+                                    self.durationSeconds = durationSeconds
+                                    self.walkingDurationSeconds = walkingDurationSeconds
+                                    self.transferCount = transferCount
+                                    self.departureAt = departureAt
+                                    self.arrivalAt = arrivalAt
+                                    self.status = status
+                                    self.warnings = warnings
+                                    self.accessibility = accessibility
+                                    self.peak = peak
+                                    self.reportedCrowding = reportedCrowding
+                                    self.wheelchairReport = wheelchairReport
+                                    self.sections = sections
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case qualifier
+                                    case durationSeconds
+                                    case walkingDurationSeconds
+                                    case transferCount
+                                    case departureAt
+                                    case arrivalAt
+                                    case status
+                                    case warnings
+                                    case accessibility
+                                    case peak
+                                    case reportedCrowding
+                                    case wheelchairReport
+                                    case sections
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey`.
+                            internal var journey: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/generatedAt`.
+                            internal var generatedAt: Foundation.Date
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/locale`.
+                            internal var locale: Swift.String
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/timeZone`.
+                            internal var timeZone: Swift.String
+                            /// Creates a new `snapshotPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - schemaVersion:
+                            ///   - journey:
+                            ///   - generatedAt:
+                            ///   - locale:
+                            ///   - timeZone:
+                            internal init(
+                                schemaVersion: OpenAPIRuntime.OpenAPIValueContainer,
+                                journey: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload,
+                                generatedAt: Foundation.Date,
+                                locale: Swift.String,
+                                timeZone: Swift.String
+                            ) {
+                                self.schemaVersion = schemaVersion
+                                self.journey = journey
+                                self.generatedAt = generatedAt
+                                self.locale = locale
+                                self.timeZone = timeZone
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case schemaVersion
+                                case journey
+                                case generatedAt
+                                case locale
+                                case timeZone
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot`.
+                        internal var snapshot: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/createdAt`.
+                        internal var createdAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/expiresAt`.
+                        internal var expiresAt: Foundation.Date
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/token`.
+                        internal var token: Swift.String
+                        /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/url`.
+                        internal var url: Swift.String
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - snapshot:
+                        ///   - createdAt:
+                        ///   - expiresAt:
+                        ///   - token:
+                        ///   - url:
+                        internal init(
+                            snapshot: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload,
+                            createdAt: Foundation.Date,
+                            expiresAt: Foundation.Date,
+                            token: Swift.String,
+                            url: Swift.String
+                        ) {
+                            self.snapshot = snapshot
+                            self.createdAt = createdAt
+                            self.expiresAt = expiresAt
+                            self.token = token
+                            self.url = url
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case snapshot
+                            case createdAt
+                            case expiresAt
+                            case token
+                            case url
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/application\/json`.
+                    case json(Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.journeyShares_period_create.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.journeyShares_period_create.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//journeys/shares/post(journeyShares.create)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.journeyShares_period_create.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.journeyShares_period_create.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
     /// Interpréter une phrase de trajet
     ///
     /// Adapter d'interprétation du repli serveur : reçoit une phrase, les ancres déterministes et des alias personnels opaques, puis renvoie le même patch typé que le modèle local. La résolution et la planification restent sur l’appareil.
@@ -11864,6 +14790,679 @@ internal enum Operations {
             /// - Throws: An error if `self` is not `.ok`.
             /// - SeeAlso: `.ok`.
             internal var ok: Operations.network_period_bikeStationsInArea.Output.Ok {
+                get throws {
+                    switch self {
+                    case let .ok(response):
+                        return response
+                    default:
+                        try throwUnexpectedResponseStatus(
+                            expectedStatus: "ok",
+                            response: self
+                        )
+                    }
+                }
+            }
+            /// Undocumented response.
+            ///
+            /// A response with a code that is not documented in the OpenAPI document.
+            case undocumented(statusCode: Swift.Int, OpenAPIRuntime.UndocumentedPayload)
+        }
+        internal enum AcceptableContentType: AcceptableProtocol {
+            case json
+            case other(Swift.String)
+            internal init?(rawValue: Swift.String) {
+                switch rawValue.lowercased() {
+                case "application/json":
+                    self = .json
+                default:
+                    self = .other(rawValue)
+                }
+            }
+            internal var rawValue: Swift.String {
+                switch self {
+                case let .other(string):
+                    return string
+                case .json:
+                    return "application/json"
+                }
+            }
+            internal static var allCases: [Self] {
+                [
+                    .json
+                ]
+            }
+        }
+    }
+    /// Les véhicules et stations de mobilité partagée d’une zone
+    ///
+    /// Les vélos et trottinettes actuellement louables de Dott/TIER, Lime et YEGO, ainsi que les stations Vélib’ avec leur inventaire. Les données expirées et les véhicules réservés ou désactivés sont masqués. Le statut de chaque source est retourné séparément pour qu’une panne d’opérateur ne masque pas les autres.
+    ///
+    /// - Remark: HTTP `GET /network/shared-mobility`.
+    /// - Remark: Generated from `#/paths//network/shared-mobility/get(network.sharedMobilityInArea)`.
+    internal enum network_period_sharedMobilityInArea {
+        internal static let id: Swift.String = "network.sharedMobilityInArea"
+        internal struct Input: Sendable, Hashable {
+            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/query`.
+            internal struct Query: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/query/minLatitude`.
+                internal var minLatitude: Swift.Double
+                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/query/maxLatitude`.
+                internal var maxLatitude: Swift.Double
+                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/query/minLongitude`.
+                internal var minLongitude: Swift.Double
+                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/query/maxLongitude`.
+                internal var maxLongitude: Swift.Double
+                /// Creates a new `Query`.
+                ///
+                /// - Parameters:
+                ///   - minLatitude:
+                ///   - maxLatitude:
+                ///   - minLongitude:
+                ///   - maxLongitude:
+                internal init(
+                    minLatitude: Swift.Double,
+                    maxLatitude: Swift.Double,
+                    minLongitude: Swift.Double,
+                    maxLongitude: Swift.Double
+                ) {
+                    self.minLatitude = minLatitude
+                    self.maxLatitude = maxLatitude
+                    self.minLongitude = minLongitude
+                    self.maxLongitude = maxLongitude
+                }
+            }
+            internal var query: Operations.network_period_sharedMobilityInArea.Input.Query
+            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/header`.
+            internal struct Headers: Sendable, Hashable {
+                internal var accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.network_period_sharedMobilityInArea.AcceptableContentType>]
+                /// Creates a new `Headers`.
+                ///
+                /// - Parameters:
+                ///   - accept:
+                internal init(accept: [OpenAPIRuntime.AcceptHeaderContentType<Operations.network_period_sharedMobilityInArea.AcceptableContentType>] = .defaultValues()) {
+                    self.accept = accept
+                }
+            }
+            internal var headers: Operations.network_period_sharedMobilityInArea.Input.Headers
+            /// Creates a new `Input`.
+            ///
+            /// - Parameters:
+            ///   - query:
+            ///   - headers:
+            internal init(
+                query: Operations.network_period_sharedMobilityInArea.Input.Query,
+                headers: Operations.network_period_sharedMobilityInArea.Input.Headers = .init()
+            ) {
+                self.query = query
+                self.headers = headers
+            }
+        }
+        internal enum Output: Sendable, Hashable {
+            internal struct Ok: Sendable, Hashable {
+                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content`.
+                internal enum Body: Sendable, Hashable {
+                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json`.
+                    internal struct jsonPayload: Codable, Hashable, Sendable {
+                        /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload`.
+                        internal struct itemsPayloadPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1`.
+                            internal struct Value1Payload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case vehicle = "vehicle"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/kind`.
+                                internal var kind: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.kindPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/provider`.
+                                internal enum providerPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case dott = "dott"
+                                    case lime = "lime"
+                                    case velib = "velib"
+                                    case yego = "yego"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/provider`.
+                                internal var provider: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.providerPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/mode`.
+                                internal enum modePayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case bicycle = "bicycle"
+                                    case scooter = "scooter"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/mode`.
+                                internal var mode: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.modePayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/vehicleType`.
+                                internal var vehicleType: Swift.String?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/availability`.
+                                internal enum availabilityPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case available = "available"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/availability`.
+                                internal var availability: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.availabilityPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/coordinate`.
+                                internal var coordinate: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.coordinatePayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/batteryPercent`.
+                                internal var batteryPercent: Swift.Double?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/rangeMeters`.
+                                internal var rangeMeters: Swift.Int?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/lastReportedAt`.
+                                internal var lastReportedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/restriction`.
+                                internal enum restrictionPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case no_hyphen_ride = "no-ride"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/restriction`.
+                                internal var restriction: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.restrictionPayload?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/rentalUrl`.
+                                internal var rentalUrl: Swift.String?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1/operatorUrl`.
+                                internal var operatorUrl: Swift.String?
+                                /// Creates a new `Value1Payload`.
+                                ///
+                                /// - Parameters:
+                                ///   - kind:
+                                ///   - id:
+                                ///   - provider:
+                                ///   - mode:
+                                ///   - vehicleType:
+                                ///   - availability:
+                                ///   - coordinate:
+                                ///   - batteryPercent:
+                                ///   - rangeMeters:
+                                ///   - lastReportedAt:
+                                ///   - restriction:
+                                ///   - rentalUrl:
+                                ///   - operatorUrl:
+                                internal init(
+                                    kind: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.kindPayload,
+                                    id: Swift.String,
+                                    provider: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.providerPayload,
+                                    mode: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.modePayload,
+                                    vehicleType: Swift.String? = nil,
+                                    availability: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.availabilityPayload,
+                                    coordinate: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.coordinatePayload,
+                                    batteryPercent: Swift.Double? = nil,
+                                    rangeMeters: Swift.Int? = nil,
+                                    lastReportedAt: Foundation.Date? = nil,
+                                    restriction: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload.restrictionPayload? = nil,
+                                    rentalUrl: Swift.String? = nil,
+                                    operatorUrl: Swift.String? = nil
+                                ) {
+                                    self.kind = kind
+                                    self.id = id
+                                    self.provider = provider
+                                    self.mode = mode
+                                    self.vehicleType = vehicleType
+                                    self.availability = availability
+                                    self.coordinate = coordinate
+                                    self.batteryPercent = batteryPercent
+                                    self.rangeMeters = rangeMeters
+                                    self.lastReportedAt = lastReportedAt
+                                    self.restriction = restriction
+                                    self.rentalUrl = rentalUrl
+                                    self.operatorUrl = operatorUrl
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case kind
+                                    case id
+                                    case provider
+                                    case mode
+                                    case vehicleType
+                                    case availability
+                                    case coordinate
+                                    case batteryPercent
+                                    case rangeMeters
+                                    case lastReportedAt
+                                    case restriction
+                                    case rentalUrl
+                                    case operatorUrl
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value1`.
+                            internal var value1: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload?
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2`.
+                            internal struct Value2Payload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/id`.
+                                internal var id: Swift.String
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/stationCode`.
+                                internal var stationCode: Swift.String?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/name`.
+                                internal var name: Swift.String
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/coordinate`.
+                                internal struct coordinatePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/coordinate/latitude`.
+                                    internal var latitude: Swift.Double
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/coordinate/longitude`.
+                                    internal var longitude: Swift.Double
+                                    /// Creates a new `coordinatePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - latitude:
+                                    ///   - longitude:
+                                    internal init(
+                                        latitude: Swift.Double,
+                                        longitude: Swift.Double
+                                    ) {
+                                        self.latitude = latitude
+                                        self.longitude = longitude
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case latitude
+                                        case longitude
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/coordinate`.
+                                internal var coordinate: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload.coordinatePayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/capacity`.
+                                internal var capacity: Swift.Int
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability`.
+                                internal struct availabilityPayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability/mechanicalBikes`.
+                                    internal var mechanicalBikes: Swift.Int
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability/electricBikes`.
+                                    internal var electricBikes: Swift.Int
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability/docks`.
+                                    internal var docks: Swift.Int
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability/isInstalled`.
+                                    internal var isInstalled: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability/isRenting`.
+                                    internal var isRenting: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability/isReturning`.
+                                    internal var isReturning: Swift.Bool
+                                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability/lastReportedAt`.
+                                    internal var lastReportedAt: Foundation.Date?
+                                    /// Creates a new `availabilityPayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - mechanicalBikes:
+                                    ///   - electricBikes:
+                                    ///   - docks:
+                                    ///   - isInstalled:
+                                    ///   - isRenting:
+                                    ///   - isReturning:
+                                    ///   - lastReportedAt:
+                                    internal init(
+                                        mechanicalBikes: Swift.Int,
+                                        electricBikes: Swift.Int,
+                                        docks: Swift.Int,
+                                        isInstalled: Swift.Bool,
+                                        isRenting: Swift.Bool,
+                                        isReturning: Swift.Bool,
+                                        lastReportedAt: Foundation.Date? = nil
+                                    ) {
+                                        self.mechanicalBikes = mechanicalBikes
+                                        self.electricBikes = electricBikes
+                                        self.docks = docks
+                                        self.isInstalled = isInstalled
+                                        self.isRenting = isRenting
+                                        self.isReturning = isReturning
+                                        self.lastReportedAt = lastReportedAt
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case mechanicalBikes
+                                        case electricBikes
+                                        case docks
+                                        case isInstalled
+                                        case isRenting
+                                        case isReturning
+                                        case lastReportedAt
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/availability`.
+                                internal var availability: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload.availabilityPayload?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/kind`.
+                                internal enum kindPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case station = "station"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/kind`.
+                                internal var kind: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload.kindPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/provider`.
+                                internal enum providerPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case velib = "velib"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/provider`.
+                                internal var provider: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload.providerPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2/operatorUrl`.
+                                internal var operatorUrl: Swift.String?
+                                /// Creates a new `Value2Payload`.
+                                ///
+                                /// - Parameters:
+                                ///   - id:
+                                ///   - stationCode:
+                                ///   - name:
+                                ///   - coordinate:
+                                ///   - capacity:
+                                ///   - availability:
+                                ///   - kind:
+                                ///   - provider:
+                                ///   - operatorUrl:
+                                internal init(
+                                    id: Swift.String,
+                                    stationCode: Swift.String? = nil,
+                                    name: Swift.String,
+                                    coordinate: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload.coordinatePayload,
+                                    capacity: Swift.Int,
+                                    availability: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload.availabilityPayload? = nil,
+                                    kind: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload.kindPayload,
+                                    provider: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload.providerPayload,
+                                    operatorUrl: Swift.String? = nil
+                                ) {
+                                    self.id = id
+                                    self.stationCode = stationCode
+                                    self.name = name
+                                    self.coordinate = coordinate
+                                    self.capacity = capacity
+                                    self.availability = availability
+                                    self.kind = kind
+                                    self.provider = provider
+                                    self.operatorUrl = operatorUrl
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case id
+                                    case stationCode
+                                    case name
+                                    case coordinate
+                                    case capacity
+                                    case availability
+                                    case kind
+                                    case provider
+                                    case operatorUrl
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/itemsPayload/value2`.
+                            internal var value2: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload?
+                            /// Creates a new `itemsPayloadPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - value1:
+                            ///   - value2:
+                            internal init(
+                                value1: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value1Payload? = nil,
+                                value2: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload.Value2Payload? = nil
+                            ) {
+                                self.value1 = value1
+                                self.value2 = value2
+                            }
+                            internal init(from decoder: any Swift.Decoder) throws {
+                                var errors: [any Swift.Error] = []
+                                do {
+                                    self.value1 = try .init(from: decoder)
+                                } catch {
+                                    errors.append(error)
+                                }
+                                do {
+                                    self.value2 = try .init(from: decoder)
+                                } catch {
+                                    errors.append(error)
+                                }
+                                try Swift.DecodingError.verifyAtLeastOneSchemaIsNotNil(
+                                    [
+                                        self.value1,
+                                        self.value2
+                                    ],
+                                    type: Self.self,
+                                    codingPath: decoder.codingPath,
+                                    errors: errors
+                                )
+                            }
+                            internal func encode(to encoder: any Swift.Encoder) throws {
+                                try self.value1?.encode(to: encoder)
+                                try self.value2?.encode(to: encoder)
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/items`.
+                        internal typealias itemsPayload = [Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayloadPayload]
+                        /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/items`.
+                        internal var items: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayload
+                        /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources`.
+                        internal struct sourcesPayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/dott`.
+                            internal struct dottPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/dott/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case ok = "ok"
+                                    case unavailable = "unavailable"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/dott/status`.
+                                internal var status: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.dottPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/dott/sourceUpdatedAt`.
+                                internal var sourceUpdatedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/dott/expiresAt`.
+                                internal var expiresAt: Foundation.Date?
+                                /// Creates a new `dottPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - status:
+                                ///   - sourceUpdatedAt:
+                                ///   - expiresAt:
+                                internal init(
+                                    status: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.dottPayload.statusPayload,
+                                    sourceUpdatedAt: Foundation.Date? = nil,
+                                    expiresAt: Foundation.Date? = nil
+                                ) {
+                                    self.status = status
+                                    self.sourceUpdatedAt = sourceUpdatedAt
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case status
+                                    case sourceUpdatedAt
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/dott`.
+                            internal var dott: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.dottPayload
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/lime`.
+                            internal struct limePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/lime/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case ok = "ok"
+                                    case unavailable = "unavailable"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/lime/status`.
+                                internal var status: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.limePayload.statusPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/lime/sourceUpdatedAt`.
+                                internal var sourceUpdatedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/lime/expiresAt`.
+                                internal var expiresAt: Foundation.Date?
+                                /// Creates a new `limePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - status:
+                                ///   - sourceUpdatedAt:
+                                ///   - expiresAt:
+                                internal init(
+                                    status: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.limePayload.statusPayload,
+                                    sourceUpdatedAt: Foundation.Date? = nil,
+                                    expiresAt: Foundation.Date? = nil
+                                ) {
+                                    self.status = status
+                                    self.sourceUpdatedAt = sourceUpdatedAt
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case status
+                                    case sourceUpdatedAt
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/lime`.
+                            internal var lime: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.limePayload
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/velib`.
+                            internal struct velibPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/velib/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case ok = "ok"
+                                    case unavailable = "unavailable"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/velib/status`.
+                                internal var status: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.velibPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/velib/sourceUpdatedAt`.
+                                internal var sourceUpdatedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/velib/expiresAt`.
+                                internal var expiresAt: Foundation.Date?
+                                /// Creates a new `velibPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - status:
+                                ///   - sourceUpdatedAt:
+                                ///   - expiresAt:
+                                internal init(
+                                    status: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.velibPayload.statusPayload,
+                                    sourceUpdatedAt: Foundation.Date? = nil,
+                                    expiresAt: Foundation.Date? = nil
+                                ) {
+                                    self.status = status
+                                    self.sourceUpdatedAt = sourceUpdatedAt
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case status
+                                    case sourceUpdatedAt
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/velib`.
+                            internal var velib: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.velibPayload
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/yego`.
+                            internal struct yegoPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/yego/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case ok = "ok"
+                                    case unavailable = "unavailable"
+                                }
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/yego/status`.
+                                internal var status: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.yegoPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/yego/sourceUpdatedAt`.
+                                internal var sourceUpdatedAt: Foundation.Date?
+                                /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/yego/expiresAt`.
+                                internal var expiresAt: Foundation.Date?
+                                /// Creates a new `yegoPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - status:
+                                ///   - sourceUpdatedAt:
+                                ///   - expiresAt:
+                                internal init(
+                                    status: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.yegoPayload.statusPayload,
+                                    sourceUpdatedAt: Foundation.Date? = nil,
+                                    expiresAt: Foundation.Date? = nil
+                                ) {
+                                    self.status = status
+                                    self.sourceUpdatedAt = sourceUpdatedAt
+                                    self.expiresAt = expiresAt
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case status
+                                    case sourceUpdatedAt
+                                    case expiresAt
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources/yego`.
+                            internal var yego: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.yegoPayload
+                            /// Creates a new `sourcesPayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - dott:
+                            ///   - lime:
+                            ///   - velib:
+                            ///   - yego:
+                            internal init(
+                                dott: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.dottPayload,
+                                lime: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.limePayload,
+                                velib: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.velibPayload,
+                                yego: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload.yegoPayload
+                            ) {
+                                self.dott = dott
+                                self.lime = lime
+                                self.velib = velib
+                                self.yego = yego
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case dott
+                                case lime
+                                case velib
+                                case yego
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/json/sources`.
+                        internal var sources: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload
+                        /// Creates a new `jsonPayload`.
+                        ///
+                        /// - Parameters:
+                        ///   - items:
+                        ///   - sources:
+                        internal init(
+                            items: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.itemsPayload,
+                            sources: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload.sourcesPayload
+                        ) {
+                            self.items = items
+                            self.sources = sources
+                        }
+                        internal enum CodingKeys: String, CodingKey {
+                            case items
+                            case sources
+                        }
+                    }
+                    /// - Remark: Generated from `#/paths/network/shared-mobility/GET/responses/200/content/application\/json`.
+                    case json(Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload)
+                    /// The associated value of the enum case if `self` is `.json`.
+                    ///
+                    /// - Throws: An error if `self` is not `.json`.
+                    /// - SeeAlso: `.json`.
+                    internal var json: Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload {
+                        get throws {
+                            switch self {
+                            case let .json(body):
+                                return body
+                            }
+                        }
+                    }
+                }
+                /// Received HTTP response body
+                internal var body: Operations.network_period_sharedMobilityInArea.Output.Ok.Body
+                /// Creates a new `Ok`.
+                ///
+                /// - Parameters:
+                ///   - body: Received HTTP response body
+                internal init(body: Operations.network_period_sharedMobilityInArea.Output.Ok.Body) {
+                    self.body = body
+                }
+            }
+            /// OK
+            ///
+            /// - Remark: Generated from `#/paths//network/shared-mobility/get(network.sharedMobilityInArea)/responses/200`.
+            ///
+            /// HTTP response code: `200 ok`.
+            case ok(Operations.network_period_sharedMobilityInArea.Output.Ok)
+            /// The associated value of the enum case if `self` is `.ok`.
+            ///
+            /// - Throws: An error if `self` is not `.ok`.
+            /// - SeeAlso: `.ok`.
+            internal var ok: Operations.network_period_sharedMobilityInArea.Output.Ok {
                 get throws {
                     switch self {
                     case let .ok(response):

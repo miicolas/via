@@ -1,9 +1,9 @@
-import { type Context, Hono } from 'hono';
+import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { env } from '../../env';
 import type { AppEnv } from '../../http/app-env';
-import type { ErrorBody } from '../../http/errors';
+import { errorBody } from '../../http/errors';
 import { requestIPHash } from '../../http/ip-identity';
 import { redis } from '../../redis';
 import { isVotableCity } from './catalogue';
@@ -35,17 +35,17 @@ export function createCityDemandRouter(
     .post('/', async (c) => {
       const parsed = voteBody.safeParse(await c.req.json().catch(() => null));
       if (!parsed.success) {
-        return c.json(rejected(c, 'malformed_vote', 'A city slug is required.'), 400);
+        return c.json(errorBody(c, 'malformed_vote', 'A city slug is required.'), 400);
       }
 
       const city = parsed.data.city;
       if (!isVotableCity(city)) {
-        return c.json(rejected(c, 'unknown_city', 'This city is not open to votes.'), 404);
+        return c.json(errorBody(c, 'unknown_city', 'This city is not open to votes.'), 404);
       }
 
       const voterHash = requestIPHash(c.req.raw, env.BETTER_AUTH_SECRET);
       if (!(await withinCityVoteQuota(redis, voterHash))) {
-        return c.json(rejected(c, 'too_many_votes', 'Too many votes from this address today.'), 429);
+        return c.json(errorBody(c, 'too_many_votes', 'Too many votes from this address today.'), 429);
       }
 
       const outcome = await repository.recordVote({ citySlug: city, voterHash });
@@ -58,10 +58,6 @@ export function createCityDemandRouter(
         city: board.cities.find((candidate) => candidate.slug === city) ?? null,
       });
     });
-}
-
-function rejected(c: Context<AppEnv>, code: string, message: string): ErrorBody {
-  return { error: { code, message, requestId: c.get('requestId') } };
 }
 
 export const cityDemandRouter = createCityDemandRouter();

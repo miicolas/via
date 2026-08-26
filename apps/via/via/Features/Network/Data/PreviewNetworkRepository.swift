@@ -4,14 +4,22 @@ struct InMemoryNetworkRepository: NetworkRepository {
     var network: TransitNetwork = .init(routes: [], stations: [])
     var area: StationsArea = .init(stations: [], routes: [])
     var bikeArea: BikeStationsArea = .init()
+    var sharedMobilityArea: SharedMobilityArea = .init()
 
     func railMap() async throws -> TransitNetwork { network }
     func viewport(in bounds: GeoBounds) async throws -> StationsArea { area }
     func bikeStations(in bounds: GeoBounds) async throws -> BikeStationsArea { bikeArea }
+    func sharedMobility(in bounds: GeoBounds) async throws -> SharedMobilityArea {
+        sharedMobilityArea
+    }
 }
 
 extension InMemoryNetworkRepository {
-    static let mapPreview = InMemoryNetworkRepository(area: .mapPreview, bikeArea: .mapPreview)
+    static let mapPreview = InMemoryNetworkRepository(
+        area: .mapPreview,
+        bikeArea: .mapPreview,
+        sharedMobilityArea: .mapSharedMobilityPreview
+    )
 }
 
 extension StationsArea {
@@ -142,4 +150,54 @@ extension BikeStationsArea {
             )
         )
     ])
+}
+
+extension SharedMobilityArea {
+    static let mapSharedMobilityPreview = SharedMobilityArea(
+        items: [
+            .vehicle(SharedMobilityVehicle(
+                id: "preview:dott:bicycle",
+                provider: .dott,
+                mode: .bicycle,
+                coordinate: GeoCoordinate(latitude: 48.8572, longitude: 2.3518),
+                batteryPercent: 74,
+                rangeMeters: 23_000,
+                lastReportedAt: .now,
+                rentalURL: URL(string: "https://go.ridedott.com/vehicles/preview?platform=ios"),
+                operatorURL: URL(string: "https://ridedott.com/")
+            )),
+            .vehicle(SharedMobilityVehicle(
+                id: "preview:yego:scooter",
+                provider: .yego,
+                mode: .scooter,
+                coordinate: GeoCoordinate(latitude: 48.8560, longitude: 2.3480),
+                rangeMeters: 18_000,
+                lastReportedAt: .now,
+                rentalURL: URL(string: "yego://"),
+                operatorURL: URL(string: "https://www.rideyego.com/")
+            )),
+            .station(SharedMobilityStation(
+                station: BikeStation(
+                    id: "preview:velib:station",
+                    stationCode: "4015",
+                    name: "Place de l’Hôtel de Ville",
+                    coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3515),
+                    capacity: 35,
+                    availability: BikeStationAvailability(
+                        mechanicalBikes: 8,
+                        electricBikes: 5,
+                        docks: 22,
+                        isInstalled: true,
+                        isRenting: true,
+                        isReturning: true,
+                        lastReportedAt: .now
+                    )
+                ),
+                operatorURL: URL(string: "https://www.velib-metropole.fr/")
+            )),
+        ],
+        sources: Dictionary(uniqueKeysWithValues: SharedMobilityProvider.allCases.map {
+            ($0, SharedMobilitySourceStatus(state: .ok, sourceUpdatedAt: .now))
+        })
+    )
 }

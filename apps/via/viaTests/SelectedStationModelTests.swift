@@ -16,7 +16,22 @@ final class SelectedStationModelTests: XCTestCase {
         DepartureGroup(
           route: route,
           destination: "La Défense",
-          departures: [now.addingTimeInterval(300)]
+          departureItems: [
+            DepartureItem(
+              id: "first",
+              scheduledAt: now.addingTimeInterval(300),
+              expectedAt: nil,
+              delaySeconds: nil,
+              status: .onTime
+            ),
+            DepartureItem(
+              id: "second",
+              scheduledAt: now.addingTimeInterval(600),
+              expectedAt: nil,
+              delaySeconds: nil,
+              status: .onTime
+            ),
+          ]
         )
       ]
     )
@@ -36,6 +51,7 @@ final class SelectedStationModelTests: XCTestCase {
     await waitUntil { model.overview?.departureSource == .realtime }
 
     XCTAssertEqual(model.overview?.departures.first?.destination, "La Défense")
+    XCTAssertEqual(model.overview?.departureBoard.map(\.id), ["first", "second"])
     XCTAssertEqual(model.overview?.accessibility?.condition, .autonomous)
     XCTAssertEqual(model.loadingState, .loaded)
   }

@@ -5,18 +5,14 @@ import type {
   StationsInAreaInput,
 } from '@via/contract';
 
+import { selectInArea } from '../../geo/area';
 import { haversineMeters } from '../../geo/distance';
 
 export function selectBikeStationsInArea(
   stations: BikeStation[],
   area: StationsInAreaInput
 ): BikeStation[] {
-  return stations.filter(({ coordinate }) =>
-    coordinate.latitude >= area.minLatitude &&
-    coordinate.latitude <= area.maxLatitude &&
-    coordinate.longitude >= area.minLongitude &&
-    coordinate.longitude <= area.maxLongitude
-  );
+  return selectInArea(stations, area);
 }
 
 /**

@@ -14,6 +14,7 @@ final class LinesViewModel {
   }
   private(set) var requestedRouteID: RouteID?
   private(set) var requestedRoute: LineStatus?
+  private(set) var favoriteRouteIDs: [RouteID]
   var searchText: String = "" {
     didSet { rebuildDerivedState() }
   }
@@ -21,7 +22,7 @@ final class LinesViewModel {
     didSet { rebuildDerivedState() }
   }
 
-  /// The permanent rail catalogue, one section per mode in display order.
+  /// The non-favorite catalogue, one section per mode in display order.
   /// Within each mode, service interruptions lead so they cannot disappear
   /// below healthy lines during a quick scan.
   ///
@@ -30,6 +31,9 @@ final class LinesViewModel {
   /// re-sorting the whole board there would also hand each child view a fresh
   /// array it can never compare equal to.
   private(set) var sections: [LineStatusSection] = []
+  /// Saved lines are kept outside the catalogue sections so they remain above
+  /// mode and disruption filters and cannot be rendered twice.
+  private(set) var favoriteLines: [LineStatus] = []
   /// Search results the catalogue does not already show — buses, mostly.
   private(set) var extraSearchResults: [LineStatus] = []
   /// Lines with a planned closure, grouped by the day it starts. A traveller
@@ -42,10 +46,17 @@ final class LinesViewModel {
   }
 
   @ObservationIgnored private let repository: any LineStatusRepository
+  @ObservationIgnored private let favoriteStore: LineFavoritesStore
   @ObservationIgnored private var hasStarted = false
 
-  init(repository: any LineStatusRepository) {
+  init(
+    repository: any LineStatusRepository,
+    favoriteStore: LineFavoritesStore = LineFavoritesStore()
+  ) {
     self.repository = repository
+    self.favoriteStore = favoriteStore
+    self.favoriteRouteIDs = favoriteStore.load()
+    rebuildDerivedState()
   }
 
   /// Keeps the statuses fresh while the tab is visible. The view owns the
@@ -108,6 +119,27 @@ final class LinesViewModel {
     LineDetailViewModel(repository: repository, lineID: route.id)
   }
 
+  var hasFavoriteLines: Bool {
+    !favoriteLines.isEmpty
+  }
+
+  func isFavorite(_ routeID: RouteID) -> Bool {
+    favoriteRouteIDs.contains(routeID)
+  }
+
+  @discardableResult
+  func toggleFavorite(route: RouteBadge) -> Bool {
+    let wasFavorite = isFavorite(route.id)
+    if wasFavorite {
+      favoriteRouteIDs.removeAll { $0 == route.id }
+    } else {
+      favoriteRouteIDs.insert(route.id, at: 0)
+    }
+    favoriteStore.save(favoriteRouteIDs)
+    rebuildDerivedState()
+    return !wasFavorite
+  }
+
   func requestRoute(_ routeID: RouteID) {
     requestedRouteID = routeID
   }
@@ -128,8 +160,22 @@ final class LinesViewModel {
 
   private func rebuildDerivedState() {
     let catalogue = board.value?.lines ?? []
+    let favoriteIDs = Set(favoriteRouteIDs)
 
-    let visible = catalogue.filter { $0.matchesSearch(searchText) && filter.matches($0) }
+    // The catalogue is the authoritative status source. Search results are a
+    // fallback for routes (mostly buses) that are not in that catalogue.
+    // Favorites intentionally skip both the search query and the catalogue
+    // filter: the strip is the traveller's always-available shortcut.
+    favoriteLines = favoriteRouteIDs.compactMap { routeID in
+      catalogue.first(where: { $0.id == routeID })
+        ?? remoteMatches.first(where: { $0.id == routeID })
+    }
+
+    let visible = catalogue.filter {
+      !favoriteIDs.contains($0.id)
+        && $0.matchesSearch(searchText)
+        && filter.matches($0)
+    }
     let byMode = Dictionary(grouping: visible, by: \.route.mode)
     sections = TransitMode.allCases.compactMap { mode in
       guard let lines = byMode[mode], !lines.isEmpty else { return nil }
@@ -139,10 +185,18 @@ final class LinesViewModel {
     let knownIDs = Set(catalogue.map(\.id))
     extraSearchResults =
       remoteMatches
-      .filter { !knownIDs.contains($0.id) && filter.matches($0) }
+      .filter {
+        !knownIDs.contains($0.id)
+          && !favoriteIDs.contains($0.id)
+          && filter.matches($0)
+      }
       .sortedForDisplay
 
-    summary = LineNetworkSummary(lines: visible)
+    // The summary describes the filter result, including favorite lines even
+    // though those lines are rendered in the quick-access strip above.
+    summary = LineNetworkSummary(
+      lines: catalogue.filter { $0.matchesSearch(searchText) && filter.matches($0) }
+    )
 
     upcomingByDay = filter.disruptionsOnly ? [] : Self.groupedByDay(catalogue, mode: filter.mode)
   }

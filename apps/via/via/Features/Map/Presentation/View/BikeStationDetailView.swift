@@ -24,10 +24,7 @@ struct BikeStationDetailView: View {
           if let availability = station.availability {
             BikeAvailabilitySummaryView(availability: availability)
           } else {
-            EmptyStateView(.unavailable(
-              title: "Disponibilité inconnue",
-              message: "Vélib’ n’a pas fourni l’état en temps réel de cette station."
-            ))
+            EmptyStateView(.bikeAvailabilityUnknown)
             .frame(maxWidth: .infinity)
           }
 
@@ -65,9 +62,13 @@ struct BikeStationDetailView: View {
 
   private var stationIdentity: some View {
     VStack(alignment: .leading, spacing: 10) {
-      Label("Vélib’ Métropole", systemImage: "bicycle")
-        .font(.headline)
-        .foregroundStyle(.tint)
+      HStack(spacing: 10) {
+        SharedMobilityProviderLogoView(provider: .velib, size: 26)
+
+        Text("Vélib’ Métropole")
+          .font(.headline)
+          .foregroundStyle(.tint)
+      }
 
       Text(stationDescription)
         .font(.subheadline)

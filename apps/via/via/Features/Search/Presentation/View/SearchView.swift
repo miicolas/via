@@ -105,6 +105,7 @@ struct SearchView: View {
       SearchDeparturePickerView(
         viewModel: viewModel,
         savedPlaces: viewModel.savedPlaces,
+        savedDestinations: viewModel.savedDestinations,
         selection: viewModel.selectedDeparture,
         onSelect: viewModel.selectDeparture,
       )
@@ -238,6 +239,7 @@ struct SearchView: View {
       SearchDepartureMenuContent(
         selection: viewModel.wrappedValue.selectedDeparture,
         savedPlaces: viewModel.wrappedValue.savedPlaces,
+        savedDestinations: viewModel.wrappedValue.savedDestinations,
         onSelect: viewModel.wrappedValue.selectDeparture,
         onChooseManual: { isDeparturePickerPresented = true },
       )

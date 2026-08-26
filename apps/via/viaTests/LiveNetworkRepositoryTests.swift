@@ -76,6 +76,20 @@ final class LiveNetworkRepositoryTests: XCTestCase {
         XCTAssertEqual(area.stations.map(\.id), [StationID(rawValue: "station")])
     }
 
+    func testSharedMobilityFailureReplacesCoordinatesWithUnavailableSnapshot() async throws {
+        let remote = NetworkRemoteSpy()
+        let repository = LiveNetworkRepository(remote: remote)
+
+        let first = try await repository.sharedMobility(in: Self.oneTileBounds)
+        XCTAssertEqual(first.items.count, 1)
+
+        await remote.setMobilityFailing(true)
+        let second = try await repository.sharedMobility(in: Self.oneTileBounds)
+
+        XCTAssertTrue(second.items.isEmpty)
+        XCTAssertEqual(second.source(.dott).state, .unavailable)
+    }
+
     private func waitUntil(
         _ predicate: @escaping () async -> Bool,
         file: StaticString = #filePath,
@@ -92,6 +106,7 @@ final class LiveNetworkRepositoryTests: XCTestCase {
 private actor NetworkRemoteSpy: NetworkRemote {
     private var tileCalls: [GeoBounds] = []
     private var failing = false
+    private var mobilityFailing = false
 
     func railMap() -> TransitNetwork {
         TransitNetwork(routes: [], stations: [])
@@ -99,6 +114,24 @@ private actor NetworkRemoteSpy: NetworkRemote {
 
     func bikeStationsTile(in bounds: GeoBounds) async throws -> BikeStationsArea {
         BikeStationsArea()
+    }
+
+    func sharedMobilityTile(in bounds: GeoBounds) async throws -> SharedMobilityArea {
+        if mobilityFailing { throw ViaError.transport }
+        return SharedMobilityArea(
+            items: [.vehicle(SharedMobilityVehicle(
+                id: "dott:bike",
+                provider: .dott,
+                mode: .bicycle,
+                coordinate: GeoCoordinate(
+                    latitude: (bounds.minLatitude + bounds.maxLatitude) / 2,
+                    longitude: (bounds.minLongitude + bounds.maxLongitude) / 2
+                )
+            ))],
+            sources: Dictionary(uniqueKeysWithValues: SharedMobilityProvider.allCases.map {
+                ($0, SharedMobilitySourceStatus(state: .ok))
+            })
+        )
     }
 
     func stationsTile(in bounds: GeoBounds) async throws -> StationsArea {
@@ -120,6 +153,10 @@ private actor NetworkRemoteSpy: NetworkRemote {
 
     func setFailing(_ value: Bool) {
         failing = value
+    }
+
+    func setMobilityFailing(_ value: Bool) {
+        mobilityFailing = value
     }
 
     func totalCalls() -> Int {

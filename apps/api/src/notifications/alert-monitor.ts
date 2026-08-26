@@ -5,7 +5,10 @@ import type { RedisClient } from '../redis';
 import type { NotificationDelivery } from './delivery';
 import type { NotificationInboxStore } from './inbox-store';
 import { impactedStopIds } from './impacted-stop-ids';
-import type { NotificationLineStateStore } from './line-state-store';
+import type {
+  NotificationLineState,
+  NotificationLineStateStore,
+} from './line-state-store';
 import { evaluateDelivery } from './policy';
 import { fitDeviceNotification, stableIdentifierHash } from './payload';
 import { renderNotification } from './render';
@@ -13,7 +16,11 @@ import type { NotificationAlertSubscriptionStore } from './alert-subscription-st
 import { disruptionVersion } from './disruption-monitor';
 import type { NotificationAlertSubscription } from '@via/contract';
 
-const ALERT_CLAIM_TTL_SECONDS = 3 * 24 * 60 * 60;
+// A cycle claim only needs to outlive a slow poll and a scheduler retry. Keeping
+// it for days creates millions of useless keys (the poll runs every 120s).
+const ALERT_CLAIM_TTL_SECONDS = 10 * 60;
+const ALERT_CONTENT_DEDUP_TTL_SECONDS = 15 * 60;
+const RESTORED_CONFIRMATION_CYCLES = 2;
 
 export class NotificationAlertMonitor {
   private isPolling = false;
@@ -59,6 +66,14 @@ export class NotificationAlertMonitor {
         ...lineSubscriptions.map((subscription) => subscription.topicId),
       ]);
       for (const routeId of routes) {
+        const subscriptions = lineSubscriptions.filter(
+          (subscription) => subscription.topicId === routeId,
+        );
+        // Do not advance a route's global state just because another alert
+        // caused us to load the snapshot. Otherwise an alert enabled later
+        // sees an already-active disruption as old and never receives it.
+        if (subscriptions.length === 0) continue;
+
         const claimed = await this.options.redis.set(
           `notifications:alert-cycle:${cycle}:line:${routeId}`,
           '1',
@@ -67,25 +82,30 @@ export class NotificationAlertMonitor {
         if (claimed === null) continue;
         const current = snapshot.disruptions.filter((disruption) => disruption.routeIds.includes(routeId));
         const previous = await this.options.lineState.get(routeId);
-        const currentIDs = new Set(current.map((disruption) => disruption.id));
-        const appeared = current.filter((disruption) => !previous.has(disruption.id));
-        const restored = [...previous]
-          .filter((id) => !currentIDs.has(id))
-          .map((id) => ({ id, routeIds: [routeId] }));
-        const subscriptions = lineSubscriptions.filter(
-          (subscription) => subscription.topicId === routeId
+        const currentSubscriptionIds = new Set(subscriptions.map((subscription) => subscription.id));
+        const newlyActiveSubscriptionIds = new Set(
+          [...currentSubscriptionIds].filter((id) => !previous.subscriptionIds.has(id)),
+        );
+        const transition = advanceNotificationState(
+          previous,
+          current,
+          routeId,
+          currentSubscriptionIds,
         );
         for (const subscription of subscriptions) {
+          const appeared = newlyActiveSubscriptionIds.has(subscription.id)
+            ? current
+            : transition.appeared;
           for (const disruption of appeared) {
             if (!matchesAlert(subscription, now, disruption.severity)) continue;
             if (await this.deliver(subscription, disruption, 'disruption', now)) delivered += 1;
           }
-          for (const disruption of restored) {
+          for (const disruption of transition.restored) {
             if (!matchesAlert(subscription, now, 'attention')) continue;
             if (await this.deliver(subscription, disruption, 'restored', now)) delivered += 1;
           }
         }
-        await this.options.lineState.set(routeId, currentIDs);
+        await this.options.lineState.set(routeId, transition.next);
       }
 
       const stations = new Map<string, NormalizedDisruption[]>();
@@ -102,34 +122,44 @@ export class NotificationAlertMonitor {
         ...stationSubscriptions.map((subscription) => subscription.topicId),
       ]);
       for (const stationID of stationIDs) {
+        const subscriptions = stationSubscriptions.filter(
+          (subscription) => subscription.topicId === stationID,
+        );
+        if (subscriptions.length === 0) continue;
+
         const disruptions = stations.get(stationID) ?? [];
-        const currentIDs = new Set(disruptions.map((disruption) => disruption.id));
         const stateKey = `station:${stationID}`;
-        const previous = await this.options.lineState.get(stateKey);
-        const appeared = disruptions.filter((disruption) => !previous.has(disruption.id));
-        const restored = [...previous]
-          .filter((id) => !currentIDs.has(id))
-          .map((id) => ({ id, routeIds: [stationID] }));
         const claimed = await this.options.redis.set(
           `notifications:alert-cycle:${cycle}:station:${stationID}`,
           '1',
           { nx: true, ex: ALERT_CLAIM_TTL_SECONDS },
         );
         if (claimed === null) continue;
-        const subscriptions = stationSubscriptions.filter(
-          (subscription) => subscription.topicId === stationID
+        const previous = await this.options.lineState.get(stateKey);
+        const currentSubscriptionIds = new Set(subscriptions.map((subscription) => subscription.id));
+        const newlyActiveSubscriptionIds = new Set(
+          [...currentSubscriptionIds].filter((id) => !previous.subscriptionIds.has(id)),
+        );
+        const transition = advanceNotificationState(
+          previous,
+          disruptions,
+          stationID,
+          currentSubscriptionIds,
         );
         for (const subscription of subscriptions) {
+          const appeared = newlyActiveSubscriptionIds.has(subscription.id)
+            ? disruptions
+            : transition.appeared;
           for (const disruption of appeared) {
             if (!matchesAlert(subscription, now, disruption.severity)) continue;
             if (await this.deliver(subscription, disruption, 'disruption', now)) delivered += 1;
           }
-          for (const disruption of restored) {
+          for (const disruption of transition.restored) {
             if (!matchesAlert(subscription, now, 'attention')) continue;
             if (await this.deliver(subscription, disruption, 'restored', now)) delivered += 1;
           }
         }
-        await this.options.lineState.set(stateKey, currentIDs);
+        await this.options.lineState.set(stateKey, transition.next);
       }
       return delivered;
     } finally {
@@ -149,21 +179,48 @@ export class NotificationAlertMonitor {
       ? disruptionVersion(disruption as NormalizedDisruption)
       : stableIdentifierHash(`${event}:${disruption.id}`);
     const claimKey = `notifications:alert:${subscription.userId}:${subscription.id}:${disruption.id}:${event}:${version}`;
+    const lineLabel = subscription.topicKind === 'line'
+      ? subscription.label.trim()
+      : undefined;
+    const lineName = lineLabel?.replace(/^ligne\s+/i, '').trim() || lineLabel;
+    const title = subscription.topicKind === 'line'
+      ? event === 'restored'
+        ? `Trafic rétabli · ${lineLabel}`
+        : `Perturbation · ${lineLabel}`
+      : disruption.title;
+    const body = subscription.topicKind === 'line' && event === 'restored'
+      ? `Le trafic est rétabli sur la ligne ${lineName}.`
+      : disruption.message ?? disruption.title;
+    const contentClaimKey = [
+      'notifications:alert-content',
+      subscription.userId,
+      subscription.id,
+      event,
+      stableIdentifierHash(JSON.stringify({
+        title: normalizeNotificationText(title),
+        body: normalizeNotificationText(body),
+      })),
+    ].join(':');
     const claimed = await this.options.redis.set(claimKey, '1', {
       nx: true,
       ex: ALERT_CLAIM_TTL_SECONDS,
     });
     if (claimed === null) return false;
 
-    const lineName = disruption.routeIds[0];
+    const contentClaimed = await this.options.redis.set(contentClaimKey, '1', {
+      nx: true,
+      ex: ALERT_CONTENT_DEDUP_TTL_SECONDS,
+    });
+    if (contentClaimed === null) return false;
+
     const notification = fitDeviceNotification({
       ...renderNotification({
         category: subscription.topicKind,
         severity: disruption.severity ?? 'attention',
         badge: (await this.options.inbox.unreadCount(subscription.userId)) + 1,
-        title: disruption.title,
-        body: disruption.message,
-        lineName: subscription.topicKind === 'line' ? lineName : undefined,
+        title,
+        body,
+        lineName,
         stationName: subscription.topicKind === 'station' ? subscription.label : undefined,
         event,
         topicKind: subscription.topicKind,
@@ -171,9 +228,12 @@ export class NotificationAlertMonitor {
         deepLink: subscription.topicKind === 'line'
           ? `via://line?routeId=${encodeURIComponent(subscription.topicId)}`
           : `via://station?stationId=${encodeURIComponent(subscription.topicId)}`,
-        data: { alertSubscriptionId: subscription.id },
+        data: {
+          alertSubscriptionId: subscription.id,
+          ...(lineLabel ? { lineName: lineLabel } : {}),
+        },
       }),
-      collapseId: `via.alert.${stableIdentifierHash(claimKey)}`,
+      collapseId: `via.alert.${stableIdentifierHash(contentClaimKey)}`,
     });
     const severity = disruption.severity ?? 'attention';
     const decision = evaluateDelivery({
@@ -207,6 +267,13 @@ export class NotificationAlertMonitor {
         severity,
         dropReason: decision.reason,
       });
+      console.info('[notifications] alert dropped', {
+        category: subscription.topicKind,
+        topicId: subscription.topicId,
+        event,
+        disruptionId: disruption.id,
+        reason: decision.reason,
+      });
       return false;
     }
     await this.options.inbox.insert({
@@ -227,16 +294,73 @@ export class NotificationAlertMonitor {
         ...notification,
         interruptionLevel: decision.interruptionLevel,
       });
+      console.info('[notifications] alert delivered', {
+        category: subscription.topicKind,
+        topicId: subscription.topicId,
+        event,
+        disruptionId: disruption.id,
+      });
       return true;
     } catch (error) {
-      // The inbox insert is idempotent, while the stable claim key is safe to
-      // release: a later cycle retries the push and APNs collapse-id keeps
-      // the retry invisible if the first attempt actually arrived.
-      await this.options.redis.del(claimKey).catch(() => undefined);
-      console.error('[notifications] alert delivery failed', { claimKey, error });
+      // The inbox insert is idempotent. Release both claims so a later cycle
+      // can retry; the content-based APNs collapse-id keeps a retry of the
+      // same alert from creating a second pending notification.
+      await Promise.all([
+        this.options.redis.del(claimKey).catch(() => undefined),
+        this.options.redis.del(contentClaimKey).catch(() => undefined),
+      ]);
+      console.error('[notifications] alert delivery failed', {
+        category: subscription.topicKind,
+        topicId: subscription.topicId,
+        event,
+        disruptionId: disruption.id,
+        error,
+      });
       return false;
     }
   }
+}
+
+type NotificationStateTransition = {
+  appeared: NormalizedDisruption[];
+  restored: Array<{ id: string; routeIds: string[] }>;
+  next: NotificationLineState;
+};
+
+function advanceNotificationState(
+  previous: NotificationLineState,
+  current: NormalizedDisruption[],
+  topicId: string,
+  subscriptionIds: ReadonlySet<string>,
+): NotificationStateTransition {
+  const currentIDs = new Set(current.map((disruption) => disruption.id));
+  const nextIDs = new Set(currentIDs);
+  const missingCycles = new Map<string, number>();
+  const restored: Array<{ id: string; routeIds: string[] }> = [];
+
+  for (const id of previous.disruptionIds) {
+    if (currentIDs.has(id)) continue;
+    const cycles = (previous.missingCycles.get(id) ?? 0) + 1;
+    if (cycles >= RESTORED_CONFIRMATION_CYCLES) {
+      restored.push({ id, routeIds: [topicId] });
+    } else {
+      // Keep the disruption in the active state during the grace period so a
+      // one-poll upstream gap cannot emit a false restoration or a duplicate
+      // when the same disruption reappears.
+      nextIDs.add(id);
+      missingCycles.set(id, cycles);
+    }
+  }
+
+  return {
+    appeared: current.filter((disruption) => !previous.disruptionIds.has(disruption.id)),
+    restored,
+    next: { disruptionIds: nextIDs, subscriptionIds, missingCycles },
+  };
+}
+
+function normalizeNotificationText(value: string | undefined): string {
+  return (value ?? '').normalize('NFKC').replace(/\s+/gu, ' ').trim().toLowerCase();
 }
 
 function matchesAlert(

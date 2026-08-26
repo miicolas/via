@@ -16,6 +16,12 @@
   --card-foreground: #171717;
   --card-foreground-muted: #525252;
   --phone-screen: #f5f5f5;
+  --primary: #1872f7;
+  --primary-foreground: #ffffff;
+  --secondary: #e5eefb;
+  --secondary-foreground: #0a0a0a;
+  --destructive: #dc2626;
+  --input: #e5e5e5;
   --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
@@ -34,6 +40,12 @@
   --card-foreground: #fafafa;
   --card-foreground-muted: #d4d4d4;
   --phone-screen: #f5f5f5;
+  --primary: #0088ff;
+  --primary-foreground: #ffffff;
+  --secondary: #171717;
+  --secondary-foreground: #fafafa;
+  --destructive: #ef4444;
+  --input: #262626;
 }
 
 @theme inline {
@@ -50,6 +62,18 @@
   --color-card-foreground: var(--card-foreground);
   --color-card-foreground-muted: var(--card-foreground-muted);
   --color-phone-screen: var(--phone-screen);
+  /*
+   * Le vocabulaire shadcn, ramené sur la palette de Via plutôt que sur une
+   * seconde. `--primary` est l’accent de la marque, `--secondary` la surface
+   * sourde : les composants repris de la CLI parlent ainsi la même langue que
+   * `ActionButton` et le reste du site.
+   */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 }
@@ -189,5 +213,27 @@ body {
   .site-frame,
   .site-corner {
     display: none;
+  }
+}
+
+/* MapLibre’s own chrome, ramenée sur les tokens du site. */
+@layer base {
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+  .maplibregl-ctrl-attrib {
+    @apply bg-background! text-muted-foreground! border-border! rounded-md! border! shadow-sm!;
+  }
+  .maplibregl-ctrl-attrib a {
+    @apply text-muted-foreground!;
+  }
+  .maplibregl-ctrl-attrib a:hover {
+    @apply text-foreground!;
+  }
+  .maplibregl-ctrl-attrib-button {
+    @apply bg-transparent! dark:invert;
   }
 }

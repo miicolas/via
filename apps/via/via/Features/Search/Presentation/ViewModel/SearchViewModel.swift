@@ -45,6 +45,7 @@ enum NaturalSearchState: Sendable, Hashable {
 enum SearchDepartureSelection: Sendable, Hashable {
   case currentLocation
   case saved(SavedPlace)
+  case savedDestination(SavedDestination)
   case manual(SearchResult)
 
   var title: String {
@@ -53,6 +54,8 @@ enum SearchDepartureSelection: Sendable, Hashable {
       "Ma position"
     case .saved(let place):
       place.role.displayTitle
+    case .savedDestination(let destination):
+      destination.label
     case .manual(let result):
       result.name
     }
@@ -64,6 +67,8 @@ enum SearchDepartureSelection: Sendable, Hashable {
       "Position actuelle"
     case .saved(let place):
       place.name == place.role.displayTitle ? "Lieu enregistré" : place.name
+    case .savedDestination(let destination):
+      destination.label == destination.name ? "Lieu enregistré" : destination.name
     case .manual(let result):
       result.subtitle
     }
@@ -75,6 +80,8 @@ enum SearchDepartureSelection: Sendable, Hashable {
       nil
     case .saved(let place):
       place.coordinate
+    case .savedDestination(let destination):
+      destination.coordinate
     case .manual(let result):
       result.coordinate
     }
@@ -652,6 +659,10 @@ final class SearchViewModel {
     account?.places ?? []
   }
 
+  var savedDestinations: [SavedDestination] {
+    account?.destinations.sorted { $0.position < $1.position } ?? []
+  }
+
   var selectedJourneyID: JourneyID? {
     mapPresentation?.id
   }
@@ -1207,7 +1218,7 @@ final class SearchViewModel {
     switch selectedDeparture {
     case .currentLocation:
       await locationModel.requestCurrentLocation()
-    case .saved, .manual:
+    case .saved, .savedDestination, .manual:
       selectedDeparture.coordinate
     }
   }

@@ -64,7 +64,11 @@ struct NetworkMapSnapshot: Sendable, Equatable {
   /// so it stays readable at a zoom where the unbounded network would not.
   /// When it is what is being drawn, the zoom fade does not apply to it.
   let stationsBypassZoomFade: Bool
-  let bikeSourceAvailable: Bool
+  let sharedMobilitySources: [SharedMobilityProvider: SharedMobilitySourceStatus]
+
+  func sourceStatus(_ provider: SharedMobilityProvider) -> SharedMobilitySourceStatus {
+    sharedMobilitySources[provider] ?? SharedMobilitySourceStatus(state: .unavailable)
+  }
 
   /// What the annotations actually render at.
   var resolvedStationOpacity: Double {
@@ -79,7 +83,7 @@ struct NetworkMapSnapshot: Sendable, Equatable {
     lineStyle: NetworkLineStyle(opacity: 1, width: 3),
     stationOpacity: 1,
     stationsBypassZoomFade: false,
-    bikeSourceAvailable: true
+    sharedMobilitySources: [:]
   )
 
   static func == (lhs: Self, rhs: Self) -> Bool {
@@ -88,7 +92,7 @@ struct NetworkMapSnapshot: Sendable, Equatable {
       && lhs.stationOpacity == rhs.stationOpacity
       && lhs.stationsBypassZoomFade == rhs.stationsBypassZoomFade
       && lhs.stations == rhs.stations
-      && lhs.bikeSourceAvailable == rhs.bikeSourceAvailable
+      && lhs.sharedMobilitySources == rhs.sharedMobilitySources
   }
 }
 
@@ -114,8 +118,16 @@ extension NetworkViewport {
   private static let fullyVisibleStationSpanMeters = 1_000.0
   private static let maximumStationSpanMeters = 1_600.0
 
+  /// Past this the individual vehicle symbols overlap each other faster than
+  /// station labels do, so they merge into counted clusters.
+  private static let groupedSharedMobilitySpanMeters = 850.0
+
   var showsStations: Bool {
     maximumSpanMeters < Self.maximumStationSpanMeters
+  }
+
+  var groupsSharedMobility: Bool {
+    maximumSpanMeters > Self.groupedSharedMobilitySpanMeters
   }
 
   /// A filtered nearby set can remain visible beyond the normal station

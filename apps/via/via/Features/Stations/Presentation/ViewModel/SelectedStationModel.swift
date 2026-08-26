@@ -222,6 +222,7 @@ final class SelectedStationModel {
           return
         }
 
+        let loadedAt = now()
         overview = StationOverview(
           id: initialOverview.id,
           name: initialOverview.name,
@@ -233,12 +234,17 @@ final class SelectedStationModel {
           departures: StationOverviewBuilder.nextDepartures(
             from: board,
             routes: initialOverview.routes,
-            now: now()
+            now: loadedAt
           ),
           departureSource: board.source,
           departureFetchedAt: board.fetchedAt,
           peak: board.peak,
-          elevators: board.elevators
+          elevators: board.elevators,
+          departureBoard: StationOverviewBuilder.departureBoard(
+            from: board,
+            routes: initialOverview.routes,
+            now: loadedAt
+          )
         )
         loadingState = .loaded
       } catch is CancellationError {

@@ -4,6 +4,7 @@ import SwiftUI
 struct SearchDepartureMenuContent: View {
     let selection: SearchDepartureSelection
     let savedPlaces: [SavedPlace]
+    let savedDestinations: [SavedDestination]
     let onSelect: (SearchDepartureSelection) -> Void
     let onChooseManual: () -> Void
 
@@ -32,6 +33,25 @@ struct SearchDepartureMenuContent: View {
                 menuItem(
                     title: place.role.displayTitle,
                     systemImage: place.role.systemImage,
+                    isSelected: isSelected
+                )
+            }
+            .accessibilityValue(isSelected ? "Sélectionné" : "Non sélectionné")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+        }
+
+        if !savedDestinations.isEmpty {
+            Divider()
+        }
+
+        ForEach(savedDestinations) { destination in
+            let isSelected = selection == .savedDestination(destination)
+            Button {
+                onSelect(.savedDestination(destination))
+            } label: {
+                menuItem(
+                    title: destination.label,
+                    systemImage: SavedDestinationSymbols.resolved(destination.systemImage),
                     isSelected: isSelected
                 )
             }
@@ -83,6 +103,7 @@ struct SearchDepartureMenuContent: View {
     SearchDepartureMenuContent(
         selection: .currentLocation,
         savedPlaces: [],
+        savedDestinations: [],
         onSelect: { _ in },
         onChooseManual: {}
     )

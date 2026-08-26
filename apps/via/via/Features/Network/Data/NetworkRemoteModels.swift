@@ -129,3 +129,118 @@ struct BikeStationDTO: Decodable {
         )
     }
 }
+
+typealias SharedMobilityJSONPayload =
+    Operations.network_period_sharedMobilityInArea.Output.Ok.Body.jsonPayload
+typealias SharedMobilityItemPayload = SharedMobilityJSONPayload.itemsPayloadPayload
+typealias SharedMobilityVehiclePayload = SharedMobilityItemPayload.Value1Payload
+typealias SharedMobilityStationPayload = SharedMobilityItemPayload.Value2Payload
+typealias SharedMobilitySourcesPayload = SharedMobilityJSONPayload.sourcesPayload
+
+struct SharedMobilityAreaDTO: Decodable {
+    let items: [SharedMobilityItemPayload]
+    let sources: SharedMobilitySourcesPayload
+
+    func domain() -> SharedMobilityArea {
+        SharedMobilityArea(
+            items: items.compactMap { $0.domain() },
+            sources: sources.domain()
+        )
+    }
+}
+
+private extension SharedMobilityItemPayload {
+    func domain() -> SharedMobilityItem? {
+        if let vehicle = value1 { return vehicle.domain() }
+        if let station = value2 { return station.domain() }
+        return nil
+    }
+}
+
+private extension SharedMobilityVehiclePayload {
+    func domain() -> SharedMobilityItem? {
+        guard
+            kind == .vehicle,
+            let provider = SharedMobilityProvider(rawValue: provider.rawValue),
+            let mode = SharedMobilityMode(rawValue: mode.rawValue),
+            availability == .available
+        else { return nil }
+
+        return .vehicle(SharedMobilityVehicle(
+            id: id,
+            provider: provider,
+            mode: mode,
+            vehicleType: vehicleType,
+            availability: .available,
+            coordinate: GeoCoordinate(
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude
+            ),
+            batteryPercent: batteryPercent,
+            rangeMeters: rangeMeters,
+            lastReportedAt: lastReportedAt,
+            restriction: restriction.flatMap { SharedMobilityRestriction(rawValue: $0.rawValue) },
+            rentalURL: rentalUrl.flatMap(URL.init(string:)),
+            operatorURL: operatorUrl.flatMap(URL.init(string:))
+        ))
+    }
+}
+
+private extension SharedMobilityStationPayload {
+    func domain() -> SharedMobilityItem? {
+        guard kind == .station, provider == .velib else { return nil }
+        // The dock itself is a `BikeStation`, decoded exactly as the Vélib'
+        // route decodes it; only what the generic layer adds is read here.
+        return .station(SharedMobilityStation(
+            station: BikeStation(
+                id: id,
+                stationCode: stationCode,
+                name: name,
+                coordinate: GeoCoordinate(
+                    latitude: coordinate.latitude,
+                    longitude: coordinate.longitude
+                ),
+                capacity: capacity,
+                availability: availability.map { value in
+                    BikeStationAvailability(
+                        mechanicalBikes: value.mechanicalBikes,
+                        electricBikes: value.electricBikes,
+                        docks: value.docks,
+                        isInstalled: value.isInstalled,
+                        isRenting: value.isRenting,
+                        isReturning: value.isReturning,
+                        lastReportedAt: value.lastReportedAt
+                    )
+                }
+            ),
+            operatorURL: operatorUrl.flatMap(URL.init(string:))
+        ))
+    }
+}
+
+private extension SharedMobilitySourcesPayload {
+    func domain() -> [SharedMobilityProvider: SharedMobilitySourceStatus] {
+        [
+            .dott: sourceStatus(dott.status.rawValue, dott.sourceUpdatedAt, dott.expiresAt),
+            .lime: sourceStatus(lime.status.rawValue, lime.sourceUpdatedAt, lime.expiresAt),
+            .velib: sourceStatus(velib.status.rawValue, velib.sourceUpdatedAt, velib.expiresAt),
+            .yego: sourceStatus(yego.status.rawValue, yego.sourceUpdatedAt, yego.expiresAt),
+        ]
+    }
+}
+
+/// The generator gives each provider its own nominal payload type, so four
+/// identical `domain()` bodies is what writing this per type costs. The mapping
+/// is one rule — an unknown state reads as unavailable — and it is written once
+/// here, where a fifth operator adds a line rather than a fifth copy.
+private func sourceStatus(
+    _ status: String,
+    _ sourceUpdatedAt: Date?,
+    _ expiresAt: Date?
+) -> SharedMobilitySourceStatus {
+    SharedMobilitySourceStatus(
+        state: SharedMobilitySourceState(rawValue: status) ?? .unavailable,
+        sourceUpdatedAt: sourceUpdatedAt,
+        expiresAt: expiresAt
+    )
+}

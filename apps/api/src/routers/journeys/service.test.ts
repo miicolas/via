@@ -191,6 +191,27 @@ describe('journey planning module', () => {
     expect(cachedTtl(expiries)).toBe(30);
   });
 
+  test('keeps walking and cycling alternatives from the realtime planner', async () => {
+    const walking = directJourney('walking', 1_200);
+    const cycling = directJourney('bike', 600);
+    const { planner } = setup({
+      idfmResult: {
+        status: 'ready',
+        journeys: [modalJourney('metro', 1_800), walking, cycling],
+      },
+    });
+
+    const response = await plan(planner);
+
+    expect(response.journeys.map((journey) => journey.id)).toEqual([
+      'metro',
+      'walking',
+      'bike',
+    ]);
+    expect(response.journeys[1]?.qualifier).toBe('walking');
+    expect(response.journeys[2]?.qualifier).toBe('bike');
+  });
+
   test('serializes concurrent GTFS fallbacks', async () => {
     const { planner, gtfsConcurrency } = setup({ apiKey: false, gtfsDelayMs: 10 });
 
@@ -392,6 +413,33 @@ function modalJourney(mode: JourneyMode, durationSeconds: number): Journey {
       to: { name: input.destination.name, coordinate: input.destination.coordinate },
       geometry: [],
       route: { id: mode, shortName: '1', longName: mode, mode, color: '#000', textColor: '#fff' },
+      stops: [],
+    }],
+  };
+}
+
+function directJourney(mode: 'walking' | 'bike', durationSeconds: number): Journey {
+  const isBike = mode === 'bike';
+  const departureAt = now.toISOString();
+  const arrivalAt = new Date(now.getTime() + durationSeconds * 1_000).toISOString();
+  return {
+    id: mode,
+    qualifier: mode,
+    durationSeconds,
+    walkingDurationSeconds: isBike ? 0 : durationSeconds,
+    transferCount: 0,
+    departureAt,
+    arrivalAt,
+    status: 'normal',
+    warnings: [],
+    sections: [{
+      type: isBike ? 'bike' : 'walk',
+      durationSeconds,
+      from: { name: 'Départ', coordinate: input.origin },
+      to: { name: input.destination.name, coordinate: input.destination.coordinate },
+      departureAt,
+      arrivalAt,
+      geometry: [input.origin, input.destination.coordinate],
       stops: [],
     }],
   };

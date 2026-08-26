@@ -16,13 +16,19 @@ struct StationMapFilterMenu: View {
     .haptic(Haptic.cleared, on: filter.isActive) { $0 && !$1 }
     .foregroundStyle(filter.isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
     .glassEffect(.regular, in: .circle)
-    .accessibilityLabel("Filtrer les stations")
+    .accessibilityLabel("Filtrer la carte")
     .accessibilityValue(accessibilityValue)
-    .accessibilityHint("Affiche les filtres de stations")
+    .accessibilityHint("Affiche les filtres de carte")
   }
 
   private var menu: some View {
     Menu {
+      Section("Mobilité partagée") {
+        ForEach(StationMapFilterCriterion.sharedMobility, id: \.self) { criterion in
+          criterionToggle(criterion)
+        }
+      }
+
       Section("Équipements") {
         ForEach(StationMapFilterCriterion.facilities, id: \.self) { criterion in
           criterionToggle(criterion)
@@ -31,12 +37,6 @@ struct StationMapFilterMenu: View {
 
       Section("Transports") {
         ForEach(StationMapFilterCriterion.transportModes, id: \.self) { criterion in
-          criterionToggle(criterion)
-        }
-      }
-
-      Section("Vélos partagés") {
-        ForEach(StationMapFilterCriterion.sharedMobility, id: \.self) { criterion in
           criterionToggle(criterion)
         }
       }
@@ -52,7 +52,7 @@ struct StationMapFilterMenu: View {
       // The frame and the hit shape belong to the *label*: put them outside the
       // `Menu` and they grow the layout box while the tappable area stays the
       // glyph, so every tap around the icon falls through to the map.
-      Label("Filtrer les stations", systemImage: "line.3.horizontal.decrease")
+      Label("Filtrer la carte", systemImage: "line.3.horizontal.decrease")
         .labelStyle(.iconOnly)
         .font(.system(size: 17, weight: .medium))
         .frame(width: Self.side, height: Self.side)
@@ -77,7 +77,14 @@ struct StationMapFilterMenu: View {
       } icon: {
         TransitModeIconView(mode: mode, size: 20)
       }
-    case .accessibility, .elevators, .toilets, .bikeStations:
+    case .sharedBikes, .sharedScooters, .bikeStations:
+      HStack(spacing: 8) {
+        ForEach(criterion.sharedMobilityProviders, id: \.self) { provider in
+          SharedMobilityProviderLogoView(provider: provider, size: 20)
+        }
+        Text(criterion.title)
+      }
+    case .accessibility, .elevators, .toilets:
       Label(criterion.title, systemImage: criterion.systemImage)
     }
   }

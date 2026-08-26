@@ -72,8 +72,43 @@ enum StationOverviewBuilder {
             departureSource: board.source,
             departureFetchedAt: board.fetchedAt,
             peak: board.peak,
-            elevators: board.elevators
+            elevators: board.elevators,
+            departureBoard: Self.departureBoard(
+                from: board,
+                routes: candidate.routes,
+                now: now
+            )
         )
+    }
+
+    /// Converts the bounded board payload into all future rows the detail can
+    /// show. The compact `nextDepartures` projection below deliberately keeps
+    /// only one row per direction for the Stations tab.
+    static func departureBoard(
+        from board: DepartureBoard,
+        routes: [RouteBadge],
+        now: Date
+    ) -> [StationDeparture] {
+        routes.flatMap { route in
+            board.groups
+                .filter { $0.route.id == route.id }
+                .flatMap { group in
+                    group.departureItems
+                        .filter { isVisible($0, at: now) }
+                        .sorted { lhs, rhs in isEarlier(lhs, than: rhs) }
+                        .map {
+                            StationDeparture(
+                                id: $0.id,
+                                route: route,
+                                destination: group.destination,
+                                scheduledAt: $0.scheduledAt,
+                                expectedAt: $0.expectedAt,
+                                delaySeconds: $0.delaySeconds,
+                                status: $0.status
+                            )
+                        }
+                }
+        }
     }
 
     static func nextDepartures(
@@ -88,13 +123,7 @@ enum StationOverviewBuilder {
             guard routes.contains(where: { $0.id == group.route.id }) else { continue }
 
             let route = routes.first(where: { $0.id == group.route.id }) ?? group.route
-            let items = group.departureItems.filter { item in
-                guard !item.status.isHiddenFromBoard else { return false }
-                guard let displayAt = item.displayAt else {
-                    return item.status == .cancelled || item.status == .missed
-                }
-                return displayAt >= now || item.status == .cancelled || item.status == .missed
-            }
+            let items = group.departureItems.filter { isVisible($0, at: now) }
 
             guard let item = items.min(by: { lhs, rhs in isEarlier(lhs, than: rhs) }) else {
                 continue
@@ -125,6 +154,14 @@ enum StationOverviewBuilder {
                 .filter { $0.routeID == route.id }
                 .compactMap { earliestByDirection[$0] }
         }
+    }
+
+    private static func isVisible(_ item: DepartureItem, at now: Date) -> Bool {
+        guard !item.status.isHiddenFromBoard else { return false }
+        guard let displayAt = item.displayAt else {
+            return item.status == .cancelled || item.status == .missed
+        }
+        return displayAt >= now || item.status == .cancelled || item.status == .missed
     }
 
     private static func isEarlier(

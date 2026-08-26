@@ -30,7 +30,14 @@ struct LinesView: View {
           LineDetailView(
             viewModel: viewModel.detailViewModel(for: status.route),
             route: status.route,
-            accountModel: accountModel
+            accountModel: accountModel,
+            isFavorite: Binding(
+              get: { viewModel.isFavorite(status.route.id) },
+              set: { isFavorite in
+                guard isFavorite != viewModel.isFavorite(status.route.id) else { return }
+                _ = viewModel.toggleFavorite(route: status.route)
+              }
+            )
           )
         }
         .onChange(of: viewModel.requestedRouteID) { _, _ in

@@ -9,6 +9,7 @@ struct JourneyDetailView: View {
     var journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview
     let planningPolicy: JourneyPlanningPolicy
     let departureChoicesModel: JourneyDepartureChoicesModel
+    var journeyShareRepository: any JourneyShareRepository = InMemoryJourneyShareRepository()
     let onSelectDeparture: (JourneyDepartureChoice, String) -> Void
     let onRetryDepartures: () async -> Void
     let onUpdateTime: (Date, JourneyDatetimeRepresents) async throws -> Void
@@ -23,6 +24,11 @@ struct JourneyDetailView: View {
     @State private var isReminderSheetPresented = false
     @State private var isDraftErrorPresented = false
     @State private var editedTimeEndpoint: JourneyDatetimeRepresents?
+    @State private var shareLink: JourneyShareLink?
+    @State private var isPreparingShare = false
+    @State private var shareErrorMessage: String?
+    @State private var shareActionTick = 0
+    @State private var shareOutcomeTick = 0
 
     @Environment(\.dismiss) private var dismiss
 
@@ -118,7 +124,11 @@ struct JourneyDetailView: View {
             .presentationCornerRadius(36)
             .presentationDragIndicator(.visible)
         }
+        .sheet(item: $shareLink) { link in
+            JourneyShareLinkSheetView(link: link, journey: journey)
+        }
         .haptic(Haptic.failed, on: isDraftErrorPresented) { !$0 && $1 }
+        .haptic(Haptic.saved, on: shareOutcomeTick)
         .alert("Trajet non prévu", isPresented: $isDraftErrorPresented) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -126,6 +136,17 @@ struct JourneyDetailView: View {
                 plannedJourneyDraftModel.lastError
                     ?? "Le trajet n’a pas pu être enregistré sur cet appareil."
             )
+        }
+        .alert(
+            "Partage indisponible",
+            isPresented: Binding(
+                get: { shareErrorMessage != nil },
+                set: { if !$0 { shareErrorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(shareErrorMessage ?? "Le lien de partage n’a pas pu être créé.")
         }
     }
 
@@ -144,6 +165,23 @@ struct JourneyDetailView: View {
                 .disabled(isActivating)
                 .accessibilityHint("Supprime ce trajet prévu de cet appareil")
             }
+        }
+
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                prepareShare()
+            } label: {
+                Label {
+                    Text("Partager le trajet")
+                } icon: {
+                    Image(systemName: isPreparingShare ? "hourglass" : "square.and.arrow.up")
+                        .stateSymbolTransition(value: isPreparingShare)
+                }
+            }
+            .labelStyle(.iconOnly)
+            .disabled(isPreparingShare)
+            .accessibilityValue(isPreparingShare ? "Préparation" : "Prêt à partager")
+            .haptic(Haptic.commit, on: shareActionTick)
         }
 
         ToolbarItem(placement: .topBarTrailing) {
@@ -178,6 +216,32 @@ struct JourneyDetailView: View {
 
     private func expandMap() {
         onExpandMap()
+    }
+
+    private func prepareShare() {
+        guard !isPreparingShare else { return }
+        shareActionTick += 1
+        isPreparingShare = true
+        Task { @MainActor in
+            defer { isPreparingShare = false }
+            do {
+                shareLink = try await journeyShareRepository.create(for: journey)
+                shareOutcomeTick += 1
+            } catch {
+                shareErrorMessage = shareMessage(for: error.via)
+            }
+        }
+    }
+
+    private func shareMessage(for error: ViaError) -> String {
+        switch error {
+        case .rateLimited:
+            "Trop de liens ont été créés récemment. Réessayez dans un instant."
+        case .unavailable, .transport:
+            "Vérifiez votre connexion puis réessayez."
+        default:
+            "Le lien de partage n’a pas pu être créé. Réessayez dans un instant."
+        }
     }
 
     private func handleAction(_ action: JourneyActivationAction) {

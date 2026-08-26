@@ -49,10 +49,11 @@ struct NearbyStationRow: View {
 
     @ViewBuilder
     private var glyph: some View {
-        if station.item.bikeStation != nil {
-            Image(systemName: "bicycle")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.secondary)
+        if station.item.dock != nil {
+            SharedMobilityProviderLogoView(provider: .velib, size: 24)
+                .frame(width: 32)
+        } else if let mobility = station.item.sharedMobility {
+            SharedMobilityProviderLogoView(provider: mobility.provider, size: 24)
                 .frame(width: 32)
         } else if let mode = station.item.modes.first {
             TransitModeIconView(mode: mode, size: 24)
@@ -67,8 +68,20 @@ struct NearbyStationRow: View {
 
     @ViewBuilder
     private var detail: some View {
-        if let bike = station.item.bikeStation {
+        // The dock first: a Vélib' station shows its inventory whichever layer
+        // delivered it, rather than the generic « Station · Vélib' Métropole »
+        // the mobility branch would print for it.
+        if let bike = station.item.dock {
             bikeInventory(bike)
+        } else if let mobility = station.item.sharedMobility {
+            HStack(spacing: 6) {
+                Text(mobility.mode?.displayName ?? "Station")
+                Text("·")
+                    .foregroundStyle(.tertiary)
+                Text(mobility.provider.displayName)
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
         } else {
             HStack(spacing: 6) {
                 ForEach(station.item.routes.prefix(Self.maximumVisibleRoutes)) { route in
@@ -123,15 +136,20 @@ struct NearbyStationRow: View {
             case .accessibility: return station.item.accessibility != nil
             case .elevators: return station.item.hasElevators
             case .toilets: return station.item.toilets != nil
-            case .bikeStations, .mode: return false
+            case .sharedBikes, .sharedScooters, .bikeStations, .mode: return false
             }
         }
     }
 
     private var accessibilityLabel: String {
-        if let bike = station.item.bikeStation {
+        if let bike = station.item.dock {
             let detail = bike.availability?.accessibilityDetail ?? "disponibilité inconnue"
             return "Station Vélib \(station.item.name), \(detail)"
+        }
+
+        if let mobility = station.item.sharedMobility {
+            let mode = mobility.mode?.displayName ?? "Mobilité partagée"
+            return "\(mode) \(mobility.provider.displayName), \(station.item.name)"
         }
 
         var parts = ["Station \(station.item.name)"]
