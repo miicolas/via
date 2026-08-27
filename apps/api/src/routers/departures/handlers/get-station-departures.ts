@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/server';
-import type { RouteBadge } from '@via/contract';
+import { SERVICE_DAY_DEPARTURES_PER_GROUP, type RouteBadge } from '@via/contract';
 
 import { env } from '../../../env';
 import { implementer } from '../../../orpc/implementer';
@@ -16,7 +16,11 @@ import { toMonitoringRef } from '../prim/refs';
 import { toRouteBadge } from '../../route-badge';
 import { selectStationRoutes } from '../queries';
 import { theoreticalRowLoader } from '../theoretical/load-rows';
-import { nextTheoreticalDepartures } from '../theoretical/next-departures';
+import {
+  nextTheoreticalDepartures,
+  SERVICE_DAY_ROW_LIMIT,
+} from '../theoretical/next-departures';
+import type { TheoreticalDepartureOptions } from '../theoretical/next-departures';
 import { stationPeaks } from '../../station-peak';
 import { elevatorSnapshotForStation } from '../../elevators';
 
@@ -60,8 +64,21 @@ export const getStationDepartures = implementer.departures.forStation.handler(
       };
     });
 
-    const routes = snapshot?.routes ?? fallbackRoutes ?? (await loadRoutes());
+    const stationRoutes = snapshot?.routes ?? fallbackRoutes ?? (await loadRoutes());
+    if (stationRoutes.length === 0) throw new ORPCError('NOT_FOUND');
+
+    const routes = input.routeId
+      ? stationRoutes.filter((route) => route.id === input.routeId)
+      : stationRoutes;
     if (routes.length === 0) throw new ORPCError('NOT_FOUND');
+
+    const isServiceDayBoard = input.routeId !== undefined;
+    const scheduleOptions: TheoreticalDepartureOptions = isServiceDayBoard
+      ? {
+          rowLimit: SERVICE_DAY_ROW_LIMIT,
+          maxDeparturesPerGroup: SERVICE_DAY_DEPARTURES_PER_GROUP,
+        }
+      : {};
 
     context.resHeaders?.set('Cache-Control', DEPARTURES_CACHE_CONTROL);
 
@@ -83,7 +100,8 @@ export const getStationDepartures = implementer.departures.forStation.handler(
           routes,
           theoreticalRowLoader(input.stationId),
           input.stationId,
-          BASELINE_LOOK_BEHIND_SECONDS
+          BASELINE_LOOK_BEHIND_SECONDS,
+          scheduleOptions
         );
       } catch (cause) {
         // The GTFS baseline enriches realtime but must not take live data down
@@ -96,17 +114,29 @@ export const getStationDepartures = implementer.departures.forStation.handler(
         routes,
         now,
         input.stationId,
-        theoreticalBaseline
+        theoreticalBaseline,
+        {
+          maxDeparturesPerGroup: scheduleOptions.maxDeparturesPerGroup,
+          includeTheoreticalRemainder: isServiceDayBoard,
+        }
       );
       // PRIM answering with nothing is not proof of a quiet station: the stop
       // may sit outside the realtime perimeter. Falling through to the
       // schedule costs one indexed query and tells the difference — if the
       // line really is done for the night, the schedule is empty too.
       if (groups.length > 0) {
+        const source = groups.some((group) =>
+          group.departureItems.some((item) => item.status !== 'scheduled')
+        )
+          ? ('realtime' as const)
+          : ('theoretical' as const);
+
         return {
-          source: 'realtime' as const,
+          source,
           generatedAt: now.toISOString(),
-          fetchedAt: new Date(snapshot.fetchedAt * 1_000).toISOString(),
+          ...(source === 'realtime'
+            ? { fetchedAt: new Date(snapshot.fetchedAt * 1_000).toISOString() }
+            : {}),
           peak,
           elevators,
           groups,
@@ -118,7 +148,9 @@ export const getStationDepartures = implementer.departures.forStation.handler(
       now,
       routes,
       theoreticalRowLoader(input.stationId),
-      input.stationId
+      input.stationId,
+      0,
+      scheduleOptions
     );
 
     return {

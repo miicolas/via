@@ -26,12 +26,14 @@ export type DatedDeparture = {
  * bucket, sort or cap — nor in which lines they keep: a station's payload can
  * carry every line calling there (an interchange's RER traffic rides with its
  * metro traffic), so only the station's own `routes` survive, and each group
- * carries its line's badge.
+ * carries its line's badge. A line-specific service-day request raises the
+ * cap, while the station overview keeps the small default.
  */
 export function groupDepartures(
   departures: DatedDeparture[],
   routes: RouteBadge[],
-  stationId = ''
+  stationId = '',
+  maxDeparturesPerGroup = DEPARTURES_PER_GROUP
 ): DepartureGroup[] {
   const badgeById = new Map(routes.map((route) => [route.id, route]));
   const buckets = new Map<string, {
@@ -58,14 +60,14 @@ export function groupDepartures(
     const insertAt = group.departures.findIndex(
       (candidate) => sortAt(departure) < sortAt(candidate)
     );
-    if (insertAt === -1 && group.departures.length >= DEPARTURES_PER_GROUP) continue;
+    if (insertAt === -1 && group.departures.length >= maxDeparturesPerGroup) continue;
 
     group.departures.splice(
       insertAt === -1 ? group.departures.length : insertAt,
       0,
       departure
     );
-    if (group.departures.length > DEPARTURES_PER_GROUP) group.departures.pop();
+    if (group.departures.length > maxDeparturesPerGroup) group.departures.pop();
   }
 
   // Stable payload order; the client re-associates by route id anyway.

@@ -9,6 +9,7 @@ struct StationDetailView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.scenePhase) private var scenePhase
   @State private var isNotificationAuthorizationRequested = false
+  @State private var selectedLineRoute: RouteBadge?
 
   /// The sheet's collapsed detent only shows the navigation title, so the
   /// bottom-bar favorite control is hidden until the sheet is expanded.
@@ -47,11 +48,12 @@ struct StationDetailView: View {
 
             StationDeparturesSection(
               routes: currentStation.routes,
-              departures: currentStation.departureBoard,
+              departures: currentStation.departures,
               source: currentStation.departureSource,
               fetchedAt: currentStation.departureFetchedAt,
               loadingState: selection.loadingState,
-              onRetry: selection.retry
+              onRetry: selection.retry,
+              onSelectRoute: openLineSchedule
             )
 
             // A station without a validations profile — every bus stop — gets
@@ -117,6 +119,18 @@ struct StationDetailView: View {
         }
       }
     }
+    .sheet(item: $selectedLineRoute, onDismiss: { selection.clearLineSchedule() }) { route in
+      StationLineScheduleView(
+        selection: selection,
+        route: route,
+        isLargeScreen: isLargeScreen
+      )
+    }
+    .onChange(of: selection.overview?.id) { _, _ in
+      selectedLineRoute = nil
+      selection.clearLineSchedule()
+    }
+    .haptic(Haptic.commit, on: selectedLineRoute != nil) { !$0 && $1 }
     .notificationAuthorization(
       isRequested: $isNotificationAuthorizationRequested,
       message: "Autorisez les notifications dans Réglages iOS pour être prévenu des perturbations de cette station."
@@ -129,6 +143,11 @@ struct StationDetailView: View {
       await selection.observeLiveStatusWhileVisible()
     }
     .detailSheetPresentation(isLargeScreen: isLargeScreen, selection: $detailDetent)
+  }
+
+  private func openLineSchedule(_ route: RouteBadge) {
+    selectedLineRoute = route
+    selection.selectLine(route)
   }
 }
 

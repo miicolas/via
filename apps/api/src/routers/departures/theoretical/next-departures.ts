@@ -1,10 +1,23 @@
-import type { DepartureGroup, RouteBadge } from '@via/contract';
+import {
+  DEPARTURES_PER_GROUP,
+  SERVICE_DAY_DEPARTURES_PER_GROUP,
+  type DepartureGroup,
+  type RouteBadge,
+} from '@via/contract';
 
 import { groupDepartures } from '../group-departures';
 import { parisDay, previousDate, toInstant } from '../../../time/paris';
 
-/** Enough rows to fill several directions of a busy interchange. */
-const ROW_LIMIT = 60;
+/** Enough rows to fill the compact overview at a busy interchange. */
+const COMPACT_ROW_LIMIT = 60;
+
+/** A line-specific board can carry every remaining service-day departure. */
+export const SERVICE_DAY_ROW_LIMIT = SERVICE_DAY_DEPARTURES_PER_GROUP;
+
+export type TheoreticalDepartureOptions = {
+  rowLimit?: number;
+  maxDeparturesPerGroup?: number;
+};
 
 export type TheoreticalDepartureRow = {
   routeId: string;
@@ -15,7 +28,8 @@ export type TheoreticalDepartureRow = {
 type LoadRows = (
   serviceDate: string,
   afterSeconds: number,
-  limit: number
+  limit: number,
+  routeIds: string[]
 ) => Promise<TheoreticalDepartureRow[]>;
 
 /**
@@ -31,16 +45,19 @@ export async function nextTheoreticalDepartures(
   stationRoutes: RouteBadge[],
   loadRows: LoadRows,
   stationId = '',
-  lookBehindSeconds = 0
+  lookBehindSeconds = 0,
+  options: TheoreticalDepartureOptions = {}
 ): Promise<DepartureGroup[]> {
   const { date, seconds } = parisDay(now);
   const yesterdayDate = previousDate(date);
   const todayAfterSeconds = Math.max(0, seconds - lookBehindSeconds);
   const yesterdayAfterSeconds = Math.max(0, seconds + 86_400 - lookBehindSeconds);
+  const rowLimit = options.rowLimit ?? COMPACT_ROW_LIMIT;
+  const routeIds = stationRoutes.map((route) => route.id);
 
   const [today, yesterday] = await Promise.all([
-    loadRows(date, todayAfterSeconds, ROW_LIMIT),
-    loadRows(yesterdayDate, yesterdayAfterSeconds, ROW_LIMIT),
+    loadRows(date, todayAfterSeconds, rowLimit, routeIds),
+    loadRows(yesterdayDate, yesterdayAfterSeconds, rowLimit, routeIds),
   ]);
 
   return groupDepartures(
@@ -54,6 +71,7 @@ export async function nextTheoreticalDepartures(
       status: 'scheduled' as const,
     })),
     stationRoutes,
-    stationId
+    stationId,
+    options.maxDeparturesPerGroup ?? DEPARTURES_PER_GROUP
   );
 }

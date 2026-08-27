@@ -16,6 +16,14 @@ final class SelectedStationModel {
   /// `true` once the profile answered, even empty or failed — `nil` crowding
   /// then means "no profile", so the section hides instead of skeletoning.
   private(set) var isCrowdingLoaded = false
+  /// State for the second sheet opened from one line in the station detail.
+  /// It deliberately lives beside the station selection so both sheets share
+  /// the same station generation and cannot show an old line after a reselection.
+  private(set) var lineScheduleRoute: RouteBadge?
+  private(set) var lineScheduleDepartures: [StationDeparture] = []
+  private(set) var lineScheduleSource: DepartureBoard.Source = .unavailable
+  private(set) var lineScheduleFetchedAt: Date?
+  private(set) var lineScheduleLoadingState: SelectedStationLoadingState = .idle
 
   @ObservationIgnored private let departuresRepository: any DeparturesRepository
   @ObservationIgnored private let crowdingRepository: any StationCrowdingRepository
@@ -25,6 +33,7 @@ final class SelectedStationModel {
   @ObservationIgnored private let now: @Sendable () -> Date
   @ObservationIgnored private var loadTask: Task<Void, Never>?
   @ObservationIgnored private var crowdingTask: Task<Void, Never>?
+  @ObservationIgnored private var lineScheduleTask: Task<Void, Never>?
   @ObservationIgnored private var selectionGeneration = 0
 
   init(
@@ -84,6 +93,7 @@ final class SelectedStationModel {
     loadTask = nil
     crowdingTask?.cancel()
     crowdingTask = nil
+    resetLineSchedule()
     overview = nil
     loadingState = .idle
     liveStatus = nil
@@ -96,6 +106,73 @@ final class SelectedStationModel {
   func retry() {
     guard let overview else { return }
     beginSelection(with: overview, refreshDepartures: true)
+  }
+
+  /// Opens the dedicated line sheet and loads the complete remaining service
+  /// day for that line. The station overview keeps its compact next-passage
+  /// rows, while this request is allowed to be deeper because the user asked
+  /// for a specific line's timetable.
+  func selectLine(_ route: RouteBadge) {
+    guard let overview,
+          overview.routes.contains(where: { $0.id == route.id })
+    else { return }
+
+    lineScheduleTask?.cancel()
+    let generation = selectionGeneration
+    let stationID = overview.id
+    let repository = departuresRepository
+    let nowProvider = now
+    lineScheduleRoute = route
+    lineScheduleDepartures = []
+    lineScheduleSource = .unavailable
+    lineScheduleFetchedAt = nil
+    lineScheduleLoadingState = .loading
+
+    lineScheduleTask = Task { [weak self] in
+      do {
+        let board = try await repository.board(stationID: stationID, routeID: route.id)
+
+        guard let self,
+          !Task.isCancelled,
+          selectionGeneration == generation,
+          self.overview?.id == stationID,
+          lineScheduleRoute?.id == route.id
+        else {
+          return
+        }
+
+        lineScheduleDepartures = StationOverviewBuilder.chronologically(
+          StationOverviewBuilder.departureBoard(
+            from: board,
+            routes: [route],
+            now: nowProvider()
+          )
+        )
+        lineScheduleSource = board.source
+        lineScheduleFetchedAt = board.fetchedAt
+        lineScheduleLoadingState = .loaded
+      } catch is CancellationError {
+      } catch {
+        guard let self,
+          selectionGeneration == generation,
+          self.overview?.id == stationID,
+          lineScheduleRoute?.id == route.id
+        else {
+          return
+        }
+        lineScheduleLoadingState = .failed(error.via)
+      }
+    }
+  }
+
+  func retryLineSchedule() {
+    guard let lineScheduleRoute else { return }
+    selectLine(lineScheduleRoute)
+  }
+
+  /// Called when the dedicated line sheet closes or the station changes.
+  func clearLineSchedule() {
+    resetLineSchedule()
   }
 
   /// Called from the visible detail sheet task. SwiftUI cancellation on dismiss,
@@ -195,6 +272,7 @@ final class SelectedStationModel {
     let generation = selectionGeneration
     loadTask?.cancel()
     crowdingTask?.cancel()
+    resetLineSchedule()
     overview = initialOverview
     liveStatus = nil
     liveStatusError = nil
@@ -270,13 +348,23 @@ final class SelectedStationModel {
       guard let self,
         !Task.isCancelled,
         selectionGeneration == generation,
-        overview?.id == stationID
+        self.overview?.id == stationID
       else {
         return
       }
       self.crowding = crowding
       isCrowdingLoaded = true
     }
+  }
+
+  private func resetLineSchedule() {
+    lineScheduleTask?.cancel()
+    lineScheduleTask = nil
+    lineScheduleRoute = nil
+    lineScheduleDepartures = []
+    lineScheduleSource = .unavailable
+    lineScheduleFetchedAt = nil
+    lineScheduleLoadingState = .idle
   }
 
   private func discardExpiredLiveStatus() {

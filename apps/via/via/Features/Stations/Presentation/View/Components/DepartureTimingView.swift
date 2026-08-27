@@ -19,6 +19,8 @@ func departureTimeColorRole(
         .attention
     case .early:
         .live
+    case .scheduled:
+        .theoretical
     case .noReport:
         source == .realtime ? .live : .neutral
     default:
@@ -189,7 +191,7 @@ struct DepartureTimingView: View {
     private func waitingTime(for date: Date, now: Date) -> some View {
         DepartureCountdownView(
             departureAt: date,
-            isLive: source == .realtime,
+            isLive: source == .realtime && departure.status != .scheduled,
             role: departureTimeColorRole(status: departure.status, source: source)
         )
         .layoutPriority(2)
@@ -218,7 +220,7 @@ struct DepartureTimingView: View {
             "Arrivé"
         case .departed:
             "Parti"
-        case .onTime, .scheduled:
+        case .onTime:
             switch source {
             case .realtime:
                 "Temps réel"
@@ -227,6 +229,8 @@ struct DepartureTimingView: View {
             case .unavailable:
                 "Indisponible"
             }
+        case .scheduled:
+            nil
         }
     }
 

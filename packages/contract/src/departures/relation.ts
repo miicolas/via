@@ -10,6 +10,7 @@ export const departuresForStationRelation = oc
     description:
       'Prochains départs par ligne et destination pour une station, en temps réel ' +
       '(PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. ' +
+      'Avec `routeId`, la réponse devient le tableau complet de la ligne jusqu’à la fin du service. ' +
       '`source` dit ce que les horodatages valent.',
     tags: ['departures'],
   })

@@ -6,7 +6,7 @@ import {
   transitTrips,
 } from '@via/db/schema';
 import { absoluteTimetableSeconds } from '@via/db/timetable';
-import { and, asc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
 
 import type { TheoreticalDepartureRow } from './next-departures';
 
@@ -35,7 +35,8 @@ export async function selectNextTheoreticalDepartures(
   stopId: string,
   serviceDate: string,
   afterSeconds: number,
-  limit: number
+  limit: number,
+  routeIds: string[] = []
 ): Promise<TheoreticalDepartureRow[]> {
   const departureSeconds = absoluteTimetableSeconds(transitProfileStops.departureOffset);
   const runsOnServiceDate = sql`${transitTrips.serviceId} IN (
@@ -55,7 +56,12 @@ export async function selectNextTheoreticalDepartures(
     .innerJoin(transitTrips, eq(transitTrips.profileKey, transitProfileStops.profileKey))
     .innerJoin(transitStops, eq(transitStops.numericId, transitProfileStops.stopKey))
     .where(
-      and(eq(transitStops.id, stopId), runsOnServiceDate, gt(departureSeconds, afterSeconds))
+      and(
+        eq(transitStops.id, stopId),
+        runsOnServiceDate,
+        gt(departureSeconds, afterSeconds),
+        routeIds.length > 0 ? inArray(transitTrips.routeId, routeIds) : undefined
+      )
     )
     .orderBy(asc(departureSeconds))
     .limit(limit);

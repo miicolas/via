@@ -123,7 +123,9 @@ enum StationMapFilterCriterion: Sendable, Hashable {
     case .toilets: "toilet"
     case .sharedBikes: "bicycle"
     case .sharedScooters: "scooter"
-    case .bikeStations: "parkingsign"
+    // SF Symbols has no dedicated "station" glyph; the bicycle-in-circle
+    // mark reads as a Vélib' station without confusing it with parking.
+    case .bikeStations: "bicycle.circle.fill"
     case .mode(let mode): mode.chipSystemImage
     }
   }

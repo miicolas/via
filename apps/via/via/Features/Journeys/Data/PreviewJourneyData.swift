@@ -279,3 +279,67 @@ private func previewJourney(
         ]
     )
 }
+
+extension Journey {
+    /// The self-powered alternatives the planner merges beside the transit
+    /// results: one leg, no route, the whole trip on the traveller's own legs
+    /// or wheels.
+    static let mapPreviewWalking = previewDirectJourney(
+        id: "preview:walking",
+        kind: .walk,
+        qualifier: .walking,
+        durationSeconds: 1_620
+    )
+
+    static let mapPreviewCycling = previewDirectJourney(
+        id: "preview:cycling",
+        kind: .bike,
+        qualifier: .bike,
+        durationSeconds: 780
+    )
+}
+
+private func previewDirectJourney(
+    id: String,
+    kind: JourneySection.Kind,
+    qualifier: Journey.Qualifier,
+    durationSeconds: Int
+) -> Journey {
+    let origin = JourneyPlace(
+        name: "Hôtel de Ville",
+        coordinate: GeoCoordinate(latitude: 48.8575, longitude: 2.3514)
+    )
+    let destination = JourneyPlace(
+        name: "La Défense",
+        coordinate: GeoCoordinate(latitude: 48.8918, longitude: 2.2380)
+    )
+    let departureAt = Date.now
+
+    return Journey(
+        id: JourneyID(rawValue: id),
+        qualifier: qualifier,
+        durationSeconds: durationSeconds,
+        walkingDurationSeconds: kind == .walk ? durationSeconds : 0,
+        transferCount: 0,
+        departureAt: departureAt,
+        arrivalAt: departureAt.addingTimeInterval(TimeInterval(durationSeconds)),
+        status: .normal,
+        warnings: [],
+        sections: [
+            JourneySection(
+                id: "\(id):leg",
+                kind: kind,
+                durationSeconds: durationSeconds,
+                from: origin,
+                to: destination,
+                departureAt: departureAt,
+                arrivalAt: departureAt.addingTimeInterval(TimeInterval(durationSeconds)),
+                geometry: [origin.coordinate, destination.coordinate],
+                route: nil,
+                direction: nil,
+                platform: nil,
+                stops: []
+            )
+        ]
+    )
+}

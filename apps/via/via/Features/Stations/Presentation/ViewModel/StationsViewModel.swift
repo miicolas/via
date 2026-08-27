@@ -111,6 +111,16 @@ enum StationOverviewBuilder {
         }
     }
 
+    /// A line sheet mixes destinations, so its rows must read like one
+    /// timetable rather than like the API's stable route/destination groups.
+    static func chronologically(_ departures: [StationDeparture]) -> [StationDeparture] {
+        departures.sorted { lhs, rhs in
+            if isEarlier(lhs, than: rhs) { return true }
+            if isEarlier(rhs, than: lhs) { return false }
+            return lhs.id < rhs.id
+        }
+    }
+
     static func nextDepartures(
         from board: DepartureBoard,
         routes: [RouteBadge],

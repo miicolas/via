@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// A small, local operator mark used anywhere shared mobility is named.
+/// A small, local operator mark used where shared mobility's operator matters,
+/// such as map annotations and mobility detail rows.
 ///
 /// The white tile keeps dark and light brand marks legible on both the map and
 /// the material cards. The accessibility label belongs to the surrounding

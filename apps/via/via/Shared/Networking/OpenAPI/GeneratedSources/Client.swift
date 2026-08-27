@@ -183,7 +183,7 @@ internal struct Client: APIProtocol {
     }
     /// Prochains passages
     ///
-    /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. `source` dit ce que les horodatages valent.
+    /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. Avec `routeId`, la réponse devient le tableau complet de la ligne jusqu’à la fin du service. `source` dit ce que les horodatages valent.
     ///
     /// - Remark: HTTP `GET /departures`.
     /// - Remark: Generated from `#/paths//departures/get(departures.forStation)`.
@@ -207,6 +207,13 @@ internal struct Client: APIProtocol {
                     explode: true,
                     name: "stationId",
                     value: input.query.stationId
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "routeId",
+                    value: input.query.routeId
                 )
                 converter.setAcceptHeader(
                     in: &request.headerFields,

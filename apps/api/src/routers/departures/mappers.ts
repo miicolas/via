@@ -1,6 +1,6 @@
-import type { DepartureGroup, RouteBadge } from '@via/contract';
+import { DEPARTURES_PER_GROUP, type DepartureGroup, type RouteBadge } from '@via/contract';
 
-import { groupDepartures } from './group-departures';
+import { groupDepartures, type DatedDeparture } from './group-departures';
 import { qualifyDepartureStatus } from './status';
 import type { NormalizedVisit } from './prim/parse';
 
@@ -14,44 +14,54 @@ export function toDepartureGroups(
   stationRoutes: RouteBadge[],
   now: Date,
   stationId = '',
-  theoreticalGroups: DepartureGroup[] = []
+  theoreticalGroups: DepartureGroup[] = [],
+  options: DepartureGroupingOptions = {}
 ): DepartureGroup[] {
   const baselines = scheduleBaselines(theoreticalGroups);
   const usedBaselines = new Set<string>();
+  const realtimeDepartures = visits
+    .filter((visit) => shouldDisplay(visit, now))
+    .map((visit) => {
+      const baseline = matchBaseline(visit, baselines, usedBaselines);
+      const scheduledAt = visit.scheduledAt ?? baseline?.scheduledAt;
+      const timing = qualifyDepartureStatus({
+        scheduledAt,
+        expectedAt: visit.expectedAt,
+        providerStatus: visit.providerStatus,
+      });
+
+      return {
+        routeId: visit.routeId,
+        destination: visit.destination,
+        scheduledAt,
+        expectedAt: visit.expectedAt,
+        providerJourneyRef: visit.providerJourneyRef,
+        ...timing,
+      };
+    });
+
+  const scheduledRemainder = options.includeTheoreticalRemainder
+    ? theoreticalRemainder(baselines, usedBaselines, now)
+    : [];
 
   return groupDepartures(
-    visits
-      .filter((visit) => shouldDisplay(visit, now))
-      .map((visit) => {
-        const scheduledAt = visit.scheduledAt ?? matchBaseline(
-          visit,
-          baselines,
-          usedBaselines
-        );
-        const timing = qualifyDepartureStatus({
-          scheduledAt,
-          expectedAt: visit.expectedAt,
-          providerStatus: visit.providerStatus,
-        });
-
-        return {
-          routeId: visit.routeId,
-          destination: visit.destination,
-          scheduledAt,
-          expectedAt: visit.expectedAt,
-          providerJourneyRef: visit.providerJourneyRef,
-          ...timing,
-        };
-      }),
+    [...realtimeDepartures, ...scheduledRemainder],
     stationRoutes,
-    stationId
+    stationId,
+    options.maxDeparturesPerGroup ?? DEPARTURES_PER_GROUP
   );
 }
+
+export type DepartureGroupingOptions = {
+  maxDeparturesPerGroup?: number;
+  includeTheoreticalRemainder?: boolean;
+};
 
 const BASELINE_MATCH_WINDOW_SECONDS = 15 * 60;
 
 type ScheduleBaseline = {
   id: string;
+  itemId: string;
   routeId: string;
   destination: string;
   scheduledAt: number;
@@ -67,6 +77,7 @@ function scheduleBaselines(groups: DepartureGroup[]): ScheduleBaseline[] {
 
       return [{
         id: `${group.route.id}:${group.destination}:${item.id}:${index}`,
+        itemId: item.id,
         routeId: group.route.id,
         destination: group.destination,
         scheduledAt: Math.floor(milliseconds / 1_000),
@@ -79,8 +90,9 @@ function matchBaseline(
   visit: NormalizedVisit,
   baselines: ScheduleBaseline[],
   usedBaselines: Set<string>
-): number | undefined {
-  if (visit.expectedAt === undefined) return undefined;
+): ScheduleBaseline | undefined {
+  const target = visit.scheduledAt ?? visit.expectedAt;
+  if (target === undefined) return undefined;
 
   const destination = normalizedDestination(visit.destination);
   let best: ScheduleBaseline | undefined;
@@ -95,7 +107,7 @@ function matchBaseline(
       continue;
     }
 
-    const distance = Math.abs(baseline.scheduledAt - visit.expectedAt);
+    const distance = Math.abs(baseline.scheduledAt - target);
     if (distance < bestDistance) {
       best = baseline;
       bestDistance = distance;
@@ -104,7 +116,24 @@ function matchBaseline(
 
   if (!best || bestDistance > BASELINE_MATCH_WINDOW_SECONDS) return undefined;
   usedBaselines.add(best.id);
-  return best.scheduledAt;
+  return best;
+}
+
+function theoreticalRemainder(
+  baselines: ScheduleBaseline[],
+  usedBaselines: Set<string>,
+  now: Date
+): DatedDeparture[] {
+  const nowSeconds = Math.floor(now.getTime() / 1_000);
+  return baselines
+    .filter((baseline) => !usedBaselines.has(baseline.id) && baseline.scheduledAt >= nowSeconds)
+    .map((baseline) => ({
+      routeId: baseline.routeId,
+      destination: baseline.destination,
+      id: baseline.itemId,
+      scheduledAt: baseline.scheduledAt,
+      status: 'scheduled' as const,
+    }));
 }
 
 function normalizedDestination(value: string): string {

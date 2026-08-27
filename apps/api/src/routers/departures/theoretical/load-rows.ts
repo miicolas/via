@@ -9,7 +9,8 @@ export function theoreticalRowLoader(stationId: string) {
   return (
     serviceDate: string,
     afterSeconds: number,
-    limit: number
+    limit: number,
+    routeIds: string[] = []
   ): Promise<TheoreticalDepartureRow[]> =>
-    selectNextTheoreticalDepartures(stationId, serviceDate, afterSeconds, limit);
+    selectNextTheoreticalDepartures(stationId, serviceDate, afterSeconds, limit, routeIds);
 }

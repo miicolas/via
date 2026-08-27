@@ -1,4 +1,4 @@
-import type { DepartureGroup, RouteBadge } from '@via/contract';
+import { SERVICE_DAY_DEPARTURES_PER_GROUP, type DepartureGroup, type RouteBadge } from '@via/contract';
 import { expect, test } from 'bun:test';
 
 import { toDepartureGroups } from './mappers';
@@ -195,5 +195,47 @@ test('matches a realtime estimate to the GTFS baseline and computes the delay', 
     expectedAt: isoAt(8),
     status: 'delayed',
     delaySeconds: 180,
+  });
+});
+
+test('a service-day board appends scheduled departures not announced by realtime', () => {
+  const route = badge('IDFM:C01371');
+  const theoretical: DepartureGroup[] = [
+    {
+      route,
+      destination: 'La Défense',
+      departures: [isoAt(5), isoAt(30)],
+      departureItems: [
+        {
+          id: 'scheduled-first',
+          scheduledAt: isoAt(5),
+          status: 'scheduled',
+        },
+        {
+          id: 'scheduled-rest',
+          scheduledAt: isoAt(30),
+          status: 'scheduled',
+        },
+      ],
+    },
+  ];
+
+  const groups = toDepartureGroups(
+    [visit(route.id, 'La Défense', 5)],
+    [route],
+    now,
+    'IDFM:71264',
+    theoretical,
+    {
+      includeTheoreticalRemainder: true,
+      maxDeparturesPerGroup: SERVICE_DAY_DEPARTURES_PER_GROUP,
+    }
+  );
+
+  expect(groups[0]?.departures).toEqual([isoAt(5), isoAt(30)]);
+  expect(groups[0]?.departureItems).toHaveLength(2);
+  expect(groups[0]?.departureItems[1]).toMatchObject({
+    id: 'scheduled-rest',
+    status: 'scheduled',
   });
 });

@@ -28,7 +28,7 @@ internal protocol APIProtocol: Sendable {
     func account_period_sync(_ input: Operations.account_period_sync.Input) async throws -> Operations.account_period_sync.Output
     /// Prochains passages
     ///
-    /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. `source` dit ce que les horodatages valent.
+    /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. Avec `routeId`, la réponse devient le tableau complet de la ligne jusqu’à la fin du service. `source` dit ce que les horodatages valent.
     ///
     /// - Remark: HTTP `GET /departures`.
     /// - Remark: Generated from `#/paths//departures/get(departures.forStation)`.
@@ -244,7 +244,7 @@ extension APIProtocol {
     }
     /// Prochains passages
     ///
-    /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. `source` dit ce que les horodatages valent.
+    /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. Avec `routeId`, la réponse devient le tableau complet de la ligne jusqu’à la fin du service. `source` dit ce que les horodatages valent.
     ///
     /// - Remark: HTTP `GET /departures`.
     /// - Remark: Generated from `#/paths//departures/get(departures.forStation)`.
@@ -3473,7 +3473,7 @@ internal enum Operations {
     }
     /// Prochains passages
     ///
-    /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. `source` dit ce que les horodatages valent.
+    /// Prochains départs par ligne et destination pour une station, en temps réel (PRIM Île-de-France Mobilités) quand la source répond, sinon selon les horaires disponibles. Avec `routeId`, la réponse devient le tableau complet de la ligne jusqu’à la fin du service. `source` dit ce que les horodatages valent.
     ///
     /// - Remark: HTTP `GET /departures`.
     /// - Remark: Generated from `#/paths//departures/get(departures.forStation)`.
@@ -3484,12 +3484,19 @@ internal enum Operations {
             internal struct Query: Sendable, Hashable {
                 /// - Remark: Generated from `#/paths/departures/GET/query/stationId`.
                 internal var stationId: Swift.String
+                /// - Remark: Generated from `#/paths/departures/GET/query/routeId`.
+                internal var routeId: Swift.String?
                 /// Creates a new `Query`.
                 ///
                 /// - Parameters:
                 ///   - stationId:
-                internal init(stationId: Swift.String) {
+                ///   - routeId:
+                internal init(
+                    stationId: Swift.String,
+                    routeId: Swift.String? = nil
+                ) {
                     self.stationId = stationId
+                    self.routeId = routeId
                 }
             }
             internal var query: Operations.departures_period_forStation.Input.Query
