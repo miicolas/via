@@ -179,7 +179,7 @@ extension EmptyState {
     static let transitUnavailable = EmptyState(
         systemImage: "exclamationmark.triangle",
         title: "Itinéraires en transport indisponibles",
-        message: "Le service d’itinéraires ne répond pas. Seuls les trajets calculés sur l’appareil sont proposés.",
+        message: "Le service d’itinéraires ne répond pas. Seuls les trajets à pied et à vélo, calculés sur l’appareil, restent proposés.",
     )
 
     static let noOperationalElevatorRoute = EmptyState(
