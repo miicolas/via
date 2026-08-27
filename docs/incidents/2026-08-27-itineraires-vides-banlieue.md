@@ -1,6 +1,6 @@
 # Incident — « Aucun itinéraire en transport » depuis la banlieue
 
-**Date** : 27 août 2026 · **Statut** : cause racine corrigée, release v0.2.35 à vérifier sur Railway · **Sévérité** : majeure (fonctionnalité cœur inutilisable depuis l'ouest parisien)
+**Date** : 27 août 2026 · **Statut** : cause racine corrigée, release v0.2.36 à vérifier sur Railway · **Sévérité** : majeure (fonctionnalité cœur inutilisable depuis l'ouest parisien)
 
 ---
 
@@ -14,7 +14,7 @@ Une recherche depuis une adresse de banlieue — notamment le favori « Maison �
 
 ## 2. Reproduction décisive
 
-Le diagnostic initial accusait un backend PRIM désynchronisé. Il était faux : `source: idfm-realtime` nomme l'origine du plan avant enrichissements, pas la frontière qui l'a vidé.
+Le diagnostic des v0.2.33–v0.2.34 accusait un backend PRIM désynchronisé et la réutilisation keep-alive. Le retry sur une connexion neuve et le second avis GTFS restent des défenses utiles contre une vraie réponse vide, mais ils n'expliquaient pas ce cas déterministe : `source: idfm-realtime` nomme l'origine du plan avant enrichissements, pas la frontière qui l'a vidé.
 
 La même demande, au même instant, a été rejouée à chaque frontière :
 
@@ -49,7 +49,7 @@ Le payload bulk actif contient une perturbation bloquante « RER A : Nation du 2
 
 Chaque trajet ouest → Paris passant par le RER A était donc éliminé après que PRIM avait correctement renvoyé ses alternatives. L'origine Auber fonctionnait parce que ses trajets courts ne dépendaient pas de la ligne A.
 
-## 4. Correctif v0.2.35
+## 4. Correctif v0.2.36
 
 Le scope officiel est désormais conservé et appliqué avec cette priorité :
 
@@ -64,12 +64,10 @@ Deux tests verrouillent le cas réel :
 - Chatou–Croissy → Auber reste proposé pendant les travaux de Nation ;
 - un trajet qui dessert réellement Nation est bien retiré.
 
-Les retries PRIM, le second avis GTFS et les améliorations du planificateur local livrés en v0.2.33–v0.2.34 restent des défenses utiles, mais ils ne corrigeaient pas cette cause située après les deux planificateurs.
-
 ## 5. Validation avant release
 
 - `bun run --filter @via/api test` : **434 pass, 1 skip, 0 fail**.
-- `bun run --filter @via/api typecheck` : **vert**.
+- `bun run typecheck` : les **6 packages** sont verts.
 - Payloads live PRIM journeys + disruptions, appliqués au code corrigé : **4 avant overlay, 4 après overlay**.
 - Le test de régression a été observé rouge avant le correctif puis vert après.
 
