@@ -29,19 +29,16 @@ import type {
   PlannerReverseTransfer,
   PlannerTransfer,
 } from './planner';
+import {
+  boundGroups,
+  MAX_BOARDING_CANDIDATES,
+  MAX_BOARDINGS_PER_STOP,
+  rankStopTimeCandidates,
+  type StopTimeCandidate,
+  type StopTimeDirection,
+} from './stop-time-candidates';
 
-const MAX_BOARDINGS_PER_STOP = 32;
-const MAX_BOARDING_CANDIDATES = 1_500;
-
-/** 'board' walks departures forward in time; 'alight' walks arrivals backward. */
-export type StopTimeDirection = 'board' | 'alight';
-
-type StopTimeCandidate = {
-  tripId: string;
-  stopKey: number;
-  seconds: number;
-  serviceDate: string;
-};
+export type { StopTimeDirection } from './stop-time-candidates';
 
 /**
  * Whether yesterday's service day can still contain a boarding this search
@@ -108,45 +105,45 @@ export function createGtfsLoader(now: Date, requiresAccessibleStations = false):
     serviceDates: string[]
   ) => {
     if (stopIds.length === 0) return [];
-    const stopKeys = stopIds.flatMap((id) => {
-      const key = stopKeyById.get(id);
-      return key === undefined ? [] : [key];
+    const stops = stopIds.flatMap((id) => {
+      const stopKey = stopKeyById.get(id);
+      const bound = boundByStop.get(id);
+      return stopKey === undefined || bound === undefined ? [] : [{ stopKey, bound }];
     });
-    if (stopKeys.length === 0) return [];
-    const bound =
-      direction === 'board' ? Math.min(...boundByStop.values()) : Math.max(...boundByStop.values());
+    if (stops.length === 0) return [];
+    const boundByStopKey = new Map(stops.map((stop) => [stop.stopKey, stop.bound]));
     const services = await activeServices(serviceDates);
-    const todayRows = await loadStopTimeCandidates(
-      direction,
-      stopKeys,
-      services.get(date) ?? [],
-      bound,
-      date,
-      0
-    );
-    const yesterdayRows = (await yesterdayCanStillBeRunning(direction, bound))
-      ? await loadStopTimeCandidates(
+    const candidates = await Promise.all(
+      boundGroups(direction, stops).map(async ({ stopKeys, bound }) => {
+        const todayRows = await loadStopTimeCandidates(
           direction,
           stopKeys,
-          services.get(yesterday) ?? [],
-          bound + 86_400,
-          yesterday,
-          -86_400
-        )
-      : [];
-    const rows = [...todayRows, ...yesterdayRows]
-      .sort((a, b) => (direction === 'board' ? a.seconds - b.seconds : b.seconds - a.seconds))
-      .slice(0, MAX_BOARDING_CANDIDATES);
+          services.get(date) ?? [],
+          bound,
+          date,
+          0
+        );
+        const yesterdayRows = (await yesterdayCanStillBeRunning(direction, bound))
+          ? await loadStopTimeCandidates(
+              direction,
+              stopKeys,
+              services.get(yesterday) ?? [],
+              bound + 86_400,
+              yesterday,
+              -86_400
+            )
+          : [];
+        return [...todayRows, ...yesterdayRows];
+      })
+    );
+    const rows = rankStopTimeCandidates(direction, candidates.flat(), (stopKey) =>
+      boundByStopKey.get(stopKey)
+    );
 
     const counts = new Map<string, number>();
     return rows.flatMap((row) => {
       const stopId = stopIdByKey.get(row.stopKey);
       if (!stopId) return [];
-      const outOfBound =
-        direction === 'board'
-          ? row.seconds < (boundByStop.get(stopId) ?? Infinity)
-          : row.seconds > (boundByStop.get(stopId) ?? -Infinity);
-      if (outOfBound) return [];
       const count = counts.get(stopId) ?? 0;
       if (count >= MAX_BOARDINGS_PER_STOP) return [];
       counts.set(stopId, count + 1);
