@@ -325,6 +325,20 @@ async function secondOpinion(
   theoretical: () => Promise<JourneysResponse>
 ): Promise<JourneysResponse> {
   const answer = await theoretical();
+  if (answer.journeys.length === 0) {
+    /**
+     * The one line that says which safety net gave way. The final log only
+     * carries the answer that reached the screen — realtime's, when both are
+     * empty — so without this the local timetable's own verdict (found
+     * nothing? had no stops to search from? errored into unavailable?) left
+     * no trace, and a failing suburb could not be told apart from a broken
+     * import.
+     */
+    console.info('[journeys] second avis GTFS vide', {
+      status: answer.status,
+      reason: answer.reason,
+    });
+  }
   return answer.journeys.length > 0 ? answer : realtime ?? answer;
 }
 
