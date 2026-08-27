@@ -31,6 +31,8 @@ type IdfmJourneyPlannerConfig = {
   url: string;
   loadShapes: JourneyShapeLoader;
   timeoutMs?: number;
+  /** Injectable transport for tests at the HTTP boundary. */
+  fetcher?: (url: URL, init?: RequestInit) => Promise<Response>;
 };
 
 /** Production adapter for the Navitia journey planner exposed by IDFM. */
@@ -39,21 +41,44 @@ export function createIdfmJourneyPlanner({
   url,
   loadShapes,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  fetcher,
 }: IdfmJourneyPlannerConfig): IdfmJourneyPlanner {
   return {
     plan: async (input, requestedAt, signal) => {
-      const requestUrl = journeyUrl(url, input, requestedAt);
-      const body = await fetchJsonOrNull(requestUrl, {
-        headers: { apikey: apiKey },
-        signal,
-        timeoutMs,
-        logLabel: '[journeys] IDFM',
-        telemetry: { provider: 'prim', product: 'journey_planner' },
+      const attempt = async () => {
+        const requestUrl = journeyUrl(url, input, requestedAt);
+        const body = await fetchJsonOrNull(requestUrl, {
+          headers: { apikey: apiKey },
+          signal,
+          timeoutMs,
+          logLabel: '[journeys] IDFM',
+          telemetry: { provider: 'prim', product: 'journey_planner' },
+          ...(fetcher ? { fetcher } : {}),
+        });
+        if (body === null) return null;
+        const parsed = parseIdfmJourneys(body, input, requestedAt);
+        const journeys = await hydrateSparseJourneyGeometry(parsed, loadShapes);
+        return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys } as const;
+      };
+
+      const first = await attempt();
+      if (first === null || first.journeys.length > 0 || signal?.aborted) return first;
+      /**
+       * A genuine "no line connects these two points" is reproducible; PRIM
+       * answering 200 with an empty body is not. Measured against the live
+       * service: the same suburban request through one network path came back
+       * empty roughly every other call while twenty-six consecutive direct
+       * calls — same key, same URL, same headers, same minute — all carried
+       * four itineraries. That is a load balancer with a desynchronized
+       * backend, and the one countermeasure on this side of it is to ask
+       * again. One retry, only on an empty answer, so a true dead end costs
+       * exactly one extra call and a healthy answer costs none.
+       */
+      console.info('[journeys] réponse IDFM vide, seconde demande', {
+        destinationKind: input.destination.kind,
       });
-      if (body === null) return null;
-      const parsed = parseIdfmJourneys(body, input, requestedAt);
-      const journeys = await hydrateSparseJourneyGeometry(parsed, loadShapes);
-      return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys };
+      const second = await attempt();
+      return second?.journeys.length ? second : first;
     },
   };
 }

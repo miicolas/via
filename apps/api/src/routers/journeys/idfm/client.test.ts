@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import type { JourneyInput } from '@via/contract';
 
-import { journeyUrl } from './client';
+import { createIdfmJourneyPlanner, journeyUrl } from './client';
 
 test('sends exact arrival time and modal constraints to IDFM', () => {
   const input: JourneyInput = {
@@ -80,4 +80,86 @@ test('preserves a Navitia-qualified stop point when pinning departure choices', 
   );
 
   expect(url.searchParams.get('from')).toBe('stop_point:IDFM:22149');
+});
+
+/**
+ * PRIM's load balancer was measured answering 200 with an empty body for the
+ * same request that carried four itineraries on the next call. The planner
+ * asks a second time before believing "no line connects these two points".
+ */
+
+const navitiaBody = {
+  journeys: [
+    {
+      departure_date_time: '20260827T142000',
+      arrival_date_time: '20260827T152000',
+      duration: 3_600,
+      sections: [
+        {
+          type: 'public_transport',
+          duration: 3_600,
+          departure_date_time: '20260827T142000',
+          arrival_date_time: '20260827T152000',
+          from: { name: 'Chatou', coord: { lon: 2.157, lat: 48.898 } },
+          to: { name: 'Auber', coord: { lon: 2.329, lat: 48.872 } },
+          display_informations: { code: 'A', name: 'RER A', commercial_mode: 'RER' },
+        },
+      ],
+    },
+  ],
+};
+
+function plannerAnswering(bodies: unknown[]) {
+  const requested: URL[] = [];
+  const planner = createIdfmJourneyPlanner({
+    apiKey: 'test',
+    url: 'https://prim.test/journeys',
+    loadShapes: async () => [],
+    fetcher: async (url) => {
+      requested.push(url);
+      const body = bodies[Math.min(requested.length, bodies.length) - 1];
+      return new Response(JSON.stringify(body), { status: 200 });
+    },
+  });
+  return { planner, requested };
+}
+
+const suburbanInput: JourneyInput = {
+  origin: { latitude: 48.949315, longitude: 2.034841 },
+  destination: {
+    kind: 'address',
+    id: '75102_9893_00015',
+    name: '15 Rue Vivienne',
+    coordinate: { latitude: 48.868267, longitude: 2.33964 },
+  },
+  limit: 4,
+};
+
+test('asks PRIM a second time when the first answer is empty', async () => {
+  const { planner, requested } = plannerAnswering([{}, navitiaBody]);
+
+  const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
+
+  expect(requested).toHaveLength(2);
+  expect(response?.status).toBe('ready');
+  expect(response?.journeys).toHaveLength(1);
+});
+
+test('a healthy answer costs a single call', async () => {
+  const { planner, requested } = plannerAnswering([navitiaBody]);
+
+  const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
+
+  expect(requested).toHaveLength(1);
+  expect(response?.status).toBe('ready');
+});
+
+test('a reproducible dead end stays a dead end after exactly one retry', async () => {
+  const { planner, requested } = plannerAnswering([{}, {}]);
+
+  const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
+
+  expect(requested).toHaveLength(2);
+  expect(response?.status).toBe('no-route');
+  expect(response?.journeys).toEqual([]);
 });
