@@ -45,10 +45,16 @@ export function createIdfmJourneyPlanner({
 }: IdfmJourneyPlannerConfig): IdfmJourneyPlanner {
   return {
     plan: async (input, requestedAt, signal) => {
-      const attempt = async () => {
+      const attempt = async (onAFreshConnection: boolean) => {
         const requestUrl = journeyUrl(url, input, requestedAt);
         const body = await fetchJsonOrNull(requestUrl, {
-          headers: { apikey: apiKey },
+          headers: {
+            apikey: apiKey,
+            // Opting out of keep-alive costs a handshake and buys a new draw
+            // from the load balancer — see the retry below for why that is the
+            // whole point.
+            ...(onAFreshConnection ? { Connection: 'close' } : {}),
+          },
           signal,
           timeoutMs,
           logLabel: '[journeys] IDFM',
@@ -61,23 +67,30 @@ export function createIdfmJourneyPlanner({
         return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys } as const;
       };
 
-      const first = await attempt();
+      const first = await attempt(false);
       if (first === null || first.journeys.length > 0 || signal?.aborted) return first;
       /**
        * A genuine "no line connects these two points" is reproducible; PRIM
        * answering 200 with an empty body is not. Measured against the live
-       * service: the same suburban request through one network path came back
-       * empty roughly every other call while twenty-six consecutive direct
-       * calls — same key, same URL, same headers, same minute — all carried
-       * four itineraries. That is a load balancer with a desynchronized
-       * backend, and the one countermeasure on this side of it is to ask
-       * again. One retry, only on an empty answer, so a true dead end costs
-       * exactly one extra call and a healthy answer costs none.
+       * service: the same suburban request came back empty in long runs — ten
+       * consecutive successes, then eight consecutive failures — while
+       * twenty-six separate direct calls with the same key, URL, headers and
+       * minute all carried four itineraries. Runs, not coin flips, and the one
+       * thing separating the two callers is the socket: `fetch` keeps its
+       * connection alive, so every request rides the pool back to whichever
+       * backend answered the first one, and a desynchronized backend keeps the
+       * caller for as long as the connection lives.
+       *
+       * So the retry is not just "ask again" — asking again down the same pipe
+       * reaches the same broken backend. It asks on a new connection, which is
+       * a new draw from the load balancer. One retry, only on an empty answer,
+       * so a healthy answer costs nothing and a true dead end costs one
+       * handshake before the timetable second opinion takes over.
        */
-      console.info('[journeys] réponse IDFM vide, seconde demande', {
+      console.info('[journeys] réponse IDFM vide, seconde demande sur une connexion neuve', {
         destinationKind: input.destination.kind,
       });
-      const second = await attempt();
+      const second = await attempt(true);
       return second?.journeys.length ? second : first;
     },
   };
