@@ -9,7 +9,22 @@ import {
   type JourneyShapeLoader,
 } from './shape-hydrator';
 
-const DEFAULT_TIMEOUT_MS = 2_500;
+/**
+ * Measured against the live PRIM planner rather than guessed: a one-leg journey
+ * between two central stop areas answers in ~0.5 s and 114 kB, while a
+ * three-leg one from a suburban address answers in ~1.2 s and 376 kB — because
+ * `disable_geojson=false` makes every response carry the full shape of every
+ * leg. Exactly the journeys a traveller far from the network needs are the
+ * slowest and heaviest ones, so a ceiling twice the measured cost is spent
+ * first on them.
+ *
+ * Overrunning it is not a slow answer, it is no answer: the call resolves to
+ * null, the timetable fallback takes over, and a long journey it cannot build
+ * reads on screen as "no line connects these two points". Five seconds keeps
+ * four times the headroom on the heaviest measurement and still returns well
+ * inside the fifteen the app waits.
+ */
+const DEFAULT_TIMEOUT_MS = 5_000;
 
 type IdfmJourneyPlannerConfig = {
   apiKey: string;
