@@ -257,15 +257,45 @@ export function createJourneyPlanner({
           console.error('[journeys] perturbations officielles indisponibles', cause);
         }
       }
-      if (!reports) return live;
-      try {
-        return await reports.apply(live, input, now);
-      } catch (cause) {
-        console.error('[journeys] signalements communautaires indisponibles', cause);
-        return live;
+      if (reports) {
+        try {
+          live = await reports.apply(live, input, now);
+        } catch (cause) {
+          console.error('[journeys] signalements communautaires indisponibles', cause);
+        }
       }
+      reportPlanWithNothingToRide(live, input);
+      return live;
     },
   };
+}
+
+/**
+ * A plan with nothing to ride is the one outcome nobody could explain after the
+ * fact. The screen says the same sentence either way, and the logs only ever
+ * named the moment IDFM was skipped — never the answer that came back empty. So
+ * a traveller reporting "there is no itinerary from home" left no trace saying
+ * whether a live planner found no line, or the timetable fallback — the one
+ * that answers once the IDFM quota is spent — could not build the journey.
+ *
+ * The source is what settles it, so it is what gets written down. Coordinates
+ * stay out: the shape of the request explains the outcome, the traveller's
+ * doorstep does not.
+ */
+function reportPlanWithNothingToRide(response: JourneysResponse, input: JourneyInput) {
+  if (response.journeys.some((journey) => !isDirectJourney(journey))) return;
+
+  console.info('[journeys] aucun itinéraire en transport', {
+    source: response.source,
+    status: response.status,
+    reason: response.reason,
+    destinationKind: input.destination.kind,
+    pinnedOrigin: input.originStationId !== undefined,
+    requiredModes: input.requiredModes ?? [],
+    excludedModes: input.excludedModes ?? [],
+    requiresAccessibleStations: input.requiresAccessibleStations ?? false,
+    requiresOperationalElevators: input.requiresOperationalElevators ?? false,
+  });
 }
 
 async function planWithIdfm(
