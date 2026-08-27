@@ -36,6 +36,7 @@ struct MapShellView: View {
   let notificationInboxRemote: any NotificationInboxRemote
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.scenePhase) private var scenePhase
 
   @State private var showTabSheet: Bool = true
   @State private var activeTab: MapShellTab = .stations
@@ -272,6 +273,13 @@ struct MapShellView: View {
     .task {
       routePendingNotificationIfNeeded()
     }
+    .task(id: scenePhase) {
+      guard scenePhase == .active else { return }
+      routeWidgetShortcutIfNeeded()
+    }
+    .task(id: widgetFavoritesSignature) {
+      publishWidgetFavorites()
+    }
     .task(id: initialSharedJourneyToken) {
       guard let initialSharedJourneyToken else { return }
       journeyShareRoute = JourneyShareRoute(token: initialSharedJourneyToken)
@@ -442,15 +450,73 @@ struct MapShellView: View {
     route(url)
   }
 
+  /// A control button on the Lock Screen or in Control Centre cannot open a
+  /// URL itself, so it left one in the App Group. Drained on every foreground
+  /// because the press may have launched the app from cold, before this shell
+  /// existed to receive an `onOpenURL`.
+  private func routeWidgetShortcutIfNeeded() {
+    guard let url = ViaWidgetRouteInbox().consume() else { return }
+    route(url)
+  }
+
+  /// Starts the journey a widget names, or opens Recherche when the favourite
+  /// behind it was deleted since the widget was configured — the tap still
+  /// lands somewhere the traveller can finish what they meant to do.
+  private func openFavoriteJourney(_ token: String) {
+    guard
+      let result = WidgetFavoriteToken.searchResult(
+        for: token,
+        places: accountModel.places,
+        destinations: accountModel.destinations
+      )
+    else {
+      activeTab = .search
+      return
+    }
+
+    openJourney(result)
+  }
+
+  /// What the widgets draw. Publishing is keyed on it so a sheet drag, which
+  /// re-evaluates this body on every frame, never spends the widget refresh
+  /// budget.
+  private var widgetFavoritesSignature: WidgetFavoritesSignature {
+    WidgetFavoritesSignature(
+      isAccountReady: accountModel.state != .inactive,
+      places: accountModel.places,
+      destinations: accountModel.destinations,
+      lines: linesViewModel.favoriteLines,
+      linesFetchedAt: linesViewModel.board.value?.fetchedAt
+    )
+  }
+
+  private func publishWidgetFavorites() {
+    let signature = widgetFavoritesSignature
+    guard signature.isAccountReady else { return }
+
+    WidgetFavoritesPublisher().publish(
+      places: signature.places,
+      destinations: signature.destinations,
+      lines: signature.lines,
+      linesFetchedAt: signature.linesFetchedAt
+    )
+  }
+
   private func route(_ url: URL) {
     guard let route = MapRoute(url: url) else { return }
 
     switch route {
     case .notifications:
       presentAccountSheet(.notifications)
+    case .lines:
+      activeTab = .lines
     case .line(let routeID):
       activeTab = .lines
       linesViewModel.requestRoute(routeID)
+    case .search:
+      activeTab = .search
+    case .favoriteJourney(let token):
+      openFavoriteJourney(token)
     case .station(let stationID):
       activeTab = .stations
       if let item = networkViewModel.stationMapItem(for: stationID) {

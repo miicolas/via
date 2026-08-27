@@ -28,8 +28,15 @@ enum ShareLinkOrigin {
 /// UI work and every entry point shares the same validation rules.
 enum MapRoute: Hashable, Sendable {
     case notifications
+    case lines
     case line(RouteID)
     case station(StationID)
+    case search
+    /// A saved place or destination named by the token a widget carries. The
+    /// route stays a token rather than a resolved destination because the
+    /// favourite may have been deleted since the widget was configured, and
+    /// only the shell holds the account state that can tell.
+    case favoriteJourney(String)
     case activeJourney(JourneyID)
     case scheduledJourney(JourneyID)
     case sharedJourney(String)
@@ -67,6 +74,10 @@ enum MapRoute: Hashable, Sendable {
         switch host {
         case "notifications":
             self = .notifications
+        case "lines":
+            self = .lines
+        case "search":
+            self = .search
         case "line":
             guard let routeID = value("routeId"), !routeID.isEmpty else { return nil }
             self = .line(RouteID(rawValue: routeID))
@@ -79,6 +90,13 @@ enum MapRoute: Hashable, Sendable {
             guard let token = pathToken, Self.isValidShareToken(token) else { return nil }
             self = .sharedJourney(token)
         case "journey":
+            if value("mode")?.lowercased() == "favorite",
+               let favoriteID = value("favoriteId"),
+               !favoriteID.isEmpty {
+                self = .favoriteJourney(favoriteID)
+                return
+            }
+
             if value("mode")?.lowercased() == "shared",
                let token = value("token"),
                Self.isValidShareToken(token) {
