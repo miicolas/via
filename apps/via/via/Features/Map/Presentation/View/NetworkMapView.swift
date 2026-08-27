@@ -221,6 +221,7 @@ struct NetworkMapView: View {
           // MapKit's location control.
           .padding(.top, 8)
           .padding(.leading, geometry.safeAreaInsets.leading + 8)
+          .zIndex(1)
       }
       .overlay(alignment: .topTrailing) {
         if showsJourneyPosition {

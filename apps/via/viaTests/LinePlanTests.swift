@@ -110,12 +110,26 @@ final class LinePlanTests: XCTestCase {
     }
 
     func testTheExpandedDiagramDrawsEveryPhysicalStationOnce() {
-        let strips = LinePlan.diagramStrips(for: branched, disruptions: [])
-        let stationIDs = strips.flatMap { $0.stops.map(\.stop.id) }
+        let diagram = LinePlan.diagram(for: branched, disruptions: [])
+        let stationIDs = diagram.sections.flatMap { $0.stops.map(\.stop.id) }
 
         XCTAssertEqual(stationIDs.count, Set(stationIDs).count)
         XCTAssertEqual(stationIDs.filter { $0 == "sartrouville" }.count, 1)
-        XCTAssertEqual(strips.filter { $0.role == .trunk }.count, 1)
+    }
+
+    func testTheExpandedDiagramConnectsBranchesThroughTheirRealSharedStems() {
+        let diagram = LinePlan.diagram(for: branched, disruptions: [])
+        let edges = Set(diagram.edges.map { "\($0.fromSectionID)>\($0.toSectionID)" })
+
+        XCTAssertEqual(diagram.sections.map(\.lane), [0, 1, 2, 1, 0, 0, 1])
+        XCTAssertEqual(edges, [
+            "section-0>section-4",
+            "section-1>section-3",
+            "section-2>section-3",
+            "section-3>section-4",
+            "section-4>section-5",
+            "section-4>section-6",
+        ])
     }
 
     func testAFeedWithoutATrunkHangsThePlanOffItsMostSharedSection() {

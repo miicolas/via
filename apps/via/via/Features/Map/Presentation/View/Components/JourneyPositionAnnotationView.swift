@@ -22,13 +22,6 @@ struct JourneyPositionAnnotationView: View {
                 .shadow(color: .black.opacity(0.22), radius: 2, y: 1)
         }
         .frame(width: 34, height: 34)
-        .borderBeam(
-            border: .orange,
-            beam: [.clear, .orange.opacity(0.7), .yellow, .orange, .clear],
-            beamBlur: 3,
-            shape: Circle(),
-            isEnabled: !reduceMotion
-        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Votre position")
         .accessibilityValue("Position estimée selon les horaires")

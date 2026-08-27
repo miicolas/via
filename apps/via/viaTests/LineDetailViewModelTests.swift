@@ -26,18 +26,8 @@ final class LineDetailViewModelTests: XCTestCase {
 
         // Direction 1 of the fixture is a stub; the plan takes the complete one.
         XCTAssertEqual(viewModel.detail.value?.planDirection?.id, "direction-0")
-        XCTAssertEqual(viewModel.strips.filter { $0.role == .trunk }.count, 1)
-        XCTAssertEqual(
-            viewModel.strips.compactMap(\.role.name),
-            [
-                "Saint-Germain-en-Laye",
-                "Cergy-le-Haut",
-                "Poissy",
-                "Cergy-le-Haut / Poissy",
-                "Marne-la-Vallée – Chessy",
-                "Boissy-St-Léger",
-            ]
-        )
+        XCTAssertEqual(viewModel.diagram.sections.count, 7)
+        XCTAssertEqual(viewModel.diagram.sections.map(\.lane), [0, 1, 2, 1, 0, 0, 1])
     }
 
     @MainActor
@@ -64,17 +54,18 @@ final class LineDetailViewModelTests: XCTestCase {
         let viewModel = await makeViewModel(detail: legacy)
 
         XCTAssertEqual(viewModel.detail.value?.planDirection?.id, "branch-p-m1-0")
-        XCTAssertEqual(viewModel.strips.flatMap { $0.stops.map(\.stop.id) }, ["a", "b"])
+        XCTAssertEqual(viewModel.diagram.sections.flatMap { $0.stops.map(\.stop.id) }, ["a", "b"])
     }
 
     @MainActor
     func testTheCompletePlanIncludesHealthyAndDisruptedBranches() async {
         let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
 
-        XCTAssertTrue(viewModel.strips.contains { $0.role.isBranch && $0.condition == nil })
-        XCTAssertEqual(
-            viewModel.strips.first { $0.condition != nil && $0.role.isBranch }?.role.name,
-            "Marne-la-Vallée – Chessy"
-        )
+        XCTAssertTrue(viewModel.diagram.sections.contains { section in
+            section.stops.allSatisfy { $0.condition == nil }
+        })
+        XCTAssertTrue(viewModel.diagram.sections.contains { section in
+            section.stops.contains { $0.condition != nil }
+        })
     }
 }

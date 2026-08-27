@@ -57,11 +57,11 @@ struct JourneyRouteMapContent: MapContent {
 
     /// Selection thickens the chosen section rather than erasing the others.
     private func lineWidth(of segment: JourneyRenderedSegment) -> Double {
-        let base = segment.isPedestrian ? 4.0 : 7.0
+        let base = segment.isPedestrian ? 2.5 : 4.5
         guard let highlightedSegmentID,
               segment.id == highlightedSegmentID || segment.id.hasPrefix("\(highlightedSegmentID):")
         else { return base }
-        return base + 3
+        return base + 1.5
     }
 
     private func isTravelled(_ stop: JourneyMapStop) -> Bool {

@@ -96,6 +96,28 @@ enum LinePlan {
         }
     }
 
+    /// A platform-display schematic. Sections own stations once, lanes place
+    /// parallel branches beside the main path, and edges describe the real
+    /// merges and forks between them.
+    struct Diagram: Hashable {
+        struct Section: Identifiable, Hashable {
+            let id: String
+            let lane: Int
+            let stops: [StopRow]
+        }
+
+        struct Edge: Hashable {
+            let fromSectionID: String
+            let toSectionID: String
+            let rail: RailStyle
+        }
+
+        let sections: [Section]
+        let edges: [Edge]
+
+        static let empty = Diagram(sections: [], edges: [])
+    }
+
     /// The strips of one direction, in reading order: the branches that feed
     /// the trunk, the trunk, then the branches it feeds.
     static func strips(for direction: LineDirection, disruptions: [LineDisruption]) -> [Strip] {
@@ -152,6 +174,110 @@ enum LinePlan {
                 stops: diagramRows(for: section, from: serviceStrips)
             )
         }
+    }
+
+    /// Builds the actual line graph instead of placing section cards one after
+    /// another. Every service group contributes one path through the ordered
+    /// sections, which produces the exact shared stems, merges and forks.
+    static func diagram(
+        for direction: LineDirection,
+        disruptions: [LineDisruption]
+    ) -> Diagram {
+        let sourceSections = direction.sections.filter { !$0.stops.isEmpty }
+        guard !sourceSections.isEmpty else { return .empty }
+
+        let spine = spineIndex(of: sourceSections)
+        let strips = diagramStrips(for: direction, disruptions: disruptions)
+        let serviceStrips = self.strips(for: direction, disruptions: disruptions)
+        let originLanes = laneMap(sourceSections[spine].origins)
+        let terminusLanes = laneMap(sourceSections[spine].termini)
+
+        var edgeIndexes: Set<SectionEdge> = []
+        for group in sourceSections[spine].origins {
+            connectConsecutive(
+                sourceSections.indices.filter {
+                    $0 <= spine && sourceSections[$0].origins.contains(group)
+                },
+                into: &edgeIndexes
+            )
+        }
+        for group in sourceSections[spine].termini {
+            connectConsecutive(
+                sourceSections.indices.filter {
+                    $0 >= spine && sourceSections[$0].termini.contains(group)
+                },
+                into: &edgeIndexes
+            )
+        }
+
+        let incoming = Dictionary(grouping: edgeIndexes, by: \.to).mapValues(\.count)
+        let outgoing = Dictionary(grouping: edgeIndexes, by: \.from).mapValues(\.count)
+        let sections = strips.enumerated().map { index, strip in
+            Diagram.Section(
+                id: strip.id,
+                lane: lane(
+                    for: sourceSections[index],
+                    at: index,
+                    spine: spine,
+                    originLanes: originLanes,
+                    terminusLanes: terminusLanes
+                ),
+                stops: strip.stops.enumerated().map { stopIndex, row in
+                    StopRow(
+                        stop: row.stop,
+                        isEnd: (stopIndex == 0 && incoming[index] == nil)
+                            || (stopIndex == strip.stops.count - 1 && outgoing[index] == nil),
+                        condition: row.condition,
+                        isCutEdge: row.isCutEdge,
+                        railAbove: row.railAbove,
+                        railBelow: row.railBelow
+                    )
+                }
+            )
+        }
+
+        let edges = edgeIndexes
+            .sorted { ($0.from, $0.to) < ($1.from, $1.to) }
+            .map { edge in
+                Diagram.Edge(
+                    fromSectionID: sections[edge.from].id,
+                    toSectionID: sections[edge.to].id,
+                    rail: diagramRail(
+                        from: sourceSections[edge.from].stops.last!.id,
+                        to: sourceSections[edge.to].stops.first!.id,
+                        in: serviceStrips
+                    )
+                )
+            }
+        return Diagram(sections: sections, edges: edges)
+    }
+
+    private struct SectionEdge: Hashable {
+        let from: Int
+        let to: Int
+    }
+
+    private static func connectConsecutive(_ indexes: [Int], into edges: inout Set<SectionEdge>) {
+        for pair in zip(indexes, indexes.dropFirst()) {
+            edges.insert(SectionEdge(from: pair.0, to: pair.1))
+        }
+    }
+
+    private static func laneMap(_ groups: [String]) -> [String: Int] {
+        Dictionary(uniqueKeysWithValues: groups.enumerated().map { ($0.element, $0.offset) })
+    }
+
+    private static func lane(
+        for section: LineSchemaSection,
+        at index: Int,
+        spine: Int,
+        originLanes: [String: Int],
+        terminusLanes: [String: Int]
+    ) -> Int {
+        guard index != spine else { return 0 }
+        let groups = index < spine ? section.origins : section.termini
+        let lanes = index < spine ? originLanes : terminusLanes
+        return groups.compactMap { lanes[$0] }.min() ?? 0
     }
 
     // MARK: - Regrouping sections into strips

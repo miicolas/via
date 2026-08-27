@@ -41,10 +41,11 @@ final class LineDetailViewModel {
         }
     }
 
-    /// The trunk and its branches, in reading order.
-    var strips: [LinePlan.Strip] {
-        guard let detail = detail.value, let direction = detail.planDirection else { return [] }
-        return LinePlan.diagramStrips(for: direction, disruptions: detail.disruptions)
+    /// The complete physical topology: one station node and the actual edges
+    /// joining every branch to its shared stems and trunk.
+    var diagram: LinePlan.Diagram {
+        guard let detail = detail.value, let direction = detail.planDirection else { return .empty }
+        return LinePlan.diagram(for: direction, disruptions: detail.disruptions)
     }
 
 }

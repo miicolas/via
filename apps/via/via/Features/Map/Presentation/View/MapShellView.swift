@@ -310,6 +310,16 @@ struct MapShellView: View {
         break
       }
     }
+    .overlay {
+      if journeyScreenBeamIsVisible {
+        JourneyScreenBeamView()
+          .transition(reduceMotion ? .identity : .opacity)
+      }
+    }
+    .animation(
+      reduceMotion ? nil : .smooth(duration: 0.45),
+      value: journeyScreenBeamIsVisible
+    )
     .aiScreenGlow(naturalGlowIntensity)
   }
 
@@ -357,6 +367,12 @@ struct MapShellView: View {
       .failed:
       nil
     }
+  }
+
+  /// The guidance beam frames the app rather than the estimated position dot.
+  /// It stays out of the way while Apple Intelligence owns the screen edge.
+  private var journeyScreenBeamIsVisible: Bool {
+    activeJourneyModel.isTracking && naturalGlowIntensity == nil
   }
 
   /// Opens the detail sheet for a map item. A dock and a transit station own
