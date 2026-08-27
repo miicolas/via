@@ -111,17 +111,21 @@ const navitiaBody = {
 
 function plannerAnswering(bodies: unknown[]) {
   const requested: URL[] = [];
+  const connectionHeaders: Array<string | null> = [];
   const planner = createIdfmJourneyPlanner({
     apiKey: 'test',
     url: 'https://prim.test/journeys',
     loadShapes: async () => [],
-    fetcher: async (url) => {
+    fetcher: async (url, init) => {
       requested.push(url);
+      connectionHeaders.push(
+        (init?.headers as Record<string, string> | undefined)?.Connection ?? null
+      );
       const body = bodies[Math.min(requested.length, bodies.length) - 1];
       return new Response(JSON.stringify(body), { status: 200 });
     },
   });
-  return { planner, requested };
+  return { planner, requested, connectionHeaders };
 }
 
 const suburbanInput: JourneyInput = {
@@ -143,6 +147,19 @@ test('asks PRIM a second time when the first answer is empty', async () => {
   expect(requested).toHaveLength(2);
   expect(response?.status).toBe('ready');
   expect(response?.journeys).toHaveLength(1);
+});
+
+/**
+ * Keep-alive is what makes the empty answer persist: the pool sends every
+ * request back to the backend that answered the first one. Retrying down the
+ * same connection would only ask the broken backend again.
+ */
+test('the retry leaves the connection pool so the load balancer draws again', async () => {
+  const { planner, connectionHeaders } = plannerAnswering([{}, navitiaBody]);
+
+  await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
+
+  expect(connectionHeaders).toEqual([null, 'close']);
 });
 
 test('a healthy answer costs a single call', async () => {
