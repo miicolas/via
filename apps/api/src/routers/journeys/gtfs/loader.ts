@@ -2,6 +2,7 @@ import type { Coordinate } from '@via/contract';
 import { db } from '@via/db';
 import {
   networkMode,
+  ROUTE_TYPE,
   stationFacts,
   transitProfileStops,
   transitRoutes,
@@ -13,7 +14,7 @@ import {
   transitTrips,
 } from '@via/db/schema';
 import { absoluteTimetableSeconds } from '@via/db/timetable';
-import { and, asc, desc, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, ne, sql } from 'drizzle-orm';
 
 import { parisDay, previousDate } from '../../../time/paris';
 import { readTimetableHorizon } from './timetable-horizon';
@@ -29,6 +30,7 @@ import type {
   PlannerReverseTransfer,
   PlannerTransfer,
 } from './planner';
+import { mergeAccessStops, STRUCTURING_ACCESS_STOPS } from './access-stops';
 import {
   boundGroups,
   MAX_BOARDING_CANDIDATES,
@@ -195,56 +197,74 @@ export function createGtfsLoader(now: Date, requiresAccessibleStations = false):
     });
   };
 
+  const loadAccessStops = async (
+    coordinate: Coordinate,
+    limit: number,
+    { stationId, structuringOnly = false }: { stationId?: string; structuringOnly?: boolean }
+  ) => {
+    const rows = await db
+      .select({
+        id: transitStops.id,
+        numericId: transitStops.numericId,
+        name: transitStops.name,
+        coordinate: sql<Coordinate>`json_build_object(
+          'latitude', ST_Y(${transitStops.location}),
+          'longitude', ST_X(${transitStops.location})
+        )`,
+      })
+      .from(transitStops)
+      .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
+      .innerJoin(transitRoutes, eq(transitRoutes.id, transitStopRoutes.routeId))
+      .leftJoin(
+        stationFacts,
+        and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
+      )
+      .where(
+        and(
+          sql`ST_DWithin(
+            ${transitStops.location}::geography,
+            ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography,
+            3_000
+          )`,
+          stationId ? eq(transitStops.id, stationId) : undefined,
+          structuringOnly ? ne(transitRoutes.routeType, ROUTE_TYPE.bus) : undefined,
+          requiresAccessibleStations ? isNotNull(stationFacts.stopId) : undefined
+        )
+      )
+      .groupBy(transitStops.id, transitStops.name, transitStops.location)
+      .orderBy(
+        sql`ST_Distance(
+          ${transitStops.location}::geography,
+          ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography
+        )`
+      )
+      .limit(limit);
+
+    return rows.map((row) => {
+      const stop = {
+        id: row.id,
+        name: row.name,
+        coordinate: row.coordinate,
+        isAccessible: requiresAccessibleStations,
+      };
+      stopCache.set(stop.id, stop);
+      stopKeyById.set(stop.id, row.numericId);
+      stopIdByKey.set(row.numericId, stop.id);
+      return stop;
+    });
+  };
+
   return {
     accessStops: async (coordinate, limit, stationId) => {
-      const rows = await db
-        .select({
-          id: transitStops.id,
-          numericId: transitStops.numericId,
-          name: transitStops.name,
-          coordinate: sql<Coordinate>`json_build_object(
-            'latitude', ST_Y(${transitStops.location}),
-            'longitude', ST_X(${transitStops.location})
-          )`,
-        })
-        .from(transitStops)
-        .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
-        .leftJoin(
-          stationFacts,
-          and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
-        )
-        .where(
-          and(
-            sql`ST_DWithin(
-              ${transitStops.location}::geography,
-              ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography,
-              3_000
-            )`,
-            stationId ? eq(transitStops.id, stationId) : undefined,
-            requiresAccessibleStations ? isNotNull(stationFacts.stopId) : undefined
-          )
-        )
-        .groupBy(transitStops.id, transitStops.name, transitStops.location)
-        .orderBy(
-          sql`ST_Distance(
-            ${transitStops.location}::geography,
-            ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography
-          )`
-        )
-        .limit(limit);
+      // A named stop is the traveller's own choice: it wins outright, and no
+      // reserved slot may widen what they pinned.
+      if (stationId) return loadAccessStops(coordinate, limit, { stationId });
 
-      return rows.map((row) => {
-        const stop = {
-          id: row.id,
-          name: row.name,
-          coordinate: row.coordinate,
-          isAccessible: requiresAccessibleStations,
-        };
-        stopCache.set(stop.id, stop);
-        stopKeyById.set(stop.id, row.numericId);
-        stopIdByKey.set(row.numericId, stop.id);
-        return stop;
-      });
+      const [nearest, structuring] = await Promise.all([
+        loadAccessStops(coordinate, limit, {}),
+        loadAccessStops(coordinate, STRUCTURING_ACCESS_STOPS, { structuringOnly: true }),
+      ]);
+      return mergeAccessStops(nearest, structuring);
     },
 
     boardings: async (stopIds, earliestByStop, serviceDates) =>
