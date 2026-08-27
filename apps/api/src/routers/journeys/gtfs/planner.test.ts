@@ -158,3 +158,110 @@ test('does not query a reverse frontier stop that cannot reach the origin in the
   expect(requestedStops[0]).toEqual([to.id]);
   expect(requestedStops.slice(1).flat()).not.toContain(far.id);
 });
+
+/**
+ * A suburban origin, a dense first leg, and one connecting station reached at
+ * the very end of it: the shape that used to come back with nothing to ride.
+ * The frontier ceiling is a label count, and Pareto keeps up to four labels per
+ * stop, so the local stops the bus threads through can fill it entirely and cut
+ * the station the whole journey depends on.
+ */
+test('keeps the connecting station a long first leg reaches, however dense that leg is', async () => {
+  const localStops: PlannerStop[] = Array.from({ length: 130 }, (_, index) => ({
+    id: `local-${index}`,
+    name: `Arrêt ${index}`,
+    coordinate: { latitude: 48.94 + index * 0.0001, longitude: 2.03 },
+  }));
+  const link: PlannerStop = {
+    id: 'link',
+    name: 'Poissy',
+    coordinate: { latitude: 48.929, longitude: 2.042 },
+  };
+  const exit: PlannerStop = {
+    id: 'exit',
+    name: 'Auber',
+    coordinate: { latitude: 48.8725, longitude: 2.3295 },
+  };
+  const suburb: Coordinate = { latitude: 48.9376, longitude: 2.0334 };
+  const paris: JourneyDestination = {
+    kind: 'address',
+    id: 'vivienne',
+    name: '15 rue Vivienne',
+    coordinate: { latitude: 48.8695, longitude: 2.3405 },
+  };
+  // Four access stops at four walking distances: the same local stop then holds
+  // four labels no other dominates, which is what fills the frontier.
+  const accessStops: PlannerStop[] = Array.from({ length: 4 }, (_, index) => ({
+    id: `access-${index}`,
+    name: `Départ ${index}`,
+    coordinate: { latitude: 48.9376, longitude: 2.0334 + index * 0.002 },
+  }));
+  const busRoute = { id: 'bus-2', shortName: '2', longName: 'Bus 2', mode: 'bus' as const, color: '#666666', textColor: '#FFFFFF' };
+  const rerRoute = { id: 'rer-a', shortName: 'A', longName: 'RER A', mode: 'rer' as const, color: '#E3051C', textColor: '#FFFFFF' };
+  // The furthest access stop leaves first, so its labels arrive earlier while
+  // costing more walking — neither label dominates the other.
+  const busTrips = accessStops.map((stop, index) => {
+    const departureSeconds = 44_000 + (accessStops.length - 1 - index) * 100;
+    const calls: PlannerCall[] = [
+      { stop, stopSequence: 0, arrivalSeconds: departureSeconds, departureSeconds, serviceDate: date },
+      ...localStops.map((localStop, position) => ({
+        stop: localStop,
+        stopSequence: position + 1,
+        arrivalSeconds: departureSeconds + (position + 1) * 10,
+        departureSeconds: departureSeconds + (position + 1) * 10,
+        serviceDate: date,
+      })),
+    ];
+    // Only the nearest access stop's bus carries on to the station, and it gets
+    // there last: the plain cut down the ranking dropped exactly that label.
+    if (index === 0) {
+      calls.push({ stop: link, stopSequence: calls.length, arrivalSeconds: 45_700, departureSeconds: 45_700, serviceDate: date });
+    }
+    return {
+      trip: { id: `bus-trip-${index}`, route: busRoute, headsign: 'Poissy' },
+      calls,
+      boarding: { tripId: `bus-trip-${index}`, stopId: stop.id, departureSeconds, serviceDate: date },
+    };
+  });
+  const rerCalls: PlannerCall[] = [
+    { stop: link, stopSequence: 0, arrivalSeconds: 46_000, departureSeconds: 46_000, serviceDate: date },
+    { stop: exit, stopSequence: 1, arrivalSeconds: 47_800, departureSeconds: 47_800, serviceDate: date },
+  ];
+  const rerTrip: PlannerTrip = { id: 'rer-trip', route: rerRoute, headsign: 'Boissy' };
+  const tripsById = new Map<string, { trip: PlannerTrip; calls: PlannerCall[] }>([
+    ...busTrips.map((bus) => [bus.trip.id, { trip: bus.trip, calls: bus.calls }] as const),
+    [rerTrip.id, { trip: rerTrip, calls: rerCalls }],
+  ]);
+
+  const response = await planWithGtfs(suburb, paris, new Date('2026-08-12T10:00:00Z'), 4, {
+    accessStops: async (coordinate) => (coordinate === suburb ? accessStops : [exit]),
+    boardings: async (stopIds) => [
+      ...busTrips
+        .filter((bus) => stopIds.includes(bus.boarding.stopId))
+        .map((bus) => bus.boarding),
+      ...(stopIds.includes(link.id)
+        ? [{ tripId: rerTrip.id, stopId: link.id, departureSeconds: 46_000, serviceDate: date }]
+        : []),
+    ],
+    alightings: async () => [],
+    trips: async (references) =>
+      new Map(
+        references.flatMap((reference) => {
+          const loaded = tripsById.get(reference.tripId);
+          return loaded
+            ? [[plannerTripKey(reference.tripId, reference.serviceDate), loaded] as const]
+            : [];
+        })
+      ),
+    shapes: async () => new Map(),
+    transfers: async () => [],
+    reverseTransfers: async () => [],
+  });
+
+  expect(response.status).toBe('ready');
+  expect(
+    response.journeys[0]?.sections.flatMap((section) =>
+      section.type === 'transit' && section.route ? [section.route.shortName] : []
+    )
+  ).toEqual(['2', 'A']);
+});

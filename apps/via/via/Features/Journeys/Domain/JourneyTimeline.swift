@@ -1,9 +1,16 @@
 import Foundation
 
 /// Style of the rail drawn between two consecutive timeline nodes.
+///
+/// Shared with the Lignes tab: a line plan is the same rail read without a
+/// traveller on it, which is why the interrupted case lives here rather than
+/// in a vocabulary of its own.
 enum JourneyTimelineRailStyle: Sendable, Hashable {
     /// A ridden leg: continuous stroke in the line colour.
     case line(colorHex: String?)
+    /// A stretch no train runs over right now: the same band, broken into
+    /// dashes and tinted by the disruption instead of by the line.
+    case cut(LineCondition)
     /// Walking, transferring or waiting: dotted neutral stroke.
     case pedestrian
     /// No rail at all — the two nodes describe the same point in space.
@@ -20,6 +27,29 @@ enum JourneyTimelineBead: Sendable, Hashable {
     case minor
     /// Nodes that only describe a movement, not a place.
     case none
+}
+
+/// What sits inside the white station hole punched through the rail.
+///
+/// A journey never carries one — a planned trip is by construction one the
+/// trains run. A line plan does: the hole is where the Lignes tab says a
+/// station is in trouble, instead of decorating its name.
+enum JourneyTimelineBeadMark: Sendable, Hashable {
+    /// Trains call normally: the plain white hole of a platform display.
+    case open
+    /// The station sits inside a disruption but trains still call: the hole
+    /// takes the disruption's colour.
+    case warned(LineCondition)
+    /// No train calls here at all: the hole is struck through.
+    case closed(LineCondition)
+
+    /// The disruption behind the mark; nil while the station runs normally.
+    var condition: LineCondition? {
+        switch self {
+        case .open: nil
+        case .warned(let condition), .closed(let condition): condition
+        }
+    }
 }
 
 /// One row of the journey timeline.

@@ -30,6 +30,7 @@ function setup(options: {
   apiKey?: boolean;
   idfmResult?: Awaited<ReturnType<IdfmJourneyPlanner['plan']>>;
   idfmResults?: Array<Awaited<ReturnType<IdfmJourneyPlanner['plan']>>>;
+  gtfsResult?: Awaited<ReturnType<GtfsJourneyPlanner['plan']>>;
   gtfsError?: Error;
   gtfsDelayMs?: number;
   personalLimit?: number;
@@ -61,7 +62,7 @@ function setup(options: {
           await new Promise((resolve) => setTimeout(resolve, options.gtfsDelayMs));
         }
         if (options.gtfsError) throw options.gtfsError;
-        return theoretical;
+        return options.gtfsResult ?? theoretical;
       } finally {
         gtfsConcurrency.active -= 1;
       }
@@ -119,7 +120,9 @@ describe('journey planning module', () => {
     const second = await plan(planner);
 
     expect(second).toEqual(first);
-    expect(calls).toEqual({ idfm: 1, gtfs: 0 });
+    // The first plan consults both — IDFM had nothing to ride — and the second
+    // consults neither: that is what makes it a cache hit.
+    expect(calls).toEqual({ idfm: 1, gtfs: 1 });
   });
 
   test('reapplies live reports to the same stable cached plan', async () => {
@@ -237,7 +240,7 @@ describe('journey planning module', () => {
     const response = await plan(planner);
 
     expect(response).toMatchObject({ status: 'no-route', source: 'gtfs-theoretical' });
-    expect(calls).toEqual({ idfm: 1, gtfs: 1 });
+    expect(calls).toEqual({ idfm: 1, gtfs: 2 });
     expect([...expiries.values()]).toContain(30);
   });
 
@@ -251,7 +254,7 @@ describe('journey planning module', () => {
     expect(cachedTtl(expiries)).toBe(30);
   });
 
-  test('qualifies an IDFM response and caches it for the realtime TTL', async () => {
+  test('keeps the realtime answer when the second opinion is just as empty', async () => {
     const { planner, calls, expiries } = setup();
 
     const response = await plan(planner);
@@ -262,8 +265,28 @@ describe('journey planning module', () => {
       generatedAt: now.toISOString(),
       journeys: [],
     });
-    expect(calls).toEqual({ idfm: 1, gtfs: 0 });
+    // Consulted, and it found nothing either: the realtime answer and its own
+    // reason are what reach the screen.
+    expect(calls).toEqual({ idfm: 1, gtfs: 1 });
     expect(cachedTtl(expiries)).toBe(45);
+  });
+
+  /**
+   * The Chatou case: IDFM answers, and answers nothing. Before, that ended the
+   * search — the traveller was told no line connects the two points without Via
+   * ever having looked at its own timetable.
+   */
+  test('asks its own timetable when IDFM answers with nothing to ride', async () => {
+    const { planner, calls } = setup({
+      idfmResult: { status: 'no-route', journeys: [] },
+      gtfsResult: { status: 'ready', journeys: [modalJourney('rer', 2_400)] },
+    });
+
+    const response = await plan(planner);
+
+    expect(calls).toEqual({ idfm: 1, gtfs: 1 });
+    expect(response).toMatchObject({ status: 'ready', source: 'gtfs-theoretical' });
+    expect(response.journeys).toHaveLength(1);
   });
 
   test('keeps the realtime TTL when IDFM fails and GTFS takes over', async () => {

@@ -291,17 +291,18 @@ async function planDepartureWithGtfs(
         });
       }
     }
-    frontier = [...expanded.values()]
-      .flat()
-      .filter((label) => label.arrivalSeconds <= bestArrivalSeconds + ALTERNATIVE_SLACK_SECONDS)
-      .filter((label) => canStillReachDestination(label, destination, bestArrivalSeconds))
-      .sort(
-        (a, b) =>
-          a.arrivalSeconds - b.arrivalSeconds ||
-          a.walkingSeconds - b.walkingSeconds ||
-          a.transfers - b.transfers
-      )
-      .slice(0, MAX_FRONTIER_LABELS);
+    frontier = trimFrontier(
+      [...expanded.values()]
+        .flat()
+        .filter((label) => label.arrivalSeconds <= bestArrivalSeconds + ALTERNATIVE_SLACK_SECONDS)
+        .filter((label) => canStillReachDestination(label, destination, bestArrivalSeconds))
+        .sort(
+          (a, b) =>
+            a.arrivalSeconds - b.arrivalSeconds ||
+            a.walkingSeconds - b.walkingSeconds ||
+            a.transfers - b.transfers
+        )
+    );
   }
 
   const selected = dedupeAndQualify(results, limit, byEarliestArrival, { pruneDominated: true });
@@ -453,17 +454,20 @@ async function planArrivalWithGtfs(
         });
       }
     }
-    frontier = [...expanded.values()]
-      .flat()
-      .filter((label) => label.departureSeconds >= bestDepartureSeconds - ALTERNATIVE_SLACK_SECONDS)
-      .filter((label) => canStillReachOrigin(label, origin, bestDepartureSeconds))
-      .sort(
-        (a, b) =>
-          b.departureSeconds - a.departureSeconds ||
-          a.walkingSeconds - b.walkingSeconds ||
-          a.transfers - b.transfers
-      )
-      .slice(0, MAX_FRONTIER_LABELS);
+    frontier = trimFrontier(
+      [...expanded.values()]
+        .flat()
+        .filter(
+          (label) => label.departureSeconds >= bestDepartureSeconds - ALTERNATIVE_SLACK_SECONDS
+        )
+        .filter((label) => canStillReachOrigin(label, origin, bestDepartureSeconds))
+        .sort(
+          (a, b) =>
+            b.departureSeconds - a.departureSeconds ||
+            a.walkingSeconds - b.walkingSeconds ||
+            a.transfers - b.transfers
+        )
+    );
   }
 
   const selected = dedupeAndQualify(results, limit, byLatestDeparture);
@@ -473,6 +477,36 @@ async function planArrivalWithGtfs(
     source: 'gtfs-theoretical',
     journeys,
   };
+}
+
+/**
+ * Trims a ranked frontier to its ceiling while keeping it as wide as it is deep.
+ *
+ * Pareto keeps up to {@link MAX_LABELS_PER_STOP} labels per stop, so a plain cut
+ * down the ranking can spend the whole budget on alternatives at a handful of
+ * stops and drop the stop the search just rode a whole leg to reach — the one
+ * that would have continued the journey. Taking each stop's best label first
+ * keeps every stop the budget can afford; whatever is left then goes to the
+ * alternatives at the stops already covered. No stop that survived the plain cut
+ * is lost, because its best label can only move up.
+ */
+function trimFrontier<T extends { stop: PlannerStop }>(
+  ranked: T[],
+  limit = MAX_FRONTIER_LABELS
+): T[] {
+  if (ranked.length <= limit) return ranked;
+  const best: T[] = [];
+  const alternatives: T[] = [];
+  const covered = new Set<string>();
+  for (const label of ranked) {
+    if (covered.has(label.stop.id)) {
+      alternatives.push(label);
+      continue;
+    }
+    covered.add(label.stop.id);
+    best.push(label);
+  }
+  return [...best, ...alternatives].slice(0, limit);
 }
 
 /**

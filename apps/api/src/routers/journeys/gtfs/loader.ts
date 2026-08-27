@@ -2,6 +2,7 @@ import type { Coordinate } from '@via/contract';
 import { db } from '@via/db';
 import {
   networkMode,
+  ROUTE_TYPE,
   stationFacts,
   transitProfileStops,
   transitRoutes,
@@ -13,7 +14,7 @@ import {
   transitTrips,
 } from '@via/db/schema';
 import { absoluteTimetableSeconds } from '@via/db/timetable';
-import { and, asc, desc, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, ne, sql } from 'drizzle-orm';
 
 import { parisDay, previousDate } from '../../../time/paris';
 import { readTimetableHorizon } from './timetable-horizon';
@@ -29,19 +30,17 @@ import type {
   PlannerReverseTransfer,
   PlannerTransfer,
 } from './planner';
+import { mergeAccessStops, STRUCTURING_ACCESS_STOPS } from './access-stops';
+import {
+  boundGroups,
+  MAX_BOARDING_CANDIDATES,
+  MAX_BOARDINGS_PER_STOP,
+  rankStopTimeCandidates,
+  type StopTimeCandidate,
+  type StopTimeDirection,
+} from './stop-time-candidates';
 
-const MAX_BOARDINGS_PER_STOP = 32;
-const MAX_BOARDING_CANDIDATES = 1_500;
-
-/** 'board' walks departures forward in time; 'alight' walks arrivals backward. */
-export type StopTimeDirection = 'board' | 'alight';
-
-type StopTimeCandidate = {
-  tripId: string;
-  stopKey: number;
-  seconds: number;
-  serviceDate: string;
-};
+export type { StopTimeDirection } from './stop-time-candidates';
 
 /**
  * Whether yesterday's service day can still contain a boarding this search
@@ -108,45 +107,45 @@ export function createGtfsLoader(now: Date, requiresAccessibleStations = false):
     serviceDates: string[]
   ) => {
     if (stopIds.length === 0) return [];
-    const stopKeys = stopIds.flatMap((id) => {
-      const key = stopKeyById.get(id);
-      return key === undefined ? [] : [key];
+    const stops = stopIds.flatMap((id) => {
+      const stopKey = stopKeyById.get(id);
+      const bound = boundByStop.get(id);
+      return stopKey === undefined || bound === undefined ? [] : [{ stopKey, bound }];
     });
-    if (stopKeys.length === 0) return [];
-    const bound =
-      direction === 'board' ? Math.min(...boundByStop.values()) : Math.max(...boundByStop.values());
+    if (stops.length === 0) return [];
+    const boundByStopKey = new Map(stops.map((stop) => [stop.stopKey, stop.bound]));
     const services = await activeServices(serviceDates);
-    const todayRows = await loadStopTimeCandidates(
-      direction,
-      stopKeys,
-      services.get(date) ?? [],
-      bound,
-      date,
-      0
-    );
-    const yesterdayRows = (await yesterdayCanStillBeRunning(direction, bound))
-      ? await loadStopTimeCandidates(
+    const candidates = await Promise.all(
+      boundGroups(direction, stops).map(async ({ stopKeys, bound }) => {
+        const todayRows = await loadStopTimeCandidates(
           direction,
           stopKeys,
-          services.get(yesterday) ?? [],
-          bound + 86_400,
-          yesterday,
-          -86_400
-        )
-      : [];
-    const rows = [...todayRows, ...yesterdayRows]
-      .sort((a, b) => (direction === 'board' ? a.seconds - b.seconds : b.seconds - a.seconds))
-      .slice(0, MAX_BOARDING_CANDIDATES);
+          services.get(date) ?? [],
+          bound,
+          date,
+          0
+        );
+        const yesterdayRows = (await yesterdayCanStillBeRunning(direction, bound))
+          ? await loadStopTimeCandidates(
+              direction,
+              stopKeys,
+              services.get(yesterday) ?? [],
+              bound + 86_400,
+              yesterday,
+              -86_400
+            )
+          : [];
+        return [...todayRows, ...yesterdayRows];
+      })
+    );
+    const rows = rankStopTimeCandidates(direction, candidates.flat(), (stopKey) =>
+      boundByStopKey.get(stopKey)
+    );
 
     const counts = new Map<string, number>();
     return rows.flatMap((row) => {
       const stopId = stopIdByKey.get(row.stopKey);
       if (!stopId) return [];
-      const outOfBound =
-        direction === 'board'
-          ? row.seconds < (boundByStop.get(stopId) ?? Infinity)
-          : row.seconds > (boundByStop.get(stopId) ?? -Infinity);
-      if (outOfBound) return [];
       const count = counts.get(stopId) ?? 0;
       if (count >= MAX_BOARDINGS_PER_STOP) return [];
       counts.set(stopId, count + 1);
@@ -198,56 +197,74 @@ export function createGtfsLoader(now: Date, requiresAccessibleStations = false):
     });
   };
 
+  const loadAccessStops = async (
+    coordinate: Coordinate,
+    limit: number,
+    { stationId, structuringOnly = false }: { stationId?: string; structuringOnly?: boolean }
+  ) => {
+    const rows = await db
+      .select({
+        id: transitStops.id,
+        numericId: transitStops.numericId,
+        name: transitStops.name,
+        coordinate: sql<Coordinate>`json_build_object(
+          'latitude', ST_Y(${transitStops.location}),
+          'longitude', ST_X(${transitStops.location})
+        )`,
+      })
+      .from(transitStops)
+      .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
+      .innerJoin(transitRoutes, eq(transitRoutes.id, transitStopRoutes.routeId))
+      .leftJoin(
+        stationFacts,
+        and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
+      )
+      .where(
+        and(
+          sql`ST_DWithin(
+            ${transitStops.location}::geography,
+            ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography,
+            3_000
+          )`,
+          stationId ? eq(transitStops.id, stationId) : undefined,
+          structuringOnly ? ne(transitRoutes.routeType, ROUTE_TYPE.bus) : undefined,
+          requiresAccessibleStations ? isNotNull(stationFacts.stopId) : undefined
+        )
+      )
+      .groupBy(transitStops.id, transitStops.name, transitStops.location)
+      .orderBy(
+        sql`ST_Distance(
+          ${transitStops.location}::geography,
+          ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography
+        )`
+      )
+      .limit(limit);
+
+    return rows.map((row) => {
+      const stop = {
+        id: row.id,
+        name: row.name,
+        coordinate: row.coordinate,
+        isAccessible: requiresAccessibleStations,
+      };
+      stopCache.set(stop.id, stop);
+      stopKeyById.set(stop.id, row.numericId);
+      stopIdByKey.set(row.numericId, stop.id);
+      return stop;
+    });
+  };
+
   return {
     accessStops: async (coordinate, limit, stationId) => {
-      const rows = await db
-        .select({
-          id: transitStops.id,
-          numericId: transitStops.numericId,
-          name: transitStops.name,
-          coordinate: sql<Coordinate>`json_build_object(
-            'latitude', ST_Y(${transitStops.location}),
-            'longitude', ST_X(${transitStops.location})
-          )`,
-        })
-        .from(transitStops)
-        .innerJoin(transitStopRoutes, eq(transitStopRoutes.stopId, transitStops.id))
-        .leftJoin(
-          stationFacts,
-          and(eq(stationFacts.stopId, transitStops.id), eq(stationFacts.kind, 'accessibility'))
-        )
-        .where(
-          and(
-            sql`ST_DWithin(
-              ${transitStops.location}::geography,
-              ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography,
-              3_000
-            )`,
-            stationId ? eq(transitStops.id, stationId) : undefined,
-            requiresAccessibleStations ? isNotNull(stationFacts.stopId) : undefined
-          )
-        )
-        .groupBy(transitStops.id, transitStops.name, transitStops.location)
-        .orderBy(
-          sql`ST_Distance(
-            ${transitStops.location}::geography,
-            ST_SetSRID(ST_MakePoint(${coordinate.longitude}, ${coordinate.latitude}), 4326)::geography
-          )`
-        )
-        .limit(limit);
+      // A named stop is the traveller's own choice: it wins outright, and no
+      // reserved slot may widen what they pinned.
+      if (stationId) return loadAccessStops(coordinate, limit, { stationId });
 
-      return rows.map((row) => {
-        const stop = {
-          id: row.id,
-          name: row.name,
-          coordinate: row.coordinate,
-          isAccessible: requiresAccessibleStations,
-        };
-        stopCache.set(stop.id, stop);
-        stopKeyById.set(stop.id, row.numericId);
-        stopIdByKey.set(row.numericId, stop.id);
-        return stop;
-      });
+      const [nearest, structuring] = await Promise.all([
+        loadAccessStops(coordinate, limit, {}),
+        loadAccessStops(coordinate, STRUCTURING_ACCESS_STOPS, { structuringOnly: true }),
+      ]);
+      return mergeAccessStops(nearest, structuring);
     },
 
     boardings: async (stopIds, earliestByStop, serviceDates) =>

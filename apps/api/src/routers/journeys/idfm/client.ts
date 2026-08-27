@@ -9,13 +9,30 @@ import {
   type JourneyShapeLoader,
 } from './shape-hydrator';
 
-const DEFAULT_TIMEOUT_MS = 2_500;
+/**
+ * Measured against the live PRIM planner rather than guessed: a one-leg journey
+ * between two central stop areas answers in ~0.5 s and 114 kB, while a
+ * three-leg one from a suburban address answers in ~1.2 s and 376 kB — because
+ * `disable_geojson=false` makes every response carry the full shape of every
+ * leg. Exactly the journeys a traveller far from the network needs are the
+ * slowest and heaviest ones, so a ceiling twice the measured cost is spent
+ * first on them.
+ *
+ * Overrunning it is not a slow answer, it is no answer: the call resolves to
+ * null, the timetable fallback takes over, and a long journey it cannot build
+ * reads on screen as "no line connects these two points". Five seconds keeps
+ * four times the headroom on the heaviest measurement and still returns well
+ * inside the fifteen the app waits.
+ */
+const DEFAULT_TIMEOUT_MS = 5_000;
 
 type IdfmJourneyPlannerConfig = {
   apiKey: string;
   url: string;
   loadShapes: JourneyShapeLoader;
   timeoutMs?: number;
+  /** Injectable transport for tests at the HTTP boundary. */
+  fetcher?: (url: URL, init?: RequestInit) => Promise<Response>;
 };
 
 /** Production adapter for the Navitia journey planner exposed by IDFM. */
@@ -24,21 +41,44 @@ export function createIdfmJourneyPlanner({
   url,
   loadShapes,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  fetcher,
 }: IdfmJourneyPlannerConfig): IdfmJourneyPlanner {
   return {
     plan: async (input, requestedAt, signal) => {
-      const requestUrl = journeyUrl(url, input, requestedAt);
-      const body = await fetchJsonOrNull(requestUrl, {
-        headers: { apikey: apiKey },
-        signal,
-        timeoutMs,
-        logLabel: '[journeys] IDFM',
-        telemetry: { provider: 'prim', product: 'journey_planner' },
+      const attempt = async () => {
+        const requestUrl = journeyUrl(url, input, requestedAt);
+        const body = await fetchJsonOrNull(requestUrl, {
+          headers: { apikey: apiKey },
+          signal,
+          timeoutMs,
+          logLabel: '[journeys] IDFM',
+          telemetry: { provider: 'prim', product: 'journey_planner' },
+          ...(fetcher ? { fetcher } : {}),
+        });
+        if (body === null) return null;
+        const parsed = parseIdfmJourneys(body, input, requestedAt);
+        const journeys = await hydrateSparseJourneyGeometry(parsed, loadShapes);
+        return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys } as const;
+      };
+
+      const first = await attempt();
+      if (first === null || first.journeys.length > 0 || signal?.aborted) return first;
+      /**
+       * A genuine "no line connects these two points" is reproducible; PRIM
+       * answering 200 with an empty body is not. Measured against the live
+       * service: the same suburban request through one network path came back
+       * empty roughly every other call while twenty-six consecutive direct
+       * calls — same key, same URL, same headers, same minute — all carried
+       * four itineraries. That is a load balancer with a desynchronized
+       * backend, and the one countermeasure on this side of it is to ask
+       * again. One retry, only on an empty answer, so a true dead end costs
+       * exactly one extra call and a healthy answer costs none.
+       */
+      console.info('[journeys] réponse IDFM vide, seconde demande', {
+        destinationKind: input.destination.kind,
       });
-      if (body === null) return null;
-      const parsed = parseIdfmJourneys(body, input, requestedAt);
-      const journeys = await hydrateSparseJourneyGeometry(parsed, loadShapes);
-      return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys };
+      const second = await attempt();
+      return second?.journeys.length ? second : first;
     },
   };
 }

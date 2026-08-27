@@ -42,7 +42,7 @@ struct LineDetailView: View {
 
                     LinePlanView(
                         strips: viewModel.strips,
-                        lineColor: Color(transitHex: route.colorHex, fallback: .secondary),
+                        lineColorHex: route.colorHex,
                         isOpen: { viewModel.isOpen($0) },
                         onToggle: { strip in
                             withAnimation(reduceMotion ? nil : .snappy) {
