@@ -112,6 +112,13 @@ final class StationMapFilterTests: XCTestCase {
     XCTAssertEqual(yego.displayTypeName, "Scooter électrique")
   }
 
+  func testBikeStationFilterUsesTheBikeStationSymbol() {
+    XCTAssertEqual(
+      StationMapFilterCriterion.bikeStations.systemImage,
+      "bicycle.circle.fill"
+    )
+  }
+
   func testExpiredSharedMobilityItemsAreNotCurrent() {
     let item = SharedMobilityItem.vehicle(SharedMobilityVehicle(
       id: "expired-bike",

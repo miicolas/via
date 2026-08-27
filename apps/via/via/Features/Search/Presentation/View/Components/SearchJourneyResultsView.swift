@@ -108,17 +108,24 @@ struct SearchJourneyResultsView: View {
           .accessibilityLabel("\(transit.count + direct.count) itinéraires proposés")
       }
 
+      // The self-powered routes are an aside, not a competitor: they sit above
+      // the list as two tiles, the way the saved lines do, and give back the
+      // whole column to the transit answers.
+      if !direct.isEmpty, !transit.isEmpty {
+        DirectJourneyStrip(
+          journeys: direct,
+          selectedJourneyID: selectedJourneyID,
+          onSelect: onSelectJourney
+        )
+      }
+
       ForEach(transit) { journey in
         journeyCard(journey, in: result)
       }
 
-      if !direct.isEmpty {
-        if !transit.isEmpty {
-          Label("À pied ou à vélo", systemImage: "figure.walk")
-            .font(.headline)
-            .padding(.top, 8)
-        }
-
+      // With nothing to ride, walking *is* the answer: it goes back to a full
+      // card rather than leaving the screen on two chips.
+      if transit.isEmpty {
         ForEach(direct) { journey in
           journeyCard(journey, in: result)
         }

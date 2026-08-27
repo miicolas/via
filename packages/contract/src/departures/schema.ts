@@ -2,12 +2,17 @@ import * as z from 'zod';
 
 import { routeBadgeSchema, stationElevatorSnapshotSchema } from '../shared/schema';
 
-/** How deep a departure board group goes — the server builds to this cap, the schema enforces it. */
+/** How deep the compact station board goes. */
 export const DEPARTURES_PER_GROUP = 4;
+
+/** How deep a line-specific service-day board may go. */
+export const SERVICE_DAY_DEPARTURES_PER_GROUP = 2_000;
 
 export const departuresInputSchema = z.object({
   /** A `NetworkStation.id` — the client always holds one before asking. */
   stationId: z.string().min(1),
+  /** When present, return the complete remaining service-day board for this line. */
+  routeId: z.string().min(1).optional(),
 });
 
 export const departureStatusSchema = z.enum([
@@ -43,9 +48,9 @@ export const departureGroupSchema = z.object({
    * than minutes: the payload crosses a shared cache, so the client derives
    * the countdown from its own clock instead of trusting a stale delta.
   */
-  departures: z.array(z.iso.datetime({ offset: true })).max(DEPARTURES_PER_GROUP),
+  departures: z.array(z.iso.datetime({ offset: true })).max(SERVICE_DAY_DEPARTURES_PER_GROUP),
   /** Enriched passage data; `departures` remains during the public transition. */
-  departureItems: z.array(departureItemSchema).max(DEPARTURES_PER_GROUP),
+  departureItems: z.array(departureItemSchema).max(SERVICE_DAY_DEPARTURES_PER_GROUP),
 });
 
 export const departuresResponseSchema = z.object({

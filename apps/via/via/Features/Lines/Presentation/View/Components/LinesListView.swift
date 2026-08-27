@@ -7,6 +7,8 @@ struct LinesListView: View {
   var sections: [LineStatusSection]
   var extraSearchResults: [LineStatus]
   var upcomingByDay: [UpcomingClosureDay]
+  var isFavorite: (RouteID) -> Bool
+  var onToggleFavorite: (RouteBadge) -> Void
   var isSearching: Bool
   var isRefreshing: Bool
   var showsUnavailableBanner: Bool
@@ -58,8 +60,18 @@ struct LinesListView: View {
   }
 
   private func lineLink(_ status: LineStatus) -> some View {
-    NavigationLink(value: status) {
-      LineStatusCard(status: status)
+    HStack(spacing: 8) {
+      NavigationLink(value: status) {
+        LineStatusCard(status: status)
+          .frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .buttonStyle(.plain)
+
+      FavoriteLineButton(
+        route: status.route,
+        isFavorite: isFavorite(status.route.id),
+        action: { onToggleFavorite(status.route) }
+      )
     }
     .linesCardRow()
   }

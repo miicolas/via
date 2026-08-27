@@ -1,6 +1,7 @@
 export { departuresForStationRelation } from './relation';
 export {
   DEPARTURES_PER_GROUP,
+  SERVICE_DAY_DEPARTURES_PER_GROUP,
   departureItemSchema,
   departureGroupSchema,
   departureStatusSchema,

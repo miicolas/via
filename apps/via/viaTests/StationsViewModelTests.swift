@@ -16,6 +16,13 @@ final class StationsViewModelTests: XCTestCase {
         )
     }
 
+    func testScheduledRemainderStaysTheoreticalInAMixedRealtimeBoard() {
+        XCTAssertEqual(
+            departureTimeColorRole(status: .scheduled, source: .realtime),
+            .theoretical
+        )
+    }
+
     func testDepartureCountdownRoundsUpToTheNextWholeMinute() {
         let now = Date(timeIntervalSince1970: 1_000_000)
 

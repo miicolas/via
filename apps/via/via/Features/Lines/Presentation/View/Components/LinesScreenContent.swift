@@ -32,6 +32,8 @@ struct LinesScreenContent: View {
         sections: viewModel.sections,
         extraSearchResults: viewModel.extraSearchResults,
         upcomingByDay: viewModel.upcomingByDay,
+        isFavorite: { routeID in viewModel.isFavorite(routeID) },
+        onToggleFavorite: { route in _ = viewModel.toggleFavorite(route: route) },
         isSearching: viewModel.isSearching,
         isRefreshing: isRefreshing,
         showsUnavailableBanner: isStale || board.source == .unavailable,

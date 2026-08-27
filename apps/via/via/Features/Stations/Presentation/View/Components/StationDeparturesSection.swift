@@ -7,14 +7,22 @@ struct StationDeparturesSection: View {
   var fetchedAt: Date?
   var loadingState: SelectedStationLoadingState
   var onRetry: () -> Void
+  var title = "Prochains passages"
+  var onSelectRoute: ((RouteBadge) -> Void)? = nil
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       VStack(alignment: .leading, spacing: 3) {
-        Text("Prochains passages")
+        Text(title)
           .font(.headline)
 
         DepartureFreshnessView(source: source, fetchedAt: fetchedAt)
+
+        if onSelectRoute != nil && routes.count > 1 {
+          Text("Touchez une ligne pour voir tous ses horaires.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
       }
 
       if routes.isEmpty {
@@ -63,20 +71,45 @@ struct StationDeparturesSection: View {
   private var departureRows: some View {
     VStack(alignment: .leading, spacing: 0) {
       ForEach(routes.enumerated(), id: \.element.id) { index, route in
-        let routeDepartures = departures.filter { $0.route.id == route.id }
+        if let onSelectRoute {
+          Button {
+            onSelectRoute(route)
+          } label: {
+            HStack(spacing: 8) {
+              routeRows(for: route)
 
-        if routeDepartures.isEmpty {
-          DepartureLineRow(route: route, departure: nil, source: source)
-        } else {
-          ForEach(routeDepartures) { departure in
-            DepartureLineRow(route: route, departure: departure, source: source)
+              Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
           }
+          .buttonStyle(.plain)
+          .accessibilityElement(children: .combine)
+          .accessibilityLabel("Horaires de \(route.mode.displayName) ligne \(route.shortName)")
+          .accessibilityHint("Affiche tous les horaires de la ligne jusqu’à la fin du service.")
+        } else {
+          routeRows(for: route)
         }
 
         if index < routes.count - 1 {
           Divider()
             .padding(.leading, 50)
         }
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func routeRows(for route: RouteBadge) -> some View {
+    let routeDepartures = departures.filter { $0.route.id == route.id }
+
+    if routeDepartures.isEmpty {
+      DepartureLineRow(route: route, departure: nil, source: source)
+    } else {
+      ForEach(routeDepartures) { departure in
+        DepartureLineRow(route: route, departure: departure, source: source)
       }
     }
   }

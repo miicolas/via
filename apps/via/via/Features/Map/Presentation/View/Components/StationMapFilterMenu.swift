@@ -68,25 +68,10 @@ struct StationMapFilterMenu: View {
     .menuActionDismissBehavior(.disabled)
   }
 
-  @ViewBuilder
   private func criterionLabel(_ criterion: StationMapFilterCriterion) -> some View {
-    switch criterion {
-    case .mode(let mode):
-      Label {
-        Text(mode.displayName)
-      } icon: {
-        TransitModeIconView(mode: mode, size: 20)
-      }
-    case .sharedBikes, .sharedScooters, .bikeStations:
-      HStack(spacing: 8) {
-        ForEach(criterion.sharedMobilityProviders, id: \.self) { provider in
-          SharedMobilityProviderLogoView(provider: provider, size: 20)
-        }
-        Text(criterion.title)
-      }
-    case .accessibility, .elevators, .toilets:
-      Label(criterion.title, systemImage: criterion.systemImage)
-    }
+    // Filters use a neutral SF Symbol. Operator and network logos stay on the
+    // map annotations, where they identify the data source the user is seeing.
+    Label(criterion.title, systemImage: criterion.systemImage)
   }
 
   private func binding(for criterion: StationMapFilterCriterion) -> Binding<Bool> {

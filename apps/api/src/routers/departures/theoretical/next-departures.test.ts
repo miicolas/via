@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import type { RouteBadge } from '@via/contract';
+import { SERVICE_DAY_DEPARTURES_PER_GROUP, type RouteBadge } from '@via/contract';
 
 import { nextTheoreticalDepartures, type TheoreticalDepartureRow } from './next-departures';
 
@@ -94,6 +94,48 @@ test('each group caps at four departures', async () => {
   );
 
   expect(groups[0].departures).toHaveLength(4);
+});
+
+test('a service-day request keeps the full remaining line timetable', async () => {
+  const groups = await nextTheoreticalDepartures(
+    new Date('2026-08-12T16:00:00Z'),
+    [badge('IDFM:C01371')],
+    loaderOf({
+      '2026-08-12': [2, 5, 8, 11, 14, 17].map((minutes) =>
+        row('IDFM:C01371', 'La Défense', 18 * 3600 + minutes * 60)
+      ),
+    }),
+    'IDFM:71264',
+    0,
+    {
+      rowLimit: SERVICE_DAY_DEPARTURES_PER_GROUP,
+      maxDeparturesPerGroup: SERVICE_DAY_DEPARTURES_PER_GROUP,
+    }
+  );
+
+  expect(groups[0].departures).toHaveLength(6);
+});
+
+test('passes the selected station lines to the timetable query', async () => {
+  const route = badge('IDFM:C01371');
+  const requestedRouteIds: string[][] = [];
+  const loader = async (
+    _serviceDate: string,
+    _afterSeconds: number,
+    _limit: number,
+    routeIds: string[]
+  ) => {
+    requestedRouteIds.push(routeIds);
+    return [];
+  };
+
+  await nextTheoreticalDepartures(
+    new Date('2026-08-12T16:00:00Z'),
+    [route],
+    loader
+  );
+
+  expect(requestedRouteIds).toEqual([[route.id], [route.id]]);
 });
 
 test('nothing scheduled yields no groups', async () => {

@@ -56,6 +56,66 @@ final class SelectedStationModelTests: XCTestCase {
     XCTAssertEqual(model.loadingState, .loaded)
   }
 
+  func testSelectingLineLoadsItsCompleteBoardInChronologicalOrder() async {
+    let now = Date(timeIntervalSince1970: 2_000_000)
+    let line = makeRoute(id: "metro-1", shortName: "1")
+    let otherLine = makeRoute(id: "metro-4", shortName: "4")
+    let item = StationMapItem(
+      id: StationID(rawValue: "interchange"),
+      name: "Châtelet",
+      coordinate: GeoCoordinate(latitude: 48.8567, longitude: 2.3522),
+      routes: [line, otherLine]
+    )
+    let board = DepartureBoard(
+      source: .theoretical,
+      generatedAt: now,
+      groups: [
+        DepartureGroup(
+          route: line,
+          destination: "La Défense",
+          departureItems: [
+            DepartureItem(
+              id: "line-late",
+              scheduledAt: now.addingTimeInterval(600),
+              expectedAt: nil,
+              delaySeconds: nil,
+              status: .scheduled
+            ),
+            DepartureItem(
+              id: "line-first",
+              scheduledAt: now.addingTimeInterval(300),
+              expectedAt: nil,
+              delaySeconds: nil,
+              status: .scheduled
+            ),
+          ]
+        ),
+        DepartureGroup(
+          route: otherLine,
+          destination: "Bagneux",
+          departures: [now.addingTimeInterval(420)],
+          status: .scheduled
+        ),
+      ]
+    )
+    let repository = DelayedSelectedDeparturesRepository(
+      boards: [item.id: board]
+    )
+    let model = makeModel(departures: repository, now: now)
+
+    model.select(item)
+    await waitUntil { model.loadingState == .loaded }
+
+    model.selectLine(line)
+    await waitUntil { model.lineScheduleLoadingState == .loaded }
+
+    XCTAssertEqual(model.lineScheduleRoute?.id, line.id)
+    XCTAssertEqual(model.lineScheduleSource, .theoretical)
+    XCTAssertEqual(model.lineScheduleDepartures.map(\.id), ["line-first", "line-late"])
+    let requestedRoutes = await repository.requestedRoutes()
+    XCTAssertEqual(requestedRoutes, [line.id])
+  }
+
   func testFailedDepartureRefreshKeepsStationAndOffersRetryState() async {
     let route = makeRoute(id: "metro-1", shortName: "1")
     let item = makeItem(id: "station", route: route)
@@ -318,6 +378,7 @@ private actor SelectedStationReportRepository: ReportRepository {
 private actor DelayedSelectedDeparturesRepository: DeparturesRepository {
   let boards: [StationID: DepartureBoard]
   let slowStationID: StationID?
+  private var routeRequests: [RouteID] = []
 
   init(
     boards: [StationID: DepartureBoard],
@@ -334,6 +395,13 @@ private actor DelayedSelectedDeparturesRepository: DeparturesRepository {
     return boards[stationID]
       ?? DepartureBoard(source: .unavailable, generatedAt: .now, groups: [])
   }
+
+  func board(stationID: StationID, routeID: RouteID) async throws -> DepartureBoard {
+    routeRequests.append(routeID)
+    return try await board(stationID: stationID)
+  }
+
+  func requestedRoutes() -> [RouteID] { routeRequests }
 }
 
 private struct FailingSelectedDeparturesRepository: DeparturesRepository {
