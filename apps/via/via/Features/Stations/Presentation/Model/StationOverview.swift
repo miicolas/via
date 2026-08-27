@@ -40,10 +40,9 @@ struct StationDeparture: Sendable, Hashable, Identifiable {
     }
 
     /// A passage the traveller can actually board, at a time Via knows. Anything
-    /// else — cancelled, not served, timeless — is an exception: the compact
-    /// board steps over it rather than answering "quand ?" with "annulé", and
-    /// the timetable prints it on a row of its own instead of folding it into a
-    /// cadence that would claim it runs.
+    /// else — cancelled, not served, timeless — is an exception the timetable
+    /// prints on a row of its own, rather than folding it into a cadence that
+    /// would claim it runs.
     var isBoardable: Bool {
         departureAt != nil && status != .cancelled && status != .missed
     }

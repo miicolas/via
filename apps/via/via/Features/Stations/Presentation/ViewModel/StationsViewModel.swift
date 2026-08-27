@@ -121,20 +121,6 @@ enum StationOverviewBuilder {
         }
     }
 
-    /// The single passage the compact board shows for a line, whatever the
-    /// number of directions behind it: the soonest one that runs.
-    ///
-    /// A cancelled train five minutes ahead of a running one would otherwise
-    /// take the only row the line has and answer "quand ?" with "annulé". The
-    /// cancellation is not lost — it keeps its own row in the line's timetable.
-    static func nextDeparture(
-        for route: RouteBadge,
-        in departures: [StationDeparture]
-    ) -> StationDeparture? {
-        let ordered = chronologically(departures.filter { $0.route.id == route.id })
-        return ordered.first(where: \.isBoardable) ?? ordered.first
-    }
-
     static func nextDepartures(
         from board: DepartureBoard,
         routes: [RouteBadge],

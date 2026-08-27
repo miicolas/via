@@ -300,7 +300,7 @@ final class StationsViewModelTests: XCTestCase {
         XCTAssertEqual(compactSummary.map(\.id), ["metro-first", "bus-first"])
     }
 
-    func testCompactBoardGivesALineOneRowAndSkipsACancelledNextPassage() {
+    func testCompactBoardKeepsBothDirectionsOfALineWithOnePassageEach() {
         let now = Date(timeIntervalSince1970: 2_000_000)
         let metro = route(id: "metro-4", shortName: "4", mode: .metro)
         let bus = route(id: "bus", shortName: "38", mode: .bus)
@@ -331,7 +331,14 @@ final class StationsViewModelTests: XCTestCase {
                             expectedAt: nil,
                             delaySeconds: nil,
                             status: .onTime
-                        )
+                        ),
+                        DepartureItem(
+                            id: "metro-other-direction-later",
+                            scheduledAt: now.addingTimeInterval(480),
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .onTime
+                        ),
                     ]
                 ),
                 DepartureGroup(
@@ -347,28 +354,16 @@ final class StationsViewModelTests: XCTestCase {
             now: now
         )
 
-        // Both directions of the metro reach the compact board…
+        // Both directions of the metro draw their own row, each on its own next
+        // passage and on that one only — the second Clignancourt passage belongs
+        // to the line sheet, not to the compact board.
+        XCTAssertEqual(
+            departures.map(\.destination),
+            ["Bagneux", "Porte de Clignancourt", "Gare du Nord"]
+        )
         XCTAssertEqual(
             departures.prefix(2).map(\.id),
             ["metro-cancelled", "metro-other-direction"]
-        )
-        XCTAssertEqual(departures.count, 3)
-
-        // …and each line still draws exactly one row, on the soonest passage
-        // that actually runs.
-        XCTAssertEqual(
-            StationOverviewBuilder.nextDeparture(for: metro, in: departures)?.id,
-            "metro-other-direction"
-        )
-        XCTAssertEqual(
-            StationOverviewBuilder.nextDeparture(for: bus, in: departures)?.destination,
-            "Gare du Nord"
-        )
-        XCTAssertNil(
-            StationOverviewBuilder.nextDeparture(
-                for: route(id: "unserved", shortName: "7", mode: .metro),
-                in: departures
-            )
         )
     }
 
