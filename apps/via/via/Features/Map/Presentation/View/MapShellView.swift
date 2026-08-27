@@ -1,13 +1,6 @@
 import MapKit
 import SwiftUI
 
-extension MKCoordinateRegion {
-  static let paris = MKCoordinateRegion(
-    center: .init(latitude: 48.8566, longitude: 2.3522),
-    latitudinalMeters: 4000,
-    longitudinalMeters: 4000
-  )
-}
 /// Root screen: full-screen map with a persistent bottom sheet hosting the
 /// Stations / Lignes / Signaler / Recherche tabs, Find My style.
 struct MapShellView: View {
@@ -40,15 +33,16 @@ struct MapShellView: View {
   @State private var showTabSheet: Bool = true
   @State private var activeTab: MapShellTab = .stations
   @State private var previousTab: MapShellTab = .stations
-  @State private var position: MapCameraPosition = .region(.paris)
+  @State private var position: MapCameraPosition
+  @State private var followsJourneyPosition = false
   @State private var selectedMapStation: StationMapItem?
   @State private var selectedBikeStation: BikeStation?
   @State private var selectedSharedMobility: SharedMobilityItem?
 
-  /// The opening region is a hardcoded Paris. Until the first fix lands it is
-  /// also what anchors the nearby list, so the camera moves to the traveller
-  /// once — after that the camera is theirs.
-  @State private var hasCenteredOnUser = false
+  /// A cached fix can choose the first frame immediately. Otherwise Paris is
+  /// temporary until the first location answer; after that the camera is the
+  /// traveller's, whether the answer was inside the service area or not.
+  @State private var hasResolvedOpeningLocation: Bool
 
   @State private var isLargeScreen: Bool = false
   // The reference opens with the map still visible above the content sheet.
@@ -102,6 +96,12 @@ struct MapShellView: View {
     self.plannedJourneyDraftModel = plannedJourneyDraftModel
     self.reportViewModel = reportViewModel
     self.locationModel = locationModel
+    _position = State(
+      initialValue: .region(MapOpeningCamera.region(for: locationModel.coordinate))
+    )
+    _hasResolvedOpeningLocation = State(
+      initialValue: locationModel.coordinate != nil
+    )
     self.accountModel = accountModel
     self.favoriteRoutesModel = favoriteRoutesModel
     self.authSessionViewModel = authSessionViewModel
@@ -117,21 +117,11 @@ struct MapShellView: View {
   }
 
   var body: some View {
-    TimelineView(
-      .periodic(from: .now, by: activeJourneyModel.isActive ? 5 : 60)
-    ) { context in
-      NetworkMapView(
-        viewModel: networkViewModel,
-        position: $position,
-        nearby: nearbyStationsModel,
-        stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
-        journeyPresentation: displayedJourneyPresentation,
-        journeyProgress: activeJourneyModel.progress(at: context.date)?.mapQuantized,
-        showsJourneyPosition: activeJourneyModel.isTracking,
-        highlightedJourneySegmentID: displayedHighlightedSectionID,
-        selectedStation: $selectedMapStation
-      )
-    }
+    appEventMap
+  }
+
+  private var presentedMap: some View {
+    map
     // Keeps the Apple legal attribution above the collapsed sheet.
     .safeAreaInset(edge: .bottom, spacing: 0) {
       Rectangle()
@@ -142,23 +132,28 @@ struct MapShellView: View {
       sheetContent
         .adaptiveSheet(380, isActive: isLargeScreen)
     }
+  }
+
+  private var journeyEventMap: some View {
+    presentedMap
+    .task {
+      if activeJourneyModel.isTracking {
+        followsJourneyPosition = true
+      }
+      guard locationModel.coordinate == nil else { return }
+      locationModel.requestLocation()
+    }
     .onChange(of: locationModel.coordinate) { _, coordinate in
-      guard let coordinate, !hasCenteredOnUser else { return }
-      hasCenteredOnUser = true
+      guard let coordinate, !hasResolvedOpeningLocation else { return }
+      hasResolvedOpeningLocation = true
       // Only an untouched opening camera may jump. If the traveller has already
       // moved the map while the fix was in flight, the map is theirs.
       guard let region = position.region,
-            region.center.latitude == MKCoordinateRegion.paris.center.latitude,
-            region.center.longitude == MKCoordinateRegion.paris.center.longitude
+            MapOpeningCamera.isUntouchedFallback(region),
+            let userRegion = MapOpeningCamera.userRegion(for: coordinate)
       else { return }
       withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
-        position = .region(
-          MKCoordinateRegion(
-            center: coordinate.clLocationCoordinate,
-            latitudinalMeters: 1_200,
-            longitudinalMeters: 1_200
-          )
-        )
+        position = .region(userRegion)
       }
     }
     // Selection is cleared on the next line, so the trigger is the tap itself:
@@ -176,16 +171,20 @@ struct MapShellView: View {
       presentStation(newValue)
     }
     .onChange(of: displayedJourneyPresentation) { _, presentation in
+      guard !activeJourneyModel.isTracking else { return }
       guard let mapRect = presentation?.mapRect else { return }
       position = .rect(mapRect)
     }
     .onChange(of: displayedHighlightedSectionID) { _, sectionID in
+      guard !activeJourneyModel.isTracking else { return }
       frameJourney(sectionID: sectionID)
     }
     .onChange(of: activeDetent) { _, detent in
       // Collapsing the sheet used to leave the running journey off
       // screen with nothing to bring it back.
-      guard detent == collapsedDetent, activeJourneyModel.isActive else { return }
+      guard detent == collapsedDetent,
+            activeJourneyModel.isActive,
+            !activeJourneyModel.isTracking else { return }
       frameJourney(sectionID: displayedHighlightedSectionID)
     }
     .onChange(of: activeJourneyModel.session?.journey.id) { previousJourneyID, journeyID in
@@ -225,6 +224,13 @@ struct MapShellView: View {
       // Once guidance is running, peek so the map behind stays visible.
       if isActive { journeySheetDetent = journeyPeekDetent }
     }
+    .onChange(of: activeJourneyModel.isTracking) { _, isTracking in
+      followsJourneyPosition = isTracking
+    }
+  }
+
+  private var appEventMap: some View {
+    journeyEventMap
     .onChange(of: searchSheetDestination) { _, destination in
       // Reset the detent so the next journey opens expanded, not on the peek.
       if destination == nil { journeySheetDetent = expandedDetent }
@@ -305,6 +311,38 @@ struct MapShellView: View {
       }
     }
     .aiScreenGlow(naturalGlowIntensity)
+  }
+
+  private var map: some View {
+    TimelineView(
+      .periodic(from: .now, by: activeJourneyModel.isActive ? 5 : 60)
+    ) { context in
+      map(at: context.date)
+    }
+  }
+
+  private func map(at date: Date) -> some View {
+    let presentation = displayedJourneyPresentation
+    let progress = activeJourneyModel.progress(at: date)?.mapQuantized
+    let camera = presentation.flatMap { presentation in
+      progress.flatMap {
+        JourneyNavigationCamera.resolve(presentation: presentation, progress: $0)
+      }
+    }
+
+    return NetworkMapView(
+      viewModel: networkViewModel,
+      position: $position,
+      nearby: nearbyStationsModel,
+      stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
+      journeyPresentation: presentation,
+      journeyProgress: progress,
+      showsJourneyPosition: activeJourneyModel.isTracking,
+      journeyCamera: camera,
+      highlightedJourneySegmentID: displayedHighlightedSectionID,
+      followsJourneyPosition: $followsJourneyPosition,
+      selectedStation: $selectedMapStation
+    )
   }
 
   /// The Siri-style edge light: quiet while the traveller types, swelling

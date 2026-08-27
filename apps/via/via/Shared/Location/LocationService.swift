@@ -104,7 +104,30 @@ final class LocationModel {
     /// Requests a new fix even when a previous feature left a coordinate in
     /// the shared cache. Active journeys use this before calculating progress
     /// or a replacement itinerary.
-    func requestFreshLocation() async -> GeoCoordinate? {
+    func requestFreshLocation(timeout: Duration? = nil) async -> GeoCoordinate? {
+        guard let timeout else { return await waitForFreshLocation() }
+
+        return await withTaskGroup(of: GeoCoordinate?.self) { group in
+            group.addTask { [weak self] in
+                guard let self else { return nil }
+                return await self.waitForFreshLocation()
+            }
+            group.addTask {
+                do {
+                    try await Task.sleep(for: timeout)
+                } catch {
+                    return nil
+                }
+                return nil
+            }
+
+            let coordinate = await group.next() ?? nil
+            group.cancelAll()
+            return coordinate
+        }
+    }
+
+    private func waitForFreshLocation() async -> GeoCoordinate? {
         let updates = stateUpdates(replaysCurrentState: false)
         requestLocation()
 

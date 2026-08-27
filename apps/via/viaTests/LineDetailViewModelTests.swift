@@ -33,6 +33,7 @@ final class LineDetailViewModelTests: XCTestCase {
                 "Saint-Germain-en-Laye",
                 "Cergy-le-Haut",
                 "Poissy",
+                "Cergy-le-Haut / Poissy",
                 "Marne-la-Vallée – Chessy",
                 "Boissy-St-Léger",
             ]
@@ -67,31 +68,13 @@ final class LineDetailViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func testTheTrunkIsAlwaysOpenAndABranchTogglesOnTap() async {
+    func testTheCompletePlanIncludesHealthyAndDisruptedBranches() async {
         let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
 
-        guard let trunk = viewModel.strips.first(where: { $0.role == .trunk }),
-              let healthy = viewModel.strips.first(where: { $0.role.isBranch && $0.condition == nil })
-        else { return XCTFail("expected a trunk and a healthy branch") }
-
-        XCTAssertTrue(viewModel.isOpen(trunk))
-        XCTAssertFalse(viewModel.isOpen(healthy))
-
-        viewModel.toggle(healthy)
-        XCTAssertTrue(viewModel.isOpen(healthy))
-
-        viewModel.toggle(healthy)
-        XCTAssertFalse(viewModel.isOpen(healthy))
-    }
-
-    @MainActor
-    func testADisruptedBranchOpensByItself() async {
-        let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
-
-        guard let cut = viewModel.strips.first(where: { $0.condition != nil && $0.role.isBranch })
-        else { return XCTFail("the fixture cuts the Marne-la-Vallée branch") }
-
-        XCTAssertEqual(cut.role.name, "Marne-la-Vallée – Chessy")
-        XCTAssertTrue(viewModel.isOpen(cut))
+        XCTAssertTrue(viewModel.strips.contains { $0.role.isBranch && $0.condition == nil })
+        XCTAssertEqual(
+            viewModel.strips.first { $0.condition != nil && $0.role.isBranch }?.role.name,
+            "Marne-la-Vallée – Chessy"
+        )
     }
 }

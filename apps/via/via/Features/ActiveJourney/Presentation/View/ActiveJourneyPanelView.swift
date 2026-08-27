@@ -136,19 +136,18 @@ struct ActiveJourneyPanelView: View {
       )
     }
 
-    if model.isOffline {
-      statusBanner(
-        title: "Hors connexion",
-        message:
-          "La position avance selon les horaires du trajet mémorisé. Le direct reprendra à la reconnexion.",
-        systemImage: "wifi.slash",
-        color: .orange
-      )
-    } else if model.isTracking && model.isPositionEstimated {
+    if model.isTracking && model.isPositionEstimated {
       statusBanner(
         title: "Position estimée",
-        message: "La progression suit les horaires jusqu’au retour d’une position fiable.",
+        message: "Progression selon les horaires jusqu’au retour d’une position fiable.",
         systemImage: "clock.badge.questionmark",
+        color: .orange
+      )
+    } else if model.isOffline {
+      statusBanner(
+        title: "Hors connexion",
+        message: "Le GPS reste actif. Les données en direct reprendront à la reconnexion.",
+        systemImage: "wifi.slash",
         color: .orange
       )
     } else if model.isTracking,

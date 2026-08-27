@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct LineDetailView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     @State private var viewModel: LineDetailViewModel
     @State private var isNotificationAuthorizationRequested = false
 
@@ -42,13 +40,7 @@ struct LineDetailView: View {
 
                     LinePlanView(
                         strips: viewModel.strips,
-                        lineColorHex: route.colorHex,
-                        isOpen: { viewModel.isOpen($0) },
-                        onToggle: { strip in
-                            withAnimation(reduceMotion ? nil : .snappy) {
-                                viewModel.toggle(strip)
-                            }
-                        }
+                        lineColorHex: route.colorHex
                     )
                 }
             }

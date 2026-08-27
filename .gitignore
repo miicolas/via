@@ -55,3 +55,6 @@ xcuserdata/
 
 # agent worktrees
 .claude/worktrees/
+
+# Xcode local package/workspace state
+.swiftpm/

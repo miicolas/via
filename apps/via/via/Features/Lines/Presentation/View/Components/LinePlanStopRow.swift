@@ -15,6 +15,10 @@ struct LinePlanStopRow: View {
     /// A branch's stations sit one step in from the trunk's, so the fork reads
     /// as a fork and not as the line carrying on.
     var isIndented: Bool = false
+    /// A branch connector owns the curve; the adjacent stop row extends its
+    /// band to the edge so the two pieces meet without a white seam.
+    var connectsAbove = false
+    var connectsBelow = false
 
     /// The bead sits a fixed distance down the rail, so the row it belongs to
     /// has to grow with it — otherwise the hole drifts off the name at the
@@ -26,8 +30,8 @@ struct LinePlanStopRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             JourneyTimelineRail(
-                above: row.railAbove.timelineStyle(colorHex: lineColorHex),
-                below: row.railBelow.timelineStyle(colorHex: lineColorHex),
+                above: railStyle(row.railAbove, connected: connectsAbove),
+                below: railStyle(row.railBelow, connected: connectsBelow),
                 bead: row.isEnd ? .major : .minor,
                 mark: row.mark,
                 state: .upcoming
@@ -58,6 +62,10 @@ struct LinePlanStopRow: View {
         .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
+    }
+
+    private func railStyle(_ style: LinePlan.RailStyle, connected: Bool) -> JourneyTimelineRailStyle {
+        connected ? .line(colorHex: lineColorHex) : style.timelineStyle(colorHex: lineColorHex)
     }
 
     private var accessibilityLabel: String {

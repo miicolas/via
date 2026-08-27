@@ -24,12 +24,12 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     @ObservationIgnored private var recalculationTask: Task<Void, Never>?
     @ObservationIgnored private var recalculationID: UUID?
     @ObservationIgnored private var lastAutomaticRecalculationSectionID: String?
-    /// Keyed on every input the projection reads: the instant, the session
-    /// value, and the connectivity that decides whether a fix counts as live.
+    /// Keyed on every input the projection reads: the instant and the session
+    /// value. Connectivity never decides whether a Core Location fix is live;
+    /// GPS can remain reliable without a data connection.
     @ObservationIgnored private var progressCache: (
         date: Date,
         session: ActiveJourneySession,
-        isConnected: Bool,
         value: JourneyProgress?
     )?
     @ObservationIgnored private var isRestoring = false
@@ -104,7 +104,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         let effectiveDate = requiresResume ? referenceDate : date
         if let cached = progressCache,
            cached.date == effectiveDate,
-           cached.isConnected == isConnected,
            cached.session == session {
             return cached.value
         }
@@ -123,7 +122,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             coordinate: useLiveLocation ? session.lastCoordinate : nil,
             horizontalAccuracy: useLiveLocation ? session.horizontalAccuracy : nil
         )
-        progressCache = (effectiveDate, session, isConnected, value)
+        progressCache = (effectiveDate, session, value)
         return value
     }
 
@@ -237,7 +236,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         self.session = session
         await persist()
 
-        let coordinate = await locationModel.requestFreshLocation()
+        let coordinate = await locationModel.requestFreshLocation(timeout: .seconds(10))
         guard var current = self.session, current.journey.id == journeyID else { return }
         referenceDate = now()
         current.lastCoordinate = coordinate
@@ -723,8 +722,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
 
     private func isLocationUsable(at date: Date) -> Bool {
-        guard isConnected,
-              let session,
+        guard let session,
               session.isTrackingStarted,
               session.lastCoordinate != nil,
               let recordedAt = session.lastLocationAt else {

@@ -12,11 +12,12 @@ extension TransitMode {
         }
     }
 
-    /// Official Île-de-France Mobilités mode mark used in map annotations.
+    /// Official Île-de-France Mobilités mode mark used wherever the network
+    /// mode itself is being identified, including map annotations and filters.
     ///
     /// Keep this separate from `chipSystemImage`: journey chips intentionally
-    /// use compact SF Symbols, while map annotations use the official vector
-    /// marks bundled in the asset catalog.
+    /// use compact SF Symbols, while mode-identifying surfaces use the official
+    /// vector marks bundled in the asset catalog.
     var logoAssetName: String {
         switch self {
         case .metro: "TransitModeMetro"

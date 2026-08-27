@@ -8,8 +8,10 @@ struct NetworkMapView: View {
   let journeyPresentation: JourneyMapPresentation?
   let journeyProgress: JourneyProgress?
   let showsJourneyPosition: Bool
+  let journeyCamera: JourneyNavigationCamera?
   let highlightedJourneySegmentID: String?
   @Binding var position: MapCameraPosition
+  @Binding var followsJourneyPosition: Bool
   @Binding var selectedStation: StationMapItem?
   @Namespace private var mapScope
   @State private var visibleRegion: MKCoordinateRegion = .paris
@@ -26,7 +28,9 @@ struct NetworkMapView: View {
     journeyPresentation: JourneyMapPresentation? = nil,
     journeyProgress: JourneyProgress? = nil,
     showsJourneyPosition: Bool = false,
+    journeyCamera: JourneyNavigationCamera? = nil,
     highlightedJourneySegmentID: String? = nil,
+    followsJourneyPosition: Binding<Bool> = .constant(false),
     selectedStation: Binding<StationMapItem?> = .constant(nil)
   ) {
     self.viewModel = viewModel
@@ -35,8 +39,10 @@ struct NetworkMapView: View {
     self.journeyPresentation = journeyPresentation
     self.journeyProgress = journeyProgress
     self.showsJourneyPosition = showsJourneyPosition
+    self.journeyCamera = journeyCamera
     self.highlightedJourneySegmentID = highlightedJourneySegmentID
     _position = position
+    _followsJourneyPosition = followsJourneyPosition
     _selectedStation = selectedStation
   }
 
@@ -69,13 +75,14 @@ struct NetworkMapView: View {
 
           if showsJourneyPosition,
              let journeyProgress,
+             journeyProgress.isEstimated,
              let coordinate = journeyProgress.projectedCoordinate {
             Annotation(
               "Votre position",
               coordinate: coordinate.clLocationCoordinate,
               anchor: .center
             ) {
-              JourneyPositionAnnotationView(isEstimated: !journeyProgress.isLocationDerived)
+              JourneyPositionAnnotationView()
             }
             .annotationTitles(.hidden)
           } else {
@@ -124,7 +131,9 @@ struct NetworkMapView: View {
         )
         .mapControls {
           MapCompass(scope: mapScope)
-          MapUserLocationButton(scope: mapScope)
+          if !showsJourneyPosition {
+            MapUserLocationButton(scope: mapScope)
+          }
         }
         .animation(
           reduceMotion ? nil : .smooth(duration: 0.18),
@@ -136,6 +145,9 @@ struct NetworkMapView: View {
         )
         .onMapCameraChange(frequency: .continuous) { context in
           visibleRegion = context.region
+          if showsJourneyPosition, position.positionedByUser {
+            followsJourneyPosition = false
+          }
           viewModel.viewportChanged(
             to: context.region.networkViewport(size: geometry.size),
             phase: .continuous
@@ -164,6 +176,13 @@ struct NetworkMapView: View {
         }
         .onChange(of: nearby?.results) { _, _ in
           fitCameraToResultsIfWorthwhile()
+        }
+        .task(id: JourneyCameraUpdate(
+          camera: journeyCamera,
+          followsPosition: followsJourneyPosition,
+          showsPosition: showsJourneyPosition
+        )) {
+          updateJourneyCamera(animated: true)
         }
 
         NetworkMapStatusView(
@@ -203,6 +222,17 @@ struct NetworkMapView: View {
           .padding(.top, 8)
           .padding(.leading, geometry.safeAreaInsets.leading + 8)
       }
+      .overlay(alignment: .topTrailing) {
+        if showsJourneyPosition {
+          JourneyMapRecenterButton(
+            isFollowing: followsJourneyPosition,
+            isEstimated: journeyProgress?.isEstimated == true,
+            action: resumeJourneyFollowing
+          )
+          .padding(.top, 8)
+          .padding(.trailing, geometry.safeAreaInsets.trailing + 8)
+        }
+      }
     }
   }
 
@@ -221,6 +251,18 @@ struct NetworkMapView: View {
 
   private var mapSelection: Binding<StationMapItem?> {
     stationSelectionEnabled ? $selectedStation : .constant(nil)
+  }
+
+  private func resumeJourneyFollowing() {
+    followsJourneyPosition = true
+    updateJourneyCamera(animated: true)
+  }
+
+  private func updateJourneyCamera(animated: Bool) {
+    guard showsJourneyPosition, followsJourneyPosition, let journeyCamera else { return }
+    withAnimation(reduceMotion || !animated ? nil : .smooth(duration: 0.5)) {
+      position = .camera(journeyCamera.mapCamera)
+    }
   }
 
   private func annotationIsCompact(in size: CGSize) -> Bool {
@@ -262,6 +304,12 @@ struct NetworkMapView: View {
   private var stationDimming: Double {
     journeyPresentation == nil ? 1 : 0.25
   }
+}
+
+private struct JourneyCameraUpdate: Hashable {
+  let camera: JourneyNavigationCamera?
+  let followsPosition: Bool
+  let showsPosition: Bool
 }
 
 extension MKCoordinateRegion {
