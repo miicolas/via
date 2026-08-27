@@ -4,6 +4,12 @@ import SwiftUI
 /// lives in the ActivityKit extension; this preview only explains what a live
 /// journey looks like before the user starts one.
 struct LiveActivityPreview: View {
+    private enum Layout {
+        /// Keep the compact preview at the same minimum width as the system
+        /// Dynamic Island treatment shown in the product reference.
+        static let dynamicIslandMinimumWidth: CGFloat = 330
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("APERÇU")
@@ -114,6 +120,11 @@ struct LiveActivityPreview: View {
             }
             .padding(.horizontal, 13)
             .padding(.vertical, 10)
+            .frame(
+                minWidth: Layout.dynamicIslandMinimumWidth,
+                maxWidth: .infinity,
+                alignment: .leading
+            )
             .foregroundStyle(.white)
             .background(.black, in: Capsule())
             .accessibilityElement(children: .combine)

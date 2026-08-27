@@ -8,14 +8,14 @@ struct StationMapFilterMenu: View {
 
   var body: some View {
     menu
-    .buttonStyle(.plain)
-    // The menu stays open while criteria are ticked, and it covers the map it
-    // is filtering: the checkmark is the only thing that moves, so each tick
-    // answers on its own. Emptying the filter answers differently.
+    .iconAction(size: .small)
+    // A native map compass is allowed to appear transiently under this control
+    // while the camera rotates. The opaque system surface keeps that animation
+    // from showing through the filter button.
+    .background(Color(.secondarySystemBackground), in: Circle())
     .haptic(Haptic.selection, on: filter) { _, new in new.isActive }
     .haptic(Haptic.cleared, on: filter.isActive) { $0 && !$1 }
     .foregroundStyle(filter.isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-    .glassEffect(.regular, in: .circle)
     .accessibilityLabel("Filtrer la carte")
     .accessibilityValue(accessibilityValue)
     .accessibilityHint("Affiche les filtres de carte")

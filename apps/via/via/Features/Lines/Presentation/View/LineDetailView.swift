@@ -39,7 +39,7 @@ struct LineDetailView: View {
                     }
 
                     LinePlanView(
-                        strips: viewModel.strips,
+                        diagram: viewModel.diagram,
                         lineColorHex: route.colorHex
                     )
                 }
