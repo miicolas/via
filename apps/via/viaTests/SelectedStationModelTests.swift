@@ -112,8 +112,16 @@ final class SelectedStationModelTests: XCTestCase {
     XCTAssertEqual(model.lineScheduleRoute?.id, line.id)
     XCTAssertEqual(model.lineScheduleSource, .theoretical)
     XCTAssertEqual(model.lineScheduleDepartures.map(\.id), ["line-first", "line-late"])
+    XCTAssertEqual(
+      model.lineScheduleTimetable.rows.map(\.id),
+      ["direction-La Défense", "passage-line-first", "passage-line-late"]
+    )
     let requestedRoutes = await repository.requestedRoutes()
     XCTAssertEqual(requestedRoutes, [line.id])
+
+    model.clearLineSchedule()
+
+    XCTAssertTrue(model.lineScheduleTimetable.isEmpty)
   }
 
   func testFailedDepartureRefreshKeepsStationAndOffersRetryState() async {
