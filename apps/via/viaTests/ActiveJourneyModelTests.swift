@@ -346,10 +346,13 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertEqual(model.recalculationState, .idle)
     }
 
-    func testOfflineJourneyUsesTimetableEvenWhenTheCachedFixIsFresh() async {
+    func testOfflineJourneyKeepsUsingAFreshGPSFix() async throws {
         let journey = JourneyResult.mapPreview.journeys[0]
         let connectivity = InMemoryConnectivityMonitor(isConnected: true)
+        let coordinate = try XCTUnwrap(journey.sections.first?.from.coordinate)
+        let location = LocationModel(adapter: InMemoryLocationAdapter(coordinate: coordinate))
         let model = makeModel(
+            location: location,
             connectivity: connectivity,
             now: journey.departureAt
         )
@@ -362,8 +365,9 @@ final class ActiveJourneyModelTests: XCTestCase {
         )
         connectivity.update(isConnected: false)
 
-        XCTAssertTrue(model.isPositionEstimated)
-        XCTAssertFalse(model.progress(at: journey.departureAt)?.isLocationDerived == true)
+        XCTAssertFalse(model.isPositionEstimated)
+        XCTAssertTrue(model.hasLiveLocationFix)
+        XCTAssertTrue(model.progress(at: journey.departureAt)?.isLocationDerived == true)
     }
 
     func testStaleLocationFallsBackToTimetableWhileConnected() async {
@@ -381,16 +385,25 @@ final class ActiveJourneyModelTests: XCTestCase {
         clock.value = journey.departureAt.addingTimeInterval(
             ActiveJourneyRules.locationFreshnessInterval + 1
         )
+        await model.receive(
+            LocationSample(
+                coordinate: journey.sections[0].from.coordinate,
+                horizontalAccuracy: 10,
+                recordedAt: journey.departureAt
+            ),
+            at: clock.value
+        )
 
         XCTAssertTrue(model.isPositionEstimated)
         XCTAssertFalse(model.hasLiveLocationFix)
     }
 
-    func testReconnectionReturnsToLiveAfterAFreshLocationSample() async {
+    func testFreshLocationReturnsToLiveWhileOfflineAfterFixBecomesStale() async {
         let journey = JourneyResult.mapPreview.journeys[0]
         let clock = ActiveJourneyTestClock(journey.departureAt)
         let connectivity = InMemoryConnectivityMonitor(isConnected: false)
-        let adapter = InMemoryLocationAdapter()
+        let coordinate = journey.sections[0].from.coordinate
+        let adapter = InMemoryLocationAdapter(coordinate: coordinate)
         let location = LocationModel(adapter: adapter)
         let model = makeModel(
             location: location,
@@ -404,16 +417,23 @@ final class ActiveJourneyModelTests: XCTestCase {
             source: .realtime,
             allowsBackgroundTracking: false
         )
-        XCTAssertTrue(model.isPositionEstimated)
+        XCTAssertFalse(model.isPositionEstimated)
 
         clock.value = journey.departureAt.addingTimeInterval(
             ActiveJourneyRules.locationFreshnessInterval + 1
         )
-        connectivity.update(isConnected: true)
-        XCTAssertFalse(model.hasLiveLocationFix)
+        await model.receive(
+            LocationSample(
+                coordinate: coordinate,
+                horizontalAccuracy: 10,
+                recordedAt: journey.departureAt
+            ),
+            at: clock.value
+        )
+        XCTAssertTrue(model.isPositionEstimated)
 
         adapter.updateJourneyLocation(
-            journey.sections[0].from.coordinate,
+            coordinate,
             recordedAt: clock.value
         )
         await waitUntil { model.hasLiveLocationFix }

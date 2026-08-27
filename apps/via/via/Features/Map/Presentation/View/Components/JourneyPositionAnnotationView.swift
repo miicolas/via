@@ -1,38 +1,41 @@
 import SwiftUI
 
-/// The traveller's marker while a journey is being followed.
+/// The traveller's estimated position while the timetable carries guidance.
 ///
-/// A solid badge means the coordinate comes from a fresh location sample. A
-/// dashed collar keeps the same character visible when the timetable is
-/// carrying the position through a tunnel.
+/// Live positions use MapKit's `UserAnnotation`. This custom twin only exists
+/// because MapKit cannot place its native user dot at a simulated coordinate.
 struct JourneyPositionAnnotationView: View {
-    let isEstimated: Bool
-
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        MarkBadge(
-            tint: .blue,
-            size: 34,
-            isEstimated: isEstimated,
-            showsHalo: !isEstimated && !reduceMotion
-        )
-        .animation(
-            reduceMotion ? nil : .smooth(duration: 0.35),
-            value: isEstimated
+        ZStack {
+            Circle()
+                .stroke(Color.orange.opacity(reduceMotion ? 0.9 : 0.35), lineWidth: 2)
+                .frame(width: 30, height: 30)
+
+            Circle()
+                .fill(.orange)
+                .frame(width: 18, height: 18)
+                .overlay {
+                    Circle().stroke(.white, lineWidth: 3)
+                }
+                .shadow(color: .black.opacity(0.22), radius: 2, y: 1)
+        }
+        .frame(width: 34, height: 34)
+        .borderBeam(
+            border: .orange,
+            beam: [.clear, .orange.opacity(0.7), .yellow, .orange, .clear],
+            beamBlur: 3,
+            shape: Circle(),
+            isEnabled: !reduceMotion
         )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Votre position")
-        .accessibilityValue(isEstimated ? "Position estimée selon les horaires" : "En direct")
+        .accessibilityValue("Position estimée selon les horaires")
     }
 }
 
-#Preview("Direct") {
-    JourneyPositionAnnotationView(isEstimated: false)
-        .padding(40)
-}
-
 #Preview("Estimé") {
-    JourneyPositionAnnotationView(isEstimated: true)
+    JourneyPositionAnnotationView()
         .padding(40)
 }

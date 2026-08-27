@@ -71,13 +71,10 @@ enum LinePlan {
         enum Role: Hashable {
             /// The spine: drawn open, it is the line itself.
             case trunk
-            /// A fork: drawn as one folded row until the rider opens it, known
-            /// by the station at its far end — "Cergy le Haut". The name rides
-            /// on the case because only a branch has one; a separate optional
-            /// would let the two disagree.
+            /// A fork, known by its terminus or shared-stem label.
             case branch(name: String)
 
-            /// Branch rows fold, and indent under the spine they fork off.
+            /// Branch rows indent under the spine they fork off.
             var isBranch: Bool { self != .trunk }
 
             /// The station the branch is known by; nil for the trunk, which is
@@ -125,6 +122,34 @@ enum LinePlan {
                 id: strip.id,
                 role: role(of: strip, isLeading: index < trunkIndex),
                 stops: rows(of: strip, marks: marks[index])
+            )
+        }
+    }
+
+    /// Sections prepared for the always-expanded platform-display diagram.
+    ///
+    /// `strips` deliberately repeats a shared stem in every end-to-end service
+    /// path. That was useful while each branch folded independently, but a
+    /// complete schematic must draw a physical station once. The diagram uses
+    /// the server's physical sections and borrows disruption marks from every
+    /// service path that traverses each section.
+    static func diagramStrips(
+        for direction: LineDirection,
+        disruptions: [LineDisruption]
+    ) -> [Strip] {
+        let sections = direction.sections.filter { !$0.stops.isEmpty }
+        guard !sections.isEmpty else { return [] }
+
+        let serviceStrips = strips(for: direction, disruptions: disruptions)
+        let spine = spineIndex(of: sections)
+
+        return sections.enumerated().map { index, section in
+            Strip(
+                id: "section-\(index)",
+                role: section.role == .trunk
+                    ? .trunk
+                    : .branch(name: branchName(section, isLeading: index < spine)),
+                stops: diagramRows(for: section, from: serviceStrips)
             )
         }
     }
@@ -198,6 +223,15 @@ enum LinePlan {
         guard !strip.isTrunk else { return .trunk }
         let end = isLeading ? strip.stops.first : strip.stops.last
         return .branch(name: end?.name ?? "")
+    }
+
+    private static func branchName(_ section: LineSchemaSection, isLeading: Bool) -> String {
+        if let label = section.label {
+            return label
+                .replacingOccurrences(of: "Branches ", with: "")
+                .replacingOccurrences(of: "Branche ", with: "")
+        }
+        return (isLeading ? section.stops.first : section.stops.last)?.name ?? ""
     }
 
     // MARK: - Disruption projection
@@ -323,6 +357,57 @@ enum LinePlan {
                 railAbove: index == 0 ? .none : rail(marks.segments[index - 1]),
                 railBelow: index == last ? .none : rail(marks.segments[index])
             )
+        }
+    }
+
+    private static func diagramRows(for section: LineSchemaSection, from strips: [Strip]) -> [StopRow] {
+        let last = section.stops.count - 1
+        return section.stops.enumerated().map { index, stop in
+            let candidates = strips.flatMap(\.stops).filter { $0.stop.id == stop.id }
+            let condition = candidates.compactMap(\.condition)
+                .max { $0.severityRank < $1.severityRank }
+
+            return StopRow(
+                stop: stop,
+                isEnd: index == 0 || index == last,
+                condition: condition,
+                isCutEdge: candidates.contains(where: \.isCutEdge),
+                railAbove: index == 0
+                    ? .none
+                    : diagramRail(
+                        from: section.stops[index - 1].id,
+                        to: stop.id,
+                        in: strips
+                    ),
+                railBelow: index == last
+                    ? .none
+                    : diagramRail(
+                        from: stop.id,
+                        to: section.stops[index + 1].id,
+                        in: strips
+                    )
+            )
+        }
+    }
+
+    private static func diagramRail(from firstID: String, to secondID: String, in strips: [Strip]) -> RailStyle {
+        let styles = strips.compactMap { strip -> RailStyle? in
+            guard let first = strip.stops.firstIndex(where: { $0.stop.id == firstID }),
+                  first + 1 < strip.stops.count,
+                  strip.stops[first + 1].stop.id == secondID else { return nil }
+            return strip.stops[first].railBelow
+        }
+
+        return styles.max { left, right in
+            railSeverity(left) < railSeverity(right)
+        } ?? .line
+    }
+
+    private static func railSeverity(_ style: RailStyle) -> Int {
+        switch style {
+        case .none: -1
+        case .line: 0
+        case .cut(let condition): condition.severityRank + 1
         }
     }
 

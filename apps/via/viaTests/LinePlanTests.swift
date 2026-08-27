@@ -109,6 +109,15 @@ final class LinePlanTests: XCTestCase {
         XCTAssertEqual(strips[3].stops.map(\.stop.id), ["nanterre", "defense", "chatelet", "vincennes"])
     }
 
+    func testTheExpandedDiagramDrawsEveryPhysicalStationOnce() {
+        let strips = LinePlan.diagramStrips(for: branched, disruptions: [])
+        let stationIDs = strips.flatMap { $0.stops.map(\.stop.id) }
+
+        XCTAssertEqual(stationIDs.count, Set(stationIDs).count)
+        XCTAssertEqual(stationIDs.filter { $0 == "sartrouville" }.count, 1)
+        XCTAssertEqual(strips.filter { $0.role == .trunk }.count, 1)
+    }
+
     func testAFeedWithoutATrunkHangsThePlanOffItsMostSharedSection() {
         // No section is named a trunk — a server that has not rebuilt its
         // schema yet. The stretch both services share carries the plan, even

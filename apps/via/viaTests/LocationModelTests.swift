@@ -128,6 +128,16 @@ final class LocationModelTests: XCTestCase {
         XCTAssertEqual(freshCoordinate, fresh)
     }
 
+    func testFreshLocationReturnsAfterTimeoutWhenAdapterStaysSilent() async {
+        let adapter = SilentLocationAdapter()
+        let model = LocationModel(adapter: adapter)
+
+        let coordinate = await model.requestFreshLocation(timeout: .milliseconds(20))
+
+        XCTAssertNil(coordinate)
+        XCTAssertEqual(adapter.locationRequestCount, 1)
+    }
+
     func testJourneyTrackingDropsSamplesFromBeforeTheSession() async {
         let initial = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
         let stale = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
@@ -146,6 +156,19 @@ final class LocationModelTests: XCTestCase {
 
         XCTAssertEqual(nextSample?.coordinate, fresh)
         model.stopJourneyTracking()
+    }
+}
+
+@MainActor
+private final class SilentLocationAdapter: LocationAdapter {
+    var authorization: LocationAuthorization = .authorized
+    var onEvent: (@MainActor (LocationAdapterEvent) -> Void)?
+    private(set) var locationRequestCount = 0
+
+    func requestAuthorization() {}
+
+    func requestLocation() {
+        locationRequestCount += 1
     }
 }
 

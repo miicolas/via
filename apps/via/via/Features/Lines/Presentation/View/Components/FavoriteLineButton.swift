@@ -11,17 +11,21 @@ struct FavoriteLineButton: View {
     }
     .labelStyle(.iconOnly)
     .buttonStyle(.plain)
-    .foregroundStyle(isFavorite ? .orange : .secondary)
+    .foregroundStyle(isFavorite ? Color.orange : Color.secondary)
     .stateSymbolTransition(value: isFavorite)
     .toggleHaptic(on: isFavorite)
     .frame(width: 44, height: 44)
     .contentShape(Rectangle())
-    .accessibilityLabel(
-      isFavorite
-        ? "Retirer la ligne " + route.shortName + " des favoris"
-        : "Ajouter la ligne " + route.shortName + " aux favoris"
-    )
+    .accessibilityLabel(accessibilityTitle)
     .accessibilityValue(isFavorite ? "Ajoutée" : "Non ajoutée")
     .accessibilityHint("Affiche la ligne en accès rapide en haut de l’onglet Lignes.")
+  }
+
+  private var accessibilityTitle: String {
+    if isFavorite {
+      "Retirer la ligne \(route.shortName) des favoris"
+    } else {
+      "Ajouter la ligne \(route.shortName) aux favoris"
+    }
   }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The plan of the line: the trunk drawn open as a vertical rail, and each
-/// branch folded into one row underneath — or above, when it feeds the trunk.
+/// The complete plan of the line: the trunk and every branch are visible at
+/// once, joined by the same broad curves riders see on platform displays.
 ///
 /// Nothing here is a direction. A plan read upwards is the other way round, so
 /// the screen shows the stations once and spares the rider a picker before
@@ -11,8 +11,6 @@ struct LinePlanView: View {
     /// The rail takes the hex rather than a resolved `Color`: it is the shared
     /// journey rail, and that is the vocabulary a leg's colour travels in.
     let lineColorHex: String
-    let isOpen: (LinePlan.Strip) -> Bool
-    let onToggle: (LinePlan.Strip) -> Void
 
     private var lineColor: Color {
         Color(transitHex: lineColorHex, fallback: .secondary)
@@ -20,7 +18,7 @@ struct LinePlanView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Plan de la ligne")
+            Text("Schéma complet de la ligne")
                 .font(.title3.weight(.bold))
 
             if strips.isEmpty {
@@ -32,27 +30,8 @@ struct LinePlanView: View {
                 )
             } else {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(strips) { strip in
-                        if case .branch(let name) = strip.role {
-                            LineBranchRow(
-                                name: name,
-                                stopCount: strip.stops.count,
-                                condition: strip.condition,
-                                lineColor: lineColor,
-                                isOpen: isOpen(strip),
-                                action: { onToggle(strip) }
-                            )
-                        }
-
-                        if isOpen(strip) {
-                            ForEach(strip.stops, id: \.stop.id) { row in
-                                LinePlanStopRow(
-                                    row: row,
-                                    lineColorHex: lineColorHex,
-                                    isIndented: strip.role.isBranch
-                                )
-                            }
-                        }
+                    ForEach(Array(strips.enumerated()), id: \.element.id) { index, strip in
+                        stripView(strip, at: index)
                     }
                 }
             }
@@ -61,12 +40,76 @@ struct LinePlanView: View {
         .detailCard()
         .accessibilityElement(children: .contain)
     }
+
+    @ViewBuilder
+    private func stripView(_ strip: LinePlan.Strip, at index: Int) -> some View {
+        let trunkIndex = strips.firstIndex { $0.role == .trunk }
+        let joinsTrunkBelow = trunkIndex.map { index < $0 } ?? false
+        let leavesTrunkAbove = trunkIndex.map { index > $0 } ?? false
+
+        if case .branch(let name) = strip.role, leavesTrunkAbove {
+            LineBranchRow(
+                name: name,
+                condition: strip.condition,
+                lineColor: lineColor,
+                direction: .leavesTrunk
+            )
+        }
+
+        ForEach(Array(strip.stops.enumerated()), id: \.element.stop.id) { stopIndex, row in
+            LinePlanStopRow(
+                row: row,
+                lineColorHex: lineColorHex,
+                isIndented: strip.role.isBranch,
+                connectsAbove: connectsAbove(
+                    strip: strip,
+                    stripIndex: index,
+                    stopIndex: stopIndex,
+                    trunkIndex: trunkIndex
+                ),
+                connectsBelow: connectsBelow(
+                    strip: strip,
+                    stripIndex: index,
+                    stopIndex: stopIndex,
+                    trunkIndex: trunkIndex
+                )
+            )
+        }
+
+        if case .branch(let name) = strip.role, joinsTrunkBelow {
+            LineBranchRow(
+                name: name,
+                condition: strip.condition,
+                lineColor: lineColor,
+                direction: .joinsTrunk
+            )
+        }
+    }
+
+    private func connectsAbove(
+        strip: LinePlan.Strip,
+        stripIndex: Int,
+        stopIndex: Int,
+        trunkIndex: Int?
+    ) -> Bool {
+        guard stopIndex == 0, let trunkIndex else { return false }
+        return stripIndex > trunkIndex || (stripIndex == trunkIndex && trunkIndex > 0)
+    }
+
+    private func connectsBelow(
+        strip: LinePlan.Strip,
+        stripIndex: Int,
+        stopIndex: Int,
+        trunkIndex: Int?
+    ) -> Bool {
+        guard stopIndex == strip.stops.count - 1, let trunkIndex else { return false }
+        return stripIndex < trunkIndex || (stripIndex == trunkIndex && trunkIndex < strips.count - 1)
+    }
 }
 
 #Preview("RER A — tronc et branches") {
-    @Previewable @State var opened: Set<String> = []
     let detail = PreviewLineStatusRepository.rerADetail
-    let strips = LinePlan.strips(
+    let strips = LinePlan.diagramStrips(
         for: detail.planDirection!,
         disruptions: detail.disruptions
     )
@@ -74,11 +117,7 @@ struct LinePlanView: View {
     ScrollView {
         LinePlanView(
             strips: strips,
-            lineColorHex: detail.route.colorHex,
-            isOpen: { $0.role == .trunk || $0.condition != nil || opened.contains($0.id) },
-            onToggle: { strip in
-                if !opened.insert(strip.id).inserted { opened.remove(strip.id) }
-            }
+            lineColorHex: detail.route.colorHex
         )
         .padding()
     }

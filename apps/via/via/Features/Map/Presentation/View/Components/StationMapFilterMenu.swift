@@ -68,10 +68,19 @@ struct StationMapFilterMenu: View {
     .menuActionDismissBehavior(.disabled)
   }
 
+  @ViewBuilder
   private func criterionLabel(_ criterion: StationMapFilterCriterion) -> some View {
-    // Filters use a neutral SF Symbol. Operator and network logos stay on the
-    // map annotations, where they identify the data source the user is seeing.
-    Label(criterion.title, systemImage: criterion.systemImage)
+    switch criterion {
+    case .mode(let mode):
+      Label {
+        Text(criterion.title)
+      } icon: {
+        TransitModeIconView(mode: mode, size: 20)
+          .accessibilityHidden(true)
+      }
+    default:
+      Label(criterion.title, systemImage: criterion.systemImage)
+    }
   }
 
   private func binding(for criterion: StationMapFilterCriterion) -> Binding<Bool> {
