@@ -17,6 +17,10 @@ import Foundation
 /// Pure and synchronous, so the rules stay unit-testable away from SwiftUI.
 enum LinePlan {
     /// How the rail is drawn on one side of a stop row.
+    ///
+    /// The line's own colour is not known here — a plan is the same whatever
+    /// badge hangs off it — so the style stays colourless and `timelineStyle`
+    /// hands it to the shared rail once the caller supplies the hex.
     enum RailStyle: Hashable {
         /// No rail: the strip starts or ends here.
         case none
@@ -24,6 +28,16 @@ enum LinePlan {
         case line
         /// Inside an active cut of this severity.
         case cut(LineCondition)
+
+        /// The same style expressed in the journey timeline's vocabulary, so
+        /// the Lignes tab and a trip are drawn by the one rail.
+        func timelineStyle(colorHex: String?) -> JourneyTimelineRailStyle {
+            switch self {
+            case .none: JourneyTimelineRailStyle.none
+            case .line: .line(colorHex: colorHex)
+            case .cut(let condition): .cut(condition)
+            }
+        }
     }
 
     struct StopRow: Hashable {
@@ -38,6 +52,19 @@ enum LinePlan {
         let isCutEdge: Bool
         let railAbove: RailStyle
         let railBelow: RailStyle
+
+        /// What the station's hole says on the rail.
+        ///
+        /// A station caught *inside* a suspension is one no train reaches, so
+        /// it is struck through. The two edges of that same suspension are
+        /// where the trains turn back — they are still served — so they only
+        /// take the colour, and keep the pictogram beside their name.
+        var mark: JourneyTimelineBeadMark {
+            guard let condition else { return .open }
+            return condition == .suspended && !isCutEdge
+                ? .closed(condition)
+                : .warned(condition)
+        }
     }
 
     struct Strip: Identifiable, Hashable {

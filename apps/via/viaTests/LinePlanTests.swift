@@ -201,6 +201,61 @@ final class LinePlanTests: XCTestCase {
         XCTAssertTrue(strips.allSatisfy { $0.condition == nil })
     }
 
+    // MARK: - Station marks
+
+    func testAStationInsideASuspensionIsStruckThroughAndItsEdgesAreOnlyTinted() {
+        let strips = LinePlan.strips(
+            for: direction([trunk(["a", "b", "c", "d", "e"])]),
+            disruptions: [disruption(.suspended, from: "b", to: "d")]
+        )
+
+        XCTAssertEqual(strips[0].stops.map(\.mark), [
+            .open,
+            .warned(.suspended),  // trains turn back here
+            .closed(.suspended),  // nothing calls here
+            .warned(.suspended),  // and here
+            .open,
+        ])
+    }
+
+    func testALesserDisruptionOnlyTintsTheStationsItTouches() {
+        let strips = LinePlan.strips(
+            for: direction([trunk(["a", "b", "c", "d"])]),
+            disruptions: [disruption(.disrupted, from: "a", to: "d")]
+        )
+
+        XCTAssertEqual(strips[0].stops.map(\.mark), [
+            .warned(.disrupted),
+            .warned(.disrupted),
+            .warned(.disrupted),
+            .warned(.disrupted),
+        ])
+    }
+
+    func testAnUndisruptedPlanMarksNothing() {
+        let strips = LinePlan.strips(
+            for: direction([trunk(["a", "b", "c"])]),
+            disruptions: []
+        )
+
+        XCTAssertTrue(strips[0].stops.allSatisfy { $0.mark == .open })
+    }
+
+    func testTheRailStyleTravelsToTheJourneyTimelineWithTheLineColour() {
+        XCTAssertEqual(
+            LinePlan.RailStyle.line.timelineStyle(colorHex: "FFCE00"),
+            .line(colorHex: "FFCE00")
+        )
+        XCTAssertEqual(LinePlan.RailStyle.none.timelineStyle(colorHex: "FFCE00"), .none)
+        // A cut drops the line colour: it is the disruption that tints it.
+        XCTAssertEqual(
+            LinePlan.RailStyle.cut(.suspended).timelineStyle(colorHex: "FFCE00"),
+            .cut(.suspended)
+        )
+    }
+
+    // MARK: - Severity
+
     func testOverlappingCutsKeepTheWorstSeverity() {
         let strips = LinePlan.strips(
             for: direction([trunk(["a", "b", "c", "d"])]),

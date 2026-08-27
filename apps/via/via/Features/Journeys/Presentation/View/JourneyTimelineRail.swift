@@ -2,10 +2,17 @@ import SwiftUI
 
 /// One slice of the passenger-display rail. Consecutive slices meet edge to
 /// edge, forming a single wide band with white station holes punched through.
+///
+/// The journey timeline and the plan of a line are drawn by this one view, so a
+/// leg read from a trip and a line read from the Lignes tab are the same
+/// object: same band width, same holes, same colours.
 struct JourneyTimelineRail: View {
     let above: JourneyTimelineRailStyle
     let below: JourneyTimelineRailStyle
     let bead: JourneyTimelineBead
+    /// What is wrong at this station, when anything is. A journey leaves it
+    /// `.open`; a line plan is where the marks come from.
+    var mark: JourneyTimelineBeadMark = .open
     let state: JourneyTimelineNodeState
     var cursorFraction: Double?
     var isCursorLive = false
@@ -46,6 +53,7 @@ struct JourneyTimelineRail: View {
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: state)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: above)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: below)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: mark)
         .accessibilityHidden(true)
     }
 
@@ -72,80 +80,91 @@ struct JourneyTimelineRail: View {
     @ViewBuilder
     private func transitBand(in size: CGSize) -> some View {
         switch transitBandRole {
-        case .start(let colorHex):
+        case .start(let fill):
             let startY = max(0, beadPosition - Self.transitWidth / 2)
             let height = max(0, size.height - startY)
 
-            UnevenRoundedRectangle(
-                topLeadingRadius: Self.transitWidth / 2,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: Self.transitWidth / 2,
-                style: .continuous
+            band(
+                fill,
+                shape: UnevenRoundedRectangle(
+                    topLeadingRadius: Self.transitWidth / 2,
+                    bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0,
+                    topTrailingRadius: Self.transitWidth / 2,
+                    style: .continuous
+                ),
+                height: height
             )
-            .fill(lineTint(colorHex))
-            .frame(width: Self.transitWidth, height: height)
             .position(x: size.width / 2, y: startY + height / 2)
-            .opacity(transitOpacity)
 
-        case .middle(let colorHex):
-            Rectangle()
-                .fill(lineTint(colorHex))
-                .frame(width: Self.transitWidth, height: size.height)
+        case .middle(let fill):
+            band(fill, shape: Rectangle(), height: size.height)
                 .position(x: size.width / 2, y: size.height / 2)
-                .opacity(transitOpacity)
 
-        case .end(let colorHex):
+        case .end(let fill):
             let height = min(size.height, beadPosition + Self.transitWidth / 2)
 
-            UnevenRoundedRectangle(
-                topLeadingRadius: 0,
-                bottomLeadingRadius: Self.transitWidth / 2,
-                bottomTrailingRadius: Self.transitWidth / 2,
-                topTrailingRadius: 0,
-                style: .continuous
+            band(
+                fill,
+                shape: UnevenRoundedRectangle(
+                    topLeadingRadius: 0,
+                    bottomLeadingRadius: Self.transitWidth / 2,
+                    bottomTrailingRadius: Self.transitWidth / 2,
+                    topTrailingRadius: 0,
+                    style: .continuous
+                ),
+                height: height
             )
-            .fill(lineTint(colorHex))
-            .frame(width: Self.transitWidth, height: height)
             .position(x: size.width / 2, y: height / 2)
-            .opacity(transitOpacity)
 
-        case .transition(let aboveHex, let belowHex):
+        case .transition(let aboveFill, let belowFill):
             VStack(spacing: 0) {
-                Rectangle()
-                    .fill(lineTint(aboveHex))
-                    .frame(height: beadPosition)
-
-                Rectangle()
-                    .fill(lineTint(belowHex))
-                    .frame(maxHeight: .infinity)
+                band(aboveFill, shape: Rectangle(), height: beadPosition)
+                band(belowFill, shape: Rectangle(), height: max(0, size.height - beadPosition))
             }
             .frame(width: Self.transitWidth, height: size.height)
             .position(x: size.width / 2, y: size.height / 2)
-            .opacity(transitOpacity)
 
         case .none:
             EmptyView()
         }
     }
 
+    /// A cut keeps the width of a running band and loses its continuity: the
+    /// same stroke chopped into dashes, so an interruption reads as a broken
+    /// rail rather than as a rail that merely changed colour.
+    private func band(_ fill: BandFill, shape: some Shape, height: CGFloat) -> some View {
+        shape
+            .fill(fill.tint)
+            .frame(width: Self.transitWidth, height: height)
+            .mask {
+                if fill.isBroken {
+                    JourneyRailPath()
+                        .stroke(
+                            Color.black,
+                            style: StrokeStyle(lineWidth: Self.transitWidth, dash: [13, 8])
+                        )
+                        .frame(width: Self.transitWidth, height: height)
+                } else {
+                    Rectangle()
+                }
+            }
+            .opacity(transitOpacity)
+    }
+
     private var transitBandRole: TransitBandRole {
-        switch (above, below) {
-        case let (.line(aboveHex), .line(belowHex)) where aboveHex == belowHex:
-            .middle(colorHex: aboveHex)
-        case let (.line(aboveHex), .line(belowHex)):
-            .transition(aboveHex: aboveHex, belowHex: belowHex)
-        case let (_, .line(colorHex)):
-            .start(colorHex: colorHex)
-        case let (.line(colorHex), _):
-            .end(colorHex: colorHex)
+        switch (above.band, below.band) {
+        case let (aboveFill?, belowFill?) where aboveFill == belowFill:
+            .middle(aboveFill)
+        case let (aboveFill?, belowFill?):
+            .transition(above: aboveFill, below: belowFill)
+        case let (_, belowFill?):
+            .start(belowFill)
+        case let (aboveFill?, _):
+            .end(aboveFill)
         default:
             .none
         }
-    }
-
-    private func lineTint(_ colorHex: String?) -> Color {
-        Color(transitHex: colorHex ?? "", fallback: .accentColor)
     }
 
     private var transitOpacity: Double {
@@ -157,50 +176,85 @@ struct JourneyTimelineRail: View {
     }
 
     private var beadSize: CGFloat {
-        switch bead {
+        let base: CGFloat = switch bead {
         case .terminus, .major: 16
         case .minor: 14
         case .none: 0
         }
+        // A marked hole carries a colour or a cross inside it, and needs the
+        // few extra points for either to read at a glance.
+        guard base > 0, mark != .open else { return base }
+        return base + 5
     }
 
+    /// A hole is punched *through* something. With no band under it there is
+    /// nothing to punch, and a white disc on a white card would be no bead at
+    /// all — so an unrailed node wears the disc itself instead.
     @ViewBuilder
     private var beadView: some View {
         switch bead {
         case .none:
             EmptyView()
-        case .minor, .major:
-            stationHole
-        case .terminus:
+        case .minor, .major, .terminus:
             if hasTransitRail {
                 stationHole
             } else {
-                Circle()
-                    .fill(beadTint)
-                    .overlay {
-                        Circle()
-                            .fill(.white)
-                            .frame(width: beadSize * 0.38, height: beadSize * 0.38)
-                    }
-                    .frame(width: beadSize, height: beadSize)
-                    .opacity(state == .done ? 0.5 : 1)
+                unrailedBead
             }
         }
+    }
+
+    private var unrailedBead: some View {
+        Circle()
+            .fill(mark.condition?.tint ?? beadTint)
+            .overlay {
+                if case .closed = mark {
+                    Image(systemName: "xmark")
+                        .font(.system(size: beadSize * 0.6, weight: .black))
+                        .foregroundStyle(.white)
+                } else {
+                    Circle()
+                        .fill(.white)
+                        .frame(width: beadSize * 0.38, height: beadSize * 0.38)
+                }
+            }
+            .frame(width: beadSize, height: beadSize)
+            .opacity(state == .done ? 0.5 : 1)
     }
 
     private var stationHole: some View {
         Circle()
             .fill(.white)
             .frame(width: beadSize, height: beadSize)
+            .overlay { markGlyph }
             .opacity(state == .done ? 0.72 : 1)
     }
 
+    /// The white hole keeps its rim whatever the mark: a disruption tint alone
+    /// would disappear into a band of the same colour — a red suspension on a
+    /// red line — and the rim is what keeps the station visible at all.
+    @ViewBuilder
+    private var markGlyph: some View {
+        switch mark {
+        case .open:
+            EmptyView()
+        case .warned(let condition):
+            Circle()
+                .fill(condition.tint)
+                .padding(3)
+        case .closed(let condition):
+            Image(systemName: "xmark")
+                .font(.system(size: beadSize * 0.6, weight: .black))
+                .foregroundStyle(condition.tint)
+        }
+    }
+
     private var beadTint: Color {
-        below.lineTint ?? above.lineTint ?? Color.accentColor
+        below.band?.tint ?? above.band?.tint ?? Color.accentColor
     }
 
     private var hasTransitRail: Bool {
-        above.isLine || below.isLine
+        above.band != nil || below.band != nil
     }
 
     @ViewBuilder
@@ -224,22 +278,38 @@ struct JourneyTimelineRail: View {
 
     private func strokeOpacity(for style: JourneyTimelineRailStyle) -> Double {
         guard state == .done else { return 1 }
-        return style.isLine ? 0.42 : 0.46
+        return style.band == nil ? 0.46 : 0.42
     }
 }
 
+/// How one band is painted: its colour, and whether the service running over
+/// it is interrupted.
+private struct BandFill: Equatable {
+    let tint: Color
+    let isBroken: Bool
+}
+
 private enum TransitBandRole {
-    case start(colorHex: String?)
-    case middle(colorHex: String?)
-    case end(colorHex: String?)
-    case transition(aboveHex: String?, belowHex: String?)
+    case start(BandFill)
+    case middle(BandFill)
+    case end(BandFill)
+    case transition(above: BandFill, below: BandFill)
     case none
 }
 
 extension JourneyTimelineRailStyle {
-    fileprivate var isLine: Bool {
-        if case .line = self { return true }
-        return false
+    fileprivate var band: BandFill? {
+        switch self {
+        case .line(let colorHex):
+            BandFill(
+                tint: Color(transitHex: colorHex ?? "", fallback: .accentColor),
+                isBroken: false
+            )
+        case .cut(let condition):
+            BandFill(tint: condition.tint, isBroken: true)
+        case .pedestrian, .none:
+            nil
+        }
     }
 
     fileprivate var isPedestrian: Bool {
