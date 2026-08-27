@@ -47,6 +47,12 @@ const bulkBody = {
       mode: 'RapidTransit',
       impactedObjects: [
         { type: 'line', id: 'line:IDFM:C01742', name: 'RER A', disruptionIds: ['d-works'] },
+        {
+          type: 'stop_point',
+          id: 'stop_point:IDFM:monomodalStopPlace:473875',
+          name: 'Nation',
+          disruptionIds: ['d-works'],
+        },
       ],
     },
   ],
@@ -86,6 +92,11 @@ test('joins lines to disruptions through the inverse index', () => {
   const works = disruptions.find((entry) => entry.id === 'd-works');
 
   expect(works?.routeIds).toEqual(['IDFM:C01742']);
+  expect(works?.impactedStops).toEqual([{
+    routeId: 'IDFM:C01742',
+    stopId: 'IDFM:monomodalStopPlace:473875',
+    stopName: 'Nation',
+  }]);
   expect(works?.severity).toBe('attention');
 });
 
