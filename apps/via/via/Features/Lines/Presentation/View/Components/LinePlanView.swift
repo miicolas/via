@@ -8,9 +8,15 @@ import SwiftUI
 /// they have seen anything.
 struct LinePlanView: View {
     let strips: [LinePlan.Strip]
-    let lineColor: Color
+    /// The rail takes the hex rather than a resolved `Color`: it is the shared
+    /// journey rail, and that is the vocabulary a leg's colour travels in.
+    let lineColorHex: String
     let isOpen: (LinePlan.Strip) -> Bool
     let onToggle: (LinePlan.Strip) -> Void
+
+    private var lineColor: Color {
+        Color(transitHex: lineColorHex, fallback: .secondary)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -42,7 +48,7 @@ struct LinePlanView: View {
                             ForEach(strip.stops, id: \.stop.id) { row in
                                 LinePlanStopRow(
                                     row: row,
-                                    lineColor: lineColor,
+                                    lineColorHex: lineColorHex,
                                     isIndented: strip.role.isBranch
                                 )
                             }
@@ -68,7 +74,7 @@ struct LinePlanView: View {
     ScrollView {
         LinePlanView(
             strips: strips,
-            lineColor: Color(transitHex: detail.route.colorHex, fallback: .secondary),
+            lineColorHex: detail.route.colorHex,
             isOpen: { $0.role == .trunk || $0.condition != nil || opened.contains($0.id) },
             onToggle: { strip in
                 if !opened.insert(strip.id).inserted { opened.remove(strip.id) }
