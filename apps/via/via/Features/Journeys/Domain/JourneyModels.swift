@@ -466,6 +466,11 @@ struct JourneyResult: Sendable, Hashable {
         case accessibilityDataUnavailable = "accessibility-data-unavailable"
         case noOperationalElevatorRoute = "no-operational-elevator-route"
         case elevatorDataUnavailable = "elevator-data-unavailable"
+        /// The transit planner itself did not answer. Produced on the device,
+        /// never on the wire: it is what a walking or cycling fallback carries
+        /// so the screen can say the ride is missing rather than pass the walk
+        /// off as the plan.
+        case transitUnavailable = "transit-unavailable"
     }
 
     let status: Status

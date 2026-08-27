@@ -18,11 +18,15 @@ struct LocalAlternativesJourneyRepository: JourneyRepository, Sendable {
         } catch {
             let routes = await localRoutes
             guard !routes.isEmpty else { throw error }
+            // A walk and a ride are what is left when the planner does not
+            // answer, not a plan that succeeded: the result stays unavailable
+            // so the screen says the transit itineraries are missing.
             return JourneyResult(
-                status: .ready,
+                status: .unavailable,
                 source: .theoretical,
                 generatedAt: .now,
-                journeys: Self.directJourneys(routes)
+                journeys: Self.directJourneys(routes),
+                reason: .transitUnavailable
             )
         }
     }
@@ -32,16 +36,20 @@ struct LocalAlternativesJourneyRepository: JourneyRepository, Sendable {
             return result
         }
 
-        let journeys = result.journeys.filter { !isDirectJourney($0) }
-            + directJourneys(local + result.journeys.filter(isDirectJourney))
+        let transit = result.journeys.filter { !isDirectJourney($0) }
+        let journeys = transit + directJourneys(local + result.journeys.filter(isDirectJourney))
         guard !journeys.isEmpty else { return result }
 
+        // Walking and cycling ride alongside the transit answer; they never
+        // stand in for one. With no transit journey left, the base status and
+        // its reason survive untouched — a plan that found nothing, or a
+        // filter that ruled everything out, still reads that way on screen.
         return JourneyResult(
-            status: .ready,
+            status: transit.isEmpty ? result.status : .ready,
             source: result.source ?? .theoretical,
             generatedAt: result.generatedAt,
             journeys: journeys,
-            reason: nil
+            reason: transit.isEmpty ? result.reason : nil
         )
     }
 

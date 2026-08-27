@@ -164,6 +164,24 @@ extension EmptyState {
         message: "Déplace la carte pour explorer une autre zone.",
     )
 
+    /// The planner answered, with nothing to ride. Distinct from
+    /// `transitUnavailable`, where it did not answer at all: here the walk and
+    /// the ride above it are the whole offer.
+    static let noTransitRoute = EmptyState(
+        systemImage: "tram",
+        title: "Aucun itinéraire en transport",
+        message: "Aucune ligne ne relie ces deux points pour cet horaire. Modifie l’heure ou la destination.",
+    )
+
+    /// The transit planner did not answer. Whatever is above — a walk, a ride —
+    /// is a fallback computed on the device, so the screen says so instead of
+    /// letting two tiles pass for the result.
+    static let transitUnavailable = EmptyState(
+        systemImage: "exclamationmark.triangle",
+        title: "Itinéraires en transport indisponibles",
+        message: "Le service d’itinéraires ne répond pas. Seuls les trajets calculés sur l’appareil sont proposés.",
+    )
+
     static let noOperationalElevatorRoute = EmptyState(
         systemImage: "arrow.up.arrow.down.square",
         title: "Aucun trajet avec ascenseurs vérifiés",
