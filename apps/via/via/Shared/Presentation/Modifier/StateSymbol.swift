@@ -12,6 +12,12 @@ enum StateSymbol {
   static func star(isOn: Bool) -> String {
     isOn ? "star.fill" : "star"
   }
+
+  /// A row that opens onto the detail behind it — the individual times behind a
+  /// cadence, a section that folds away.
+  static func disclosure(isExpanded: Bool) -> String {
+    isExpanded ? "chevron.up" : "chevron.down"
+  }
 }
 
 extension View {

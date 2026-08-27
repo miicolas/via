@@ -28,7 +28,36 @@ final class LocalAlternativesJourneyRepositoryTests: XCTestCase {
         XCTAssertEqual(result.journeys[2].qualifier, .bike)
     }
 
-    func testUsesLocalRouteWhenServerIsUnavailable() async throws {
+    /// PRIM owns the transit answer. Whatever the on-device router offers can
+    /// only ever be the walk or the ride, so a route of any other shape is
+    /// dropped rather than promoted into the list.
+    func testATransitShapedLocalRouteNeverJoinsTheTransitList() async throws {
+        let serverTransit = try XCTUnwrap(JourneyResult.mapPreview.journeys.first)
+        let localWalking = directJourney(kind: .walk, id: "local-walking", duration: 900)
+        let base = JourneyResult(
+            status: .ready,
+            source: .realtime,
+            generatedAt: .now,
+            journeys: [serverTransit]
+        )
+        let repository = LocalAlternativesJourneyRepository(
+            base: FixedJourneyRepository(result: base),
+            direct: FixedDirectJourneyRouter(routes: [serverTransit, localWalking])
+        )
+
+        let result = try await repository.plan(makeRequest())
+
+        XCTAssertEqual(
+            result.journeys.map(\.id.rawValue),
+            [serverTransit.id.rawValue, "local-walking"]
+        )
+        XCTAssertEqual(
+            result.journeys.filter { JourneyShape.of($0) == .transit }.map(\.id.rawValue),
+            [serverTransit.id.rawValue]
+        )
+    }
+
+    func testOffersLocalRouteWithoutClaimingAPlanWhenServerIsUnavailable() async throws {
         let localWalking = directJourney(kind: .walk, id: "local-walking", duration: 900)
         let repository = LocalAlternativesJourneyRepository(
             base: FailingJourneyRepository(),
@@ -37,9 +66,49 @@ final class LocalAlternativesJourneyRepositoryTests: XCTestCase {
 
         let result = try await repository.plan(makeRequest())
 
-        XCTAssertEqual(result.status, .ready)
+        XCTAssertEqual(result.status, .unavailable)
+        XCTAssertEqual(result.reason, .transitUnavailable)
         XCTAssertEqual(result.source, .theoretical)
         XCTAssertEqual(result.journeys.map(\.id.rawValue), ["local-walking"])
+    }
+
+    func testLocalRoutesDoNotTurnAnEmptyPlanIntoAResult() async throws {
+        let localWalking = directJourney(kind: .walk, id: "local-walking", duration: 900)
+        let base = JourneyResult(
+            status: .noRoute,
+            source: .realtime,
+            generatedAt: .now,
+            journeys: []
+        )
+        let repository = LocalAlternativesJourneyRepository(
+            base: FixedJourneyRepository(result: base),
+            direct: FixedDirectJourneyRouter(routes: [localWalking])
+        )
+
+        let result = try await repository.plan(makeRequest())
+
+        XCTAssertEqual(result.status, .noRoute)
+        XCTAssertEqual(result.journeys.map(\.id.rawValue), ["local-walking"])
+    }
+
+    func testLocalRoutesKeepTheReasonOfAFilteredPlan() async throws {
+        let localCycling = directJourney(kind: .bike, id: "local-cycling", duration: 600)
+        let base = JourneyResult(
+            status: .noRoute,
+            source: .realtime,
+            generatedAt: .now,
+            journeys: [],
+            reason: .noAccessibleRoute
+        )
+        let repository = LocalAlternativesJourneyRepository(
+            base: FixedJourneyRepository(result: base),
+            direct: FixedDirectJourneyRouter(routes: [localCycling])
+        )
+
+        let result = try await repository.plan(makeRequest())
+
+        XCTAssertEqual(result.status, .noRoute)
+        XCTAssertEqual(result.reason, .noAccessibleRoute)
     }
 
     private func makeRequest() -> JourneyRequest {

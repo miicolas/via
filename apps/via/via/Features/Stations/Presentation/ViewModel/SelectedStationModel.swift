@@ -21,6 +21,11 @@ final class SelectedStationModel {
   /// the same station generation and cannot show an old line after a reselection.
   private(set) var lineScheduleRoute: RouteBadge?
   private(set) var lineScheduleDepartures: [StationDeparture] = []
+  /// The same passages, grouped by direction and folded into their cadences.
+  /// Derived once here rather than in the sheet's `body`: the sheet redraws on
+  /// every countdown tick and on every page it appends, and a service day is
+  /// several hundred passages to walk each time.
+  private(set) var lineScheduleTimetable: LineTimetable = .empty
   private(set) var lineScheduleSource: DepartureBoard.Source = .unavailable
   private(set) var lineScheduleFetchedAt: Date?
   private(set) var lineScheduleLoadingState: SelectedStationLoadingState = .idle
@@ -124,6 +129,7 @@ final class SelectedStationModel {
     let nowProvider = now
     lineScheduleRoute = route
     lineScheduleDepartures = []
+    lineScheduleTimetable = .empty
     lineScheduleSource = .unavailable
     lineScheduleFetchedAt = nil
     lineScheduleLoadingState = .loading
@@ -148,6 +154,7 @@ final class SelectedStationModel {
             now: nowProvider()
           )
         )
+        lineScheduleTimetable = LineTimetable.make(from: lineScheduleDepartures)
         lineScheduleSource = board.source
         lineScheduleFetchedAt = board.fetchedAt
         lineScheduleLoadingState = .loaded
@@ -362,6 +369,7 @@ final class SelectedStationModel {
     lineScheduleTask = nil
     lineScheduleRoute = nil
     lineScheduleDepartures = []
+    lineScheduleTimetable = .empty
     lineScheduleSource = .unavailable
     lineScheduleFetchedAt = nil
     lineScheduleLoadingState = .idle

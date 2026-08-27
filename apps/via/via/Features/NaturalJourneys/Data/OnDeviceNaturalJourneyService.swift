@@ -531,6 +531,8 @@ struct OnDeviceNaturalJourneyService: NaturalJourneyRepository {
                 "Aucun trajet ne passe uniquement par des stations aux ascenseurs vérifiés. Modifie la recherche ou désactive le filtre Ascenseurs."
             case .elevatorDataUnavailable:
                 "L’état des ascenseurs est indisponible. Réessaie plus tard ou désactive le filtre Ascenseurs."
+            case .transitUnavailable:
+                "Le service d’itinéraires ne répond pas. Réessaie dans un instant."
             case nil:
                 "Je n’ai pas trouvé d’itinéraire vérifiable."
             }
