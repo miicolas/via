@@ -28,6 +28,20 @@ import {
   transitStationSnapshotCacheKey,
 } from "./departures/network-version";
 
+/**
+ * Without the PRIM key every itinerary is answered by the GTFS timetable
+ * fallback — no realtime, and a search that only ever meant to be a safety net.
+ * That degradation is silent at every later layer: the planner takes the
+ * fallback branch without a word, the response says `gtfs-theoretical` in a
+ * field nobody reads, and the screen looks like a normal answer. So it is said
+ * once, out loud, where the client gate already says the same kind of thing.
+ */
+if (!env.API_KEY_PRISM_IDFM) {
+  console.warn(
+    '[api] no PRIM key: itineraries, departures and disruptions all answer from the GTFS timetable fallback. Set API_KEY_PRISM_IDFM to restore realtime.'
+  );
+}
+
 const baseJourneyPlanner = createJourneyPlanner({
   redis,
   idfm: env.API_KEY_PRISM_IDFM
