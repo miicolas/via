@@ -4,7 +4,10 @@ import { env } from '../../../env';
 import type { RedisClient } from '../../../redis';
 import { tryConsumeDailyIdfmBudget } from '../../idfm/daily-budget';
 
-const CACHE_KEY = 'transit:line-disruptions:v1';
+// v2 preserves station-only scopes from lines[].impactedObjects. Reusing a v1
+// snapshot after deploy would briefly turn those local works back into a full
+// line closure.
+const CACHE_KEY = 'transit:line-disruptions:v2';
 const BUDGET_KEY_PREFIX = 'transit:line-disruptions:idfm-budget';
 
 /** One network-wide fetch per window; disruptions move at minute scale. */

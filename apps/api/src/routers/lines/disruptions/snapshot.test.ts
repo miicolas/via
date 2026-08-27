@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { disruptionsSnapshotThroughCache, type DisruptionsSnapshot } from './snapshot';
 import { fakeRedis } from '../../departures/__fixtures__/fake-redis';
 
-const cacheKey = 'transit:line-disruptions:v1';
+const cacheKey = 'transit:line-disruptions:v2';
 
 const someSnapshot: DisruptionsSnapshot = {
   disruptions: [

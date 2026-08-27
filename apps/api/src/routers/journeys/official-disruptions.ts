@@ -94,19 +94,32 @@ function affectsSection(
   const impacted = disruption.impactedSections.filter(
     (candidate) => candidate.routeId === section.route?.id,
   );
-  if (impacted.length === 0) return true;
-
   const ids = new Set(section.stops.flatMap((stop) => [stop.id, stop.stationId].filter(Boolean)));
   const names = new Set([
     section.from.name,
     section.to.name,
     ...section.stops.map((stop) => stop.name),
   ].map(normalize));
-  return impacted.some((candidate) => {
-    const hasFrom = ids.has(candidate.fromStopId) || names.has(normalize(candidate.fromName));
-    const hasTo = ids.has(candidate.toStopId) || names.has(normalize(candidate.toName));
-    return hasFrom && hasTo;
-  });
+  if (impacted.length > 0) {
+    return impacted.some((candidate) => {
+      const hasFrom = ids.has(candidate.fromStopId) || names.has(normalize(candidate.fromName));
+      const hasTo = ids.has(candidate.toStopId) || names.has(normalize(candidate.toName));
+      return hasFrom && hasTo;
+    });
+  }
+
+  const impactedStops = (disruption.impactedStops ?? []).filter(
+    (candidate) => candidate.routeId === section.route?.id,
+  );
+  if (impactedStops.length > 0) {
+    return impactedStops.some(
+      (candidate) => ids.has(candidate.stopId) || names.has(normalize(candidate.stopName))
+    );
+  }
+
+  // With neither a segment nor a stop, the feed really has only named the
+  // line. This is the one shape that can mean a whole-line suspension.
+  return true;
 }
 
 function promoteReasonableUnaffected<T extends { journey: Journey; severity: number }>(

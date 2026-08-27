@@ -21,6 +21,13 @@ export type ImpactedSection = {
   toName: string;
 };
 
+/** A stop-only impact recovered from lines[].impactedObjects. */
+export type ImpactedStop = {
+  routeId: string;
+  stopId: string;
+  stopName: string;
+};
+
 export type NormalizedDisruption = {
   id: string;
   severity: DisruptionSeverity;
@@ -31,6 +38,12 @@ export type NormalizedDisruption = {
   routeIds: string[];
   periods: DisruptionPeriod[];
   impactedSections: ImpactedSection[];
+  /**
+   * Some station works carry no impactedSections at all. The bulk feed names
+   * their stop only in the line's inverse index; preserving it keeps a local
+   * closure from masquerading as a whole-line suspension.
+   */
+  impactedStops?: ImpactedStop[];
   updatedAt?: number;
 };
 
@@ -42,7 +55,7 @@ export type NormalizedDisruption = {
  */
 export function parseDisruptionsBulk(body: unknown): NormalizedDisruption[] {
   const feed = body as { disruptions?: unknown; lines?: unknown } | null;
-  const routeIdsByDisruption = indexRoutesByDisruption(asArray(feed?.lines));
+  const impactsByDisruption = indexImpactsByDisruption(asArray(feed?.lines));
 
   const disruptions: NormalizedDisruption[] = [];
   for (const entry of asArray(feed?.disruptions)) {
@@ -51,7 +64,8 @@ export function parseDisruptionsBulk(body: unknown): NormalizedDisruption[] {
     if (!id) continue;
 
     const impactedSections = parseImpactedSections(raw.impactedSections);
-    const routeIds = new Set(routeIdsByDisruption.get(id) ?? []);
+    const indexedImpacts = impactsByDisruption.get(id);
+    const routeIds = new Set(indexedImpacts?.routeIds ?? []);
     for (const section of impactedSections) routeIds.add(section.routeId);
     if (routeIds.size === 0) continue;
 
@@ -68,6 +82,9 @@ export function parseDisruptionsBulk(body: unknown): NormalizedDisruption[] {
       routeIds: [...routeIds].sort(),
       periods: parsePeriods(raw.applicationPeriods),
       impactedSections,
+      ...(indexedImpacts?.impactedStops.length
+        ? { impactedStops: indexedImpacts.impactedStops }
+        : {}),
       ...(updatedAt === undefined ? {} : { updatedAt }),
     });
   }
@@ -85,24 +102,57 @@ function severityOf(value: string | null): DisruptionSeverity {
   }
 }
 
-/** `lines[]` is the feed's inverse index: line → the disruptions touching it. */
-function indexRoutesByDisruption(lines: unknown[]): Map<string, string[]> {
-  const index = new Map<string, string[]>();
+type IndexedImpacts = {
+  routeIds: string[];
+  impactedStops: ImpactedStop[];
+};
+
+/**
+ * `lines[]` is the feed's inverse index. Its line object links a disruption to
+ * a route; its stop objects are sometimes the only place a local impact such
+ * as the RER A works at Nation is scoped.
+ */
+function indexImpactsByDisruption(lines: unknown[]): Map<string, IndexedImpacts> {
+  const index = new Map<string, IndexedImpacts>();
   for (const entry of lines) {
     const line = entry as Record<string, unknown>;
     const routeId = routeIdOf(asString(line.id));
     if (!routeId) continue;
 
     for (const object of asArray(line.impactedObjects)) {
-      for (const disruptionId of asArray((object as Record<string, unknown>).disruptionIds)) {
+      const impactedObject = object as Record<string, unknown>;
+      const impactedStop = parseImpactedStop(impactedObject, routeId);
+      for (const disruptionId of asArray(impactedObject.disruptionIds)) {
         if (typeof disruptionId !== 'string') continue;
-        const routes = index.get(disruptionId) ?? [];
-        if (!routes.includes(routeId)) routes.push(routeId);
-        index.set(disruptionId, routes);
+        const impacts = index.get(disruptionId) ?? { routeIds: [], impactedStops: [] };
+        if (!impacts.routeIds.includes(routeId)) impacts.routeIds.push(routeId);
+        if (
+          impactedStop &&
+          !impacts.impactedStops.some(
+            (stop) => stop.routeId === impactedStop.routeId && stop.stopId === impactedStop.stopId
+          )
+        ) {
+          impacts.impactedStops.push(impactedStop);
+        }
+        index.set(disruptionId, impacts);
       }
     }
   }
+  for (const impacts of index.values()) {
+    impacts.routeIds.sort();
+    impacts.impactedStops.sort((left, right) =>
+      left.routeId.localeCompare(right.routeId) || left.stopId.localeCompare(right.stopId)
+    );
+  }
   return index;
+}
+
+function parseImpactedStop(object: Record<string, unknown>, routeId: string): ImpactedStop | null {
+  const type = asString(object.type);
+  if (type !== 'stop_point' && type !== 'stop_area') return null;
+  const stopId = stopIdOf(asString(object.id));
+  const stopName = asString(object.name);
+  return stopId && stopName ? { routeId, stopId, stopName } : null;
 }
 
 function parseImpactedSections(value: unknown): ImpactedSection[] {

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { Journey, JourneyInput, JourneysResponse } from '@via/contract';
 
+import { parseDisruptionsBulk } from '../lines/disruptions/parse';
 import type { DisruptionsSnapshot } from '../lines/disruptions/snapshot';
 import { applyOfficialDisruptions } from './official-disruptions';
 
@@ -54,7 +55,66 @@ describe('official disruption journey overlay', () => {
 
     expect(applyOfficialDisruptions(response, input, future)).toEqual(response);
   });
+
+  /**
+   * The live "RER A : Nation du 29/06 au 30/08" payload names Nation only in
+   * lines[].impactedObjects. Treating the absent impactedSections as a whole-
+   * line closure erased every western RER A journey, including Chatou → Auber.
+   */
+  test('keeps a journey outside blocking works scoped to one station', () => {
+    const response = plan([
+      journey('rer-a-west', 'IDFM:C01742', 'rer', 1_200, ['Chatou - Croissy', 'Auber']),
+    ]);
+
+    const result = applyOfficialDisruptions(response, input, {
+      fetchedAt: epoch('2026-08-26T09:59:00Z'),
+      disruptions: nationWorks(),
+    });
+
+    expect(result.journeys.map((value) => value.id)).toEqual(['rer-a-west']);
+  });
+
+  test('removes a journey that serves the station named by blocking works', () => {
+    const response = plan([
+      journey('rer-a-nation', 'IDFM:C01742', 'rer', 1_200, ['Auber', 'Nation']),
+    ]);
+
+    const result = applyOfficialDisruptions(response, input, {
+      fetchedAt: epoch('2026-08-26T09:59:00Z'),
+      disruptions: nationWorks(),
+    });
+
+    expect(result.journeys).toEqual([]);
+  });
 });
+
+function nationWorks() {
+  return parseDisruptionsBulk({
+    disruptions: [{
+      id: 'nation-works',
+      severity: 'BLOQUANTE',
+      title: 'RER A : Nation du 29/06 au 30/08',
+      applicationPeriods: [{ begin: '20260826T030000', end: '20260827T030000' }],
+    }],
+    lines: [{
+      id: 'line:IDFM:C01742',
+      impactedObjects: [
+        {
+          type: 'line',
+          id: 'line:IDFM:C01742',
+          name: 'A',
+          disruptionIds: ['nation-works'],
+        },
+        {
+          type: 'stop_point',
+          id: 'stop_point:IDFM:monomodalStopPlace:473875',
+          name: 'Nation',
+          disruptionIds: ['nation-works'],
+        },
+      ],
+    }],
+  });
+}
 
 function plan(journeys: Journey[]): JourneysResponse {
   return {
@@ -68,9 +128,12 @@ function plan(journeys: Journey[]): JourneysResponse {
 function journey(
   id: string,
   routeId: string,
-  mode: 'metro' | 'bus',
+  mode: 'metro' | 'rer' | 'bus',
   durationSeconds: number,
+  stopNames: string[] = [],
 ): Journey {
+  const fromName = stopNames[0] ?? 'Départ';
+  const toName = stopNames.at(-1) ?? 'Arrivée';
   return {
     id,
     qualifier: id === 'metro-4' ? 'recommended' : 'rapid',
@@ -85,8 +148,8 @@ function journey(
       id: `${id}-section`,
       type: 'transit',
       durationSeconds,
-      from: { name: 'Départ', coordinate: { latitude: 48.86, longitude: 2.34 } },
-      to: { name: 'Arrivée', coordinate: { latitude: 48.88, longitude: 2.36 } },
+      from: { name: fromName, coordinate: { latitude: 48.86, longitude: 2.34 } },
+      to: { name: toName, coordinate: { latitude: 48.88, longitude: 2.36 } },
       departureAt: '2026-08-26T10:00:00Z',
       arrivalAt: '2026-08-26T10:20:00Z',
       geometry: [],
@@ -98,7 +161,11 @@ function journey(
         color: '#000000',
         textColor: '#FFFFFF',
       },
-      stops: [],
+      stops: stopNames.map((name, index) => ({
+        id: `IDFM:stop-${index}`,
+        name,
+        coordinate: { latitude: 48.86 + index * 0.01, longitude: 2.34 + index * 0.01 },
+      })),
       timingSource: 'theoretical',
     }],
   };
