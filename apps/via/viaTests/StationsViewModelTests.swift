@@ -300,6 +300,73 @@ final class StationsViewModelTests: XCTestCase {
         XCTAssertEqual(compactSummary.map(\.id), ["metro-first", "bus-first"])
     }
 
+    func testCompactBoardKeepsBothDirectionsOfALineWithOnePassageEach() {
+        let now = Date(timeIntervalSince1970: 2_000_000)
+        let metro = route(id: "metro-4", shortName: "4", mode: .metro)
+        let bus = route(id: "bus", shortName: "38", mode: .bus)
+        let board = DepartureBoard(
+            source: .realtime,
+            generatedAt: now,
+            groups: [
+                DepartureGroup(
+                    route: metro,
+                    destination: "Bagneux",
+                    departureItems: [
+                        DepartureItem(
+                            id: "metro-cancelled",
+                            scheduledAt: now.addingTimeInterval(120),
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .cancelled
+                        )
+                    ]
+                ),
+                DepartureGroup(
+                    route: metro,
+                    destination: "Porte de Clignancourt",
+                    departureItems: [
+                        DepartureItem(
+                            id: "metro-other-direction",
+                            scheduledAt: now.addingTimeInterval(240),
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .onTime
+                        ),
+                        DepartureItem(
+                            id: "metro-other-direction-later",
+                            scheduledAt: now.addingTimeInterval(480),
+                            expectedAt: nil,
+                            delaySeconds: nil,
+                            status: .onTime
+                        ),
+                    ]
+                ),
+                DepartureGroup(
+                    route: bus,
+                    destination: "Gare du Nord",
+                    departures: [now.addingTimeInterval(300)]
+                ),
+            ]
+        )
+        let departures = StationOverviewBuilder.nextDepartures(
+            from: board,
+            routes: [metro, bus],
+            now: now
+        )
+
+        // Both directions of the metro draw their own row, each on its own next
+        // passage and on that one only — the second Clignancourt passage belongs
+        // to the line sheet, not to the compact board.
+        XCTAssertEqual(
+            departures.map(\.destination),
+            ["Bagneux", "Porte de Clignancourt", "Gare du Nord"]
+        )
+        XCTAssertEqual(
+            departures.prefix(2).map(\.id),
+            ["metro-cancelled", "metro-other-direction"]
+        )
+    }
+
     @MainActor
     func testViewModelLoadsNearestStationAndDepartureBoard() async {
         let location = InMemoryLocationAdapter(
