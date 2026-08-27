@@ -65,12 +65,13 @@ export function journeyUrl(baseUrl: string, input: JourneyInput, requestedAt: Da
   url.searchParams.set('datetime', compactParisDateTime(requestedAt));
   url.searchParams.set('datetime_represents', input.datetimeRepresents ?? 'departure');
   if (input.requiresAccessibleStations) url.searchParams.set('wheelchair', 'true');
-  url.searchParams.append('direct_path_mode[]', 'walking');
-  // A bike-only alternative makes no sense on a journey constrained for
-  // step-free travel.
-  if (!input.requiresAccessibleStations && !input.requiresOperationalElevators) {
-    url.searchParams.append('direct_path_mode[]', 'bike');
-  }
+  // PRIM plans transit, and only transit. Asked for a direct path as well,
+  // Navitia spends `count` slots on it and drops every transit journey that
+  // arrives later than it — and a bike path beats a two-transfer metro journey
+  // often enough that the list came back with nothing to ride. The walk and the
+  // ride are computed on the device instead, where they cost no journey slot
+  // and no street-network routing over a six-hour walk.
+  url.searchParams.set('direct_path', 'none');
   for (const mode of input.requiredModes ?? []) {
     url.searchParams.append('allowed_id[]', physicalModeUri(mode));
   }

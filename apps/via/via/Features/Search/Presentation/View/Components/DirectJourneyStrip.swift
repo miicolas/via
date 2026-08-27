@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Walking and cycling, kept beside the search rather than in it: a strip of
-/// tiles above the transit list, read the way the saved lines are, so the
+/// Walking and cycling, kept beside the search rather than in it: a titled row
+/// of tiles above the transit list, read the way the saved lines are, so the
 /// itineraries the traveller came for stay the answer.
 struct DirectJourneyStrip: View {
   let journeys: [Journey]
@@ -11,25 +11,31 @@ struct DirectJourneyStrip: View {
   @State private var selectionTick = 0
 
   var body: some View {
-    ScrollView(.horizontal) {
-      HStack(spacing: 12) {
-        ForEach(journeys) { journey in
-          Button {
-            selectionTick += 1
-            onSelect(journey)
-          } label: {
-            DirectJourneyTile(
-              journey: journey,
-              isSelected: selectedJourneyID == journey.id
-            )
+    VStack(alignment: .leading, spacing: 8) {
+      Text("À pied ou à vélo")
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(.secondary)
+
+      ScrollView(.horizontal) {
+        HStack(spacing: 12) {
+          ForEach(journeys) { journey in
+            Button {
+              selectionTick += 1
+              onSelect(journey)
+            } label: {
+              DirectJourneyTile(
+                journey: journey,
+                isSelected: selectedJourneyID == journey.id
+              )
+            }
+            .buttonStyle(.plain)
           }
-          .buttonStyle(.plain)
         }
+        .padding(.vertical, 4)
       }
-      .padding(.vertical, 4)
+      .scrollIndicators(.hidden)
+      .scrollClipDisabled()
     }
-    .scrollIndicators(.hidden)
-    .scrollClipDisabled()
     // Retaining an itinerary opens the detail over the map: the decision that
     // ends the search.
     .haptic(Haptic.commit, on: selectionTick)

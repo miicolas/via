@@ -16,7 +16,20 @@ struct SearchJourneyResultsView: View {
   @State private var selectionTick = 0
 
   var body: some View {
-    content
+    VStack(alignment: .leading, spacing: 16) {
+      // Walking and cycling are an aside to every outcome, not one of them:
+      // they stay a row of tiles above whatever the transit list turned out to
+      // be — a list, an empty state, or a planner that did not answer.
+      if !directJourneys.isEmpty {
+        DirectJourneyStrip(
+          journeys: directJourneys,
+          selectedJourneyID: selectedJourneyID,
+          onSelect: onSelectJourney
+        )
+      }
+
+      content
+    }
     .frame(maxWidth: .infinity, alignment: .leading)
     // Reminders are set from a context menu that closes over the result: the
     // list underneath is the only thing left to answer.
@@ -50,7 +63,9 @@ struct SearchJourneyResultsView: View {
     case .noRoute:
       noRouteContent(result: result)
     case .unavailable:
-      if result?.reason == .accessibilityDataUnavailable {
+      if result?.reason == .transitUnavailable {
+        stateContent(.transitUnavailable, actionTitle: "Réessayer")
+      } else if result?.reason == .accessibilityDataUnavailable {
         stateContent(.accessibilityUnavailable, actionTitle: "Réessayer")
       } else if result?.reason == .elevatorDataUnavailable {
         stateContent(.elevatorDataUnavailable, actionTitle: "Réessayer")
@@ -88,45 +103,32 @@ struct SearchJourneyResultsView: View {
     )
   }
 
+  @ViewBuilder
   private func resultsContent(_ result: JourneyResult) -> some View {
     let transit = Array(transitJourneys(in: result).prefix(4))
-    let direct = directJourneys(in: result)
 
-    return VStack(alignment: .leading, spacing: 14) {
-      HStack(alignment: .firstTextBaseline) {
-        Text("Choisir un itinéraire")
-          .font(.title3.weight(.bold))
+    // A plan that came back with nothing to ride is a dead end for the transit
+    // list, whatever the tiles above it offer.
+    if transit.isEmpty {
+      stateContent(.noTransitRoute, actionTitle: "Réessayer")
+    } else {
+      VStack(alignment: .leading, spacing: 14) {
+        HStack(alignment: .firstTextBaseline) {
+          Text("Choisir un itinéraire")
+            .font(.title3.weight(.bold))
 
-        Spacer()
+          Spacer()
 
-        Text(transit.count + direct.count, format: .number)
-          .font(.caption.weight(.bold))
-          .foregroundStyle(.secondary)
-          .padding(.horizontal, 9)
-          .padding(.vertical, 5)
-          .background(.secondary.opacity(0.1), in: Capsule())
-          .accessibilityLabel("\(transit.count + direct.count) itinéraires proposés")
-      }
+          Text(transit.count, format: .number)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(.secondary.opacity(0.1), in: Capsule())
+            .accessibilityLabel("\(transit.count) itinéraires proposés")
+        }
 
-      // The self-powered routes are an aside, not a competitor: they sit above
-      // the list as two tiles, the way the saved lines do, and give back the
-      // whole column to the transit answers.
-      if !direct.isEmpty, !transit.isEmpty {
-        DirectJourneyStrip(
-          journeys: direct,
-          selectedJourneyID: selectedJourneyID,
-          onSelect: onSelectJourney
-        )
-      }
-
-      ForEach(transit) { journey in
-        journeyCard(journey, in: result)
-      }
-
-      // With nothing to ride, walking *is* the answer: it goes back to a full
-      // card rather than leaving the screen on two chips.
-      if transit.isEmpty {
-        ForEach(direct) { journey in
+        ForEach(transit) { journey in
           journeyCard(journey, in: result)
         }
       }
@@ -161,7 +163,7 @@ struct SearchJourneyResultsView: View {
   }
 
   /// A journey the traveller covers on their own legs or wheels. It never
-  /// competes with the transit list — it reads under its own heading below.
+  /// competes with the transit list — it reads as a tile in the row above it.
   private func isDirectPath(_ journey: Journey) -> Bool {
     JourneyShape.of(journey).isDirectPath
   }
@@ -170,8 +172,8 @@ struct SearchJourneyResultsView: View {
     result.journeys.filter { !isDirectPath($0) }
   }
 
-  private func directJourneys(in result: JourneyResult) -> [Journey] {
-    result.journeys.filter(isDirectPath)
+  private var directJourneys: [Journey] {
+    result?.journeys.filter(isDirectPath) ?? []
   }
 
   @ViewBuilder
@@ -180,6 +182,10 @@ struct SearchJourneyResultsView: View {
       stateContent(.noAccessibleRoute, actionTitle: "Réessayer")
     } else if result?.reason == .noOperationalElevatorRoute {
       stateContent(.noOperationalElevatorRoute, actionTitle: "Réessayer")
+    } else if !directJourneys.isEmpty {
+      // Saying "no itinerary" over a row of tiles the traveller can see would
+      // contradict the screen: what is missing is the ride.
+      stateContent(.noTransitRoute, actionTitle: "Réessayer")
     } else {
       EmptyStateView(
         EmptyState(
