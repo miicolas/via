@@ -32,7 +32,10 @@ test('sends exact arrival time and modal constraints to IDFM', () => {
     'physical_mode:RapidTransit',
     'physical_mode:Metro',
   ]);
-  expect(url.searchParams.getAll('direct_path_mode[]')).toEqual(['walking', 'bike']);
+  // The walk and the ride are on-device work: a direct path here would eat
+  // journey slots and filter out every transit journey slower than it.
+  expect(url.searchParams.get('direct_path')).toBe('none');
+  expect(url.searchParams.getAll('direct_path_mode[]')).toEqual([]);
 });
 
 test('pins a PMR station journey to the selected stop areas', () => {
@@ -54,8 +57,7 @@ test('pins a PMR station journey to the selected stop areas', () => {
   expect(url.searchParams.get('from')).toBe('stop_area:IDFM:71410');
   expect(url.searchParams.get('to')).toBe('stop_area:IDFM:71264');
   expect(url.searchParams.get('wheelchair')).toBe('true');
-  // A step-free journey never advertises a bike alternative.
-  expect(url.searchParams.getAll('direct_path_mode[]')).toEqual(['walking']);
+  expect(url.searchParams.get('direct_path')).toBe('none');
 });
 
 test('preserves a Navitia-qualified stop point when pinning departure choices', () => {
