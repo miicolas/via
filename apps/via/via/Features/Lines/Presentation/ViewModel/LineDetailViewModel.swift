@@ -44,8 +44,11 @@ final class LineDetailViewModel {
     /// The complete physical topology: one station node and the actual edges
     /// joining every branch to its shared stems and trunk.
     var diagram: LinePlan.Diagram {
-        guard let detail = detail.value, let direction = detail.planDirection else { return .empty }
-        return LinePlan.diagram(for: direction, disruptions: detail.disruptions)
+        guard let detail = detail.value else { return .empty }
+        return LinePlan.diagram(
+            for: detail.schemaDirections,
+            disruptions: detail.disruptions
+        )
     }
 
 }
