@@ -96,14 +96,38 @@ enum LinePlan {
         }
     }
 
-    /// A platform-display schematic. Sections own stations once, lanes place
-    /// parallel branches beside the main path, and edges describe the real
-    /// merges and forks between them.
+    /// A direction-aware topology or its direction-independent presentation.
+    /// Sections always own stations once; edges retain the real merges and
+    /// forks. The complete presentation turns those sections into contiguous
+    /// paths whose roles explain how branches and loops reconnect.
     struct Diagram: Hashable {
         struct Section: Identifiable, Hashable {
+            /// How an independently readable path belongs to the complete
+            /// physical line. Branches deliberately carry their junction so
+            /// the presentation never has to imply that the preceding row is
+            /// connected to them.
+            enum Role: Hashable {
+                case main
+                case branch(name: String, junction: String?)
+                case loop(from: String, to: String)
+            }
+
             let id: String
             let lane: Int
+            let role: Role
             let stops: [StopRow]
+
+            init(
+                id: String,
+                lane: Int,
+                role: Role = .main,
+                stops: [StopRow]
+            ) {
+                self.id = id
+                self.lane = lane
+                self.role = role
+                self.stops = stops
+            }
         }
 
         struct Edge: Hashable {
@@ -213,7 +237,13 @@ enum LinePlan {
         let incoming = Dictionary(grouping: edgeIndexes, by: \.to).mapValues(\.count)
         let outgoing = Dictionary(grouping: edgeIndexes, by: \.from).mapValues(\.count)
         let sections = strips.enumerated().map { index, strip in
-            Diagram.Section(
+            let sectionRole: Diagram.Section.Role = switch strip.role {
+            case .trunk:
+                .main
+            case .branch(let name):
+                .branch(name: name, junction: nil)
+            }
+            return Diagram.Section(
                 id: strip.id,
                 lane: lane(
                     for: sourceSections[index],
@@ -222,6 +252,7 @@ enum LinePlan {
                     originLanes: originLanes,
                     terminusLanes: terminusLanes
                 ),
+                role: sectionRole,
                 stops: strip.stops.enumerated().map { stopIndex, row in
                     StopRow(
                         stop: row.stop,

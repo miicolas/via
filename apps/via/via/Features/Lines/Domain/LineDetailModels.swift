@@ -98,18 +98,6 @@ struct LineDetail: Sendable, Hashable {
         activeDisruptions.map(\.condition).max { $0.severityRank < $1.severityRank } ?? .normal
     }
 
-    /// The one direction the plan is drawn from. A plan de ligne has no
-    /// direction — the other way round is the same stations read upwards — so
-    /// the screen shows the richest one instead of asking the rider to pick a
-    /// side before seeing anything.
-    var planDirection: LineDirection? {
-        schemaDirections.max { left, right in
-            let counts = (left.sections.reduce(0) { $0 + $1.stops.count },
-                          right.sections.reduce(0) { $0 + $1.stops.count })
-            return counts.0 == counts.1 ? left.directionId > right.directionId : counts.0 < counts.1
-        }
-    }
-
     /// The schema the screen draws: the complete merged directions, degrading
     /// to the legacy branch strips while the server tables are still empty.
     var schemaDirections: [LineDirection] {

@@ -21,13 +21,29 @@ final class LineDetailViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func testThePlanIsDrawnFromTheRichestDirection() async {
+    func testTheCompletePlanUsesTheRichestDirectionAsItsStableReference() async {
         let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
 
-        // Direction 1 of the fixture is a stub; the plan takes the complete one.
-        XCTAssertEqual(viewModel.detail.value?.planDirection?.id, "direction-0")
-        XCTAssertEqual(viewModel.diagram.sections.count, 7)
-        XCTAssertEqual(viewModel.diagram.sections.map(\.lane), [0, 1, 2, 1, 0, 0, 1])
+        // Direction 1 of the fixture is a stub. The richer direction fixes the
+        // stable orientation, but the plan remains a union of every direction
+        // rather than a copy of that direction alone.
+        XCTAssertEqual(viewModel.diagram.sections.map(\.role), [
+            .main,
+            .branch(name: "Poissy", junction: "Sartrouville"),
+            .branch(name: "Saint-Germain-en-Laye", junction: "Nanterre-Préfecture"),
+            .branch(name: "Boissy-St-Léger", junction: "Vincennes"),
+        ])
+        XCTAssertEqual(viewModel.diagram.sections.map { $0.stops.map(\.stop.name) }, [
+            [
+                "Cergy-le-Haut", "Conflans-Fin-d'Oise", "Sartrouville", "Maisons-Laffitte",
+                "Nanterre-Préfecture", "La Défense", "Auber", "Châtelet — Les Halles",
+                "Gare de Lyon", "Nation", "Vincennes", "Val de Fontenay",
+                "Noisy-le-Grand — Mont d'Est", "Val d'Europe", "Marne-la-Vallée – Chessy",
+            ],
+            ["Achères-Ville", "Poissy"],
+            ["Le Vésinet — Le Pecq", "Saint-Germain-en-Laye"],
+            ["Joinville-le-Pont", "Boissy-St-Léger"],
+        ])
     }
 
     @MainActor
@@ -53,7 +69,6 @@ final class LineDetailViewModelTests: XCTestCase {
         )
         let viewModel = await makeViewModel(detail: legacy)
 
-        XCTAssertEqual(viewModel.detail.value?.planDirection?.id, "branch-p-m1-0")
         XCTAssertEqual(viewModel.diagram.sections.flatMap { $0.stops.map(\.stop.id) }, ["a", "b"])
     }
 
@@ -67,5 +82,84 @@ final class LineDetailViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.diagram.sections.contains { section in
             section.stops.contains { $0.condition != nil }
         })
+    }
+
+    @MainActor
+    func testTheCompletePlanIncludesTheDirectionSpecificLoopOfMetro10() async {
+        let detail = LineDetail(
+            route: PreviewLineStatusRepository.metro1,
+            branches: [],
+            directions: [
+                LineDirection(
+                    id: "direction-0",
+                    directionId: 0,
+                    label: "Terminus ouest",
+                    sections: [
+                        LineSchemaSection(
+                            role: .trunk,
+                            label: nil,
+                            origins: ["east"],
+                            termini: ["west"],
+                            stops: [
+                                LineSchemaStop(id: "javel", name: "Javel"),
+                                LineSchemaStop(id: "eglise", name: "Église d'Auteuil"),
+                                LineSchemaStop(id: "auteuil", name: "Michel-Ange - Auteuil"),
+                                LineSchemaStop(id: "porte", name: "Porte d'Auteuil"),
+                                LineSchemaStop(id: "boulogne", name: "Boulogne Jean Jaurès"),
+                                LineSchemaStop(id: "pont", name: "Boulogne Pont de Saint-Cloud"),
+                            ]
+                        )
+                    ]
+                ),
+                LineDirection(
+                    id: "direction-1",
+                    directionId: 1,
+                    label: "Terminus est",
+                    sections: [
+                        LineSchemaSection(
+                            role: .trunk,
+                            label: nil,
+                            origins: ["west"],
+                            termini: ["east"],
+                            stops: [
+                                LineSchemaStop(id: "pont", name: "Boulogne Pont de Saint-Cloud"),
+                                LineSchemaStop(id: "boulogne", name: "Boulogne Jean Jaurès"),
+                                LineSchemaStop(id: "molitor", name: "Michel-Ange - Molitor"),
+                                LineSchemaStop(id: "chardon", name: "Chardon Lagache"),
+                                LineSchemaStop(id: "mirabeau", name: "Mirabeau"),
+                                LineSchemaStop(id: "javel", name: "Javel"),
+                            ]
+                        )
+                    ]
+                ),
+            ],
+            source: .live,
+            fetchedAt: nil,
+            disruptions: []
+        )
+        let viewModel = await makeViewModel(detail: detail)
+
+        XCTAssertEqual(
+            Set(viewModel.diagram.sections.flatMap { $0.stops.map(\.stop.id) }),
+            [
+                "javel", "eglise", "auteuil", "porte", "boulogne", "pont",
+                "molitor", "chardon", "mirabeau",
+            ]
+        )
+        XCTAssertEqual(viewModel.diagram.sections.map { $0.stops.map(\.stop.id) }, [
+            ["javel", "eglise", "auteuil", "porte", "boulogne", "pont"],
+            ["mirabeau", "chardon", "molitor"],
+        ])
+        XCTAssertEqual(viewModel.diagram.sections.map(\.role), [
+            .main,
+            .loop(from: "Javel", to: "Boulogne Jean Jaurès"),
+        ])
+        XCTAssertEqual(
+            LinePlan.diagram(
+                for: Array(detail.directions.reversed()),
+                disruptions: detail.disruptions
+            ),
+            viewModel.diagram
+        )
     }
 }

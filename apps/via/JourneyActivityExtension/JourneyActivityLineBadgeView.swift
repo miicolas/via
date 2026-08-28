@@ -13,21 +13,30 @@ struct JourneyActivityLineBadgeView: View {
     @Environment(\.isLuminanceReduced) private var isLuminanceReduced
 
     var body: some View {
-        let horizontalPadding: CGFloat = line.shortName.count > 2 ? 4 : 0
-
-        Text(line.shortName)
+        let isCompact = line.shortName.count <= 2
+        let horizontalPadding: CGFloat = isCompact ? 0 : 4
+        let label = Text(line.shortName)
             .font(.system(size: max(11, size * 0.5), weight: .bold, design: .rounded).monospacedDigit())
             .lineLimit(1)
             .truncationMode(.tail)
             .allowsTightening(true)
             .minimumScaleFactor(0.75)
             .foregroundStyle(isLuminanceReduced ? lineColor : textColor)
-            .frame(
-                minWidth: max(0, size - horizontalPadding * 2),
-                maxWidth: max(size, size * 2 - horizontalPadding * 2),
-                minHeight: size
-            )
-            .padding(.horizontal, horizontalPadding)
+
+        Group {
+            if isCompact {
+                label
+                    .frame(width: size, height: size)
+            } else {
+                label
+                    .frame(
+                        minWidth: max(0, size - horizontalPadding * 2),
+                        maxWidth: max(size, size * 2 - horizontalPadding * 2),
+                        minHeight: size
+                    )
+                    .padding(.horizontal, horizontalPadding)
+            }
+        }
             .background {
                 if isLuminanceReduced {
                     shape.strokeBorder(lineColor, lineWidth: 1.5)

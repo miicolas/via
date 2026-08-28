@@ -28,25 +28,33 @@ struct LineBadgeView: View {
     @ViewBuilder
     private var content: some View {
         if showsLabel {
-            let horizontalPadding: CGFloat = route.shortName.count > 2 ? 4 : 0
-
-            Text(route.shortName)
+            let isCompact = route.shortName.count <= 2
+            let horizontalPadding: CGFloat = isCompact ? 0 : 4
+            let label = Text(route.shortName)
                 .font(.system(size: max(11, size * 0.5), weight: .bold, design: .rounded).monospacedDigit())
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .allowsTightening(true)
                 .minimumScaleFactor(0.75)
                 .foregroundStyle(Color(transitHex: route.textColorHex, fallback: .white))
-                // A malformed or unusually long route label must not push the
-                // destination, station name, or neighbouring badge off-screen.
-                // Keep the usual short labels intrinsic, but give every badge a
-                // finite ceiling and let the label truncate inside it.
-                .frame(
-                    minWidth: max(0, size - horizontalPadding * 2),
-                    maxWidth: max(size, size * 2 - horizontalPadding * 2),
-                    minHeight: size
-                )
-                .padding(.horizontal, horizontalPadding)
+
+            if isCompact {
+                // One- and two-character lines keep the familiar square badge.
+                label
+                    .frame(width: size, height: size)
+            } else {
+                // Longer labels grow only as much as their text needs. The
+                // ceiling is a last-resort guard for malformed route names;
+                // lineLimit then truncates those names instead of overflowing
+                // the destination or a neighbouring badge.
+                label
+                    .frame(
+                        minWidth: max(0, size - horizontalPadding * 2),
+                        maxWidth: max(size, size * 2 - horizontalPadding * 2),
+                        minHeight: size
+                    )
+                    .padding(.horizontal, horizontalPadding)
+            }
         } else {
             Color.clear
                 .frame(width: size, height: size)
