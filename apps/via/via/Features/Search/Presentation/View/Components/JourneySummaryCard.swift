@@ -15,7 +15,7 @@ struct JourneySummaryCard: View {
       route
       details
 
-      if let warning = journey.warnings.first {
+      if let warning = visibleWarnings.first {
         warningBanner(warning)
       }
     }
@@ -316,10 +316,14 @@ struct JourneySummaryCard: View {
       value += peak.stationName.map { ", affluence à \($0) : \(peak.label)" }
         ?? ", affluence \(peak.label)"
     }
-    if !journey.warnings.isEmpty {
-      value += ", avertissement : \(journey.warnings.formatted())"
+    if !visibleWarnings.isEmpty {
+      value += ", avertissement : \(visibleWarnings.formatted())"
     }
     return value
+  }
+
+  private var visibleWarnings: [String] {
+    JourneyWarningPresentation.visibleWarnings(from: journey.warnings)
   }
 }
 

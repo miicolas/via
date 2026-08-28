@@ -24,14 +24,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     @ObservationIgnored private var recalculationTask: Task<Void, Never>?
     @ObservationIgnored private var recalculationID: UUID?
     @ObservationIgnored private var lastAutomaticRecalculationSectionID: String?
-    /// Keyed on every input the projection reads: the instant and the session
-    /// value. Connectivity never decides whether a Core Location fix is live;
-    /// GPS can remain reliable without a data connection.
-    @ObservationIgnored private var progressCache: (
-        date: Date,
-        session: ActiveJourneySession,
-        value: JourneyProgress?
-    )?
     @ObservationIgnored private var isRestoring = false
     @ObservationIgnored private var restoreWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -77,61 +69,21 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
     var highlightedSectionID: String? {
         guard let session else { return nil }
-        let index = progress(at: referenceDate)?.sectionIndex ?? session.currentSectionIndex
-        return session.journey.sections.indices.contains(index)
-            ? session.journey.sections[index].id
+        return session.journey.sections.indices.contains(session.currentSectionIndex)
+            ? session.journey.sections[session.currentSectionIndex].id
             : nil
     }
-
-    /// Continuous position along the journey, for the timeline cursor, the
-    /// route dimming on the map and the Live Activity.
-    ///
-    /// Recomputed rather than stored: `referenceDate` is already bumped on every
-    /// monitoring tick and every location sample, so the value stays fresh
-    /// without a second source of truth to keep in sync.
-    var progress: JourneyProgress? { progress(at: referenceDate) }
 
     /// The one sentence describing what to do now, shared by the guidance
     /// header, the tab bar accessory and the Live Activity.
     var guidanceHeadline: JourneyGuidanceHeadline? { guidanceHeadline(at: referenceDate) }
 
-    /// One projection per set of inputs. `highlightedSectionID`, `progress`,
-    /// `nextInstruction`, `isPositionEstimated` and `guidanceHeadline` all ask
-    /// at the same instant, and a projection builds a polyline per section and
-    /// scans it once per stop — running it five times a frame was the cost.
-    func progress(at date: Date) -> JourneyProgress? {
-        guard let session else { return nil }
-        let effectiveDate = requiresResume ? referenceDate : date
-        if let cached = progressCache,
-           cached.date == effectiveDate,
-           cached.session == session {
-            return cached.value
-        }
-
-        let schedule = ActiveJourneyRules.schedule(for: session.journey)
-        let useLiveLocation = isLocationUsable(at: effectiveDate)
-        let value = JourneyProgressProjector.progress(
-            schedule: schedule,
-            sectionIndex: ActiveJourneyRules.resolvedSectionIndex(
-                in: session,
-                schedule: schedule,
-                isLive: useLiveLocation,
-                at: effectiveDate
-            ),
-            at: effectiveDate,
-            coordinate: useLiveLocation ? session.lastCoordinate : nil,
-            horizontalAccuracy: useLiveLocation ? session.horizontalAccuracy : nil
-        )
-        progressCache = (effectiveDate, session, value)
-        return value
-    }
-
     func guidanceHeadline(at date: Date) -> JourneyGuidanceHeadline? {
-        guard let session, let progress = progress(at: date) else { return nil }
+        guard let session else { return nil }
         return JourneyGuidance.headline(
             journey: session.journey,
             schedule: ActiveJourneyRules.schedule(for: session.journey),
-            progress: progress,
+            sectionIndex: session.currentSectionIndex,
             at: date,
             isPaused: requiresResume
         )
@@ -143,8 +95,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     /// look-ahead survives, for the Live Activity's "Ensuite" line.
     var nextInstruction: ActiveJourneyInstruction? {
         guard let session else { return nil }
-        let index = progress(at: referenceDate)?.sectionIndex ?? session.currentSectionIndex
-        return instruction(at: index + 1)
+        return instruction(at: session.currentSectionIndex + 1)
     }
 
     var isOffline: Bool { !isConnected || recalculationState == .offline }
@@ -156,14 +107,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         session?.allowsBackgroundTracking == true
     }
     var hasLiveLocationFix: Bool { isLocationUsable(at: referenceDate) }
-    var isPositionEstimated: Bool { isPositionEstimated(progress) }
-
-    /// One rule for "we are guessing where you are", so the panel banner and
-    /// the Live Activity cannot disagree. Takes the projection the caller
-    /// already has rather than running a second one.
-    func isPositionEstimated(_ progress: JourneyProgress?) -> Bool {
-        isTracking && !(progress?.isLocationDerived ?? false)
-    }
+    var currentSectionIndex: Int? { session?.currentSectionIndex }
 
     func phase(at date: Date) -> ActiveJourneyPhase {
         guard let journey else { return .underway }
@@ -243,6 +187,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         current.horizontalAccuracy = nil
         current.lastLocationAt = coordinate == nil ? nil : referenceDate
         self.session = current
+        updateSectionFromLocation(at: referenceDate)
 
         startLocationTracking(allowsBackgroundUpdates: allowsBackgroundTracking)
         startTimeMonitoring()
@@ -285,7 +230,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         arrival = nil
         recalculationState = .idle
         requiresResume = true
-        evaluateProgress(at: referenceDate)
+        updateSectionFromLocation(at: referenceDate)
         startTimeMonitoring()
         await updateActivity()
     }
@@ -299,7 +244,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         }
 
         requiresResume = false
-        evaluateProgress(at: referenceDate)
+        updateSectionFromLocation(at: referenceDate)
         startTimeMonitoring()
         if session.isTrackingStarted {
             startLocationTracking(
@@ -329,7 +274,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             return
         }
 
-        evaluateProgress(at: referenceDate)
+        updateSectionFromLocation(at: referenceDate)
         startTimeMonitoring()
         if session.isTrackingStarted {
             await journeyNotificationManager.registerActiveJourney(session.journey)
@@ -337,33 +282,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
                 allowsBackgroundUpdates: session.allowsBackgroundTracking
             )
         }
-        await persist()
-        await updateActivity()
-    }
-
-    func moveToPreviousSection() async {
-        guard var session else { return }
-        session.currentSectionIndex = max(0, session.currentSectionIndex - 1)
-        session.manualOverrideUntil = now().addingTimeInterval(
-            ActiveJourneyRules.standardMonitoringInterval
-        )
-        self.session = session
-        referenceDate = now()
-        await persist()
-        await updateActivity()
-    }
-
-    func moveToNextSection() async {
-        guard var session else { return }
-        session.currentSectionIndex = min(
-            max(0, session.journey.sections.count - 1),
-            session.currentSectionIndex + 1
-        )
-        session.manualOverrideUntil = now().addingTimeInterval(
-            ActiveJourneyRules.standardMonitoringInterval
-        )
-        self.session = session
-        referenceDate = now()
         await persist()
         await updateActivity()
     }
@@ -426,8 +344,8 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
 
     /// Applies a same-identity schedule revision without restarting guidance.
-    /// Position, tracking, manual progress and the existing Live Activity all
-    /// remain attached to the running session.
+    /// The current section and native location fix remain attached to the
+    /// running session.
     func applyDepartureRevision(_ journey: Journey) async {
         guard var current = session, current.journey.id == journey.id else { return }
         let currentSectionID = current.currentSection?.id
@@ -436,7 +354,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
            let revisedIndex = journey.sections.firstIndex(where: { $0.id == currentSectionID }) {
             current.currentSectionIndex = revisedIndex
         } else {
-            current.currentSectionIndex = ActiveJourneyRules.sectionIndex(in: journey, at: now())
+            current.currentSectionIndex = min(
+                current.currentSectionIndex,
+                max(0, journey.sections.count - 1)
+            )
         }
         session = current
         referenceDate = now()
@@ -468,13 +389,12 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             session.lastLocationAt = sample.recordedAt
         }
         self.session = session
-        evaluateProgress(at: referenceDate)
+        updateSectionFromLocation(at: referenceDate)
         let didChangeSection = self.session?.currentSectionIndex != previousSectionIndex
         let didChangeLocationMode = wasLiveLocation != isLocationUsable(at: referenceDate)
 
         // A buffered point can still be useful for diagnostics, but it must
-        // not finish the journey after a newer fix (or while the timetable
-        // fallback is deliberately in charge).
+        // not finish the journey after a newer fix.
         if isNewSample,
            isLocationUsable(at: referenceDate),
            ActiveJourneyRules.hasArrived(
@@ -526,10 +446,11 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             destination: destination,
             source: source,
             planningPolicy: planningPolicy,
-            currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: activatedAt),
+            // No timetable-based position: until Core Location confirms a
+            // section, guidance stays at the journey's first step.
+            currentSectionIndex: 0,
             lastCoordinate: nil,
             horizontalAccuracy: nil,
-            manualOverrideUntil: nil,
             isTrackingStarted: false,
             allowsBackgroundTracking: false
         )
@@ -582,7 +503,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         }
         guard !requiresResume else { return }
 
-        evaluateProgress(at: referenceDate)
         await persist()
         await updateActivity()
         if isCurrentConnectionCompromised(at: referenceDate) {
@@ -590,17 +510,22 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         }
     }
 
-    private func evaluateProgress(at date: Date) {
+    private func updateSectionFromLocation(at date: Date) {
         guard var session else { return }
-        if let override = session.manualOverrideUntil, date < override { return }
-        session.manualOverrideUntil = nil
+        guard isLocationUsable(at: date),
+              let coordinate = session.lastCoordinate else {
+            self.session = session
+            return
+        }
 
-        session.currentSectionIndex = ActiveJourneyRules.resolvedSectionIndex(
-            in: session,
-            schedule: ActiveJourneyRules.schedule(for: session.journey),
-            isLive: isLocationUsable(at: date),
-            at: date
-        )
+        let schedule = ActiveJourneyRules.schedule(for: session.journey)
+        if let sectionIndex = JourneyLocationMatcher.nearestSectionIndex(
+            schedule: schedule,
+            to: coordinate,
+            horizontalAccuracy: session.horizontalAccuracy
+        ) {
+            session.currentSectionIndex = sectionIndex
+        }
         self.session = session
     }
 
@@ -693,7 +618,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             }
             referenceDate = now()
             if session?.isTrackingStarted == true {
-                evaluateProgress(at: referenceDate)
                 locationModel.refreshJourneyTracking()
             }
         } else {
@@ -741,11 +665,13 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             destination: previous.destination,
             source: source,
             planningPolicy: previous.planningPolicy,
-            currentSectionIndex: ActiveJourneyRules.sectionIndex(in: journey, at: acceptedAt),
+            currentSectionIndex: min(
+                previous.currentSectionIndex,
+                max(0, journey.sections.count - 1)
+            ),
             lastCoordinate: previous.lastCoordinate,
             horizontalAccuracy: previous.horizontalAccuracy,
             lastLocationAt: previous.lastLocationAt,
-            manualOverrideUntil: nil,
             isTrackingStarted: previous.isTrackingStarted,
             allowsBackgroundTracking: previous.allowsBackgroundTracking
         )
@@ -893,7 +819,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         // The lock screen says the same sentence as the guidance header and the
         // tab bar accessory, from the same derivation.
         let headline = guidanceHeadline
-        let currentProgress = progress
         let instructionTitle: String
         let instructionDetail: String?
         if isArrived {
@@ -919,10 +844,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             arrivalAt: journey?.arrivalAt ?? referenceDate,
             isOffline: isArrived ? false : isOffline,
             isArrived: isArrived,
-            isEstimated: statePhase == .underway && isPositionEstimated(currentProgress),
-            progressFraction: isArrived ? 1 : currentProgress?.overallFraction ?? 0,
-            stopsRemaining: isArrived ? nil : headline?.stopsUntilAlighting,
-            alightStopName: isArrived ? nil : headline?.alightStopName,
             phase: statePhase,
             departureAt: journey?.departureAt
         )
@@ -965,10 +886,6 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             arrivalAt: session.journey.arrivalAt,
             isOffline: false,
             isArrived: false,
-            isEstimated: false,
-            progressFraction: 1,
-            stopsRemaining: nil,
-            alightStopName: nil,
             phase: .ended,
             departureAt: session.journey.departureAt
         )

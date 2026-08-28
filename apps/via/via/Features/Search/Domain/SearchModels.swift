@@ -137,6 +137,16 @@ enum SearchResult: Sendable, Hashable, Identifiable {
         }
     }
 
+    /// Transit lines are part of a station result only. Keeping the other
+    /// result kinds empty lets compact search tokens opt into badges without
+    /// teaching them about every kind of place.
+    var lineRoutes: [RouteBadge] {
+        switch self {
+        case .station(let station): station.routes
+        case .address, .bikeStation: []
+        }
+    }
+
     /// The line under the name, wherever a result is listed.
     var subtitle: String {
         switch self {

@@ -9,18 +9,6 @@ struct JourneyMapSegment: Identifiable, Sendable, Hashable {
     let isStationary: Bool
 }
 
-/// One drawn piece of the route, already resolved against the traveller's
-/// position so the map only has to pick colours.
-struct JourneyRenderedSegment: Identifiable, Sendable, Hashable {
-    let id: String
-    let coordinates: [GeoCoordinate]
-    let colorHex: String?
-    let isPedestrian: Bool
-    let isStationary: Bool
-    /// Behind the traveller: drawn faded, like the timeline rail above the cursor.
-    let isTravelled: Bool
-}
-
 /// A place on the route worth marking: where to board, where to change, where
 /// to get off.
 struct JourneyMapStop: Identifiable, Sendable, Hashable {
@@ -53,7 +41,7 @@ struct JourneyMapExit: Identifiable, Sendable, Hashable {
     }
 }
 
-/// Map-ready projection of a selected journey. The map never needs to learn
+/// Map-ready description of a selected journey. The map never needs to learn
 /// how journey sections, fallback geometry, or route colors are encoded.
 struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
     let id: JourneyID
@@ -88,54 +76,6 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
         }
     }
 
-    // MARK: - Rendering
-
-    /// Splits the current segment at the traveller and tags everything behind
-    /// them as travelled.
-    func rendered(with progress: JourneyProgress?) -> [JourneyRenderedSegment] {
-        segments.flatMap { segment -> [JourneyRenderedSegment] in
-            guard let progress else {
-                return [rendered(segment, coordinates: segment.coordinates, isTravelled: false)]
-            }
-
-            if segment.sectionIndex < progress.sectionIndex {
-                return [rendered(segment, coordinates: segment.coordinates, isTravelled: true)]
-            }
-            if segment.sectionIndex > progress.sectionIndex {
-                return [rendered(segment, coordinates: segment.coordinates, isTravelled: false)]
-            }
-
-            let split = JourneyProgressProjector.split(
-                coordinates: segment.coordinates,
-                at: progress.splitFraction(for: segment)
-            )
-            return [
-                split.traveled.count >= 2
-                    ? rendered(segment, coordinates: split.traveled, isTravelled: true, suffix: "travelled")
-                    : nil,
-                split.remaining.count >= 2
-                    ? rendered(segment, coordinates: split.remaining, isTravelled: false, suffix: "remaining")
-                    : nil,
-            ].compactMap(\.self)
-        }
-    }
-
-    private func rendered(
-        _ segment: JourneyMapSegment,
-        coordinates: [GeoCoordinate],
-        isTravelled: Bool,
-        suffix: String? = nil
-    ) -> JourneyRenderedSegment {
-        JourneyRenderedSegment(
-            id: suffix.map { "\(segment.id):\($0)" } ?? segment.id,
-            coordinates: coordinates,
-            colorHex: segment.colorHex,
-            isPedestrian: segment.isPedestrian,
-            isStationary: segment.isStationary,
-            isTravelled: isTravelled
-        )
-    }
-
     // MARK: - Framing
 
     var mapRect: MKMapRect? {
@@ -151,30 +91,6 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
             .filter { $0.sectionIndex == segment.sectionIndex }
             .map(\.coordinate)
         return mapRect(for: segment.coordinates + sectionExits)
-    }
-
-    /// What is left to travel, so guidance frames the road ahead instead of the
-    /// whole trip.
-    func mapRect(remainingFrom progress: JourneyProgress?) -> MKMapRect? {
-        guard let progress else { return mapRect }
-
-        let ahead = segments
-            .filter { $0.sectionIndex > progress.sectionIndex }
-            .flatMap(\.coordinates)
-        let current: [GeoCoordinate] = segments
-            .first { $0.sectionIndex == progress.sectionIndex }
-            .map {
-                JourneyProgressProjector.split(
-                    coordinates: $0.coordinates,
-                    at: progress.splitFraction(for: $0)
-                ).remaining
-            } ?? []
-
-        let remainingExits = exits
-            .filter { $0.sectionIndex >= progress.sectionIndex }
-            .map(\.coordinate)
-        let coordinates = current + ahead + remainingExits
-        return coordinates.count >= 2 ? mapRect(for: coordinates) : mapRect
     }
 
     private func mapRect(for coordinates: [GeoCoordinate]) -> MKMapRect? {
@@ -239,42 +155,5 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                 return nil
             }
         }
-    }
-}
-
-extension JourneyProgress {
-    /// The drawing-side view of the progress: stable between two frames that
-    /// would look identical anyway.
-    ///
-    /// The map splits its polylines at `fractionInSection` and dims what is
-    /// behind the traveller. Both survive a coarse value; the camera does not
-    /// survive a view rebuild mid-gesture. Half a percent of a leg is under a
-    /// pixel at the zoom guidance uses.
-    var mapQuantized: JourneyProgress {
-        JourneyProgress(
-            sectionIndex: sectionIndex,
-            fractionInSection: JourneyProgress.mapStep(fractionInSection),
-            overallFraction: JourneyProgress.mapStep(overallFraction),
-            passedStopCount: passedStopCount,
-            stopsUntilAlighting: stopsUntilAlighting,
-            // The split reads the quantized fraction, while the position
-            // annotation needs the projected point to follow the route.
-            projectedCoordinate: projectedCoordinate,
-            isLocationDerived: isLocationDerived
-        )
-    }
-
-    private static func mapStep(_ fraction: Double) -> Double {
-        (fraction * 200).rounded() / 200
-    }
-}
-
-extension JourneyProgress {
-    /// Where a drawn segment is cut in two. Timetables can place us on a
-    /// transit vehicle, but they cannot tell us which part of a walking
-    /// transfer we have crossed — so an estimated position leaves a pedestrian
-    /// segment intact until a live fix returns.
-    func splitFraction(for segment: JourneyMapSegment) -> Double {
-        isLocationDerived || !segment.isPedestrian ? fractionInSection : 0
     }
 }

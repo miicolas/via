@@ -51,8 +51,7 @@ enum ActiveJourneyRules {
     static let standardMonitoringInterval: TimeInterval = 2 * 60
     static let transitionMonitoringInterval: TimeInterval = 30
     static let transitionWindow: TimeInterval = 2 * 60
-    /// A point older than this is no longer trusted as a live position. The
-    /// projector can still use the cached journey and timetable in its place.
+    /// A point older than this is no longer trusted as a live position.
     static let locationFreshnessInterval: TimeInterval = 30
     static let missedConnectionGracePeriod: TimeInterval = 2 * 60
     static let restorationGracePeriod: TimeInterval = 30 * 60
@@ -114,91 +113,30 @@ enum ActiveJourneyRules {
         }
     }
 
-    static func sectionIndex(in journey: Journey, at now: Date) -> Int {
-        sectionIndex(in: schedule(for: journey), at: now)
-    }
-
-    /// For callers that already hold the schedule — building it a second time
-    /// walks every section of the journey for nothing.
-    static func sectionIndex(in sections: [JourneySectionSchedule], at now: Date) -> Int {
-        guard !sections.isEmpty else { return 0 }
-        if now < sections[0].startsAt { return 0 }
-        return sections.lastIndex(where: { now >= $0.startsAt }) ?? 0
-    }
-
-    /// Which section the traveller is actually on, from the timetable, the last
-    /// fix and how much the session already knows.
-    ///
-    /// One rule, because there were two: the monitor persisted
-    /// `max(currentSectionIndex, timeIndex)` corrected by geometry, while the
-    /// panel re-derived a bare timetable index for display. They disagreed by a
-    /// section whenever a leg ran late, which is exactly when someone looks.
-    ///
-    /// `isLive` is the caller's verdict on the fix — freshness and connectivity
-    /// are the model's business, not this rule's.
-    static func resolvedSectionIndex(
-        in session: ActiveJourneySession,
-        schedule: [JourneySectionSchedule],
-        isLive: Bool,
-        at date: Date
-    ) -> Int {
-        if let override = session.manualOverrideUntil, date < override {
-            return session.currentSectionIndex
-        }
-
-        // The traveller does not un-ride a section: the timetable may only push
-        // the index forward from where the session already stands.
-        var index = max(session.currentSectionIndex, sectionIndex(in: schedule, at: date))
-        guard let coordinate = session.lastCoordinate else { return max(0, index) }
-
-        if isLive {
-            // A timetable can advance while the train is underground. Once a
-            // real fix comes back, let the geometry correct the section in
-            // either direction instead of keeping the stale scheduled index.
-            index = JourneyProgressProjector.nearestSectionIndex(
-                schedule: schedule,
-                to: coordinate,
-                horizontalAccuracy: session.horizontalAccuracy
-            ) ?? index
-        } else if let current = session.currentSection,
-                  let currentSchedule = schedule.first(where: { $0.id == current.id }),
-                  date >= currentSchedule.startsAt,
-                  distance(from: coordinate, to: current.to.coordinate)
-                    <= arrivalRadius(horizontalAccuracy: session.horizontalAccuracy) {
-            // A stale point can still confirm that a section was reached, but
-            // it must never drive a live correction or a recalculation.
-            index = min(
-                session.journey.sections.count - 1,
-                max(index, session.currentSectionIndex + 1)
-            )
-        }
-        return max(0, index)
-    }
-
     /// The sections whose departure the traveller may still re-pick.
     ///
     /// One rule, because three surfaces asked the same question and answered it
     /// differently: the planning screen ("is it in the future?"), the guidance
-    /// panel ("…and not behind the cursor, and not the leg I am riding"), and
+    /// panel ("…and not behind the current section, and not the leg I am riding"), and
     /// the server, which decides which sections get choices at all. The
-    /// planning screen simply has no `progress`, which is why the same function
-    /// serves both.
+    /// planning screen simply has no current section, which is why the same
+    /// function serves both.
     ///
     /// Riding a leg is the interesting case: swapping the train you are already
     /// on is not a choice the traveller can act on, so it is offered only while
     /// tracking says they are not yet aboard.
     static func revisableSectionIDs(
         in journey: Journey,
-        progress: JourneyProgress?,
+        currentSectionIndex: Int?,
         isTracking: Bool,
         at now: Date
     ) -> Set<String> {
         var revisable: Set<String> = []
         for (index, section) in journey.sections.enumerated() {
             guard let departureAt = section.departureAt, departureAt > now else { continue }
-            if let progress {
-                guard index >= progress.sectionIndex else { continue }
-                if isTracking, index == progress.sectionIndex, section.kind == .transit {
+            if let currentSectionIndex {
+                guard index >= currentSectionIndex else { continue }
+                if isTracking, index == currentSectionIndex, section.kind == .transit {
                     continue
                 }
             }

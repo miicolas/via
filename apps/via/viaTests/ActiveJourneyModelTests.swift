@@ -76,6 +76,28 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertTrue(adapter.backgroundAuthorizationGranted)
     }
 
+    func testMissingLocationDoesNotAdvanceFromTheTimetable() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let location = LocationModel(adapter: InMemoryLocationAdapter(
+            authorization: .denied,
+            coordinate: nil
+        ))
+        let model = makeModel(
+            location: location,
+            now: journey.departureAt.addingTimeInterval(6 * 60)
+        )
+
+        await model.go(
+            journey: journey,
+            destination: destination,
+            source: .realtime,
+            allowsBackgroundTracking: false
+        )
+
+        XCTAssertFalse(model.hasLiveLocationFix)
+        XCTAssertEqual(model.session?.currentSectionIndex, 0)
+    }
+
     func testLiveActivityStateKeepsDepartureCountdownSemantic() async {
         let journey = JourneyResult.mapPreview.journeys[0]
         let activityManager = RecordingJourneyActivityManager()
@@ -108,26 +130,6 @@ final class ActiveJourneyModelTests: XCTestCase {
             components?.queryItems?.first(where: { $0.name == "mode" })?.value,
             "active"
         )
-    }
-
-    func testManualProgressControlsRemainInsideJourneyBounds() async {
-        let journey = JourneyResult.mapPreview.journeys[0]
-        let now = journey.departureAt
-        let model = makeModel(now: now)
-        await model.go(
-            journey: journey,
-            destination: destination,
-            source: .realtime,
-            allowsBackgroundTracking: false
-        )
-
-        await model.moveToPreviousSection()
-        XCTAssertEqual(model.session?.currentSectionIndex, 0)
-
-        for _ in journey.sections.indices {
-            await model.moveToNextSection()
-        }
-        XCTAssertEqual(model.session?.currentSectionIndex, journey.sections.count - 1)
     }
 
     func testManualFinishPublishesArrivalAndClearsPersistedSession() async throws {
@@ -365,12 +367,10 @@ final class ActiveJourneyModelTests: XCTestCase {
         )
         connectivity.update(isConnected: false)
 
-        XCTAssertFalse(model.isPositionEstimated)
         XCTAssertTrue(model.hasLiveLocationFix)
-        XCTAssertTrue(model.progress(at: journey.departureAt)?.isLocationDerived == true)
     }
 
-    func testStaleLocationFallsBackToTimetableWhileConnected() async {
+    func testStaleLocationDoesNotAdvanceTheCurrentSection() async {
         let journey = JourneyResult.mapPreview.journeys[0]
         let clock = ActiveJourneyTestClock(journey.departureAt)
         let model = makeModel(now: { clock.value })
@@ -394,8 +394,8 @@ final class ActiveJourneyModelTests: XCTestCase {
             at: clock.value
         )
 
-        XCTAssertTrue(model.isPositionEstimated)
         XCTAssertFalse(model.hasLiveLocationFix)
+        XCTAssertEqual(model.session?.currentSectionIndex, 0)
     }
 
     func testFreshLocationReturnsToLiveWhileOfflineAfterFixBecomesStale() async {
@@ -417,7 +417,7 @@ final class ActiveJourneyModelTests: XCTestCase {
             source: .realtime,
             allowsBackgroundTracking: false
         )
-        XCTAssertFalse(model.isPositionEstimated)
+        XCTAssertTrue(model.hasLiveLocationFix)
 
         clock.value = journey.departureAt.addingTimeInterval(
             ActiveJourneyRules.locationFreshnessInterval + 1
@@ -430,7 +430,7 @@ final class ActiveJourneyModelTests: XCTestCase {
             ),
             at: clock.value
         )
-        XCTAssertTrue(model.isPositionEstimated)
+        XCTAssertFalse(model.hasLiveLocationFix)
 
         adapter.updateJourneyLocation(
             coordinate,
@@ -438,10 +438,10 @@ final class ActiveJourneyModelTests: XCTestCase {
         )
         await waitUntil { model.hasLiveLocationFix }
 
-        XCTAssertFalse(model.isPositionEstimated)
+        XCTAssertTrue(model.hasLiveLocationFix)
     }
 
-    func testDepartureRevisionPreservesRunningSessionProgressAndTracking() async {
+    func testDepartureRevisionPreservesRunningSectionAndTracking() async {
         let journey = JourneyResult.mapPreview.journeys[0]
         let model = makeModel(now: journey.departureAt)
         let policy = JourneyPlanningPolicy(
@@ -455,7 +455,6 @@ final class ActiveJourneyModelTests: XCTestCase {
             planningPolicy: policy,
             allowsBackgroundTracking: false
         )
-        await model.moveToNextSection()
         let previousIndex = model.session?.currentSectionIndex
         let revised = Journey(
             id: journey.id,
@@ -491,7 +490,6 @@ final class ActiveJourneyModelTests: XCTestCase {
             currentSectionIndex: 0,
             lastCoordinate: nil,
             horizontalAccuracy: nil,
-            manualOverrideUntil: nil,
             isTrackingStarted: false,
             allowsBackgroundTracking: false
         )

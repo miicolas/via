@@ -209,7 +209,7 @@ final class JourneyTimelineTests: XCTestCase {
             displayed.map(\.id),
             ["origin", "walk:real", "destination"]
         )
-        XCTAssertEqual(nodes.count, 6, "the progress projection remains untouched")
+        XCTAssertEqual(nodes.count, 6, "the journey timeline remains unchanged")
     }
 
     func testBoardingPositionUsesTheThreeTrainCarSymbols() {

@@ -34,34 +34,32 @@ struct ActiveJourneyPanelView: View {
             }
 
             if let journey = model.journey {
-              let progress = model.progress(at: context.date)
+              let currentSectionIndex = model.currentSectionIndex
 
-              if let progress {
-                LiveJourneyTimelineView(
-                  journey: journey,
-                  progress: progress,
-                  expandedSectionIDs: $expandedSectionIDs,
-                  departureChoices: departureChoicesModel,
-                  revisableSectionIDs: ActiveJourneyRules.revisableSectionIDs(
-                    in: journey,
-                    progress: progress,
-                    isTracking: model.isTracking,
-                    at: context.date
-                  ),
-                  onSelectDeparture: onSelectDeparture,
-                  onRetryDepartures: { Task { await onRetryDepartures() } }
-                )
-                // The leg changed under the traveller's feet. Nobody asked for
-                // it, so it is the softest impact Via has — but it is the one
-                // cue that reaches a phone still in a pocket.
-                .haptic(Haptic.advanced, on: progress.sectionIndex)
-                .task(id: progress.sectionIndex) {
-                  // The scroll target only exists after the timeline has joined
-                  // the hierarchy. Yielding one render pass keeps a restored
-                  // journey from opening on its already completed first leg.
-                  await Task.yield()
-                  scrollToCurrentStep(using: scroll, at: context.date, animated: false)
-                }
+              LiveJourneyTimelineView(
+                journey: journey,
+                currentSectionIndex: currentSectionIndex,
+                expandedSectionIDs: $expandedSectionIDs,
+                departureChoices: departureChoicesModel,
+                revisableSectionIDs: ActiveJourneyRules.revisableSectionIDs(
+                  in: journey,
+                  currentSectionIndex: currentSectionIndex,
+                  isTracking: model.isTracking,
+                  at: context.date
+                ),
+                onSelectDeparture: onSelectDeparture,
+                onRetryDepartures: { Task { await onRetryDepartures() } }
+              )
+              // The leg changed under the traveller's feet. Nobody asked for
+              // it, so it is the softest impact Via has — but it is the one
+              // cue that reaches a phone still in a pocket.
+              .haptic(Haptic.advanced, on: currentSectionIndex ?? -1)
+              .task(id: currentSectionIndex) {
+                // The scroll target only exists after the timeline has joined
+                // the hierarchy. Yielding one render pass keeps a restored
+                // journey from opening on its already completed first leg.
+                await Task.yield()
+                scrollToCurrentStep(using: scroll, animated: false)
               }
             }
 
@@ -136,14 +134,7 @@ struct ActiveJourneyPanelView: View {
       )
     }
 
-    if model.isTracking && model.isPositionEstimated {
-      statusBanner(
-        title: "Position estimée",
-        message: "Progression selon les horaires jusqu’au retour d’une position fiable.",
-        systemImage: "clock.badge.questionmark",
-        color: .orange
-      )
-    } else if model.isOffline {
+    if model.isOffline {
       statusBanner(
         title: "Hors connexion",
         message: "Le GPS reste actif. Les données en direct reprendront à la reconnexion.",
@@ -171,7 +162,9 @@ struct ActiveJourneyPanelView: View {
       )
     }
 
-    if let warnings = model.journey?.warnings, !warnings.isEmpty {
+    if let warnings = model.journey?.warnings,
+      !JourneyWarningPresentation.visibleWarnings(from: warnings).isEmpty
+    {
       JourneyWarningBanner(warnings: warnings)
     }
 
@@ -198,14 +191,11 @@ struct ActiveJourneyPanelView: View {
   @ViewBuilder
   private func header(at date: Date) -> some View {
     if let journey = model.journey,
-      let progress = model.progress(at: date),
       let headline = model.guidanceHeadline(at: date)
     {
       LiveJourneyHeaderView(
         journey: journey,
-        headline: headline,
-        progress: progress,
-        isTracking: model.isTracking
+        headline: headline
       )
     }
   }
@@ -216,7 +206,7 @@ struct ActiveJourneyPanelView: View {
       if hasScrolledAway {
         recenterButton {
           recenterTick += 1
-          scrollToCurrentStep(using: scroll, at: date)
+          scrollToCurrentStep(using: scroll, animated: true)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -247,20 +237,18 @@ struct ActiveJourneyPanelView: View {
     .accessibilityHint("Fait défiler le trajet jusqu’à votre position")
   }
 
-  private func scrollToCurrentStep(using scroll: ScrollViewProxy, at date: Date) {
-    scrollToCurrentStep(using: scroll, at: date, animated: true)
-  }
-
   private func scrollToCurrentStep(
     using scroll: ScrollViewProxy,
-    at date: Date,
     animated: Bool
   ) {
     guard let journey = model.journey,
-      let progress = model.progress(at: date),
-      journey.sections.indices.contains(progress.sectionIndex)
+      let currentSectionIndex = model.currentSectionIndex,
+      journey.sections.indices.contains(currentSectionIndex)
     else { return }
-    guard let nodeID = JourneyTimelineView.currentNodeID(in: journey, progress: progress) else {
+    guard let nodeID = JourneyTimelineView.currentNodeID(
+      in: journey,
+      currentSectionIndex: currentSectionIndex
+    ) else {
       return
     }
     withAnimation(animated && !reduceMotion ? .snappy : nil) {

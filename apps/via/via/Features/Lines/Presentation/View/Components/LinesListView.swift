@@ -7,8 +7,7 @@ struct LinesListView: View {
   var sections: [LineStatusSection]
   var extraSearchResults: [LineStatus]
   var upcomingByDay: [UpcomingClosureDay]
-  var isFavorite: (RouteID) -> Bool
-  var onToggleFavorite: (RouteBadge) -> Void
+  var onSelectLine: (LineStatus) -> Void
   var isSearching: Bool
   var isRefreshing: Bool
   var showsUnavailableBanner: Bool
@@ -37,7 +36,7 @@ struct LinesListView: View {
       ForEach(sections) { section in
         Section(section.mode.displayName) {
           ForEach(section.lines) { status in
-            lineLink(status)
+            lineButton(status)
           }
         }
       }
@@ -45,7 +44,7 @@ struct LinesListView: View {
       if isSearching, !extraSearchResults.isEmpty {
         Section("Autres lignes") {
           ForEach(extraSearchResults) { status in
-            lineLink(status)
+            lineButton(status)
           }
         }
       }
@@ -59,20 +58,14 @@ struct LinesListView: View {
     .hapticRefreshable { await onRefresh() }
   }
 
-  private func lineLink(_ status: LineStatus) -> some View {
-    HStack(spacing: 8) {
-      NavigationLink(value: status) {
-        LineStatusCard(status: status)
-          .frame(maxWidth: .infinity, alignment: .leading)
-      }
-      .buttonStyle(.plain)
-
-      FavoriteLineButton(
-        route: status.route,
-        isFavorite: isFavorite(status.route.id),
-        action: { onToggleFavorite(status.route) }
-      )
+  private func lineButton(_ status: LineStatus) -> some View {
+    Button {
+      onSelectLine(status)
+    } label: {
+      LineStatusCard(status: status)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
+    .buttonStyle(.plain)
     .linesCardRow()
   }
 }

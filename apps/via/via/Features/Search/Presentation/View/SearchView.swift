@@ -513,6 +513,7 @@ struct SearchView: View {
           title: destination.name,
           subtitle: destination.subtitle,
           systemImage: destination.systemImage,
+          lineRoutes: destination.lineRoutes,
           accessibilityLabel: "Destination \(destination.name)",
           expands: true,
           action: viewModel.wrappedValue.editDestination,

@@ -8,7 +8,6 @@ struct ApplicationEntry: App {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var isShowingLaunchAnimation = true
     @State private var isContinuingAsGuest = false
     @State private var networkViewModel: NetworkViewModel
     @State private var stationsViewModel: StationsViewModel
@@ -183,10 +182,9 @@ struct ApplicationEntry: App {
         }
     }
 
-    /// Starts the first screen's network work while the in-app launch
-    /// animation is still covering the shell. The individual views keep
-    /// their own task for refresh loops, but their initial request is already
-    /// in flight by the time they become visible.
+    /// Starts the first screen's network work as soon as the shell is ready.
+    /// The individual views keep their own task for refresh loops, but their
+    /// initial request is already in flight by the time they become visible.
     private func preloadInitialData() async {
         stationsViewModel.loadIfNeeded()
 
@@ -199,15 +197,7 @@ struct ApplicationEntry: App {
 
     private var applicationRoot: some View {
         ZStack {
-            if isShowingLaunchAnimation {
-                LaunchAnimationView {
-                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
-                        isShowingLaunchAnimation = false
-                    }
-                }
-                .transition(.opacity)
-                .zIndex(1)
-            } else if !onboardingModel.isCompleted {
+            if !onboardingModel.isCompleted {
                 OnboardingView(onComplete: onboardingModel.complete)
                     .transition(.opacity)
             } else if !onboardingModel.isSetupCompleted {

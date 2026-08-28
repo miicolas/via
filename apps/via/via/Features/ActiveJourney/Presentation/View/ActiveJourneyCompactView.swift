@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The whole collapsed sheet while a journey runs: what to do now, when you
-/// arrive, how far along you are, and what comes next.
+/// arrive, and what comes next.
 ///
 /// It replaces the tab bar rather than sitting above it. At that height a tab
 /// bar plus an accessory left one squeezed line for the guidance; giving the
@@ -10,7 +10,7 @@ import SwiftUI
 struct ActiveJourneyCompactView: View {
     let journey: Journey
     let headline: JourneyGuidanceHeadline
-    let progress: JourneyProgress
+    let currentSectionIndex: Int?
     let action: () -> Void
 
     /// Beyond that the strip stops naming steps and counts them instead: the
@@ -21,7 +21,6 @@ struct ActiveJourneyCompactView: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
                 headlineRow
-                JourneyProgressBar(journey: journey, progress: progress, height: 10)
                 remainderRow
             }
             .padding(.horizontal, 16)
@@ -141,7 +140,7 @@ struct ActiveJourneyCompactView: View {
     /// Waits belong to the step they precede, so they never earn a glyph of
     /// their own in a row this short.
     private var remainingSteps: [JourneySection] {
-        let next = progress.sectionIndex + 1
+        let next = (currentSectionIndex ?? 0) + 1
         guard journey.sections.indices.contains(next) else { return [] }
         return journey.sections[next...].filter { $0.kind != .wait }
     }
@@ -163,24 +162,17 @@ struct ActiveJourneyCompactView: View {
 #Preview {
     let journey = Journey.mapPreviewMultipleTransfers
     let schedule = ActiveJourneyRules.schedule(for: journey)
-    let progress = JourneyProgressProjector.progress(
-        schedule: schedule,
-        sectionIndex: 1,
-        at: journey.departureAt.addingTimeInterval(600),
-        coordinate: nil,
-        horizontalAccuracy: nil
-    )
 
     return ActiveJourneyCompactView(
         journey: journey,
         headline: JourneyGuidance.headline(
             journey: journey,
             schedule: schedule,
-            progress: progress,
+            sectionIndex: 1,
             at: journey.departureAt.addingTimeInterval(600),
             isPaused: false
         ),
-        progress: progress,
+        currentSectionIndex: 1,
         action: {}
     )
     .padding(.vertical, 14)

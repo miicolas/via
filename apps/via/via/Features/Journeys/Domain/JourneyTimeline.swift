@@ -54,7 +54,7 @@ enum JourneyTimelineBeadMark: Sendable, Hashable {
 
 /// One row of the journey timeline.
 ///
-/// The projection resolves every boundary time, so a row never has to fall back
+/// The description resolves every boundary time, so a row never has to fall back
 /// to `JourneySection.departureAt` / `arrivalAt` — the planners frequently omit
 /// both, which is why the previous timeline showed no times at all on walking,
 /// waiting and transfer rows.
@@ -93,9 +93,8 @@ struct JourneyTimelineNode: Identifiable, Sendable, Hashable {
         Int(max(0, endsAt.timeIntervalSince(startsAt)).rounded())
     }
 
-    /// Zero-length planner scaffolding still belongs to progress projection —
-    /// the cursor walks through it — but it is not something the traveller
-    /// does, so it earns no row and no map stop.
+    /// Zero-length planner scaffolding is not something the traveller does, so
+    /// it earns no row and no map stop.
     var isTravellerInstruction: Bool {
         switch kind {
         case .walk, .bike, .wait, .transfer: durationSeconds > 0
@@ -116,10 +115,10 @@ struct JourneyTimelineNode: Identifiable, Sendable, Hashable {
     }
 }
 
-/// Pure projection of a `Journey` into the rows the timeline renders.
+/// Pure description of a `Journey` into the rows the timeline renders.
 ///
 /// Built on top of `ActiveJourneyRules.schedule(for:)`, which already fills the
-/// gaps left by the planners by walking a cursor from `journey.departureAt`.
+/// gaps left by the planners by walking a clock from `journey.departureAt`.
 enum JourneyTimeline {
     static func nodes(for journey: Journey) -> [JourneyTimelineNode] {
         let schedule = ActiveJourneyRules.schedule(for: journey)
@@ -160,7 +159,7 @@ enum JourneyTimeline {
         return link(drafts)
     }
 
-    // MARK: - Section projection
+    // MARK: - Section description
 
     private static func sectionDrafts(for entry: JourneySectionSchedule, index: Int) -> [Draft] {
         let section = entry.section
@@ -384,7 +383,7 @@ enum JourneyTimeline {
     }
 }
 
-/// How far along the journey a node sits, relative to the traveller.
+/// How far along the journey a node sits, relative to the current section.
 enum JourneyTimelineNodeState: Sendable, Hashable {
     /// Behind the traveller — dimmed on the rail and on the map.
     case done
@@ -394,58 +393,16 @@ enum JourneyTimelineNodeState: Sendable, Hashable {
     case upcoming
 }
 
-/// Placement of the live position marker on one node's rail.
-struct JourneyTimelineCursor: Sendable, Hashable {
-    let nodeID: String
-    /// 0…1 down that node's rail.
-    let fraction: Double
-}
-
 extension JourneyTimeline {
-    /// Without progress every node reads as upcoming, which is exactly what the
-    /// pre-trip detail wants: the same timeline, minus the cursor.
+    /// Without a current section every node reads as upcoming, which is exactly
+    /// what the pre-trip detail wants.
     static func state(
         of node: JourneyTimelineNode,
-        progress: JourneyProgress?
+        currentSectionIndex: Int?
     ) -> JourneyTimelineNodeState {
-        guard let progress else { return .upcoming }
-        if node.sectionIndex < progress.sectionIndex { return .done }
-        if node.sectionIndex > progress.sectionIndex { return .upcoming }
-
-        switch node.kind {
-        case .origin, .board:
-            return progress.fractionInSection > 0 ? .done : .current
-        case .alight, .destination:
-            return progress.fractionInSection >= 1 ? .current : .upcoming
-        case .walk, .bike, .wait, .transfer, .ride:
-            return .current
-        }
-    }
-
-    /// The cursor belongs on the row that describes a movement. A leg whose
-    /// planner gave no intermediate stops has no ride row, so it falls back to
-    /// the boarding row.
-    static func cursor(
-        in nodes: [JourneyTimelineNode],
-        progress: JourneyProgress?
-    ) -> JourneyTimelineCursor? {
-        guard let progress else { return nil }
-        let candidates = nodes.filter { $0.sectionIndex == progress.sectionIndex }
-        guard !candidates.isEmpty else { return nil }
-
-        let host = candidates.first { node in
-            switch node.kind {
-            case .ride, .walk, .bike, .wait, .transfer: return true
-            case .origin, .board, .alight, .destination: return false
-            }
-        } ?? candidates.first { node in
-            if case .board = node.kind { return true } else { return false }
-        }
-
-        guard let host else { return nil }
-        return JourneyTimelineCursor(
-            nodeID: host.id,
-            fraction: min(max(0, progress.fractionInSection), 1)
-        )
+        guard let currentSectionIndex else { return .upcoming }
+        if node.sectionIndex < currentSectionIndex { return .done }
+        if node.sectionIndex > currentSectionIndex { return .upcoming }
+        return .current
     }
 }

@@ -51,7 +51,7 @@ struct JourneyDetailView: View {
                 )
                     .padding(.horizontal, 20)
 
-                if !journey.warnings.isEmpty {
+                if !JourneyWarningPresentation.visibleWarnings(from: journey.warnings).isEmpty {
                     JourneyWarningBanner(warnings: journey.warnings)
                         .padding(.horizontal, 20)
                         .padding(.top, 18)
@@ -62,12 +62,11 @@ struct JourneyDetailView: View {
 
                 LiveJourneyTimelineView(
                     journey: journey,
-                    progress: nil,
                     expandedSectionIDs: $expandedSectionIDs,
                     departureChoices: departureChoicesModel,
                     revisableSectionIDs: ActiveJourneyRules.revisableSectionIDs(
                         in: journey,
-                        progress: nil,
+                        currentSectionIndex: nil,
                         isTracking: false,
                         at: .now
                     ),

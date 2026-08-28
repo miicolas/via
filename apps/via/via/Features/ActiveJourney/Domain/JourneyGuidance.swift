@@ -9,17 +9,13 @@ struct JourneyGuidanceHeadline: Sendable, Hashable {
     let detail: String?
     let symbolName: String
     let route: JourneyRoute?
-    /// Stops left before the traveller must get off, when that applies.
-    let stopsUntilAlighting: Int?
-    /// Name of the stop to get off at, when the current leg is a ridden one.
-    let alightStopName: String?
 }
 
 enum JourneyGuidance {
     static func headline(
         journey: Journey,
         schedule: [JourneySectionSchedule],
-        progress: JourneyProgress,
+        sectionIndex: Int,
         at date: Date,
         isPaused: Bool
     ) -> JourneyGuidanceHeadline {
@@ -28,9 +24,7 @@ enum JourneyGuidance {
                 title: "Trajet en pause",
                 detail: "Reprenez pour relancer le suivi",
                 symbolName: "pause.circle.fill",
-                route: nil,
-                stopsUntilAlighting: nil,
-                alightStopName: nil
+                route: nil
             )
         }
 
@@ -39,22 +33,20 @@ enum JourneyGuidance {
                 title: "Départ dans \(JourneyFormatting.countdown(journey.departureAt.timeIntervalSince(date)))",
                 detail: "Arrivée prévue à \(JourneyFormatting.time(journey.arrivalAt))",
                 symbolName: "clock.fill",
-                route: schedule.first?.section.route,
-                stopsUntilAlighting: nil,
-                alightStopName: nil
+                route: schedule.first?.section.route
             )
         }
 
-        guard schedule.indices.contains(progress.sectionIndex) else {
+        guard schedule.indices.contains(sectionIndex) else {
             return arrived(at: journey)
         }
 
-        let section = schedule[progress.sectionIndex].section
-        let endsAt = schedule[progress.sectionIndex].endsAt
+        let section = schedule[sectionIndex].section
+        let endsAt = schedule[sectionIndex].endsAt
 
         switch section.kind {
         case .transit:
-            return riding(section: section, endsAt: endsAt, progress: progress)
+            return riding(section: section, endsAt: endsAt)
         case .walk, .bike, .transfer, .wait:
             guard let title = JourneySectionNarration.sentence(
                 for: section,
@@ -72,39 +64,18 @@ enum JourneyGuidance {
                 title: title,
                 detail: detail,
                 symbolName: section.kind.systemImage,
-                route: nil,
-                stopsUntilAlighting: nil,
-                alightStopName: nil
+                route: nil
             )
         }
     }
 
     private static func riding(
         section: JourneySection,
-        endsAt: Date,
-        progress: JourneyProgress
+        endsAt: Date
     ) -> JourneyGuidanceHeadline {
         let alightName = section.stops.last?.name ?? section.to.name
-        let title: String = switch progress.stopsUntilAlighting {
-        case .none: "Descendre à \(alightName)"
-        case .some(0): "Descendre maintenant"
-        case .some(1): "Descendre au prochain arrêt"
-        case .some(let remaining): "Descendre dans \(remaining) arrêts"
-        }
-
-        /**
-         The exit replaces the alighting stop's name once it is nearly time to
-         get off: a traveller two stops away already knows where they are going,
-         and the door number is what they will need on the platform.
-         */
-        let leadsWithExit = section.exit != nil && (progress.stopsUntilAlighting ?? 99) <= 1
-        let destinationDetail: String = if leadsWithExit, let exit = section.exit {
-            exitLabel(exit)
-        } else if progress.stopsUntilAlighting == nil {
-            "Arrivée"
-        } else {
-            alightName
-        }
+        let title = "Descendre à \(alightName)"
+        let destinationDetail = section.exit.map(exitLabel) ?? alightName
         let carriage = section.boardingPosition.map { "Voiture \($0.car)/\($0.carCount)" }
         let detail = [carriage, destinationDetail, JourneyFormatting.time(endsAt)]
             .compactMap { $0 }
@@ -114,9 +85,7 @@ enum JourneyGuidance {
             title: title,
             detail: detail,
             symbolName: section.route?.mode.chipSystemImage ?? "tram.fill",
-            route: section.route,
-            stopsUntilAlighting: progress.stopsUntilAlighting,
-            alightStopName: alightName
+            route: section.route
         )
     }
 
@@ -130,9 +99,7 @@ enum JourneyGuidance {
             title: "Vous êtes arrivé",
             detail: journey.sections.last?.to.name,
             symbolName: "flag.checkered",
-            route: nil,
-            stopsUntilAlighting: nil,
-            alightStopName: nil
+            route: nil
         )
     }
 }

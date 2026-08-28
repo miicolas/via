@@ -5,12 +5,12 @@ import SwiftUI
 struct JourneyTimelineView: View {
     enum Mode: Equatable {
         case plan
-        case live(JourneyProgress)
+        case live(currentSectionIndex: Int)
 
-        var progress: JourneyProgress? {
+        var currentSectionIndex: Int? {
             switch self {
             case .plan: nil
-            case .live(let progress): progress
+            case .live(let currentSectionIndex): currentSectionIndex
             }
         }
     }
@@ -25,25 +25,26 @@ struct JourneyTimelineView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    static func currentNodeID(in journey: Journey, progress: JourneyProgress?) -> String? {
+    static func currentNodeID(in journey: Journey, currentSectionIndex: Int?) -> String? {
         let nodes = JourneyTimeline.nodes(for: journey)
-        return JourneyTimeline.cursor(in: nodes, progress: progress)?.nodeID
-            ?? nodes.first { JourneyTimeline.state(of: $0, progress: progress) == .current }?.id
+        return nodes.first {
+            JourneyTimeline.state(
+                of: $0,
+                currentSectionIndex: currentSectionIndex
+            ) == .current
+        }?.id
     }
 
     var body: some View {
         let allNodes = JourneyTimeline.nodes(for: journey)
         let nodes = displayNodes(from: allNodes)
-        let cursor = JourneyTimeline.cursor(in: allNodes, progress: mode.progress)
         let groups = nodeGroups(from: nodes)
 
         VStack(spacing: 0) {
             ForEach(groups) { group in
                 JourneyTimelineSectionView(
                     nodes: group.nodes,
-                    progress: mode.progress,
-                    cursor: cursor,
-                    isCursorLive: mode.progress?.isLocationDerived == true,
+                    currentSectionIndex: mode.currentSectionIndex,
                     isExpanded: binding(for: group.sectionID),
                     departureChoicesGroup: departureChoices?.groupsBySectionID[group.sectionID],
                     isDepartureChoicesLoading: departureChoices?.isRefreshing == true,

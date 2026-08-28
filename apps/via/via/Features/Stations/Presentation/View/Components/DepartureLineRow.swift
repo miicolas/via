@@ -9,6 +9,7 @@ struct DepartureLineRow: View {
         HStack(alignment: .center, spacing: 14) {
             LineBadgeView(route: route, size: 36)
                 .frame(minWidth: 36, alignment: .leading)
+                .layoutPriority(1)
 
             if let departure {
                 Text(departure.destination)
@@ -17,7 +18,6 @@ struct DepartureLineRow: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .layoutPriority(1)
 
                 DepartureTimingView(
                     departure: departure,

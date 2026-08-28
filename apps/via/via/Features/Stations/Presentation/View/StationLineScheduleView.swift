@@ -58,12 +58,18 @@ struct StationLineScheduleView: View {
           Text(stationName)
             .font(.title3.weight(.semibold))
             .foregroundStyle(.primary)
+            .lineLimit(1)
+            .truncationMode(.tail)
 
           Text("Horaires de la ligne \(route.shortName)")
             .font(.subheadline)
             .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
 
       DepartureFreshnessView(
         source: selection.lineScheduleSource,

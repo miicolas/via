@@ -5,8 +5,6 @@ import SwiftUI
 struct JourneyTimelineNodeRow: View {
     let node: JourneyTimelineNode
     let state: JourneyTimelineNodeState
-    var cursorFraction: Double?
-    var isCursorLive = false
     @Binding var isExpanded: Bool
     var departureChoicesGroup: JourneyDepartureChoiceGroup?
     var isDepartureChoicesLoading = false
@@ -95,9 +93,7 @@ struct JourneyTimelineNodeRow: View {
             above: node.railAbove,
             below: node.railBelow,
             bead: node.bead,
-            state: state,
-            cursorFraction: cursorFraction,
-            isCursorLive: isCursorLive
+            state: state
         )
     }
 

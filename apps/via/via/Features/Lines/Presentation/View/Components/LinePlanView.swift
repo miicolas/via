@@ -6,13 +6,17 @@ struct LinePlanView: View {
     let diagram: LinePlan.Diagram
     let lineColorHex: String
 
-    @ScaledMetric(relativeTo: .body) private var rowHeight: CGFloat = 48
+    /// The stop list in a journey has a 58-point row and places its station
+    /// hole 22 points from the top. Keeping those two anchors here makes the
+    /// names and holes land on the exact same baseline in both screens.
+    @ScaledMetric(relativeTo: .title3) private var rowHeight: CGFloat = 58
+    @ScaledMetric(relativeTo: .headline) private var beadCenter: CGFloat = 22
 
-    private let laneOrigin: CGFloat = 18
-    private let laneSpacing: CGFloat = 22
-    private let bandWidth: CGFloat = 16
-    private let stopSize: CGFloat = 12
-    private let terminusSize: CGFloat = 18
+    private let laneSpacing = JourneyTimelineRail.transitWidth + 6
+    private let textPadding: CGFloat = 10
+
+    private var laneOrigin: CGFloat { JourneyTimelineRail.width / 2 }
+    private var bandWidth: CGFloat { JourneyTimelineRail.transitWidth }
 
     private var lineColor: Color {
         Color(transitHex: lineColorHex, fallback: .secondary)
@@ -42,79 +46,69 @@ struct LinePlanView: View {
     private var schematic: some View {
         ZStack(alignment: .topLeading) {
             Canvas { context, _ in
-                drawSectionRails(in: &context)
                 drawConnections(in: &context)
             }
             .accessibilityHidden(true)
 
             ForEach(positionedStops) { node in
-                stationRow(node)
-                    .offset(y: CGFloat(node.rowIndex) * rowHeight)
-
-                stationMark(node)
-                    .position(x: x(for: node.lane), y: y(for: node))
+                stationRail(node)
+                    .frame(height: rowHeight)
+                    .position(
+                        x: x(for: node.lane),
+                        y: rowTop(for: node) + rowHeight / 2
+                    )
                     .accessibilityHidden(true)
+            }
+
+            ForEach(positionedStops) { node in
+                stationRow(node)
+                    .offset(y: rowTop(for: node))
             }
         }
         .frame(maxWidth: .infinity, minHeight: diagramHeight, maxHeight: diagramHeight)
     }
 
+    private func stationRail(_ node: PositionedStop) -> some View {
+        JourneyTimelineRail(
+            above: node.row.railAbove.timelineStyle(colorHex: lineColorHex),
+            below: node.row.railBelow.timelineStyle(colorHex: lineColorHex),
+            bead: node.row.isEnd ? .terminus : .minor,
+            mark: node.row.mark,
+            state: .upcoming
+        )
+    }
+
     private func stationRow(_ node: PositionedStop) -> some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .top, spacing: 0) {
             Color.clear
                 .frame(width: labelInset)
                 .accessibilityHidden(true)
 
             Text(node.row.stop.name)
-                .font(node.row.isEnd ? .subheadline.weight(.bold) : .subheadline)
-                .foregroundStyle(.primary)
+                .font(.title3.weight(node.row.isEnd ? .bold : .semibold))
+                .foregroundStyle(node.row.condition?.tint ?? lineColor)
+                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.trailing, 10)
+                .padding(.vertical, textPadding)
 
             if node.row.isCutEdge, let condition = node.row.condition {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(condition.tint)
+                    .padding(.trailing, 4)
+                    .padding(.vertical, textPadding)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: rowHeight, alignment: .leading)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: rowHeight,
+            maxHeight: rowHeight,
+            alignment: .topLeading
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(for: node.row))
-    }
-
-    @ViewBuilder
-    private func stationMark(_ node: PositionedStop) -> some View {
-        let size = node.row.isEnd ? terminusSize : stopSize
-
-        Circle()
-            .fill(.white)
-            .overlay {
-                switch node.row.mark {
-                case .open:
-                    EmptyView()
-                case .warned(let condition):
-                    Circle()
-                        .fill(condition.tint)
-                        .padding(3)
-                case .closed(let condition):
-                    Image(systemName: "xmark")
-                        .font(.system(size: size * 0.58, weight: .black))
-                        .foregroundStyle(condition.tint)
-                }
-            }
-            .frame(width: size, height: size)
-    }
-
-    private func drawSectionRails(in context: inout GraphicsContext) {
-        for section in diagram.sections {
-            let nodes = positionedStops.filter { $0.sectionID == section.id }
-            for index in nodes.indices.dropLast() {
-                var path = Path()
-                path.move(to: point(for: nodes[index]))
-                path.addLine(to: point(for: nodes[index + 1]))
-                stroke(path, as: nodes[index].row.railBelow, in: &context)
-            }
-        }
     }
 
     private func drawConnections(in context: inout GraphicsContext) {
@@ -135,41 +129,81 @@ struct LinePlanView: View {
 
             let start = point(for: from)
             let end = point(for: to)
-            var path = Path()
-            path.move(to: start)
-            if start.x == end.x {
-                path.addLine(to: end)
-            } else {
-                let middleY = (start.y + end.y) / 2
-                path.addCurve(
-                    to: end,
-                    control1: CGPoint(x: start.x, y: middleY),
-                    control2: CGPoint(x: end.x, y: middleY)
-                )
-            }
+            let path = connectionPath(
+                from: start,
+                to: end,
+                leavesFork: outgoingEdgeCount[edge.fromSectionID, default: 0] > 1,
+                joinsMerge: incomingEdgeCount[edge.toSectionID, default: 0] > 1
+            )
             stroke(path, as: edge.rail, in: &context)
         }
     }
 
-    private func stroke(_ path: Path, as rail: LinePlan.RailStyle, in context: inout GraphicsContext) {
+    /// Platform diagrams shift lanes with a short diagonal, then remain
+    /// perfectly straight. At a fork the diagonal happens immediately; at a
+    /// merge it happens just before the shared stem. Rounded joins soften only
+    /// those corners instead of turning the whole connection into an S-curve.
+    private func connectionPath(
+        from start: CGPoint,
+        to end: CGPoint,
+        leavesFork: Bool,
+        joinsMerge: Bool
+    ) -> Path {
+        var path = Path()
+        path.move(to: start)
+
+        let verticalDistance = end.y - start.y
+        let horizontalDistance = abs(end.x - start.x)
+        guard horizontalDistance > 0, verticalDistance > 0 else {
+            path.addLine(to: end)
+            return path
+        }
+
+        let diagonalHeight = min(horizontalDistance, verticalDistance)
+        if leavesFork && !joinsMerge {
+            path.addLine(to: CGPoint(x: end.x, y: start.y + diagonalHeight))
+        } else if joinsMerge && !leavesFork {
+            path.addLine(to: CGPoint(x: start.x, y: end.y - diagonalHeight))
+        } else {
+            let straightHeight = max(0, (verticalDistance - diagonalHeight) / 2)
+            path.addLine(to: CGPoint(x: start.x, y: start.y + straightHeight))
+            path.addLine(to: CGPoint(x: end.x, y: end.y - straightHeight))
+        }
+        path.addLine(to: end)
+        return path
+    }
+
+    private func stroke(
+        _ path: Path,
+        as rail: LinePlan.RailStyle,
+        in context: inout GraphicsContext
+    ) {
         let appearance: (color: Color, dash: [CGFloat]) = switch rail {
         case .none:
             (.clear, [])
         case .line:
             (lineColor, [])
         case .cut(let condition):
-            (condition.tint, [13, 8])
+            (condition.tint, JourneyTimelineRail.interruptedDash)
         }
         context.stroke(
             path,
             with: .color(appearance.color),
             style: StrokeStyle(
                 lineWidth: bandWidth,
-                lineCap: .round,
+                lineCap: .butt,
                 lineJoin: .round,
                 dash: appearance.dash
             )
         )
+    }
+
+    private var incomingEdgeCount: [String: Int] {
+        Dictionary(grouping: diagram.edges, by: \.toSectionID).mapValues(\.count)
+    }
+
+    private var outgoingEdgeCount: [String: Int] {
+        Dictionary(grouping: diagram.edges, by: \.fromSectionID).mapValues(\.count)
     }
 
     private var positionedStops: [PositionedStop] {
@@ -199,12 +233,16 @@ struct LinePlanView: View {
         CGFloat(positionedStops.count) * rowHeight
     }
 
+    private func rowTop(for node: PositionedStop) -> CGFloat {
+        CGFloat(node.rowIndex) * rowHeight
+    }
+
     private func x(for lane: Int) -> CGFloat {
         laneOrigin + CGFloat(lane) * laneSpacing
     }
 
     private func y(for node: PositionedStop) -> CGFloat {
-        CGFloat(node.rowIndex) * rowHeight + rowHeight / 2
+        rowTop(for: node) + beadCenter
     }
 
     private func point(for node: PositionedStop) -> CGPoint {

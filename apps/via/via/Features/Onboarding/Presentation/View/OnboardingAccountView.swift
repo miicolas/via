@@ -8,14 +8,15 @@ struct OnboardingAccountView: View {
 
     var body: some View {
         // Same stage as the presentation the traveller has just walked through:
-        // the carousel ends, the mark takes the screen, and the panel that was
-        // saying "Continuer" now asks for the account. Nothing about the screen
-        // announces that a different part of the app has taken over.
+        // the carousel ends and the panel that was saying "Continuer" now asks
+        // for the account. Nothing about the screen announces that a different
+        // part of the app has taken over.
         OnboardingScaffold(
             onBack: onBack,
             backHint: "Revient à la présentation de Metyro"
         ) {
-            brandMark
+            Color.clear
+                .accessibilityHidden(true)
         } panel: {
             VStack(spacing: 14) {
                 OnboardingHeadline(
@@ -36,28 +37,6 @@ struct OnboardingAccountView: View {
             .padding(.bottom, 8)
             .frame(maxWidth: 520)
         }
-    }
-
-    /// The presentation's screenshots stop here, so the stage carries the mark
-    /// instead — lit from behind so it holds the black rather than floating in it.
-    private var brandMark: some View {
-        ZStack {
-            Circle()
-                .fill(.blue)
-                .frame(width: 220, height: 220)
-                .blur(radius: 90)
-                .opacity(0.55)
-
-            Circle()
-                .fill(.blue.gradient)
-                .frame(width: 132, height: 132)
-
-            Mark()
-                .fill(.white)
-                .frame(width: 66, height: 66 / Mark.aspectRatio)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Metyro")
     }
 
     private var accountAction: some View {

@@ -32,15 +32,6 @@ struct JourneyActivityLockScreenView: View {
                         .lineLimit(2)
                 }
 
-                if context.state.presentationPhase != .arrived,
-                   context.state.presentationPhase != .ended {
-                    JourneyActivityProgressBar(
-                        fraction: context.state.progressFraction,
-                        tint: context.state.progressTint
-                    )
-                    .padding(.top, 1)
-                }
-
                 if let nextAction = context.state.nextAction {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.turn.down.right")
@@ -114,13 +105,6 @@ extension JourneyActivityAttributes.ContentState {
         }
     }
 
-    var progressTint: Color {
-        if let line {
-            return Color(activityHex: line.colorHex, fallback: .white)
-        }
-        return .white
-    }
-
     var countdownDate: Date? {
         switch presentationPhase {
         case .scheduled: departureAt ?? arrivalAt
@@ -162,14 +146,6 @@ extension JourneyActivityAttributes.ContentState {
             return Status(
                 title: "Hors connexion",
                 systemImage: "wifi.slash",
-                tint: .orange,
-                overridesPhase: true
-            )
-        }
-        if isEstimated {
-            return Status(
-                title: "Position estimée",
-                systemImage: "clock.badge.questionmark",
                 tint: .orange,
                 overridesPhase: true
             )
@@ -265,34 +241,5 @@ struct JourneyActivityTimeSummary: View {
         case .arrived, .ended:
             EmptyView()
         }
-    }
-}
-
-/// Mirrors the in-app progress bar while staying small enough for the system
-/// surfaces. The line tint carries identity; the accessible value carries the
-/// exact percentage.
-struct JourneyActivityProgressBar: View {
-    let fraction: Double
-    var tint: Color = .white
-
-    @Environment(\.isLuminanceReduced) private var isLuminanceReduced
-
-    var body: some View {
-        let clampedFraction = min(max(0, fraction), 1)
-
-        GeometryReader { proxy in
-            Capsule()
-                .fill(.white.opacity(0.22))
-                .overlay(alignment: .leading) {
-                    Capsule()
-                        .fill(isLuminanceReduced ? .white : tint)
-                        .frame(width: proxy.size.width * clampedFraction)
-                }
-                .clipShape(Capsule())
-        }
-        .frame(height: 4)
-        .accessibilityElement()
-        .accessibilityLabel("Progression du trajet")
-        .accessibilityValue("\(Int((clampedFraction * 100).rounded())) pour cent")
     }
 }
