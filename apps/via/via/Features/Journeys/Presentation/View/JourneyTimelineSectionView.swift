@@ -4,9 +4,7 @@ import SwiftUI
 /// before the station rail; walking and transfer legs remain rail-only.
 struct JourneyTimelineSectionView: View {
     let nodes: [JourneyTimelineNode]
-    let progress: JourneyProgress?
-    let cursor: JourneyTimelineCursor?
-    let isCursorLive: Bool
+    let currentSectionIndex: Int?
     @Binding var isExpanded: Bool
     var departureChoicesGroup: JourneyDepartureChoiceGroup?
     var isDepartureChoicesLoading = false
@@ -29,9 +27,10 @@ struct JourneyTimelineSectionView: View {
             ForEach(nodes) { node in
                 JourneyTimelineNodeRow(
                     node: node,
-                    state: JourneyTimeline.state(of: node, progress: progress),
-                    cursorFraction: cursor?.nodeID == node.id ? cursor?.fraction : nil,
-                    isCursorLive: isCursorLive,
+                    state: JourneyTimeline.state(
+                        of: node,
+                        currentSectionIndex: currentSectionIndex
+                    ),
                     isExpanded: $isExpanded,
                     departureChoicesGroup: departureChoicesGroup,
                     isDepartureChoicesLoading: isDepartureChoicesLoading,
@@ -58,7 +57,10 @@ struct JourneyTimelineSectionView: View {
             return (
                 route,
                 position,
-                JourneyTimeline.state(of: node, progress: progress)
+                JourneyTimeline.state(
+                    of: node,
+                    currentSectionIndex: currentSectionIndex
+                )
             )
         }
         return nil

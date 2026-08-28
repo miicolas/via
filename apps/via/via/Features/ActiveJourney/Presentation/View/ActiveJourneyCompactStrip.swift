@@ -12,12 +12,11 @@ struct ActiveJourneyCompactStrip: View {
 
     var body: some View {
         if let journey = model.journey,
-           let progress = model.progress,
            let headline = model.guidanceHeadline {
             ActiveJourneyCompactView(
                 journey: journey,
                 headline: headline,
-                progress: progress,
+                currentSectionIndex: model.currentSectionIndex,
                 action: action
             )
         }

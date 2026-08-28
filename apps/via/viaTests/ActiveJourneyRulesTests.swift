@@ -113,13 +113,9 @@ final class ActiveJourneyRulesTests: XCTestCase {
         XCTAssertEqual(schedule.last?.endsAt, referenceDate.addingTimeInterval(20 * 60))
     }
 
-    func testProgressAndMonitoringCadenceWakeAtTheExactTransition() {
+    func testMonitoringCadenceWakesAtTheExactTransition() {
         let journey = makeJourney(departureAt: referenceDate)
 
-        XCTAssertEqual(
-            ActiveJourneyRules.sectionIndex(in: journey, at: referenceDate.addingTimeInterval(6 * 60)),
-            1
-        )
         XCTAssertEqual(
             ActiveJourneyRules.nextMonitoringDelay(in: journey, at: referenceDate.addingTimeInterval(11 * 60)),
             120

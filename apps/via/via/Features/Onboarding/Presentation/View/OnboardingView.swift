@@ -88,7 +88,10 @@ struct OnboardingView: View {
         shape: ConcentricRectangle
     ) -> some View {
         Group {
-            if let screenshot = page.screenshot {
+            if page == .welcome {
+                OnboardingWelcomeStage()
+                    .clipShape(shape)
+            } else if let screenshot = page.screenshot {
                 Image(uiImage: screenshot)
                     .resizable()
                     .aspectRatio(contentMode: .fit)

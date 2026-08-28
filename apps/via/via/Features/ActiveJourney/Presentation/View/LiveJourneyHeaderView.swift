@@ -1,12 +1,10 @@
 import SwiftUI
 
-/// The pinned live instruction: one action, one arrival time and one quiet
-/// progress line while the remaining steps move underneath it.
+/// The pinned live instruction: one action and one arrival time while the
+/// remaining steps move underneath it.
 struct LiveJourneyHeaderView: View {
   let journey: Journey
   let headline: JourneyGuidanceHeadline
-  let progress: JourneyProgress
-  var isTracking: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: 16) {
@@ -38,13 +36,6 @@ struct LiveJourneyHeaderView: View {
           )
       }
 
-      JourneyProgressBar(journey: journey, progress: progress, height: 7)
-
-      if !progress.isLocationDerived && isTracking {
-        Label("Position estimée", systemImage: "clock.badge.questionmark")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
     }
     .padding(.horizontal, 20)
     .padding(.vertical, 18)

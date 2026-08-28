@@ -3,9 +3,9 @@ import SwiftUI
 /// One slice of the passenger-display rail. Consecutive slices meet edge to
 /// edge, forming a single wide band with white station holes punched through.
 ///
-/// The journey timeline and the plan of a line are drawn by this one view, so a
-/// leg read from a trip and a line read from the Lignes tab are the same
-/// object: same band width, same holes, same colours.
+/// A branched line plan reuses these vertical slices and draws only the angled
+/// connectors separately. A leg read from a trip and a line read from the
+/// Lignes tab therefore keep the same band width and station holes.
 struct JourneyTimelineRail: View {
     let above: JourneyTimelineRailStyle
     let below: JourneyTimelineRailStyle
@@ -14,18 +14,31 @@ struct JourneyTimelineRail: View {
     /// `.open`; a line plan is where the marks come from.
     var mark: JourneyTimelineBeadMark = .open
     let state: JourneyTimelineNodeState
-    var cursorFraction: Double?
-    var isCursorLive = false
     var beadTopInset: CGFloat = 0
 
     static let width: CGFloat = 56
 
     /// Wide enough for the white station hole to remain visibly inset in the
     /// coloured band, like the platform displays used as reference.
-    private static let transitWidth: CGFloat = 26
+    static let transitWidth: CGFloat = 26
+    static let interruptedDash: [CGFloat] = [13, 8]
+
+    private static func beadDiameter(
+        for bead: JourneyTimelineBead,
+        mark: JourneyTimelineBeadMark
+    ) -> CGFloat {
+        let base: CGFloat = switch bead {
+        case .terminus, .major: 16
+        case .minor: 14
+        case .none: 0
+        }
+        // A marked hole carries a colour or a cross inside it, and needs the
+        // few extra points for either to read at a glance.
+        guard base > 0, mark != .open else { return base }
+        return base + 5
+    }
+
     private static let pedestrianWidth: CGFloat = 7
-    private static let cursorTint = Color.blue
-    private static let cursorSize: CGFloat = 28
 
     @ScaledMetric(relativeTo: .headline) private var beadCenter: CGFloat = 22
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -49,7 +62,6 @@ struct JourneyTimelineRail: View {
             beadView
                 .offset(y: beadPosition - beadSize / 2)
         }
-        .overlay { cursorView }
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: state)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: above)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: below)
@@ -142,7 +154,10 @@ struct JourneyTimelineRail: View {
                     JourneyRailPath()
                         .stroke(
                             Color.black,
-                            style: StrokeStyle(lineWidth: Self.transitWidth, dash: [13, 8])
+                            style: StrokeStyle(
+                                lineWidth: Self.transitWidth,
+                                dash: Self.interruptedDash
+                            )
                         )
                         .frame(width: Self.transitWidth, height: height)
                 } else {
@@ -176,15 +191,7 @@ struct JourneyTimelineRail: View {
     }
 
     private var beadSize: CGFloat {
-        let base: CGFloat = switch bead {
-        case .terminus, .major: 16
-        case .minor: 14
-        case .none: 0
-        }
-        // A marked hole carries a colour or a cross inside it, and needs the
-        // few extra points for either to read at a glance.
-        guard base > 0, mark != .open else { return base }
-        return base + 5
+        Self.beadDiameter(for: bead, mark: mark)
     }
 
     /// A hole is punched *through* something. With no band under it there is
@@ -255,25 +262,6 @@ struct JourneyTimelineRail: View {
 
     private var hasTransitRail: Bool {
         above.band != nil || below.band != nil
-    }
-
-    @ViewBuilder
-    private var cursorView: some View {
-        if let cursorFraction {
-            GeometryReader { proxy in
-                MarkBadge(
-                    tint: Self.cursorTint,
-                    size: Self.cursorSize,
-                    isEstimated: !isCursorLive
-                )
-                .position(
-                    x: proxy.size.width / 2,
-                    y: proxy.size.height * min(max(0, cursorFraction), 1)
-                )
-            }
-            .transition(.scale(scale: 0.5).combined(with: .opacity))
-            .animation(reduceMotion ? nil : .smooth(duration: 0.5), value: cursorFraction)
-        }
     }
 
     private func strokeOpacity(for style: JourneyTimelineRailStyle) -> Double {

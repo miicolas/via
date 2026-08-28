@@ -7,6 +7,7 @@ struct LinesView: View {
   var accountModel: AccountModel?
 
   @State private var navigationPath = NavigationPath()
+  @State private var lineSelectionTick = 0
 
   init(viewModel: LinesViewModel, accountModel: AccountModel? = nil) {
     self.viewModel = viewModel
@@ -17,7 +18,13 @@ struct LinesView: View {
     @Bindable var viewModel = viewModel
 
     NavigationStack(path: $navigationPath) {
-      LinesScreenContent(viewModel: viewModel)
+      LinesScreenContent(
+        viewModel: viewModel,
+        onSelectLine: { status in
+          lineSelectionTick += 1
+          navigationPath.append(status)
+        }
+      )
         .navigationTitle("Lignes")
         .toolbarTitleDisplayMode(.inlineLarge)
         .searchable(text: $viewModel.searchText, prompt: "Ligne, mode, bus…")
@@ -50,6 +57,7 @@ struct LinesView: View {
           openRequestedRoute()
         }
     }
+    .haptic(Haptic.commit, on: lineSelectionTick)
     .task { await viewModel.runAutomaticRefresh() }
     .task(id: viewModel.searchText) {
       await viewModel.search(query: viewModel.searchText)

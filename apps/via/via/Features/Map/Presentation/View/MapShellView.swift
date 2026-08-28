@@ -34,7 +34,6 @@ struct MapShellView: View {
   @State private var activeTab: MapShellTab = .stations
   @State private var previousTab: MapShellTab = .stations
   @State private var position: MapCameraPosition
-  @State private var followsJourneyPosition = false
   @State private var selectedMapStation: StationMapItem?
   @State private var selectedBikeStation: BikeStation?
   @State private var selectedSharedMobility: SharedMobilityItem?
@@ -137,9 +136,6 @@ struct MapShellView: View {
   private var journeyEventMap: some View {
     presentedMap
     .task {
-      if activeJourneyModel.isTracking {
-        followsJourneyPosition = true
-      }
       guard locationModel.coordinate == nil else { return }
       locationModel.requestLocation()
     }
@@ -223,9 +219,6 @@ struct MapShellView: View {
     .onChange(of: activeJourneyModel.isActive) { _, isActive in
       // Once guidance is running, peek so the map behind stays visible.
       if isActive { journeySheetDetent = journeyPeekDetent }
-    }
-    .onChange(of: activeJourneyModel.isTracking) { _, isTracking in
-      followsJourneyPosition = isTracking
     }
   }
 
@@ -324,33 +317,13 @@ struct MapShellView: View {
   }
 
   private var map: some View {
-    TimelineView(
-      .periodic(from: .now, by: activeJourneyModel.isActive ? 5 : 60)
-    ) { context in
-      map(at: context.date)
-    }
-  }
-
-  private func map(at date: Date) -> some View {
-    let presentation = displayedJourneyPresentation
-    let progress = activeJourneyModel.progress(at: date)?.mapQuantized
-    let camera = presentation.flatMap { presentation in
-      progress.flatMap {
-        JourneyNavigationCamera.resolve(presentation: presentation, progress: $0)
-      }
-    }
-
     return NetworkMapView(
       viewModel: networkViewModel,
       position: $position,
       nearby: nearbyStationsModel,
       stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
-      journeyPresentation: presentation,
-      journeyProgress: progress,
-      showsJourneyPosition: activeJourneyModel.isTracking,
-      journeyCamera: camera,
+      journeyPresentation: displayedJourneyPresentation,
       highlightedJourneySegmentID: displayedHighlightedSectionID,
-      followsJourneyPosition: $followsJourneyPosition,
       selectedStation: $selectedMapStation
     )
   }
@@ -369,10 +342,11 @@ struct MapShellView: View {
     }
   }
 
-  /// The guidance beam frames the app rather than the estimated position dot.
-  /// It stays out of the way while Apple Intelligence owns the screen edge.
+  /// The beam is an explicit loss-of-signal cue. Normal tracking uses only
+  /// MapKit's native user annotation and controls.
   private var journeyScreenBeamIsVisible: Bool {
-    activeJourneyModel.isTracking && naturalGlowIntensity == nil
+    activeJourneyModel.isTracking
+      && (activeJourneyModel.isOffline || !activeJourneyModel.hasLiveLocationFix)
   }
 
   /// Opens the detail sheet for a map item. A dock and a transit station own
@@ -916,14 +890,10 @@ struct MapShellView: View {
     presentAccountSheet(.favorites)
   }
 
-  /// Frames the part of the journey that is still ahead when guidance is
-  /// running, and the current section otherwise.
+  /// Frames the selected section, without deriving a synthetic route position.
   private func frameJourney(sectionID: String?) {
     guard let presentation = displayedJourneyPresentation else { return }
-    let mapRect =
-      activeJourneyModel.isActive
-      ? presentation.mapRect(remainingFrom: activeJourneyModel.progress)
-      : presentation.mapRect(for: sectionID)
+    let mapRect = presentation.mapRect(for: sectionID)
     guard let mapRect else { return }
     position = .rect(mapRect)
   }

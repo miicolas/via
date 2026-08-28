@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LinesScreenContent: View {
   var viewModel: LinesViewModel
+  let onSelectLine: (LineStatus) -> Void
 
   var body: some View {
     switch viewModel.board {
@@ -32,8 +33,7 @@ struct LinesScreenContent: View {
         sections: viewModel.sections,
         extraSearchResults: viewModel.extraSearchResults,
         upcomingByDay: viewModel.upcomingByDay,
-        isFavorite: { routeID in viewModel.isFavorite(routeID) },
-        onToggleFavorite: { route in _ = viewModel.toggleFavorite(route: route) },
+        onSelectLine: onSelectLine,
         isSearching: viewModel.isSearching,
         isRefreshing: isRefreshing,
         showsUnavailableBanner: isStale || board.source == .unavailable,

@@ -80,7 +80,7 @@ struct JourneyShareSheetView: View {
                 )
                 .padding(.horizontal, 20)
 
-                if !snapshot.journey.warnings.isEmpty {
+                if !JourneyWarningPresentation.visibleWarnings(from: snapshot.journey.warnings).isEmpty {
                     JourneyWarningBanner(warnings: snapshot.journey.warnings)
                         .padding(.horizontal, 20)
                         .padding(.top, 18)

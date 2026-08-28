@@ -28,13 +28,25 @@ struct LineBadgeView: View {
     @ViewBuilder
     private var content: some View {
         if showsLabel {
+            let horizontalPadding: CGFloat = route.shortName.count > 2 ? 4 : 0
+
             Text(route.shortName)
                 .font(.system(size: max(11, size * 0.5), weight: .bold, design: .rounded).monospacedDigit())
                 .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
+                .truncationMode(.tail)
+                .allowsTightening(true)
+                .minimumScaleFactor(0.75)
                 .foregroundStyle(Color(transitHex: route.textColorHex, fallback: .white))
-                .frame(minWidth: size, minHeight: size)
-                .padding(.horizontal, route.shortName.count > 2 ? 4 : 0)
+                // A malformed or unusually long route label must not push the
+                // destination, station name, or neighbouring badge off-screen.
+                // Keep the usual short labels intrinsic, but give every badge a
+                // finite ceiling and let the label truncate inside it.
+                .frame(
+                    minWidth: max(0, size - horizontalPadding * 2),
+                    maxWidth: max(size, size * 2 - horizontalPadding * 2),
+                    minHeight: size
+                )
+                .padding(.horizontal, horizontalPadding)
         } else {
             Color.clear
                 .frame(width: size, height: size)

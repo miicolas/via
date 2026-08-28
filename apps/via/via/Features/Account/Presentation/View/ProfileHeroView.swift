@@ -13,9 +13,9 @@ struct ProfileHeroView: View {
                 Circle()
                     .fill(.white.opacity(0.96))
 
-                Mark()
-                    .fill(.blue.gradient)
-                    .frame(width: 38, height: 38 / Mark.aspectRatio)
+                Image(systemName: "person.fill")
+                    .font(.system(size: 32, weight: .semibold))
+                    .foregroundStyle(.blue.gradient)
             }
             .frame(width: 72, height: 72)
             .shadow(color: .blue.opacity(0.22), radius: 14, y: 6)

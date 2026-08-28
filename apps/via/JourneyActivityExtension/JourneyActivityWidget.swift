@@ -47,14 +47,6 @@ struct JourneyActivityWidget: Widget {
                                 .lineLimit(1)
                         }
 
-                        if context.state.presentationPhase != .arrived,
-                           context.state.presentationPhase != .ended {
-                            JourneyActivityProgressBar(
-                                fraction: context.state.progressFraction,
-                                tint: context.state.progressTint
-                            )
-                        }
-
                         if let nextAction = context.state.nextAction {
                             Text("Ensuite · \(nextAction)")
                                 .font(.caption2)
@@ -96,27 +88,9 @@ struct JourneyActivityWidget: Widget {
                     .accessibilityLabel("Temps avant le départ")
             }
         case .underway:
-            if let stopsRemaining = state.stopsRemaining, stopsRemaining > 0 {
-                HStack(spacing: 2) {
-                    Image(systemName: "arrow.down.right")
-                        .font(.caption2.weight(.bold))
-                    Text("\(stopsRemaining)")
-                        .font(.caption2.weight(.bold).monospacedDigit())
-                }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(
-                    stopsRemaining == 1
-                        ? "Descendre au prochain arrêt"
-                        : "Descendre dans \(stopsRemaining) arrêts"
-                )
-            } else if state.stopsRemaining == 0 {
-                Image(systemName: "arrow.down.right.circle.fill")
-                    .accessibilityLabel("Descendre maintenant")
-            } else {
-                Text(state.arrivalAt, style: .time)
-                    .font(.caption2.monospacedDigit())
-                    .accessibilityLabel("Arrivée prévue à")
-            }
+            Text(state.arrivalAt, style: .time)
+                .font(.caption2.monospacedDigit())
+                .accessibilityLabel("Arrivée prévue à")
         case .paused:
             Text(state.arrivalAt, style: .time)
                 .font(.caption2.monospacedDigit())
