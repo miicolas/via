@@ -18,6 +18,12 @@ enum StateSymbol {
   static func disclosure(isExpanded: Bool) -> String {
     isExpanded ? "chevron.up" : "chevron.down"
   }
+
+  /// A route-aware map camera: filled while the map follows the traveller,
+  /// outlined after they move the map themselves.
+  static func journeyTracking(isOn: Bool) -> String {
+    isOn ? "location.north.circle.fill" : "location.north.circle"
+  }
 }
 
 extension View {

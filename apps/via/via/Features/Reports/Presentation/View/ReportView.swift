@@ -3,6 +3,7 @@ import SwiftUI
 struct ReportView: View {
     let viewModel: ReportViewModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
 
@@ -11,12 +12,17 @@ struct ReportView: View {
 
         NavigationStack {
             Group {
-                if case .confirmed = viewModel.submissionState {
-                    ReportConfirmationView(onDone: viewModel.finishConfirmation)
+                if case .confirmed(let submission) = viewModel.submissionState {
+                    ReportConfirmationView(
+                        submission: submission,
+                        onDone: viewModel.finishConfirmation
+                    )
                 } else {
                     reportsContent
                 }
             }
+            .transition(reduceMotion ? .identity : .opacity)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: isShowingConfirmation)
             .navigationTitle(isShowingConfirmation ? "" : "Signaler")
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbarVisibility(isShowingConfirmation ? .hidden : .visible, for: .navigationBar)
@@ -41,15 +47,19 @@ struct ReportView: View {
                 .presentationDragIndicator(.visible)
             }
         }
+        .haptic(Haptic.commit, on: viewModel.presentedSheet) { previous, current in
+            previous == nil && current != nil
+        }
+        .haptic(Haptic.commit, on: viewModel.submissionCommitTrigger)
+        .haptic(Haptic.selection, on: viewModel.stationSelectionTrigger)
+        .haptic(Haptic.tap, on: viewModel.sheetCancellationTrigger)
+        .haptic(Haptic.commit, on: viewModel.confirmationDoneTrigger)
+        .haptic(Haptic.failed, on: isShowingSubmissionError) { !$0 && $1 }
     }
 
     private var reportsContent: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 28) {
-                Text("Partagez ce que vous observez pour mieux informer les voyageurs.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-
+            LazyVStack(alignment: .leading, spacing: 20) {
                 ReportContextView(
                     state: viewModel.contextResolver.state,
                     isEditable: isContextEditable,
@@ -61,88 +71,67 @@ struct ReportView: View {
                     submissionError(error)
                 }
 
-                ForEach(ReportCategoryGroup.allCases, id: \.self) { group in
-                    reportSection(group)
-                }
-
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Dans mon train")
-                        .font(.title3.weight(.bold))
-
-                    GlassEffectContainer(spacing: 12) {
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ReportCardView(
-                                title: "Climatisation présente",
-                                systemImage: "snowflake",
-                                tint: .cyan,
-                                subtitle: "Disponible pendant un trajet en direct",
-                                isEnabled: false,
-                                action: {}
-                            )
+                GlassEffectContainer(spacing: 14) {
+                    LazyVGrid(columns: columns, spacing: 18) {
+                        ForEach(categories, id: \.self) { category in
+                            ReportActionView(
+                                title: category.compactTitle,
+                                accessibilityTitle: category.title,
+                                systemImage: category.systemImage,
+                                tint: category.tint,
+                                accessibilityHint: category.explanation,
+                                isEnabled: viewModel.canSubmit,
+                                isLoading: viewModel.submissionState.submittingCategory == category
+                            ) {
+                                viewModel.selectCategory(category)
+                            }
                         }
                     }
                 }
 
-                Text("Via connaît votre compte pour prévenir les abus, mais votre identité n’est jamais affichée aux voyageurs.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 24)
+                privacyNotice
             }
             .padding(.horizontal, 20)
-            .padding(.top, 12)
+            .padding(.top, 4)
+            .padding(.bottom, 24)
+            .frame(maxWidth: 720, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .scrollEdgeEffectStyle(.soft, for: .vertical)
     }
 
-    private func reportSection(_ group: ReportCategoryGroup) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(group.title)
-                .font(.title3.weight(.bold))
+    private var categories: [ReportCategory] {
+        ReportCategoryGroup.allCases.flatMap(\.categories)
+    }
 
-            GlassEffectContainer(spacing: 12) {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(group.categories, id: \.self) { category in
-                        ReportCardView(
-                            title: category.title,
-                            systemImage: category.systemImage,
-                            tint: category.tint,
-                            isEnabled: viewModel.canSubmit,
-                            isLoading: viewModel.submissionState.submittingCategory == category
-                        ) {
-                            viewModel.selectCategory(category)
-                        }
-                    }
-                }
-            }
-        }
+    private var columns: [GridItem] {
+        let minimum: CGFloat = dynamicTypeSize.isAccessibilitySize ? 140 : 92
+        let maximum: CGFloat = dynamicTypeSize.isAccessibilitySize ? 220 : 120
+        return [GridItem(.adaptive(minimum: minimum, maximum: maximum), spacing: 14)]
     }
 
     private func submissionError(_ error: ViaError) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label("Signalement non envoyé", systemImage: "exclamationmark.triangle.fill")
-                .font(.headline)
-                .foregroundStyle(.orange)
-
-            Text(message(for: error))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
+        EmptyStateView(
+            .unavailable(
+                title: "Signalement non envoyé",
+                message: message(for: error)
+            )
+        ) {
             RetryButton(action: viewModel.retrySubmission)
-                .primaryAction()
+                .primaryAction(tint: .blue)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
         .background(.orange.opacity(0.1), in: RoundedRectangle(
-            cornerRadius: 20,
+            cornerRadius: 22,
             style: .continuous
         ))
     }
 
-    private var columns: [GridItem] {
-        if dynamicTypeSize.isAccessibilitySize {
-            return [GridItem(.flexible())]
-        }
-        return [GridItem(.flexible()), GridItem(.flexible())]
+    private var privacyNotice: some View {
+        Label("Votre identité n’est pas affichée", systemImage: "hand.raised.fill")
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(.secondary)
+            .accessibilityHint("Via utilise votre compte uniquement pour prévenir les abus.")
+            .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var isShowingConfirmation: Bool {
@@ -152,6 +141,11 @@ struct ReportView: View {
 
     private var isContextEditable: Bool {
         if case .idle = viewModel.submissionState { return true }
+        return false
+    }
+
+    private var isShowingSubmissionError: Bool {
+        if case .failed = viewModel.submissionState { return true }
         return false
     }
 

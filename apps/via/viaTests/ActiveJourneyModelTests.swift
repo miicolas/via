@@ -76,6 +76,29 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertTrue(adapter.backgroundAuthorizationGranted)
     }
 
+    func testTrackingMapKeepsOnlyTheNativeUserPositionMarker() async throws {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let coordinate = try XCTUnwrap(journey.sections.first?.from.coordinate)
+        let location = LocationModel(adapter: InMemoryLocationAdapter(coordinate: coordinate))
+        let model = makeModel(location: location, now: journey.departureAt)
+
+        await model.activate(
+            journey: journey,
+            destination: destination,
+            source: .realtime
+        )
+        XCTAssertEqual(model.mapPresentation?.stops.filter { $0.kind == .origin }.count, 1)
+
+        await model.startTracking(allowsBackgroundTracking: false)
+
+        XCTAssertTrue(model.isTracking)
+        XCTAssertEqual(
+            model.mapPresentation?.stops.filter { $0.kind == .origin }.count,
+            0,
+            "The map already renders MapKit's native UserAnnotation while tracking"
+        )
+    }
+
     func testMissingLocationDoesNotAdvanceFromTheTimetable() async {
         let journey = JourneyResult.mapPreview.journeys[0]
         let location = LocationModel(adapter: InMemoryLocationAdapter(

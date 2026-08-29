@@ -116,6 +116,7 @@ final class NotificationScheduleCoordinator {
         content.title = event.title
         content.body = event.body
         content.sound = .default
+        content.interruptionLevel = .timeSensitive
         content.threadIdentifier = "via.notification.commute.\(event.scheduleID)"
         content.categoryIdentifier = "via.notification.commute"
         content.userInfo = [

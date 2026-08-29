@@ -8,24 +8,50 @@ extension ReportCategoryGroup {
         case .accessAndService: "Accès et service"
         }
     }
+
+    var systemImage: String {
+        switch self {
+        case .safetyAndCrowding: "exclamationmark.bubble.fill"
+        case .accessibilityAndEquipment: "figure.roll"
+        case .accessAndService: "rectangle.portrait.and.arrow.forward"
+        }
+    }
 }
 
 extension ReportCategory {
+    var compactTitle: String {
+        switch self {
+        case .pickpocket: "Pickpocket"
+        case .crowding: "Affluence"
+        case .restroomsClosed: "WC fermés"
+        case .ticketMachinesUnavailable: "Distributeurs"
+        case .wheelchairAccessUnavailable: "Accès PMR"
+        case .elevatorsUnavailable: "Ascenseurs"
+        case .escalatorUnavailable: "Escalator"
+        case .validatorsUnavailable: "Portiques"
+        case .entranceOrExitClosed: "Accès fermé"
+        case .stopRelocated: "Arrêt déplacé"
+        case .stopNotServed: "Arrêt non desservi"
+        case .passengerInformationUnavailable: "Infos voyageurs"
+        case .passageObstructed: "Passage bloqué"
+        }
+    }
+
     var title: String {
         switch self {
         case .pickpocket: "Pickpocket"
         case .crowding: "Affluence"
         case .restroomsClosed: "WC fermés"
-        case .ticketMachinesUnavailable: "Aucun distributeur de tickets fonctionnel"
+        case .ticketMachinesUnavailable: "Distributeurs indisponibles"
         case .wheelchairAccessUnavailable: "Accès PMR impossible"
-        case .elevatorsUnavailable: "Certains ascenseurs indisponibles"
+        case .elevatorsUnavailable: "Ascenseurs indisponibles"
         case .escalatorUnavailable: "Escalator indisponible"
-        case .validatorsUnavailable: "Portiques ou validateurs indisponibles"
+        case .validatorsUnavailable: "Portiques indisponibles"
         case .entranceOrExitClosed: "Entrée ou sortie fermée"
-        case .stopRelocated: "Arrêt déplacé ici"
+        case .stopRelocated: "Arrêt déplacé"
         case .stopNotServed: "Arrêt non desservi"
-        case .passengerInformationUnavailable: "Écrans ou annonces indisponibles"
-        case .passageObstructed: "Travaux ou passage obstrué"
+        case .passengerInformationUnavailable: "Information indisponible"
+        case .passageObstructed: "Passage obstrué"
         }
     }
 
@@ -41,9 +67,40 @@ extension ReportCategory {
         case .validatorsUnavailable: "rectangle.portrait.and.arrow.forward"
         case .entranceOrExitClosed: "door.left.hand.closed"
         case .stopRelocated: "arrowshape.right.fill"
-        case .stopNotServed: "minus.circle.fill"
+        case .stopNotServed: "minus"
         case .passengerInformationUnavailable: "display.2"
         case .passageObstructed: "wrench.and.screwdriver.fill"
+        }
+    }
+
+    var explanation: String {
+        switch self {
+        case .pickpocket:
+            "Avertissez les voyageurs autour de vous."
+        case .crowding:
+            "Indiquez le niveau d’occupation que vous observez."
+        case .restroomsClosed:
+            "Les sanitaires de la station sont inaccessibles."
+        case .ticketMachinesUnavailable:
+            "Aucune borne ne permet d’acheter un titre."
+        case .wheelchairAccessUnavailable:
+            "Le parcours sans marche n’est pas praticable."
+        case .elevatorsUnavailable:
+            "Un ou plusieurs ascenseurs sont hors service."
+        case .escalatorUnavailable:
+            "Un escalator nécessaire est à l’arrêt."
+        case .validatorsUnavailable:
+            "Les portiques ou validateurs ne fonctionnent pas."
+        case .entranceOrExitClosed:
+            "Un accès à la station est fermé."
+        case .stopRelocated:
+            "Le point d’arrêt a changé d’emplacement."
+        case .stopNotServed:
+            "Les véhicules ne marquent pas l’arrêt."
+        case .passengerInformationUnavailable:
+            "Les écrans ou annonces ne fonctionnent pas."
+        case .passageObstructed:
+            "Des travaux ou un obstacle bloquent le passage."
         }
     }
 

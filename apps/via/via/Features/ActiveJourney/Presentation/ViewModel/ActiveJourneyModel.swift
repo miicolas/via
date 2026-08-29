@@ -65,7 +65,9 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
     var journey: Journey? { session?.journey }
     var mapPresentation: JourneyMapPresentation? {
-        journey.map(JourneyMapPresentation.init)
+        journey.map {
+            JourneyMapPresentation(journey: $0, includesOrigin: !isTracking)
+        }
     }
     var highlightedSectionID: String? {
         guard let session else { return nil }

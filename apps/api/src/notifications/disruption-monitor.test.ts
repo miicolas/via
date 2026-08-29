@@ -201,9 +201,10 @@ test("notification payloads are bounded and collapse IDs include both identifier
   expect(first.collapseId.length).toBeLessThanOrEqual(64);
   expect(first.collapseId).not.toBe(second.collapseId);
   expect(first.expirationAt).toEqual(new Date("2026-08-21T13:00:00Z"));
+  expect(first.interruptionLevel).toBe("timeSensitive");
   expect(
     new TextEncoder().encode(JSON.stringify(first)).byteLength,
-  ).toBeLessThan(4_096);
+  ).toBeLessThanOrEqual(4_096);
 });
 
 test("notification expiration covers overlapping active disruption periods", () => {

@@ -1,78 +1,80 @@
 import SwiftUI
 
+/// One reportable observation and the single symbol control that submits it.
+/// The wording stays readable beside the control instead of turning the whole
+/// surface into an easy-to-hit destructive action.
 struct ReportCardView: View {
     let title: String
     let systemImage: String
     let tint: Color
-    var subtitle: String?
+    var accessibilityHint: String?
+    var accessibilityActionLabel: String?
     var isEnabled: Bool = true
     var isLoading: Bool = false
     let action: () -> Void
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 16) {
-                Group {
-                    if isLoading {
-                        ProgressView()
-                            .tint(.white)
-                    } else {
-                        Image(systemName: systemImage)
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .accessibilityHidden(true)
-                    }
+        HStack(alignment: .center, spacing: 16) {
+            Text(title)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                // The adjacent button owns the complete spoken label, so VoiceOver
+                // reaches one actionable element rather than reading the row twice.
+                .accessibilityHidden(true)
+
+            Spacer(minLength: 8)
+
+            Button(action: action) {
+                GlassSquareBadge(tint: tint, size: 44, isInteractive: true) {
+                    Image(systemName: isLoading ? "hourglass" : systemImage)
+                        .font(.body.weight(.semibold))
+                        .stateSymbolTransition(value: isLoading)
+                        .animation(reduceMotion ? nil : .default, value: isLoading)
                 }
-                .frame(width: 56, height: 56)
-                .glassEffect(
-                    .regular.tint(tint),
-                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-                )
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.leading)
-
-                    if isLoading {
-                        Text("Envoi…")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(tint)
-                    }
-
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.leading)
-                    }
-                }
-
-                Spacer(minLength: 0)
             }
-            .frame(
-                maxWidth: .infinity,
-                minHeight: dynamicTypeSize.isAccessibilitySize ? 112 : 154,
-                alignment: .topLeading
-            )
-            .padding(18)
-            .background(.secondary.opacity(0.08), in: RoundedRectangle(
-                cornerRadius: 22,
-                style: .continuous
-            ))
-            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .buttonStyle(.plain)
+            .disabled(!isEnabled || isLoading)
+            .accessibilityLabel(accessibilityActionLabel ?? "Signaler \(title)")
+            .accessibilityValue(accessibilityValue)
+            .accessibilityHint(accessibilityHint ?? "Envoie ce signalement")
         }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .accessibilityLabel(isLoading ? "\(title), envoi en cours" : title)
-        .accessibilityHint(accessibilityHint)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 
-    private var accessibilityHint: String {
-        if let subtitle { return subtitle }
-        return isEnabled ? "Envoie ce signalement" : "Indisponible"
+    private var accessibilityValue: String {
+        if isLoading { return "Envoi en cours" }
+        return isEnabled ? "Disponible" : "Indisponible"
     }
+}
+
+#Preview("Signalement") {
+    VStack(spacing: 0) {
+        ReportCardView(
+            title: "Affluence",
+            systemImage: "person.3.fill",
+            tint: .red,
+            accessibilityHint: "Indiquez le niveau d’occupation que vous observez.",
+            action: {}
+        )
+
+        Divider()
+            .padding(.leading, 16)
+
+        ReportCardView(
+            title: "Accès PMR impossible",
+            systemImage: "figure.roll",
+            tint: .orange,
+            accessibilityHint: "Le parcours sans marche n’est pas praticable.",
+            isLoading: true,
+            action: {}
+        )
+    }
+    .background(.secondary.opacity(0.08), in: .rect(cornerRadius: 22))
+    .padding()
 }

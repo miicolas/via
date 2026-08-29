@@ -67,14 +67,16 @@ export function isNotificationQuietAt(
 
 function interruptionLevelFor(
   category: NotificationCategory,
-  severity: NotificationSeverity | undefined,
+  _severity: NotificationSeverity | undefined,
   inDeclaredWindow: boolean,
 ): NotificationInterruptionLevel {
   if (category === 'digest') return 'passive';
-  if (category === 'line' && severity === 'suspended' && inDeclaredWindow) {
+  if (category === 'journey' || category === 'commute') {
     return 'timeSensitive';
   }
-  if (category === 'journey' && severity === 'suspended') return 'timeSensitive';
+  if ((category === 'line' || category === 'station') && inDeclaredWindow) {
+    return 'timeSensitive';
+  }
   return 'active';
 }
 

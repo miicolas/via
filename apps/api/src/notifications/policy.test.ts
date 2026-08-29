@@ -10,7 +10,7 @@ test('legacy in-app master switch no longer disables delivery', () => {
   expect(evaluateDelivery({
     preferences,
     category: 'journey',
-  })).toEqual({ send: true, interruptionLevel: 'active' });
+  })).toEqual({ send: true, interruptionLevel: 'timeSensitive' });
 });
 
 test('disabled categories win before their daily cap', () => {
@@ -41,13 +41,30 @@ test('quiet hours wrap across midnight', () => {
   })).toEqual({ send: false, reason: 'quiet-hours' });
 });
 
-test('suspended lines are time-sensitive only inside a declared window', () => {
+test('line alerts are time-sensitive only inside a declared window', () => {
   const preferences = defaultNotificationPreferences();
 
   expect(evaluateDelivery({
     preferences,
     category: 'line',
     severity: 'suspended',
+    inDeclaredWindow: true,
+  })).toEqual({ send: true, interruptionLevel: 'timeSensitive' });
+  expect(evaluateDelivery({
+    preferences,
+    category: 'line',
+    severity: 'suspended',
+    inDeclaredWindow: false,
+  })).toEqual({ send: true, interruptionLevel: 'active' });
+});
+
+test("a line alert inside the user's declared window is time-sensitive", () => {
+  const preferences = defaultNotificationPreferences();
+
+  expect(evaluateDelivery({
+    preferences,
+    category: 'line',
+    severity: 'disrupted',
     inDeclaredWindow: true,
   })).toEqual({ send: true, interruptionLevel: 'timeSensitive' });
 });

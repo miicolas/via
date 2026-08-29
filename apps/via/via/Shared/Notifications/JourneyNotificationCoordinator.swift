@@ -441,6 +441,7 @@ final class JourneyNotificationCoordinator: JourneyNotificationActiveJourneyMana
         content.title = event.title
         content.body = event.body
         content.sound = .default
+        content.interruptionLevel = .timeSensitive
         content.userInfo = event.userInfo.reduce(into: [AnyHashable: Any]()) { result, item in
             result[item.key] = item.value
         }

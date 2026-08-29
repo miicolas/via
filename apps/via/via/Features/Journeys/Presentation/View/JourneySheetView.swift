@@ -246,6 +246,7 @@ struct JourneySheetView: View {
                 departureChoicesModel: departureChoicesModel,
                 onSelectDeparture: selectDeparture,
                 onRetryDepartures: refreshDepartureChoices,
+                onOpenReport: onOpenReport,
             )
         }
     }

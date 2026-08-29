@@ -215,6 +215,36 @@ final class NetworkViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testDenseSharedMobilityIsClusteredAtCloseZoom() async {
+        let bikes = (1...120).map { index in
+            SharedMobilityItem.vehicle(SharedMobilityVehicle(
+                id: "lime-bike-\(index)",
+                provider: .lime,
+                mode: .bicycle,
+                coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.35)
+            ))
+        }
+        let sources = Dictionary(uniqueKeysWithValues: SharedMobilityProvider.allCases.map {
+            ($0, SharedMobilitySourceStatus(state: .ok))
+        })
+        let repository = NetworkRepositorySpy(
+            network: network(),
+            area: StationsArea(stations: [], routes: [])
+        )
+        await repository.setSharedMobilityArea(
+            SharedMobilityArea(items: bikes, sources: sources)
+        )
+        let model = NetworkViewModel(repository: repository)
+        model.stationFilter.criteria = [.sharedBikes]
+
+        model.viewportChanged(to: viewport(spanMeters: 800), phase: .ended)
+        await waitUntil { model.state.loading == .loaded }
+
+        XCTAssertEqual(model.state.snapshot.stations.count, 1)
+        XCTAssertEqual(model.state.snapshot.stations.first?.sharedMobilityCluster?.count, 120)
+    }
+
+    @MainActor
     func testStationThresholdSkipsViewportLoadingAndHidesAnnotations() async {
         let repository = NetworkRepositorySpy(
             network: network(),

@@ -59,7 +59,11 @@ export function deviceNotificationPayload(
       ...(notification.threadId ? { 'thread-id': notification.threadId } : {}),
       ...(notification.categoryId ? { category: notification.categoryId } : {}),
       ...(notification.interruptionLevel
-        ? { 'interruption-level': notification.interruptionLevel }
+        ? {
+            'interruption-level': notification.interruptionLevel === 'timeSensitive'
+              ? 'time-sensitive'
+              : notification.interruptionLevel,
+          }
         : {}),
       ...(notification.relevanceScore === undefined
         ? {}

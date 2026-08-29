@@ -13,24 +13,57 @@ struct ReportContextView: View {
                 EmptyStateView(.searching("Recherche de la station la plus proche…"))
 
             case .resolved(let selection):
-                Button(action: onChooseStation) {
-                    HStack(spacing: 12) {
-                        stationLabel(selection)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .center, spacing: 12) {
+                        GlassSquareBadge(tint: .blue, size: 40) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.headline.weight(.semibold))
+                        }
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(contextLabel(for: selection.source))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+
+                            Text(selection.station.name)
+                                .font(.headline)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
 
                         Spacer(minLength: 8)
 
-                        Image(systemName: "chevron.forward")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                            .accessibilityHidden(true)
+                        Button(action: onChooseStation) {
+                            GlassSquareBadge(tint: .blue, size: 44, isInteractive: true) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                    .font(.body.weight(.semibold))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!isEditable)
+                        .accessibilityLabel("Changer de station")
+                        .accessibilityValue(selection.station.name)
+                        .accessibilityHint("Choisit une autre station pour le signalement")
                     }
-                    .contentShape(Rectangle())
-                    .padding(16)
+
+                    if !selection.station.routes.isEmpty {
+                        HStack(spacing: 6) {
+                            ForEach(selection.station.routes.prefix(5)) { route in
+                                LineBadgeView(route: route, size: 20)
+                            }
+
+                            if selection.station.routes.count > 5 {
+                                LineBadgeOverflowView(
+                                    count: selection.station.routes.count - 5,
+                                    size: 20
+                                )
+                            }
+                        }
+                        .padding(.leading, 52)
+                    }
                 }
-                .buttonStyle(.plain)
-                .disabled(!isEditable)
-                .accessibilityLabel("Près de \(selection.station.name)")
-                .accessibilityHint("Change la station du signalement")
+                .padding(14)
 
             case .unavailable(let authorization):
                 unavailableContent(
@@ -65,26 +98,17 @@ struct ReportContextView: View {
         ))
     }
 
-    private func stationLabel(_ selection: ReportStationSelection) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "location.fill")
-                .foregroundStyle(.blue)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Près de")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(selection.station.name)
-                    .font(.headline)
-            }
+    private func contextLabel(for source: ReportStationSelectionSource) -> String {
+        switch source {
+        case .automatic: "À proximité"
+        case .manual: "Station"
         }
     }
 
     private func unavailableContent(_ state: EmptyState, showsRetry: Bool) -> some View {
         EmptyStateView(state) {
             Button("Choisir une station", systemImage: "mappin.and.ellipse", action: onChooseStation)
-                .primaryAction()
+                .primaryAction(tint: .blue)
                 .disabled(!isEditable)
 
             if showsRetry {
@@ -102,7 +126,7 @@ struct ReportContextView: View {
         case .restricted:
             "La localisation est limitée sur cet appareil."
         case .denied:
-            "La localisation n’est pas autorisée pour Metyro."
+            "La localisation n’est pas autorisée pour Via."
         case .authorized:
             "La position actuelle n’a pas pu être déterminée."
         }

@@ -17,7 +17,7 @@ import { disruptionVersion } from './disruption-monitor';
 import type { NotificationAlertSubscription } from '@via/contract';
 
 // A cycle claim only needs to outlive a slow poll and a scheduler retry. Keeping
-// it for days creates millions of useless keys (the poll runs every 120s).
+// it for days creates millions of useless keys because the poll runs often.
 const ALERT_CLAIM_TTL_SECONDS = 10 * 60;
 const ALERT_CONTENT_DEDUP_TTL_SECONDS = 15 * 60;
 const RESTORED_CONFIRMATION_CYCLES = 2;

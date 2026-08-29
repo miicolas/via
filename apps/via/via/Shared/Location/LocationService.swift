@@ -311,7 +311,11 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
         isLocatingOnce = false
         isTrackingJourney = true
         manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.distanceFilter = 25
+        // A 25 m cadence is adequate for section matching but makes an
+        // on-foot camera visibly jump from block to block. Journey tracking is
+        // already an explicit navigation session, so favour a smooth map while
+        // keeping Core Location's automatic pausing and background policy.
+        manager.distanceFilter = 5
         manager.activityType = .otherNavigation
         manager.pausesLocationUpdatesAutomatically = true
         manager.allowsBackgroundLocationUpdates = allowsBackgroundUpdates

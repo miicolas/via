@@ -39,6 +39,28 @@ final class JourneyNotificationTests: XCTestCase {
         XCTAssertTrue(events.allSatisfy { $0.date > departure.addingTimeInterval(1_500) })
     }
 
+    func testScheduledJourneyNotificationsAreTimeSensitive() async {
+        let now = Date(timeIntervalSince1970: 1_787_000_000)
+        let center = FakeJourneyNotificationCenter(status: .authorized)
+        let coordinator = JourneyNotificationCoordinator(
+            center: center,
+            reminderStore: InMemoryScheduledJourneyReminderStore(),
+            preferencesStore: InMemoryJourneyNotificationPreferencesStore(),
+            now: { now }
+        )
+
+        await coordinator.scheduleReminder(
+            for: makeJourney(departureAt: now.addingTimeInterval(3_600)),
+            destination: makeDestination(),
+            source: .realtime
+        )
+
+        XCTAssertFalse(center.requests.isEmpty)
+        XCTAssertTrue(
+            center.requests.allSatisfy { $0.content.interruptionLevel == .timeSensitive }
+        )
+    }
+
     func testDeniedPermissionKeepsTheReminderIntent() async {
         let center = FakeJourneyNotificationCenter(status: .denied)
         let store = InMemoryScheduledJourneyReminderStore()

@@ -7,6 +7,7 @@ struct NetworkMapView: View {
   let stationSelectionEnabled: Bool
   let journeyPresentation: JourneyMapPresentation?
   let highlightedJourneySegmentID: String?
+  let journeyTracking: JourneyTrackingControl?
   @Binding var position: MapCameraPosition
   @Binding var selectedStation: StationMapItem?
   @Namespace private var mapScope
@@ -23,6 +24,7 @@ struct NetworkMapView: View {
     stationSelectionEnabled: Bool = true,
     journeyPresentation: JourneyMapPresentation? = nil,
     highlightedJourneySegmentID: String? = nil,
+    journeyTracking: JourneyTrackingControl? = nil,
     selectedStation: Binding<StationMapItem?> = .constant(nil)
   ) {
     self.viewModel = viewModel
@@ -30,6 +32,7 @@ struct NetworkMapView: View {
     self.stationSelectionEnabled = stationSelectionEnabled
     self.journeyPresentation = journeyPresentation
     self.highlightedJourneySegmentID = highlightedJourneySegmentID
+    self.journeyTracking = journeyTracking
     _position = position
     _selectedStation = selectedStation
   }
@@ -98,13 +101,16 @@ struct NetworkMapView: View {
         }
         .mapStyle(
           .standard(
+            elevation: journeyTracking == nil ? .automatic : .realistic,
             emphasis: .muted,
             pointsOfInterest: .excludingAll
           )
         )
         .mapControls {
           MapCompass(scope: mapScope)
-          MapUserLocationButton(scope: mapScope)
+          if journeyTracking == nil {
+            MapUserLocationButton(scope: mapScope)
+          }
         }
         .animation(
           reduceMotion ? nil : .smooth(duration: 0.18),
@@ -158,12 +164,6 @@ struct NetworkMapView: View {
           .background(.regularMaterial, in: .rect(cornerRadius: 24))
           .padding(.horizontal, 24)
           .frame(maxHeight: .infinity)
-        } else if sharedMobilityHasNoResults {
-          EmptyStateView(.noSharedMobilityInArea)
-            .background(.regularMaterial, in: .rect(cornerRadius: 24))
-            .padding(.horizontal, 24)
-            .frame(maxHeight: .infinity)
-            .allowsHitTesting(false)
         }
       }
       .mapScope(mapScope)
@@ -171,7 +171,16 @@ struct NetworkMapView: View {
       // and the empty states are later siblings, and a full-width sibling drawn
       // above the map would otherwise take the taps meant for this button.
       .overlay(alignment: .topLeading) {
-        StationMapFilterMenu(filter: $viewModel.stationFilter)
+        VStack(spacing: 8) {
+          StationMapFilterMenu(filter: $viewModel.stationFilter)
+
+          if let journeyTracking {
+            JourneyTrackingCameraButton(
+              isFollowing: journeyTracking.isFollowing,
+              action: journeyTracking.recenter
+            )
+          }
+        }
           // The map control region already starts below the top safe area.
           // Adding it again places this button one status-bar height below
           // MapKit's location control.
@@ -215,14 +224,6 @@ struct NetworkMapView: View {
           viewModel.state.snapshot.sharedMobilitySources.isEmpty == false
     else { return false }
     return statuses.allSatisfy { !$0.isAvailable }
-  }
-
-  private var sharedMobilityHasNoResults: Bool {
-    viewModel.state.loading == .loaded
-      && viewModel.stationFilter.wantsSharedMobility
-      && !sharedMobilitySourcesUnavailable
-      && viewModel.state.snapshot.resolvedStationOpacity > 0
-      && viewModel.state.snapshot.stations.isEmpty
   }
 
   private var requestedSharedMobilityProviders: Set<SharedMobilityProvider> {

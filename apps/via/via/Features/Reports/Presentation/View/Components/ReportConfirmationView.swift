@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ReportConfirmationView: View {
+    let submission: ReportSubmission
     let onDone: () -> Void
 
     var body: some View {
@@ -12,43 +13,62 @@ struct ReportConfirmationView: View {
     private var confirmation: some View {
         GeometryReader { proxy in
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 20) {
                     ZStack {
-                        Circle()
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .fill(.green.opacity(0.14))
+                            .frame(width: 96, height: 96)
+
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
                             .fill(.green)
+                            .frame(width: 68, height: 68)
 
                         Image(systemName: "checkmark")
-                            .font(.system(size: 38, weight: .semibold))
+                            .font(.system(size: 28, weight: .bold))
                             .foregroundStyle(.white)
                             .accessibilityHidden(true)
                     }
-                    .frame(width: 88, height: 88)
 
-                    Text("Merci")
+                    Text("Signalement envoyé")
                         .font(.largeTitle.weight(.bold))
 
-                    Text("Votre signalement met immédiatement à jour l’information partagée dans Via.")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+                    HStack(spacing: 12) {
+                        Image(systemName: submission.category.systemImage)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(submission.category.tint)
+                            .accessibilityHidden(true)
 
-                    Text("Votre identité est connue de Via pour prévenir les abus, mais elle n’est jamais affichée aux voyageurs.")
-                        .font(.body)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(submission.category.title)
+                                .font(.headline)
+
+                            Text(submission.context.station.name)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .background(
+                        .secondary.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    )
+
+                    Label("Votre identité n’est pas affichée", systemImage: "hand.raised.fill")
+                        .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 12)
+                        .accessibilityHint("Via utilise votre compte uniquement pour prévenir les abus.")
                 }
+                .frame(maxWidth: 520)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: proxy.size.height, alignment: .center)
                 .padding(24)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Signalement envoyé. Merci. L’information partagée dans Via est mise à jour. Votre identité n’est jamais affichée aux voyageurs.")
             }
         }
         .safeAreaInset(edge: .bottom) {
-            Button("Terminé", action: onDone)
+            Button("Terminé", systemImage: "checkmark", action: onDone)
                 .font(.headline)
-                .primaryAction()
+                .primaryAction(tint: .blue)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
                 .background(.bar)

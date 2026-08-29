@@ -10,9 +10,9 @@ extension LinePlan {
     /// stations, and flattening server sections invents journeys between the
     /// end of one branch and the start of the next. The complete plan first
     /// unions the physical station graph, then decomposes it into contiguous
-    /// paths: one longest main path followed by independently labelled
-    /// branches and loops. Every consecutive pair shown to the rider is a real
-    /// edge, and every physical station is owned by exactly one path.
+    /// paths: the shared core, every branch arm declared by the schema, and
+    /// direction-specific loops. Every consecutive pair shown to the rider is
+    /// a real edge, and every physical station is owned by exactly one path.
     static func diagram(
         for directions: [LineDirection],
         disruptions: [LineDisruption]
@@ -59,6 +59,8 @@ private struct CompleteLineGraph {
         let isMain: Bool
         /// Already-owned stations through which this path rejoins the plan.
         let anchors: [String]
+        /// The schema-declared terminus when this path is a branch arm.
+        let branchEndID: String?
     }
 
     private var stopsByID: [String: LineSchemaStop] = [:]
@@ -67,9 +69,12 @@ private struct CompleteLineGraph {
     private var railByEdge: [PhysicalEdge: LinePlan.RailStyle] = [:]
     private var referenceRank: [String: Int] = [:]
     private var referenceSequences: [[String]] = []
+    private var branchNamesByEndID: [String: String] = [:]
 
     init(directions: [LineDirection], disruptions: [LineDisruption]) {
         for direction in directions {
+            recordBranchEnds(in: direction)
+
             let flattened = direction.sections.flatMap { $0.stops.map(\.id) }
             if !flattened.isEmpty { referenceSequences.append(flattened) }
             referenceSequences += direction.sections
@@ -185,6 +190,42 @@ private struct CompleteLineGraph {
         }
     }
 
+    /// Records only the terminal arms the server calls branches. A lone end of
+    /// a simple line remains part of its main path; a shared sub-trunk such as
+    /// Cergy/Poissy is likewise a connector, not a sixth RER A branch.
+    private mutating func recordBranchEnds(in direction: LineDirection) {
+        let sections = direction.sections.filter { !$0.stops.isEmpty }
+        guard sections.count > 1 else { return }
+
+        let spine = schemaSpineIndex(of: sections)
+        for (index, section) in sections.enumerated()
+        where section.role == .branch && index != spine {
+            let groups = index < spine ? section.origins : section.termini
+            let isSharedStem = section.label?.hasPrefix("Branches ") == true
+            let hasSingularLabel = section.label?.hasPrefix("Branche ") == true
+                && !isSharedStem
+            guard !isSharedStem, groups.count == 1 || (groups.isEmpty && hasSingularLabel) else {
+                continue
+            }
+
+            let end = index < spine ? section.stops.first : section.stops.last
+            guard let end else { continue }
+            branchNamesByEndID[end.id] = branchNamesByEndID[end.id] ?? end.name
+        }
+    }
+
+    private func schemaSpineIndex(of sections: [LineSchemaSection]) -> Int {
+        if let trunk = sections.firstIndex(where: { $0.role == .trunk }) { return trunk }
+        return sections.indices.max { left, right in
+            let leftGroups = sections[left].origins.count + sections[left].termini.count
+            let rightGroups = sections[right].origins.count + sections[right].termini.count
+            guard leftGroups == rightGroups else { return leftGroups < rightGroups }
+            let leftStops = sections[left].stops.count
+            let rightStops = sections[right].stops.count
+            return leftStops == rightStops ? left > right : leftStops < rightStops
+        } ?? sections.startIndex
+    }
+
     // MARK: - Path decomposition
 
     private func pathDescriptors() -> [PathDescriptor] {
@@ -193,17 +234,27 @@ private struct CompleteLineGraph {
         var assignedOrder: [String: Int] = [:]
 
         for component in connectedComponents(in: Set(stopsByID.keys)) {
-            let mainPath = primaryPath(in: component)
+            let terminalBranches = terminalBranchDescriptors(in: component)
+            let branchStopIDs = Set(terminalBranches.flatMap(\.stopIDs))
+            let core = component.subtracting(branchStopIDs)
+            let body = core.isEmpty ? component : core
+
+            let mainPath = primaryPath(in: body)
             guard !mainPath.isEmpty else { continue }
 
             let isFirstComponent = descriptors.isEmpty
             descriptors.append(
-                PathDescriptor(stopIDs: mainPath, isMain: isFirstComponent, anchors: [])
+                PathDescriptor(
+                    stopIDs: mainPath,
+                    isMain: isFirstComponent,
+                    anchors: [],
+                    branchEndID: nil
+                )
             )
             assign(mainPath, to: &assigned, order: &assignedOrder)
 
             while true {
-                let remaining = component.subtracting(assigned)
+                let remaining = body.subtracting(assigned)
                 guard !remaining.isEmpty else { break }
 
                 let components = connectedComponents(in: remaining)
@@ -223,13 +274,68 @@ private struct CompleteLineGraph {
                 guard !path.isEmpty else { break }
 
                 descriptors.append(
-                    PathDescriptor(stopIDs: path, isMain: false, anchors: descriptor.anchors)
+                    PathDescriptor(
+                        stopIDs: path,
+                        isMain: false,
+                        anchors: descriptor.anchors,
+                        branchEndID: nil
+                    )
                 )
                 assign(path, to: &assigned, order: &assignedOrder)
+            }
+
+            descriptors += terminalBranches
+            for branch in terminalBranches {
+                assign(branch.stopIDs, to: &assigned, order: &assignedOrder)
             }
         }
 
         return descriptors
+    }
+
+    /// Peels each schema-declared terminal arm back to its first physical
+    /// junction. The junction stays in the shared core, so stations still
+    /// appear once while every actual branch keeps its own heading.
+    private func terminalBranchDescriptors(in component: Set<String>) -> [PathDescriptor] {
+        branchNamesByEndID.keys
+            .filter { component.contains($0) }
+            .sorted {
+                let left = (rank(of: $0), $0)
+                let right = (rank(of: $1), $1)
+                return left < right
+            }
+            .compactMap { terminalBranchDescriptor(from: $0, in: component) }
+    }
+
+    private func terminalBranchDescriptor(
+        from endID: String,
+        in component: Set<String>
+    ) -> PathDescriptor? {
+        guard neighbors(of: endID, in: component).count == 1 else { return nil }
+
+        var arm = [endID]
+        var previous: String?
+        var current = endID
+
+        while true {
+            let nextStops = neighbors(of: current, in: component).filter { $0 != previous }
+            guard nextStops.count == 1, let next = nextStops.first else { return nil }
+
+            let degree = neighbors(of: next, in: component).count
+            if degree >= 3 {
+                return PathDescriptor(
+                    stopIDs: arm.reversed(),
+                    isMain: false,
+                    anchors: [next],
+                    branchEndID: endID
+                )
+            }
+            guard degree == 2 else { return nil }
+
+            arm.append(next)
+            previous = current
+            current = next
+        }
     }
 
     private func primaryPath(in component: Set<String>) -> [String] {
@@ -287,7 +393,8 @@ private struct CompleteLineGraph {
                 return PathDescriptor(
                     stopIDs: bestPath.filter { component.contains($0) },
                     isMain: false,
-                    anchors: selectedAnchors
+                    anchors: selectedAnchors,
+                    branchEndID: nil
                 )
             }
         }
@@ -309,14 +416,16 @@ private struct CompleteLineGraph {
             return PathDescriptor(
                 stopIDs: bestPath.filter { component.contains($0) },
                 isMain: false,
-                anchors: [anchor]
+                anchors: [anchor],
+                branchEndID: nil
             )
         }
 
         return PathDescriptor(
             stopIDs: primaryPath(in: component),
             isMain: false,
-            anchors: []
+            anchors: [],
+            branchEndID: nil
         )
     }
 
@@ -406,6 +515,14 @@ private struct CompleteLineGraph {
     }
 
     private func role(for descriptor: PathDescriptor) -> LinePlan.Diagram.Section.Role {
+        if let branchEndID = descriptor.branchEndID {
+            let name = branchNamesByEndID[branchEndID]
+                ?? stopsByID[branchEndID]?.name
+                ?? ""
+            let junction = descriptor.anchors.first.flatMap { stopsByID[$0]?.name }
+            return .branch(name: name, junction: junction)
+        }
+
         if descriptor.isMain { return .main }
 
         if descriptor.anchors.count >= 2,

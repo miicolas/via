@@ -36,7 +36,7 @@ final class NetworkViewportAnnotationTests: XCTestCase {
     XCTAssertFalse(viewport(spanMeters: 4_000).fitsInside(radiusMeters: 2_000))
   }
 
-  func testSharedVehiclesGroupOnlyWhenTheMapIsDezoomed() {
+  func testSparseSharedVehiclesGroupOnlyWhenTheMapIsDezoomed() {
     let bike1 = sharedVehicle(
       id: "bike-1",
       provider: .dott,
@@ -67,7 +67,24 @@ final class NetworkViewportAnnotationTests: XCTestCase {
       overview.first(where: { $0.sharedMobilityCluster != nil })?.sharedMobilityCluster?.count,
       2
     )
-    XCTAssertTrue(overview.contains { $0.sharedMobility?.id == "mobility:yego:scooter-1" })
+    XCTAssertTrue(overview.contains { $0.id.rawValue == "mobility:scooter-1" })
+  }
+
+  func testDenseColocatedVehiclesCollapseEvenAtCloseZoom() {
+    let vehicles = (1...120).map { index in
+      sharedVehicle(
+        id: "bike-\(index)",
+        provider: .lime,
+        mode: .bicycle,
+        latitude: 48.85
+      )
+    }
+    let items = vehicles.map(StationMapItem.init(sharedMobility:))
+
+    let annotations = items.groupedSharedMobility(for: viewport(spanMeters: 800))
+
+    XCTAssertEqual(annotations.count, 1)
+    XCTAssertEqual(annotations.first?.sharedMobilityCluster?.count, 120)
   }
 
   func testSharedMobilityUsesDistinctVehicleSymbols() {

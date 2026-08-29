@@ -49,7 +49,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
     let stops: [JourneyMapStop]
     let exits: [JourneyMapExit]
 
-    init(journey: Journey) {
+    init(journey: Journey, includesOrigin: Bool = true) {
         id = journey.id
         segments = journey.sections.enumerated().map { index, section in
             JourneyMapSegment(
@@ -61,7 +61,7 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
                 isStationary: section.kind == .wait
             )
         }
-        stops = Self.stops(of: journey)
+        stops = Self.stops(of: journey, includesOrigin: includesOrigin)
         exits = journey.sections.enumerated().compactMap { index, section in
             section.exit.map { exit in
                 JourneyMapExit(
@@ -110,11 +110,15 @@ struct JourneyMapPresentation: Identifiable, Sendable, Hashable {
 
     // MARK: - Stops
 
-    private static func stops(of journey: Journey) -> [JourneyMapStop] {
+    private static func stops(
+        of journey: Journey,
+        includesOrigin: Bool
+    ) -> [JourneyMapStop] {
         let nodes = JourneyTimeline.nodes(for: journey)
         return nodes.compactMap { node in
             switch node.kind {
             case .origin(let name):
+                guard includesOrigin else { return nil }
                 return JourneyMapStop(
                     id: node.id,
                     name: name,
