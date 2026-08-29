@@ -15,6 +15,23 @@ final class NetworkRemoteModelsTests: XCTestCase {
     XCTAssertFalse(station.domain().hasElevators)
   }
 
+  func testStationDecodesDrinkingWaterFountain() throws {
+    let station = try decodeStation(
+      extraJSON: #", "fountains": {"status": "available", "label": "Fontaine d’eau potable à proximité", "detail": "Accessible PMR"}"#
+    )
+
+    XCTAssertEqual(station.domain().fountains?.status, .available)
+    XCTAssertEqual(station.domain().fountains?.detail, "Accessible PMR")
+  }
+
+  func testStationIgnoresUnknownFountainStatus() throws {
+    let station = try decodeStation(
+      extraJSON: #", "fountains": {"status": "unknown", "label": "Fontaine"}"#
+    )
+
+    XCTAssertNil(station.domain().fountains)
+  }
+
   func testBikeAreaDecodesLiveAvailability() throws {
     let json = #"""
     {
@@ -73,7 +90,7 @@ final class NetworkRemoteModelsTests: XCTestCase {
           "batteryPercent": 64,
           "rangeMeters": 12000,
           "lastReportedAt": "2026-08-26T09:59:00Z",
-          "restrictionNote": "Zone de circulation restreinte selon Dott",
+          "restriction": "no-ride",
           "rentalUrl": "dott://bike-1",
           "operatorUrl": "https://ridedott.com/"
         },
@@ -121,15 +138,19 @@ final class NetworkRemoteModelsTests: XCTestCase {
     XCTAssertEqual(vehicle.provider, .dott)
     XCTAssertEqual(vehicle.mode, .bicycle)
     XCTAssertEqual(vehicle.batteryPercent, 64)
-    XCTAssertEqual(vehicle.restrictionNote, "Zone de circulation restreinte selon Dott")
+    XCTAssertEqual(vehicle.restriction, .noRide)
+    XCTAssertEqual(
+      vehicle.restriction?.message(for: vehicle.provider),
+      "Zone de circulation restreinte selon Dott"
+    )
     XCTAssertEqual(vehicle.rentalURL?.scheme, "dott")
     XCTAssertEqual(area.source(.lime).state, .unavailable)
 
     guard case .station(let station) = area.items[1] else {
       return XCTFail("The second item should be a station")
     }
-    XCTAssertEqual(station.availability?.totalBikes, 7)
-    XCTAssertEqual(station.availability?.docks, 28)
+    XCTAssertEqual(station.station.availability?.totalBikes, 7)
+    XCTAssertEqual(station.station.availability?.docks, 28)
   }
 
   private func decodeStation(extraJSON: String = "") throws -> NetworkStationDTO {

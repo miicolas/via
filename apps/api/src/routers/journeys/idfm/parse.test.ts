@@ -14,6 +14,26 @@ const input: JourneyInput = {
   limit: 2,
 };
 
+function journeyWithFare(fare: unknown) {
+  return {
+    departure_date_time: '20260813T200000',
+    arrival_date_time: '20260813T200500',
+    duration: 300,
+    fare,
+    sections: [{
+      type: 'public_transport',
+      duration: 300,
+      from: { name: 'A', coord: { lon: 2.35, lat: 48.85 } },
+      to: { name: 'B', coord: { lon: 2.36, lat: 48.86 } },
+      display_informations: {
+        code: '1',
+        name: 'Métro 1',
+        commercial_mode: 'Metro',
+      },
+    }],
+  };
+}
+
 test('normalizes Navitia and enforces the requested result limit', () => {
   const row = (minute: number) => ({
     departure_date_time: `20260813T20${String(minute).padStart(2, '0')}00`,
@@ -41,6 +61,40 @@ test('normalizes Navitia and enforces the requested result limit', () => {
   expect(journeys).toHaveLength(2);
   expect(journeys[0]?.sections[0]?.type).toBe('transit');
   expect(journeys.map((journey) => journey.qualifier)).toEqual(['recommended', 'rapid']);
+});
+
+test('keeps the official full-fare total in exact euro cents', () => {
+  const journeys = parseIdfmJourneys(
+    {
+      journeys: [journeyWithFare({
+        found: true,
+        total: { currency: 'centime', value: '460.0' },
+      })],
+    },
+    input,
+    new Date('2026-08-13T20:00:00+02:00')
+  );
+
+  expect(journeys[0]?.fare).toEqual({ amountInCents: 460, currency: 'EUR' });
+});
+
+test('omits fares that are not authoritative exact centime totals', () => {
+  const invalidFares = [
+    { found: false },
+    { found: true, total: { currency: 'EUR', value: '460' } },
+    { found: true, total: { currency: 'centime', value: '' } },
+    { found: true, total: { currency: 'centime', value: '460.5' } },
+  ];
+
+  for (const fare of invalidFares) {
+    const journeys = parseIdfmJourneys(
+      { journeys: [journeyWithFare(fare)] },
+      input,
+      new Date('2026-08-13T20:00:00+02:00')
+    );
+
+    expect(journeys[0]?.fare).toBeUndefined();
+  }
 });
 
 test('keeps one direct path per mode as alternatives outside the transit limit', () => {

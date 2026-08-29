@@ -27,7 +27,7 @@ final class JourneyMapPresentationTests: XCTestCase {
         )
         XCTAssertEqual(
             exit.accessibilityLabel,
-            "Sortie recommandée, Sortie numéro 6, boulevard Henri IV, à environ 50 m de votre destination"
+            "Sortie recommandée, Sortie numéro 6, boulevard Henri IV, à environ 50\u{202F}m de votre destination"
         )
     }
 

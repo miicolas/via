@@ -54,6 +54,9 @@ const stationRows: RailStationPositionRow[] = [
     accessibilityDetail: 'Agent présent aux heures d’ouverture',
     toiletStopId: 'IDFM:474151',
     toiletDetail: 'Accès gratuit · Accessible PMR\nPrès de la sortie 3.',
+    fountainStopId: 'IDFM:474151',
+    fountainCondition: 'available',
+    fountainDetail: 'Accessible PMR · Remplissage de gourde possible',
   },
   {
     id: 'IDFM:474151',
@@ -65,6 +68,9 @@ const stationRows: RailStationPositionRow[] = [
     accessibilityDetail: 'Agent présent aux heures d’ouverture',
     toiletStopId: 'IDFM:474151',
     toiletDetail: 'Accès gratuit · Accessible PMR\nPrès de la sortie 3.',
+    fountainStopId: 'IDFM:474151',
+    fountainCondition: 'available',
+    fountainDetail: 'Accessible PMR · Remplissage de gourde possible',
   },
   {
     id: 'IDFM:463127',
@@ -76,6 +82,9 @@ const stationRows: RailStationPositionRow[] = [
     accessibilityDetail: null,
     toiletStopId: null,
     toiletDetail: null,
+    fountainStopId: null,
+    fountainCondition: null,
+    fountainDetail: null,
   },
 ];
 
@@ -168,6 +177,11 @@ describe('toRailMap', () => {
     expect(chatelet.toilets).toEqual({
       label: 'Sanitaires disponibles',
       detail: 'Accès gratuit · Accessible PMR\nPrès de la sortie 3.',
+    });
+    expect(chatelet.fountains).toEqual({
+      status: 'available',
+      label: 'Fontaine d’eau potable à proximité',
+      detail: 'Accessible PMR · Remplissage de gourde possible',
     });
     // The line-1 row leads, so the anchor is the projection onto line 1 — the
     // same point the old payload served as the station's primary position.

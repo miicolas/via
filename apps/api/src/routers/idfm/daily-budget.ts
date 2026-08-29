@@ -1,5 +1,6 @@
 import type { RedisClient } from '../../redis';
 import { parisDay } from '../../time/paris';
+import { incrementFixedWindow } from '../../http/redis-rate-limit';
 
 /** Keep a reserve for races near the provider's hard daily ceiling. */
 const SAFETY_RESERVE_RATIO = 0.05;
@@ -28,8 +29,7 @@ export async function tryConsumeDailyIdfmBudget(
 ): Promise<DailyIdfmBudgetDecision> {
   const { date, seconds } = parisDay(now);
   const key = `${counterKeyPrefix}:${date}`;
-  const count = await redis.incr(key);
-  if (count === 1) await redis.expire(key, COUNTER_TTL_SECONDS);
+  const count = await incrementFixedWindow(redis, key, COUNTER_TTL_SECONDS);
 
   const ceiling = dailyBudget * (1 - SAFETY_RESERVE_RATIO);
   return { allowed: count <= ceiling, ratio: count / expectedByNow(dailyBudget, seconds) };

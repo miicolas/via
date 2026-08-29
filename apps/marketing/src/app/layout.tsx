@@ -1,4 +1,5 @@
 import { Providers } from "@/components/layout/providers";
+import { siteLocale } from "@/constants/locale";
 import { baseMetadata } from "@/lib/metadata";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -33,7 +34,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>): ReactNode {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={siteLocale.htmlLanguage} suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
       >

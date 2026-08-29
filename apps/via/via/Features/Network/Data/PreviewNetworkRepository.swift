@@ -111,6 +111,11 @@ extension StationsArea {
                     toilets: StationToilets(
                         label: "Sanitaires disponibles",
                         detail: "Accès gratuit · Accessible PMR"
+                    ),
+                    fountains: StationFountains(
+                        status: .available,
+                        label: "Fontaine d’eau potable à proximité",
+                        detail: "Accessible PMR · Remplissage de gourde possible"
                     )
                 ),
                 NetworkStation(

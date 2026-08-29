@@ -12,6 +12,7 @@ import {
   railMapSchema,
   stationCrowdingInputSchema,
   stationCrowdingSchema,
+  stationFountainsSchema,
   stationToiletsSchema,
   stationsInAreaInputSchema,
   stationsInAreaSchema,
@@ -31,6 +32,7 @@ export type BikeStationsInArea = z.infer<typeof bikeStationsInAreaSchema>;
 export type NetworkSegment = z.infer<typeof networkSegmentSchema>;
 export type NetworkRoute = z.infer<typeof networkRouteSchema>;
 export type NetworkStation = z.infer<typeof networkStationSchema>;
+export type StationFountains = z.infer<typeof stationFountainsSchema>;
 export type StationToilets = z.infer<typeof stationToiletsSchema>;
 export type RailMap = z.infer<typeof railMapSchema>;
 export type StationsInAreaInput = z.infer<typeof stationsInAreaInputSchema>;

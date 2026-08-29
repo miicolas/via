@@ -1,4 +1,4 @@
-import { AppStoreBadgeLink } from "@/components/ui/app-store-badge-link";
+import { LaunchAction } from "@/components/ui/launch-action";
 import { PageHero } from "@/components/ui/page-hero";
 import type { AnalyticsContent } from "@/constants/analytics-page";
 import { ArrowDownRight } from "lucide-react";
@@ -15,7 +15,7 @@ export function AnalyticsHero({
       headline={content.headline}
       description={content.description}
     >
-      <AppStoreBadgeLink {...content.action} appearance="black" />
+      <LaunchAction configuration={content.action} mode="badge" appearance="black" />
       <a
         href={content.secondaryAction.href}
         className="focus-ring group inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-foreground hover:text-accent"

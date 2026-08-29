@@ -39,6 +39,12 @@ function redis(options: { fail?: boolean } = {}) {
       values.set(key, value);
       return value;
     },
+    async incrementWithExpiry(key: string, _seconds: number) {
+      if (options.fail) throw new Error('unavailable');
+      const value = Number(values.get(key) ?? 0) + 1;
+      values.set(key, value);
+      return value;
+    },
     async expire() { return 1; },
   } as unknown as RedisClient;
 }

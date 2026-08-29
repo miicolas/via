@@ -20,6 +20,7 @@ struct NetworkStation: Sendable, Hashable, Identifiable {
     let accessibility: StationAccessibility?
     let hasElevators: Bool
     let toilets: StationToilets?
+    let fountains: StationFountains?
 
     init(
         id: StationID,
@@ -28,7 +29,8 @@ struct NetworkStation: Sendable, Hashable, Identifiable {
         routeIDs: [RouteID],
         accessibility: StationAccessibility? = nil,
         hasElevators: Bool = false,
-        toilets: StationToilets? = nil
+        toilets: StationToilets? = nil,
+        fountains: StationFountains? = nil
     ) {
         self.id = id
         self.name = name
@@ -37,10 +39,22 @@ struct NetworkStation: Sendable, Hashable, Identifiable {
         self.accessibility = accessibility
         self.hasElevators = hasElevators
         self.toilets = toilets
+        self.fountains = fountains
     }
 }
 
 struct StationToilets: Sendable, Hashable, Codable {
+    let label: String
+    let detail: String?
+}
+
+struct StationFountains: Sendable, Hashable, Codable {
+    enum Status: String, Sendable, Hashable, Codable {
+        case available
+        case unavailable
+    }
+
+    let status: Status
     let label: String
     let detail: String?
 }

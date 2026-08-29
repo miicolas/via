@@ -8,6 +8,7 @@
     "test:gtfs-integration": "bun test src/import-gtfs.integration.test.ts",
     "sync-gtfs": "bun --env-file=../../.env src/prim/cli.ts",
     "import-elevators": "bun --env-file=../../.env src/elevators/cli.ts",
+    "import-fountains": "bun --env-file=../../.env src/fountains/cli.ts",
     "import-station-peaks": "bun --env-file=../../.env src/station-peaks/cli.ts",
     "import-toilets": "bun --env-file=../../.env src/toilets/cli.ts",
     "rebuild-line-schemas": "bun --env-file=../../.env src/line-schema/rebuild.ts",
@@ -17,10 +18,13 @@
     "@via/db": "workspace:*",
     "csv-parse": "^6.1.0",
     "drizzle-orm": "^0.45.2",
-    "extract-zip": "^2.0.1"
+    "yauzl": "^3.4.0"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
-    "typescript": "~6.0.3"
+    "@types/yauzl": "^3.4.0",
+    "@types/yazl": "^3.3.1",
+    "typescript": "~6.0.3",
+    "yazl": "^3.3.1"
   }
 }

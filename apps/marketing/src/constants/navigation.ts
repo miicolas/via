@@ -1,4 +1,5 @@
 import type { LinkItem, NavigationGroup } from "./types";
+import { launchNavigation } from "./launch";
 
 export const navigation = {
   groups: [
@@ -9,16 +10,6 @@ export const navigation = {
           label: "Analytics",
           description: "Comprendre les mouvements du réseau",
           href: "/analytics",
-        },
-        {
-          label: "Intégrations",
-          description: "Connecter vos outils et vos flux",
-          href: "/integrations",
-        },
-        {
-          label: "API",
-          description: "Construire avec les données Metyro",
-          href: "/api",
         },
       ],
     },
@@ -50,10 +41,7 @@ export const navigation = {
   ] satisfies readonly NavigationGroup[],
   // pricing: { label: "Pricing", href: "#pricing" } satisfies LinkItem,
   signIn: { label: "Aide", href: "/help" } satisfies LinkItem,
-  primaryAction: {
-    label: "Télécharger",
-    href: "#download",
-  } satisfies LinkItem,
+  primaryAction: launchNavigation,
   mobileLead: { label: "Accueil", href: "/" } satisfies LinkItem,
 } as const;
 
@@ -61,8 +49,6 @@ export const footerNavigation = [
   {
     label: "Produit",
     items: [
-      { label: "API", href: "/api" },
-      { label: "Intégrations", href: "/integrations" },
       { label: "Analytics", href: "/analytics" },
     ],
   },

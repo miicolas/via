@@ -33,7 +33,7 @@ final class TransportTests: XCTestCase {
         }
 
         let authorization = await recorder.authorization
-        let storedBearer = try await vault.load()?.bearerToken
+        let storedBearer = try await vault.snapshot().session?.bearerToken
         let unauthorizedCount = await recorder.unauthorizedCount
         let rejectedBearer = await recorder.rejectedBearer
         XCTAssertEqual(authorization, "Bearer old.token")

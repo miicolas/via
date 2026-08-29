@@ -21,6 +21,8 @@ export type RedisClient = {
   ) => Promise<string | null>;
   incr: (key: string) => Promise<number>;
   expire: (key: string, seconds: number) => Promise<number>;
+  /** Increment a fixed-window counter and repair its TTL atomically. */
+  incrementWithExpiry: (key: string, seconds: number) => Promise<number>;
   del: (key: string) => Promise<number>;
   compareAndExpire: (
     key: string,
@@ -71,6 +73,15 @@ export const redis: RedisClient = {
   },
   incr: (key) => client.incr(key),
   expire: (key, seconds) => client.expire(key, seconds),
+  incrementWithExpiry: async (key, seconds) => {
+    const result = await client.send("EVAL", [
+      "local count = redis.call('INCR', KEYS[1]); local ttl = redis.call('TTL', KEYS[1]); if ttl == -1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; return count",
+      "1",
+      key,
+      String(seconds),
+    ]);
+    return Number(result);
+  },
   del: (key) => client.del(key),
   compareAndExpire: async (key, expectedValue, seconds) => {
     const result = await client.send("EVAL", [

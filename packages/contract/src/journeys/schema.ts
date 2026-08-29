@@ -191,6 +191,21 @@ export const journeySectionSchema = z.object({
   exit: journeyExitSchema.optional(),
 });
 
+/** Full-price total returned by the official journey planner for this route. */
+export const journeyFareSchema = z.object({
+  /** Integer minor units keep money exact across JSON and every client. */
+  amountInCents: z.number().int().nonnegative(),
+  currency: z.literal('EUR'),
+});
+
+/** Hard limits for trajectories received back from an untrusted client. */
+export const JOURNEY_CLIENT_LIMITS = {
+  sections: 32,
+  geometryPointsPerSection: 4_096,
+  stopsPerSection: 256,
+  warnings: 32,
+} as const;
+
 export const journeySchema = z.object({
   id: z.string(),
   qualifier: journeyQualifierSchema,
@@ -201,6 +216,8 @@ export const journeySchema = z.object({
   arrivalAt: z.iso.datetime({ offset: true }),
   status: journeyStatusSchema,
   warnings: z.array(z.string()),
+  /** Omitted when the planner cannot price the route, notably on the GTFS fallback. */
+  fare: journeyFareSchema.optional(),
   accessibility: z
     .object({
       condition: accessibilityConditionSchema,
@@ -242,6 +259,25 @@ export const journeySchema = z.object({
   sections: z.array(journeySectionSchema).min(1),
 });
 
+/**
+ * The planner's response remains intentionally open for future data. This
+ * narrower variant is used only where a client sends a previously computed
+ * graph back to the API.
+ */
+export const journeyClientSectionSchema = journeySectionSchema.extend({
+  geometry: z.array(coordinateSchema).max(JOURNEY_CLIENT_LIMITS.geometryPointsPerSection),
+  stops: z.array(journeyStopSchema)
+    .max(JOURNEY_CLIENT_LIMITS.stopsPerSection)
+    .default([]),
+});
+
+export const journeyClientPayloadSchema = journeySchema.extend({
+  warnings: z.array(z.string()).max(JOURNEY_CLIENT_LIMITS.warnings),
+  sections: z.array(journeyClientSectionSchema)
+    .min(1)
+    .max(JOURNEY_CLIENT_LIMITS.sections),
+});
+
 export const journeysResponseSchema = z.object({
   status: z.enum(['ready', 'no-route', 'unavailable']),
   source: z.enum(['idfm-realtime', 'gtfs-theoretical']).optional(),
@@ -271,7 +307,7 @@ export const journeyDepartureSelectionSchema = z.object({
 });
 
 export const journeyDepartureChoicesInputSchema = z.object({
-  journey: journeySchema,
+  journey: journeyClientPayloadSchema,
   destination: journeyDestinationSchema,
   policy: journeyPlanningPolicySchema.default({
     requiredModes: [],

@@ -24,7 +24,7 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
     private var pendingRemovalLoadTask: Task<Result<PushNotificationPendingRemovals, Error>, Never>?
     private var pendingRemovalSaveTask: Task<Error?, Never>?
     private var pendingRemovalSaveGeneration = 0
-    private var desiredActiveJourney: Journey?
+    private var desiredActiveJourney: DesiredActiveJourney?
     private var isAuthenticated = false
     private var notificationsAuthorized: Bool?
     private var isFlushing = false
@@ -69,7 +69,7 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
         sessionGeneration += 1
         isAuthenticated = true
         if let desiredActiveJourney {
-            await stageActiveJourneyRegistration(desiredActiveJourney)
+            await stageActiveJourneyRegistration(desiredActiveJourney.journey, activationID: desiredActiveJourney.activationID)
         }
         await flushPendingDeviceRemoval()
         if notificationsAuthorized == true {
@@ -104,7 +104,10 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
         notificationsAuthorized = authorized
         if authorized {
             if let desiredActiveJourney, isAuthenticated {
-                await stageActiveJourneyRegistration(desiredActiveJourney)
+                await stageActiveJourneyRegistration(
+                    desiredActiveJourney.journey,
+                    activationID: desiredActiveJourney.activationID
+                )
             }
             UIApplication.shared.registerForRemoteNotifications()
             await flush()
@@ -257,19 +260,37 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
         )
     }
 
-    func registerActiveJourney(_ journey: Journey) async {
+    func registerActiveJourney(_ journey: Journey, activationID: UUID) async {
         await loadPendingRemovals()
-        desiredActiveJourney = journey
+        desiredActiveJourney = DesiredActiveJourney(journey: journey, activationID: activationID)
         if isAuthenticated {
-            await stageActiveJourneyRegistration(journey)
+            await stageActiveJourneyRegistration(journey, activationID: activationID)
         }
         await flush()
     }
 
-    func unregisterActiveJourney(_ journey: Journey) async {
+    func unregisterActiveJourney(_ journey: Journey, activationID: UUID) async {
         await loadPendingRemovals()
-        desiredActiveJourney = nil
-        pendingActiveJourneyRegistration = nil
+        let desired = desiredActiveJourney
+        let pending = pendingActiveJourneyRegistration
+
+        // A late cleanup from activation A must not undo a newer activation B.
+        // The server only addresses journeys by ID, so enqueueing A here would
+        // be ambiguous when both activations intentionally share that ID.
+        if let desired, desired.activationID != activationID,
+           desired.journey.id == journey.id {
+            if pending?.activationID == activationID {
+                pendingActiveJourneyRegistration = nil
+            }
+            return
+        }
+
+        if desired?.activationID == activationID {
+            desiredActiveJourney = nil
+        }
+        if pending?.activationID == activationID {
+            pendingActiveJourneyRegistration = nil
+        }
         guard isAuthenticated else { return }
         pendingRemovals.journeyIDs.insert(journey.id.rawValue)
         await persistPendingRemovals()
@@ -345,8 +366,8 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
 
     /// Staging a registration must also cancel any queued removal for the same
     /// journey, or the next flush would immediately undo it.
-    private func stageActiveJourneyRegistration(_ journey: Journey) async {
-        pendingActiveJourneyRegistration = activeJourneyRegistration(for: journey)
+    private func stageActiveJourneyRegistration(_ journey: Journey, activationID: UUID) async {
+        pendingActiveJourneyRegistration = activeJourneyRegistration(for: journey, activationID: activationID)
         pendingRemovals.journeyIDs.remove(journey.id.rawValue)
         await persistPendingRemovals()
     }
@@ -375,7 +396,7 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
         }
     }
 
-    private func activeJourneyRegistration(for journey: Journey) -> PushActiveJourneyRegistration? {
+    private func activeJourneyRegistration(for journey: Journey, activationID: UUID) -> PushActiveJourneyRegistration? {
         let transitSchedules = ActiveJourneyRules.schedule(for: journey)
             .filter { $0.section.kind == .transit && $0.section.route != nil }
         let routeWindows = transitSchedules.enumerated().compactMap { index, schedule -> PushRouteWindow? in
@@ -395,6 +416,7 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
         return PushActiveJourneyRegistration(
             installationID: installationID,
             journeyID: journey.id.rawValue,
+            activationID: activationID,
             routeWindows: routeWindows,
             startsAt: journey.departureAt.addingTimeInterval(
                 -ActiveJourneyRules.imminentDepartureInterval
@@ -433,6 +455,11 @@ final class PushNotificationManager: JourneyNotificationActiveJourneyManaging {
     nonisolated static func hexToken(_ data: Data) -> String {
         data.map { String(format: "%02x", $0) }.joined()
     }
+}
+
+private struct DesiredActiveJourney: Sendable, Hashable {
+    let journey: Journey
+    let activationID: UUID
 }
 
 private enum PushInstallationIDStore {

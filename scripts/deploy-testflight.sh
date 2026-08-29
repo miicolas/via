@@ -19,7 +19,8 @@ Options:
 Environment overrides:
   ASC_DEPLOY_APP_ID, ASC_DEPLOY_BUNDLE_ID, ASC_DEPLOY_VERSION,
   ASC_DEPLOY_TESTFLIGHT_GROUP, ASC_DEPLOY_TIMEOUT,
-  ASC_NATURAL_JOURNEY_EVAL_DESTINATION, NATURAL_JOURNEY_EVAL_P95_MS
+  ASC_NATURAL_JOURNEY_EVAL_DESTINATION, ASC_IOS_TEST_DESTINATION,
+  NATURAL_JOURNEY_EVAL_P95_MS
 USAGE
 }
 
@@ -51,6 +52,7 @@ DEPLOY_VERSION="${ASC_DEPLOY_VERSION:-}"
 DEPLOY_TESTFLIGHT_GROUP="${ASC_DEPLOY_TESTFLIGHT_GROUP:-}"
 DEPLOY_TIMEOUT="${ASC_DEPLOY_TIMEOUT:-60m}"
 NATURAL_EVAL_DESTINATION="${ASC_NATURAL_JOURNEY_EVAL_DESTINATION:-}"
+IOS_TEST_DESTINATION="${ASC_IOS_TEST_DESTINATION:-}"
 DRY_RUN=0
 
 while [ "$#" -gt 0 ]; do
@@ -157,6 +159,24 @@ if [ "$DRY_RUN" -eq 1 ]; then
   exit 0
 fi
 
+if [ -z "$IOS_TEST_DESTINATION" ]; then
+  log "Déploiement bloqué: ASC_IOS_TEST_DESTINATION doit cibler un simulateur iOS 26 explicite pour la suite XCTest complète."
+  exit 1
+fi
+
+case "$IOS_TEST_DESTINATION" in
+  *"generic/platform="*)
+    log "Déploiement bloqué: ASC_IOS_TEST_DESTINATION doit identifier un simulateur précis; une destination générique ne peut pas exécuter XCTest."
+    exit 1
+    ;;
+  *"iOS Simulator"*|*"iphonesimulator"*)
+    ;;
+  *)
+    log "Déploiement bloqué: ASC_IOS_TEST_DESTINATION doit cibler un simulateur iOS, pas un appareil physique ni une destination générique."
+    exit 1
+    ;;
+esac
+
 if [ -z "$NATURAL_EVAL_DESTINATION" ]; then
   log "Déploiement bloqué: ASC_NATURAL_JOURNEY_EVAL_DESTINATION doit cibler un iPhone physique iOS 26 compatible avec Foundation Models."
   exit 1
@@ -173,6 +193,9 @@ log "Validation des contrats, du serveur et des tests non iOS"
 bun run typecheck
 bun run test
 bun run check:openapi
+
+log "Gate XCTest: suite complète ViaTests sur simulateur"
+IOS_TEST_DESTINATION="$IOS_TEST_DESTINATION" bun run test:ios
 
 log "Gate IA: invariants critiques à 100 %, corpus FR/EN à 99 %"
 

@@ -210,11 +210,17 @@ final class NaturalJourneyIntentEvalTests: XCTestCase {
             }
             return true
         #else
+            #if targetEnvironment(simulator)
+                throw XCTSkip(
+                    "L’évaluation Foundation Models en direct se fait sur un appareil physique."
+                )
+            #else
             try XCTSkipUnless(
                 parser.availability == .available,
                 "Foundation Models indisponible sur cet appareil ou ce simulateur",
             )
             return true
+            #endif
         #endif
     }
 

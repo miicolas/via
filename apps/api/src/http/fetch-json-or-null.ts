@@ -36,6 +36,21 @@ type FetchJsonOptions = {
   telemetry?: PrimTelemetry;
   /** Injectable transport for tests at the HTTP boundary. */
   fetcher?: JsonFetcher;
+  /** Injectable sink for non-PRIM upstream events. */
+  recorder?: (event: UpstreamRequestEvent) => void;
+};
+
+export type UpstreamRequestEvent = {
+  readonly event: 'upstream_request';
+  readonly logLabel: string;
+  readonly outcome:
+    | 'http_error'
+    | 'timeout'
+    | 'aborted'
+    | 'network_error'
+    | 'invalid_json';
+  readonly durationMs: number;
+  readonly httpStatus?: number;
 };
 
 /**
@@ -53,6 +68,7 @@ export async function fetchJsonOrNull(
     logLabel,
     telemetry,
     fetcher = fetch,
+    recorder,
   }: FetchJsonOptions,
 ): Promise<unknown | null> {
   const timeout = AbortSignal.timeout(timeoutMs);
@@ -75,7 +91,13 @@ export async function fetchJsonOrNull(
           httpStatus,
         });
       } else {
-        console.error(`${logLabel} indisponible (HTTP ${httpStatus})`);
+        recordUpstream(recorder, {
+          event: 'upstream_request',
+          logLabel,
+          outcome: 'http_error',
+          durationMs: elapsedMs(startedAt),
+          httpStatus,
+        });
       }
       return null;
     }
@@ -98,7 +120,13 @@ export async function fetchJsonOrNull(
           httpStatus,
         });
       } else {
-        console.error(`${logLabel} indisponible`, cause);
+        recordUpstream(recorder, {
+          event: 'upstream_request',
+          logLabel,
+          outcome: 'invalid_json',
+          durationMs: elapsedMs(startedAt),
+          httpStatus,
+        });
       }
       return null;
     }
@@ -115,7 +143,17 @@ export async function fetchJsonOrNull(
         ...(httpStatus === undefined ? {} : { httpStatus }),
       });
     } else {
-      console.error(`${logLabel} indisponible`, cause);
+      recordUpstream(recorder, {
+        event: 'upstream_request',
+        logLabel,
+        outcome: signal?.aborted
+          ? 'aborted'
+          : timeout.aborted
+            ? 'timeout'
+            : 'network_error',
+        durationMs: elapsedMs(startedAt),
+        ...(httpStatus === undefined ? {} : { httpStatus }),
+      });
     }
     return null;
   }
@@ -140,6 +178,18 @@ function recordTelemetry(
 }
 
 function writeStructuredLog(event: PrimRequestEvent) {
+  console.log(JSON.stringify(event));
+}
+
+function recordUpstream(recorder: ((event: UpstreamRequestEvent) => void) | undefined, event: UpstreamRequestEvent) {
+  try {
+    (recorder ?? writeUpstreamLog)(event);
+  } catch {
+    // Observability must never change the upstream fallback semantics.
+  }
+}
+
+function writeUpstreamLog(event: UpstreamRequestEvent) {
   console.log(JSON.stringify(event));
 }
 

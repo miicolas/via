@@ -28,6 +28,7 @@ struct StationDetailView: View {
               accessibility: currentStation.accessibility,
               elevators: currentStation.elevators,
               toilets: currentStation.toilets,
+              fountains: currentStation.fountains,
               peak: currentStation.peak,
               distanceText: currentStation.distanceText,
               sourceText: selection.loadingState == .loaded
@@ -36,8 +37,8 @@ struct StationDetailView: View {
               sourceSystemImage: currentStation.sourceSystemImage
             )
 
-            // Accessibility and crowding already live as header badges; the
-            // section only exists while travellers have open incident reports.
+            // Accessibility, facilities, and crowding already live as header
+            // badges; the section only exists for open incident reports.
             if let liveStatus = selection.liveStatus, !liveStatus.incidents.isEmpty {
               StationLiveStatusSection(
                 status: liveStatus,

@@ -286,10 +286,12 @@ struct StationsView: View {
     }
 
     private var placePicker: some View {
-        StationPlacePicker(
+        SavedPlacesBar(
             places: accountModel.places,
             destinations: accountModel.destinations,
-            onOpen: onOpenSavedDestination,
+            selectionAccessibilityHint: "Calcule un trajet depuis votre position",
+            onSelectPlace: { onOpenSavedDestination($0.searchResult) },
+            onSelectDestination: { onOpenSavedDestination($0.searchResult) },
             onConfigure: onConfigurePlace,
             onAdd: onAddSavedDestination,
             onEditPlace: onEditPlace,

@@ -1,9 +1,8 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { db, importMeta } from '@via/db';
-import extract from 'extract-zip';
 import { eq, inArray } from 'drizzle-orm';
 
 import { importGtfsSnapshot, type GtfsImportResult } from '../import-gtfs';
@@ -12,6 +11,7 @@ import {
   type HttpValidators,
   type PrimGtfsDownloadResult,
 } from './download-gtfs';
+import { extractGtfsArchive } from './extract-gtfs-archive';
 
 const PRIM_GTFS_ETAG_KEY = 'gtfs:prim:etag';
 const PRIM_GTFS_LAST_MODIFIED_KEY = 'gtfs:prim:last-modified';
@@ -72,8 +72,7 @@ const productionAdapters: PrimGtfsSyncAdapters = {
   },
   download: downloadPrimGtfsSnapshot,
   async extract(archive, destination) {
-    await mkdir(destination, { recursive: true });
-    await extract(archive, { dir: destination });
+    await extractGtfsArchive(archive, destination);
   },
   importSnapshot: importGtfsSnapshot,
   async saveValidators(validators) {

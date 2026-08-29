@@ -4,6 +4,7 @@ import { toLineStrings } from '../../geo/coordinates';
 import { lineLengthMeters } from '../../geo/line-length';
 import { toRouteBadge } from '../route-badge';
 import { ACCESSIBILITY_CONDITION_LABELS } from '../accessibility-labels';
+import { toStationFountains } from '../station-fountains';
 import type { NetworkPatternRow, RailStationPositionRow } from './queries';
 
 /**
@@ -75,6 +76,9 @@ function toStations(
             label: 'Sanitaires disponibles',
             detail: station.toiletDetail ?? undefined,
           } }
+        : {}),
+      ...(station.fountainStopId && station.fountainCondition
+        ? { fountains: toStationFountains(station.fountainCondition, station.fountainDetail) }
         : {}),
     };
   });

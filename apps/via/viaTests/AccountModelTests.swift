@@ -72,6 +72,52 @@ final class AccountModelTests: XCTestCase {
         XCTAssertNil(storedAccountObject()["recents"])
     }
 
+    @MainActor
+    func testEraseDeviceDataClearsEveryPersistedAccountWorkspace() {
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        model.activate(userID: "user-a")
+        model.toggleFavorite(stationID: StationID(rawValue: "A"), name: "Nation")
+        model.activate(userID: "user-b")
+        model.setPlace(addressResult(id: "work"), role: .work)
+        model.activate(userID: "user-a")
+        defaults.set("keep", forKey: "via.unrelated-test-setting")
+
+        XCTAssertNotNil(defaults.data(forKey: "via.account-data.v1.user-a"))
+        XCTAssertNotNil(defaults.data(forKey: "via.account-data.v1.user-b"))
+
+        model.eraseDeviceData()
+
+        let accountKeys = defaults.dictionaryRepresentation().keys.filter {
+            $0.hasPrefix("via.account-data.v1.")
+        }
+        XCTAssertEqual(accountKeys, ["via.account-data.v1.anonymous"])
+        XCTAssertTrue(model.isAnonymous)
+        XCTAssertEqual(model.snapshot, .empty)
+        XCTAssertEqual(defaults.string(forKey: "via.unrelated-test-setting"), "keep")
+    }
+
+    @MainActor
+    func testNormalScopeChangesPreserveInactiveWorkspaceUntilErase() {
+        let model = AccountModel(
+            store: AccountLocalStore(defaults: defaults),
+            remote: AccountRemoteStub(),
+            synchronizationEnabled: false
+        )
+        model.activate(userID: "user-a")
+        model.setPlace(addressResult(id: "home"), role: .home)
+        model.activateAnonymous()
+        model.activate(userID: "user-a")
+        XCTAssertEqual(model.place(for: .home)?.id, "address:home")
+
+        model.eraseDeviceData()
+        model.activate(userID: "user-a")
+        XCTAssertNil(model.place(for: .home))
+    }
+
     /// The persisted account blob as raw JSON: `AccountLocalSnapshot` no longer
     /// has a `recents` property, so only the keys on disk can prove it is gone.
     private func storedAccountObject() -> [String: Any] {

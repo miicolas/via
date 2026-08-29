@@ -39,4 +39,13 @@ describe('circuit breaker', () => {
     expect(await breaker.isOpen()).toBe(true);
     expect(expiries.get('openai:breaker:open')).toBe(60);
   });
+
+  test('the failure streak carries the configured TTL until it trips', async () => {
+    const { client, expiries } = fakeRedis();
+    const breaker = createCircuitBreaker(client, { failureThreshold: 3, openSeconds: 60 });
+
+    await breaker.recordFailure();
+
+    expect(expiries.get('openai:breaker:failures')).toBe(60);
+  });
 });

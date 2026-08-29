@@ -81,6 +81,7 @@ final class SearchViewModelTests: XCTestCase {
         let location = LocationModel(adapter: InMemoryLocationAdapter(
             coordinate: GeoCoordinate(latitude: 48.8566, longitude: 2.3522),
         ))
+        _ = await location.requestCurrentLocation()
         let model = makeModel(
             location: location,
             naturalJourneyRepository: naturalRepository,
@@ -514,7 +515,16 @@ final class SearchViewModelTests: XCTestCase {
         model.completeNaturalSavedPlaceSelection(.previewAddress)
         await waitUntil { await repository.requests.count == 2 }
 
-        XCTAssertEqual(account.place(for: .home)?.searchResult, .previewAddress)
+        XCTAssertEqual(
+            account.place(for: .home)?.searchResult,
+            .address(AddressSearchResult(
+                id: "preview:address:rivoli",
+                name: "12 rue de Rivoli",
+                context: "Paris",
+                coordinate: .init(latitude: 48.8566, longitude: 2.3522),
+                distanceMeters: nil,
+            )),
+        )
         let requests = await repository.requests
         guard case let .resolve(_, _, _, destination, _, _) = requests.last else {
             return XCTFail("Le lieu choisi doit reprendre le même trajet")
@@ -1150,6 +1160,38 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertTrue(requests.isEmpty)
     }
 
+    func testExpiredCurrentLocationRefreshesPlanningAndLeavesProximityWithoutAStaleCoordinate() async throws {
+        let clock = SearchTestClock(Date(timeIntervalSince1970: 4_000))
+        let first = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let second = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let adapter = SearchRecordingLocationAdapter(
+            authorization: .authorized,
+            coordinate: first,
+            recordedAt: clock.now()
+        )
+        let location = LocationModel(adapter: adapter, now: clock.now)
+        let journeys = JourneyRepositoryRecorder(result: .mapPreview)
+        let model = makeModel(journeyRepository: journeys, location: location)
+
+        let initial = await location.requestCurrentLocation()
+        XCTAssertEqual(initial, first)
+        XCTAssertEqual(adapter.locationRequestCount, 1)
+
+        clock.advance(by: 61)
+        XCTAssertNil(location.coordinate)
+        _ = try await model.searchPlaces(query: "nation")
+        XCTAssertEqual(adapter.locationRequestCount, 1)
+
+        adapter.coordinate = second
+        adapter.recordedAt = clock.now()
+        model.selectDestination(.previewStation)
+        await waitForStep(model, .results)
+
+        let requests = await journeys.requests()
+        XCTAssertEqual(requests.first?.origin, second)
+        XCTAssertEqual(adapter.locationRequestCount, 2)
+    }
+
     func testTransportPreferencesAreAppliedSilentlyByTheRepository() async {
         let account = AccountModel(
             remote: InMemoryAccountRemote(),
@@ -1301,7 +1343,16 @@ final class SearchViewModelTests: XCTestCase {
         model.selectRecentSearch(recent)
         await waitForStep(model, .results)
 
-        XCTAssertEqual(model.selectedDestination, .previewAddress)
+        XCTAssertEqual(
+            model.selectedDestination,
+            .address(AddressSearchResult(
+                id: "preview:address:rivoli",
+                name: "12 rue de Rivoli",
+                context: "Paris",
+                coordinate: .init(latitude: 48.8566, longitude: 2.3522),
+                distanceMeters: nil,
+            )),
+        )
         XCTAssertEqual(model.recentSearches.first?.id, recent.id)
         XCTAssertEqual(model.recentSearches.first?.savedAt, Date(timeIntervalSince1970: 100))
         let requests = await journeys.requests()
@@ -1321,6 +1372,7 @@ final class SearchViewModelTests: XCTestCase {
         naturalJourneyOnboardingStore: any NaturalJourneyOnboardingStoring = InMemoryNaturalJourneyOnboardingStore(),
         naturalJourneyMetrics: any NaturalJourneyMetricsRecording = NoOpNaturalJourneyMetrics(),
         now: @escaping @Sendable () -> Date = { .now },
+        filterStore: any SearchFilterStoring = InMemorySearchFilterStore(),
         recentSearchStore: any RecentSearchStoring = InMemoryRecentSearchStore(),
     ) -> SearchViewModel {
         SearchViewModel(
@@ -1333,6 +1385,7 @@ final class SearchViewModelTests: XCTestCase {
             naturalJourneyOnboardingStore: naturalJourneyOnboardingStore,
             naturalJourneyMetrics: naturalJourneyMetrics,
             now: now,
+            filterStore: filterStore,
             recentSearchStore: recentSearchStore,
         )
     }
@@ -1509,6 +1562,59 @@ private actor NeverFinishingSearchRepository: SearchRepository {
             try await Task.sleep(for: .seconds(1))
         }
         throw CancellationError()
+    }
+}
+
+@MainActor
+private final class SearchRecordingLocationAdapter: LocationAdapter {
+    var authorization: LocationAuthorization
+    var onEvent: (@MainActor (LocationAdapterEvent) -> Void)?
+    var coordinate: GeoCoordinate?
+    var recordedAt: Date
+    private(set) var locationRequestCount = 0
+
+    init(
+        authorization: LocationAuthorization,
+        coordinate: GeoCoordinate?,
+        recordedAt: Date,
+    ) {
+        self.authorization = authorization
+        self.coordinate = coordinate
+        self.recordedAt = recordedAt
+    }
+
+    func requestAuthorization() {}
+
+    func requestLocation() {
+        locationRequestCount += 1
+        guard authorization == .authorized, let coordinate else {
+            onEvent?(.failed(authorization))
+            return
+        }
+        onEvent?(.located(LocationSample(
+            coordinate: coordinate,
+            horizontalAccuracy: nil,
+            recordedAt: recordedAt,
+        )))
+    }
+}
+
+private final class SearchTestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Date
+
+    init(_ value: Date) {
+        self.value = value
+    }
+
+    func now() -> Date {
+        lock.withLock { value }
+    }
+
+    func advance(by interval: TimeInterval) {
+        lock.withLock {
+            value.addTimeInterval(interval)
+        }
     }
 }
 

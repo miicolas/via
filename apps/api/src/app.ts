@@ -1,7 +1,6 @@
 import { type Context, Hono, type Next } from "hono";
 import { compress } from "hono/compress";
 import { etag } from "hono/etag";
-import { logger } from "hono/logger";
 import { requestId } from "hono/request-id";
 
 import type { AppEnv } from "./http/app-env";
@@ -24,11 +23,16 @@ import { publicLinesRouter } from "./public/lines/router";
 import { publicJourneySharesRouter } from "./public/journey-shares/router";
 import { env } from "./env";
 import { RAIL_MAP_PATH, RAIL_MAP_RPC_PATH } from "@via/contract";
+import { requestLogger } from "./http/request-logger";
+import { requestBodyLimit } from "./http/request-body-limit";
 
 const app = new Hono<AppEnv>();
 
 app.use(requestId());
-app.use(logger());
+app.use("/api/*", requestBodyLimit);
+app.use("/rpc/*", requestBodyLimit);
+app.use("/public/*", requestBodyLimit);
+app.use(requestLogger());
 app.use("/api/*", compress());
 app.use("/rpc/*", compress());
 
@@ -100,7 +104,7 @@ app.use("/rpc/*", requireAuth);
  * serve the same procedure, so both get their own entry.
  */
 const railMapCache = versionedPayloadCache(() =>
-  transitNetworkCacheVersion(redis),
+  transitNetworkCacheVersion(),
 );
 app.use(`/api${RAIL_MAP_PATH}`, railMapCache);
 app.use(`/rpc${RAIL_MAP_RPC_PATH}`, railMapCache);

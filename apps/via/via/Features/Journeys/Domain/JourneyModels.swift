@@ -358,6 +358,7 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
     let arrivalAt: Date
     let status: Status
     let warnings: [String]
+    let fare: JourneyFare?
     let accessibility: Accessibility?
     let peak: StationPeak?
     let reportedCrowding: ReportedCrowding?
@@ -374,6 +375,7 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         arrivalAt: Date,
         status: Status,
         warnings: [String],
+        fare: JourneyFare? = nil,
         accessibility: Accessibility? = nil,
         peak: StationPeak? = nil,
         reportedCrowding: ReportedCrowding? = nil,
@@ -389,6 +391,7 @@ struct Journey: Codable, Sendable, Hashable, Identifiable {
         self.arrivalAt = arrivalAt
         self.status = status
         self.warnings = warnings
+        self.fare = fare
         self.accessibility = accessibility
         self.peak = peak
         self.reportedCrowding = reportedCrowding
@@ -426,6 +429,7 @@ extension Journey {
             arrivalAt: arrivalAt,
             status: status,
             warnings: warnings,
+            fare: fare,
             accessibility: accessibility,
             peak: peak,
             reportedCrowding: reportedCrowding,

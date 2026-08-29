@@ -99,6 +99,7 @@ export default defineRailway(() => {
       builder: "RAILPACK",
       watchPatterns: [
         "/apps/marketing/**",
+        "/packages/contract/**",
         "/package.json",
         "/bun.lock",
         "/turbo.json",
@@ -150,6 +151,23 @@ export default defineRailway(() => {
     start: "bun apps/worker/src/toilets/cli.ts",
     deploy: {
       ...workerCronDeploy("17 3 * * *"),
+      ipv6EgressEnabled: false,
+    },
+    env: {
+      DATABASE_URL: preserve(),
+      REDIS_URL: preserve(),
+    },
+  });
+
+  const viaFountainsCron = service("@via/fountains-cron", {
+    source: via,
+    replicas: 1,
+    configFile: "/railway.fountains.json",
+    build: workerCronBuild,
+    start: "bun apps/worker/src/fountains/cli.ts",
+    deploy: {
+      // The source currently publishes during the European morning.
+      ...workerCronDeploy("17 12 * * *"),
       ipv6EgressEnabled: false,
     },
     env: {
@@ -218,6 +236,7 @@ export default defineRailway(() => {
       viaApi,
       viaMarketing,
       viaToiletsCron,
+      viaFountainsCron,
       viaGtfsCron,
       viaElevatorsCron,
       PostGIS,

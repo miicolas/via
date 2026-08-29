@@ -26,6 +26,12 @@ struct NetworkStationDTO: Decodable {
         let detail: String?
     }
 
+    struct Fountains: Decodable {
+        let status: String
+        let label: String
+        let detail: String?
+    }
+
     let id: String
     let name: String
     let coordinate: CoordinateDTO
@@ -33,6 +39,7 @@ struct NetworkStationDTO: Decodable {
     let accessibility: Accessibility?
     let hasElevators: Bool?
     let toilets: Toilets?
+    let fountains: Fountains?
 
     func domain() -> NetworkStation {
         NetworkStation(
@@ -51,7 +58,17 @@ struct NetworkStationDTO: Decodable {
                 )
             },
             hasElevators: hasElevators ?? false,
-            toilets: toilets.map { StationToilets(label: $0.label, detail: $0.detail) }
+            toilets: toilets.map { StationToilets(label: $0.label, detail: $0.detail) },
+            fountains: fountains.flatMap { value in
+                guard let status = StationFountains.Status(rawValue: value.status) else {
+                    return nil
+                }
+                return StationFountains(
+                    status: status,
+                    label: value.label,
+                    detail: value.detail
+                )
+            }
         )
     }
 }

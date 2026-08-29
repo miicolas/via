@@ -42,14 +42,14 @@ final class SystemJourneyNotificationCenter: JourneyNotificationCenterClient {
 
 @MainActor
 protocol JourneyNotificationActiveJourneyManaging: AnyObject {
-    func registerActiveJourney(_ journey: Journey) async
-    func unregisterActiveJourney(_ journey: Journey) async
+    func registerActiveJourney(_ journey: Journey, activationID: UUID) async
+    func unregisterActiveJourney(_ journey: Journey, activationID: UUID) async
 }
 
 @MainActor
 final class NoOpJourneyNotificationActiveJourneyManager: JourneyNotificationActiveJourneyManaging {
-    func registerActiveJourney(_ journey: Journey) async {}
-    func unregisterActiveJourney(_ journey: Journey) async {}
+    func registerActiveJourney(_ journey: Journey, activationID: UUID) async {}
+    func unregisterActiveJourney(_ journey: Journey, activationID: UUID) async {}
 }
 
 @MainActor
@@ -276,23 +276,23 @@ final class JourneyNotificationCoordinator: JourneyNotificationActiveJourneyMana
         )
     }
 
-    func registerActiveJourney(_ journey: Journey) async {
+    func registerActiveJourney(_ journey: Journey, activationID: UUID) async {
         await beginReminderUpdate()
         defer { endReminderUpdate() }
         await refreshAuthorizationStatus()
         if authorizationStatus == .notDetermined {
             _ = await ensureAuthorization()
         }
-        await activeJourneyManager.registerActiveJourney(journey)
+        await activeJourneyManager.registerActiveJourney(journey, activationID: activationID)
         if reminder?.journey.id == journey.id {
             await clearReminder()
         }
     }
 
-    func unregisterActiveJourney(_ journey: Journey) async {
+    func unregisterActiveJourney(_ journey: Journey, activationID: UUID) async {
         await beginReminderUpdate()
         defer { endReminderUpdate() }
-        await activeJourneyManager.unregisterActiveJourney(journey)
+        await activeJourneyManager.unregisterActiveJourney(journey, activationID: activationID)
         if reminder?.journey.id == journey.id {
             await clearReminder()
         }

@@ -553,7 +553,11 @@ private enum DeterministicNaturalJourneyGrounder {
         let pair = routePair(in: phrase, isEnglish: isEnglish)
             ?? destinationThenOriginPair(in: phrase, isEnglish: isEnglish)
         let modes = explicitModes(in: phrase)
-        var explicitOrigin = pair?.origin ?? placeAfterOriginMarker(in: phrase, isEnglish: isEnglish)
+        var explicitOrigin = pair?.origin ?? placeAfterOriginMarker(
+            in: phrase,
+            isEnglish: isEnglish,
+            savedPlaces: savedPlaces,
+        )
         var explicitDestination = pair?.destination
             ?? placeAfterDestinationMarker(in: phrase, isEnglish: isEnglish)
             ?? commandDestination(in: phrase, isEnglish: isEnglish)
@@ -884,19 +888,41 @@ private enum DeterministicNaturalJourneyGrounder {
     private static func placeAfterOriginMarker(
         in phrase: String,
         isEnglish: Bool,
+        savedPlaces: [NaturalJourneySavedPlaceReference],
     ) -> (value: String, evidence: String)? {
         let markers = isEnglish
             ? ["from", "frm"]
             : [
                 "depuis", "depui", "depuiss", "dpeuis", "au départ de",
                 "a partir de", "à partir de", "de",
-            ]
+        ]
         for marker in markers {
             guard let markerRange = wholePhraseRange(
                 of: marker,
                 in: phrase,
                 backwards: true,
             ) else { continue }
+            // The bare French « de » is also a preposition inside ordinary
+            // place names (« Salle de sport », « Porte de Versailles »).
+            // Once a destination marker already appeared, that occurrence
+            // cannot introduce a departure; routePair handles true « de … à
+            // … » requests before this fallback runs.
+            if marker == "de" {
+                let markerIsInsideCustomAlias = savedPlaces.contains { place in
+                    guard place.kind == .custom,
+                          let aliasRange = wholePhraseRange(of: place.label, in: phrase)
+                    else { return false }
+                    return aliasRange.contains(markerRange.lowerBound)
+                }
+                if markerIsInsideCustomAlias { continue }
+                let prefix = String(phrase[..<markerRange.lowerBound])
+                let destinationMarkers = ["vers", "direction", "jusqu’à", "jusqu'a", "à", "a", "au", "aux"]
+                if destinationMarkers.contains(where: {
+                    wholePhraseRange(of: $0, in: prefix) != nil
+                }) {
+                    continue
+                }
+            }
             let rawSuffix = phrase[markerRange.upperBound...]
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .trimmingCharacters(in: .punctuationCharacters)

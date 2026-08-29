@@ -83,6 +83,7 @@ final class SelectedStationModel {
       routes: item.routes,
       accessibility: item.accessibility,
       toilets: item.toilets,
+      fountains: item.fountains,
       distanceMeters: locationModel.coordinate.map {
         item.coordinate.metersAway(from: $0)
       },
@@ -315,6 +316,7 @@ final class SelectedStationModel {
           routes: initialOverview.routes,
           accessibility: initialOverview.accessibility,
           toilets: initialOverview.toilets,
+          fountains: initialOverview.fountains,
           distanceMeters: initialOverview.distanceMeters,
           departures: StationOverviewBuilder.nextDepartures(
             from: board,

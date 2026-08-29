@@ -8,6 +8,7 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
     let accessibility: StationAccessibility?
     let hasElevators: Bool
     let toilets: StationToilets?
+    let fountains: StationFountains?
     let bikeStation: BikeStation?
     let sharedMobility: SharedMobilityItem?
     let sharedMobilityCluster: SharedMobilityCluster?
@@ -22,6 +23,7 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
         accessibility: StationAccessibility? = nil,
         hasElevators: Bool = false,
         toilets: StationToilets? = nil,
+        fountains: StationFountains? = nil,
         bikeStation: BikeStation? = nil,
         sharedMobility: SharedMobilityItem? = nil,
         sharedMobilityCluster: SharedMobilityCluster? = nil
@@ -33,6 +35,7 @@ struct StationMapItem: Identifiable, Sendable, Hashable {
         self.accessibility = accessibility
         self.hasElevators = hasElevators
         self.toilets = toilets
+        self.fountains = fountains
         self.bikeStation = bikeStation
         self.sharedMobility = sharedMobility
         self.sharedMobilityCluster = sharedMobilityCluster
@@ -90,7 +93,8 @@ extension StationsArea {
                 routes: routeCatalog.routes(for: station.routeIDs),
                 accessibility: station.accessibility,
                 hasElevators: station.hasElevators,
-                toilets: station.toilets
+                toilets: station.toilets,
+                fountains: station.fountains
             )
         }
     }

@@ -2,6 +2,7 @@ import type { PageContent } from "@/constants/page";
 import type { FAQContent } from "@/constants/types";
 import { Accordion } from "@/components/ui/accordion";
 import { ActionLink } from "@/components/ui/action-link";
+import { LaunchAction } from "@/components/ui/launch-action";
 import { SectionHeading } from "@/components/ui/section-heading";
 import type { ReactNode } from "react";
 
@@ -21,7 +22,7 @@ export function FAQSection({ content, items }: FAQSectionProps): ReactNode {
             description={content.description}
           />
           <div className="-mt-4 flex flex-wrap items-center justify-center gap-3">
-            <ActionLink {...content.primaryAction} />
+            <LaunchAction configuration={content.primaryAction} mode="button" />
             <ActionLink {...content.secondaryAction} variant="secondary" />
           </div>
         </div>

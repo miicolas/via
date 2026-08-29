@@ -25,6 +25,12 @@ export const stationToiletsSchema = z.object({
   detail: z.string().optional(),
 });
 
+export const stationFountainsSchema = z.object({
+  status: z.enum(['available', 'unavailable']),
+  label: z.string(),
+  detail: z.string().optional(),
+});
+
 /** Live Vélib' inventory joined to the station's stable GBFS information. */
 export const bikeStationAvailabilitySchema = z.object({
   mechanicalBikes: z.int().min(0),
@@ -67,6 +73,7 @@ export const networkStationSchema = z.object({
   /** At least one lift is referenced for this station, regardless of live status. */
   hasElevators: z.boolean().optional(),
   toilets: stationToiletsSchema.optional(),
+  fountains: stationFountainsSchema.optional(),
 });
 
 /**

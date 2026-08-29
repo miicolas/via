@@ -32,6 +32,14 @@ export function fakeRedis() {
       expiries.set(key, seconds);
       return 1;
     }) as RedisClient["expire"],
+    incrementWithExpiry: (async (key: string, seconds: number) => {
+      const next = ((store.get(key) as number) ?? 0) + 1;
+      store.set(key, next);
+      // A fixed window starts at creation. If a legacy key has lost its TTL,
+      // repair it once; never move an existing window's deadline.
+      if (!expiries.has(key)) expiries.set(key, seconds);
+      return next;
+    }) as RedisClient["incrementWithExpiry"],
     del: (async (key: string) => {
       const existed = store.delete(key);
       expiries.delete(key);

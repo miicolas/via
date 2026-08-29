@@ -651,7 +651,12 @@ struct MapShellView: View {
           },
           onEditSavedDestination: presentEditor,
           canAddSavedDestination:
-            accountModel.destinations.count < AccountLocalSnapshot.destinationLimit
+            accountModel.destinations.count < AccountLocalSnapshot.destinationLimit,
+          onConfigurePlace: { beginSavedDestinationSelection(.place($0)) },
+          onAddSavedDestination: { beginSavedDestinationSelection(.destination) },
+          onClearPlace: { accountModel.removePlace(for: $0) },
+          onRemoveSavedDestination: { accountModel.removeDestination(id: $0) },
+          onManageSavedDestinations: { presentFavorites(focus: nil) }
         )
         .sheetTabBarVisibility()
       }

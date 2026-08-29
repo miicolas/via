@@ -153,6 +153,7 @@ private struct JourneyWireDTO: Codable {
     let arrivalAt: Date
     let status: Journey.Status
     let warnings: [String]
+    let fare: JourneyFare?
     let accessibility: Journey.Accessibility?
     let peak: PeakDTO?
     let reportedCrowding: Journey.ReportedCrowding?
@@ -169,6 +170,7 @@ private struct JourneyWireDTO: Codable {
         arrivalAt = journey.arrivalAt
         status = journey.status
         warnings = journey.warnings
+        fare = journey.fare
         accessibility = journey.accessibility
         peak = journey.peak.map(PeakDTO.init)
         reportedCrowding = journey.reportedCrowding
@@ -188,6 +190,7 @@ private struct JourneyWireDTO: Codable {
             arrivalAt: arrivalAt,
             status: status,
             warnings: warnings,
+            fare: fare,
             accessibility: accessibility,
             peak: peak?.domain,
             reportedCrowding: reportedCrowding,

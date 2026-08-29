@@ -1,5 +1,4 @@
 import { implementer } from '../../../orpc/implementer';
-import { redis } from '../../../redis';
 import { transitNetworkCacheVersion } from '../../departures/network-version';
 import { selectDrawnPatterns, selectRailStationPositions } from '../queries';
 import { toRailMap } from '../to-rail-map';
@@ -23,7 +22,7 @@ async function railMap(version: string): Promise<RailMap> {
 }
 
 export const getRailMap = implementer.network.railMap.handler(async ({ context }) => {
-  const version = await transitNetworkCacheVersion(redis);
+  const version = await transitNetworkCacheVersion();
   const value = await railMap(version);
 
   context.resHeaders?.set('Cache-Control', RAIL_MAP_CACHE_CONTROL);

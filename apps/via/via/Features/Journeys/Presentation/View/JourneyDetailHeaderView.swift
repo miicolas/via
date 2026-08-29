@@ -7,41 +7,66 @@ struct JourneyDetailHeaderView: View {
     let source: JourneyResult.Source?
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                durationAndTiming
+
+                Spacer(minLength: 0)
+
+                metrics
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    durationAndTiming
+                }
+
+                metrics
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var durationAndTiming: some View {
+        Text(JourneyFormatting.duration(journey.durationSeconds))
+            .font(.system(.largeTitle, design: .rounded, weight: .bold))
+            .monospacedDigit()
+            .contentTransition(.numericText())
+
+        if let timingLabel {
+            Text(timingLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(timingTint)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(timingTint.opacity(0.14), in: .capsule)
+        }
+    }
+
+    private var metrics: some View {
         // Estimating walks every geometry pair of every transit section; the
         // label and the spoken value are the same number, read once.
         let emission = journey.carbonEmission
 
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(JourneyFormatting.duration(journey.durationSeconds))
-                .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                .monospacedDigit()
-                .contentTransition(.numericText())
-
-            if let timingLabel {
-                Text(timingLabel)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(timingTint)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(timingTint.opacity(0.14), in: .capsule)
+        return HStack(spacing: 14) {
+            if let fare = journey.fare {
+                JourneyHeaderMetricView(
+                    value: fare.displayText,
+                    systemImage: "eurosign.circle",
+                    accessibilityLabel: "Tarif plein indicatif",
+                    accessibilityValue: fare.accessibilityText
+                )
             }
 
-            Spacer(minLength: 0)
-
-            HStack(spacing: 5) {
-                Image(systemName: "globe.europe.africa")
-                    .font(.caption.weight(.semibold))
-
-                Text(emission.displayText)
-                    .font(.caption.weight(.semibold).monospacedDigit())
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .foregroundStyle(.secondary)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Émissions estimées de CO₂e")
-            .accessibilityValue(emission.accessibilityText)
+            JourneyHeaderMetricView(
+                value: emission.displayText,
+                systemImage: "globe.europe.africa",
+                accessibilityLabel: "Émissions estimées de CO₂e",
+                accessibilityValue: emission.accessibilityText
+            )
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var timingLabel: String? {

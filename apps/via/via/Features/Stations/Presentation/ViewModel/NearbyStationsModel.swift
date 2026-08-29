@@ -125,7 +125,8 @@ final class NearbyStationsModel {
                 routeIDs: station.item.routes.map(\.id),
                 accessibility: station.item.accessibility,
                 hasElevators: station.item.hasElevators,
-                toilets: station.item.toilets
+                toilets: station.item.toilets,
+                fountains: station.item.fountains
             ),
             routes: station.item.routes,
             distanceMeters: station.distanceMeters

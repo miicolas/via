@@ -21,6 +21,7 @@ export const REFERENTIAL_DATASETS = {
   accessibility: `${CATALOG}/accessibilite-en-gare`,
   accesses: `${CATALOG}/acces`,
   accessRelations: `${CATALOG}/relations-acces`,
+  fountains: `${CATALOG}/fontaines-arrets-de-transport-en-commun-didf`,
   quays: `${CATALOG}/arrets`,
   stopAreas: `${CATALOG}/zones-d-arrets`,
   toilets: `${CATALOG}/sanitaires-reseau-ratp`,

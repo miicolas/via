@@ -17,6 +17,7 @@ struct PushRouteWindow: Sendable, Hashable {
 struct PushActiveJourneyRegistration: Sendable, Hashable {
     let installationID: String
     let journeyID: String
+    let activationID: UUID
     let routeWindows: [PushRouteWindow]
     let startsAt: Date
     let endsAt: Date

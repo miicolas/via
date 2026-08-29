@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { z } from "zod";
+import { toPublicJourneyShare } from './projection';
 
 import type { AppEnv } from "../../http/app-env";
 import { errorBody } from "../../http/errors";
@@ -33,11 +33,7 @@ export const publicJourneySharesRouter = new Hono<AppEnv>().get(
         "Cache-Control",
         "public, max-age=60, s-maxage=60, stale-while-revalidate=300",
       );
-      return c.json({
-        snapshot: share.snapshot,
-        createdAt: share.createdAt,
-        expiresAt: share.expiresAt,
-      });
+      return c.json(toPublicJourneyShare(share));
     } catch (error) {
       if (!(error instanceof JourneyShareLookupError)) throw error;
 
@@ -66,4 +62,3 @@ export const publicJourneySharesRouter = new Hono<AppEnv>().get(
     }
   },
 );
-

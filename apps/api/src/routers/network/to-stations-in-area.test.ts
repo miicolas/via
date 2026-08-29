@@ -30,6 +30,9 @@ const rows: StationInAreaRow[] = [
     accessibilityDetail: null,
     toiletStopId: 'IDFM:10001',
     toiletDetail: 'Accès gratuit · Accessible PMR',
+    fountainStopId: 'IDFM:10001',
+    fountainCondition: 'available',
+    fountainDetail: 'Accessible PMR · Remplissage de gourde possible',
     hasElevators: true,
     routes: [BUS_38, BUS_47],
   },
@@ -42,6 +45,9 @@ const rows: StationInAreaRow[] = [
     accessibilityDetail: null,
     toiletStopId: null,
     toiletDetail: null,
+    fountainStopId: null,
+    fountainCondition: null,
+    fountainDetail: null,
     hasElevators: false,
     routes: [BUS_38],
   },
@@ -65,6 +71,11 @@ describe('toStationsInArea', () => {
         label: 'Sanitaires disponibles',
         detail: 'Accès gratuit · Accessible PMR',
       },
+      fountains: {
+        status: 'available',
+        label: 'Fontaine d’eau potable à proximité',
+        detail: 'Accessible PMR · Remplissage de gourde possible',
+      },
     });
     expect(stations[1]).not.toHaveProperty('hasElevators');
   });
@@ -84,6 +95,23 @@ describe('toStationsInArea', () => {
 
   test('matches the wire contract', () => {
     expect(() => stationsInAreaSchema.parse(toStationsInArea(rows))).not.toThrow();
+  });
+
+  test('an unavailable fountain remains visible with its warning label', () => {
+    const unavailableRow: StationInAreaRow = {
+      ...rows[1]!,
+      fountainStopId: rows[1]!.id,
+      fountainCondition: 'unavailable',
+      fountainDetail: 'Indisponible depuis le 14 août 2026',
+    };
+
+    const { stations } = toStationsInArea([unavailableRow]);
+
+    expect(stations[0]?.fountains).toEqual({
+      status: 'unavailable',
+      label: 'Fontaine d’eau signalée indisponible',
+      detail: 'Indisponible depuis le 14 août 2026',
+    });
   });
 
   test('an empty area yields empty collections', () => {

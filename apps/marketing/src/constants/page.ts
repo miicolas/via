@@ -1,17 +1,12 @@
-import type { CallToAction } from "./types";
+import { launch, supportAction } from "./launch";
 import { screenshots } from "./screenshots";
-
-const appStoreAction = {
-  label: "Télécharger Metyro",
-  href: "#",
-} satisfies CallToAction;
 
 export const pageContent = {
   metadata: {
     title: "Metyro — Le métro en temps réel",
   },
   hero: {
-    badge: "Disponible maintenant",
+    badge: launch.availabilityLabel,
     headline: {
       line1: "Vos trajets en direct",
       line2: "Voyagez en",
@@ -19,7 +14,7 @@ export const pageContent = {
     },
     description:
       "Stations, itinéraires et perturbations en temps réel, dans une app claire et immédiate.",
-    action: appStoreAction,
+    action: launch,
     preview: screenshots.stationsOverview,
   },
   blurHeadline:
@@ -39,15 +34,12 @@ export const pageContent = {
     title: "Tout savoir sur Metyro",
     description:
       "Une question sur l’app ou sur vos trajets ? Nous sommes là pour vous répondre.",
-    primaryAction: appStoreAction,
-    secondaryAction: {
-      label: "Contacter l’assistance",
-      href: "#",
-    } satisfies CallToAction,
+    primaryAction: launch,
+    secondaryAction: supportAction,
   },
   footer: {
     headline: "Le métro, toujours avec vous.",
-    action: appStoreAction,
+    action: launch,
     copyright: "Tous droits réservés.",
   },
 } as const;

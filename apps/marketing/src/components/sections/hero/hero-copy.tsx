@@ -2,7 +2,7 @@
 
 import type { PageContent } from "@/constants/page";
 import { fadeInScale, fadeInUp, MARKETING_EASE } from "@/lib/motion";
-import { AppStoreBadgeLink } from "@/components/ui/app-store-badge-link";
+import { LaunchAction } from "@/components/ui/launch-action";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 
@@ -59,7 +59,7 @@ export function HeroCopy({
         variants={fadeInScale}
         transition={{ duration: 0.8, ease: MARKETING_EASE }}
       >
-        <AppStoreBadgeLink {...content.action} appearance="black" />
+        <LaunchAction configuration={content.action} mode="badge" appearance="black" />
       </motion.div>
     </motion.div>
   );
