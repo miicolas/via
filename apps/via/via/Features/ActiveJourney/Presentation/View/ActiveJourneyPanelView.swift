@@ -5,6 +5,7 @@ struct ActiveJourneyPanelView: View {
   let departureChoicesModel: JourneyDepartureChoicesModel
   let onSelectDeparture: (JourneyDepartureChoice, String) -> Void
   let onRetryDepartures: () async -> Void
+  let onOpenReport: () -> Void
 
   @State private var isFinishConfirmationPresented = false
   @State private var isAlternativesPresented = false
@@ -292,6 +293,19 @@ struct ActiveJourneyPanelView: View {
 
   @ToolbarContentBuilder
   private var journeyToolbar: some ToolbarContent {
+    ToolbarItem(placement: .topBarTrailing) {
+      Button(action: onOpenReport) {
+        GlassSquareBadge(tint: .orange, size: 36, isInteractive: true) {
+          Image(systemName: "exclamationmark.bubble.fill")
+            .font(.subheadline.weight(.semibold))
+        }
+      }
+        .buttonStyle(.plain)
+        .frame(width: 44, height: 44)
+        .accessibilityLabel("Signaler")
+        .accessibilityHint("Ouvre les signalements pour la station du trajet")
+    }
+
     ToolbarItem(placement: .topBarTrailing) {
       Button {
         alternativeTick += 1

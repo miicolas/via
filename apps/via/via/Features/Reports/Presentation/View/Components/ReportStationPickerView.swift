@@ -9,33 +9,39 @@ struct ReportStationPickerView: View {
         @Bindable var viewModel = viewModel
 
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    SearchDestinationField(
-                        text: $viewModel.stationQuery,
-                        prompt: "Nom de la station",
-                        accessibilityLabel: "Station",
-                        clearAccessibilityLabel: "Effacer la station",
-                        onClear: viewModel.clearStationQuery,
-                        onSubmit: viewModel.searchStationsImmediately
-                    )
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Choisir une station")
+                        .font(.title2.weight(.bold))
 
-                    resultsContent
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 24)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Choisir une station")
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(role: .close) {
+                    Spacer(minLength: 16)
+
+                    ReportCloseButton {
                         viewModel.cancelPresentedSheet()
                         dismiss()
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        SearchDestinationField(
+                            text: $viewModel.stationQuery,
+                            prompt: "Nom de la station",
+                            accessibilityLabel: "Station",
+                            clearAccessibilityLabel: "Effacer la station",
+                            onClear: viewModel.clearStationQuery,
+                            onSubmit: viewModel.searchStationsImmediately
+                        )
+
+                        resultsContent
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+                }
+                .scrollDismissesKeyboard(.interactively)
             }
         }
     }
@@ -88,7 +94,7 @@ struct ReportStationPickerView: View {
         case .failed:
             EmptyStateView(.offline(title: "Recherche indisponible")) {
                 RetryButton(action: viewModel.retryStationSearch)
-                    .primaryAction()
+                    .primaryAction(tint: .blue)
             }
         }
     }

@@ -8,55 +8,52 @@ struct CrowdingLevelPickerView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    ForEach(CrowdingLevel.allCases, id: \.self) { level in
-                        Button {
-                            onSelect(level)
-                        } label: {
-                            HStack(alignment: .top, spacing: 14) {
-                                Image(systemName: level.systemImage)
-                                    .font(.headline.weight(.semibold))
-                                    .foregroundStyle(.white)
-                                    .accessibilityHidden(true)
-                                    .frame(width: 48, height: 48)
-                                    .glassEffect(.regular.tint(level.tint), in: .circle)
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Affluence")
+                        .font(.largeTitle.weight(.bold))
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(level.title)
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-                                    Text(level.explanation)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .multilineTextAlignment(.leading)
-                                }
+                    Spacer(minLength: 16)
 
-                                Spacer(minLength: 0)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(16)
-                            .background(.secondary.opacity(0.08), in: RoundedRectangle(
-                                cornerRadius: 20,
-                                style: .continuous
-                            ))
-                            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Affluence \(level.title)")
-                        .accessibilityHint(level.explanation)
-                    }
-                }
-                .padding(20)
-            }
-            .navigationTitle("Quel niveau d’affluence ?")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Annuler") {
+                    ReportCloseButton {
                         onCancel()
                         dismiss()
                     }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+
+                ScrollView {
+                    GlassEffectContainer(spacing: 10) {
+                        VStack(spacing: 0) {
+                            ForEach(CrowdingLevel.allCases, id: \.self) { level in
+                                ReportCardView(
+                                    title: level.title,
+                                    systemImage: level.systemImage,
+                                    tint: level.tint,
+                                    accessibilityHint: level.explanation,
+                                    accessibilityActionLabel: "Choisir \(level.title)"
+                                ) {
+                                    onSelect(level)
+                                }
+
+                                if level != CrowdingLevel.allCases.last {
+                                    Divider()
+                                        .padding(.leading, 14)
+                                        .padding(.trailing, 58)
+                                }
+                            }
+                        }
+                        .background(.secondary.opacity(0.08), in: RoundedRectangle(
+                            cornerRadius: 18,
+                            style: .continuous
+                        ))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+                    .frame(maxWidth: 640, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                 }
             }
         }

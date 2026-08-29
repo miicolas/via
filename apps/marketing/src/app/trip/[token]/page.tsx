@@ -1,5 +1,6 @@
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { cache, type ReactNode } from "react";
 
 import { JourneySharePageClient } from "./page.client";
@@ -11,6 +12,7 @@ import {
   fetchJourneyShare,
   journeyShareQueryOptions,
 } from "@/lib/journey-share";
+import { canonicalJourneyShareToken } from "@/lib/journey-share-token";
 import { createPageMetadata } from "@/lib/metadata";
 import { makeQueryClient } from "@/lib/query-client";
 
@@ -29,7 +31,8 @@ type PageProps = {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const { token } = await params;
+  const { token: rawToken } = await params;
+  const token = canonicalJourneyShareToken(rawToken);
   const fallback: Metadata = {
     title: "Trajet partagé",
     description: "Consultez ce trajet partagé par Metyro.",
@@ -60,7 +63,10 @@ export default async function JourneySharePage({
   params,
   searchParams,
 }: PageProps): Promise<ReactNode> {
-  const { token } = await params;
+  const { token: rawToken } = await params;
+  const token = canonicalJourneyShareToken(rawToken);
+
+  if (token !== rawToken) redirect(`/trip/${token}`);
 
   // Parse once on the server so the shared parser remains the source of truth;
   // the client component reads the same parser through useQueryStates.

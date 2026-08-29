@@ -29,20 +29,93 @@ final class LineDetailViewModelTests: XCTestCase {
         // rather than a copy of that direction alone.
         XCTAssertEqual(viewModel.diagram.sections.map(\.role), [
             .main,
-            .branch(name: "Poissy", junction: "Sartrouville"),
             .branch(name: "Saint-Germain-en-Laye", junction: "Nanterre-Préfecture"),
+            .branch(name: "Cergy-le-Haut", junction: "Sartrouville"),
+            .branch(name: "Poissy", junction: "Sartrouville"),
+            .branch(name: "Marne-la-Vallée – Chessy", junction: "Vincennes"),
             .branch(name: "Boissy-St-Léger", junction: "Vincennes"),
         ])
         XCTAssertEqual(viewModel.diagram.sections.map { $0.stops.map(\.stop.name) }, [
             [
-                "Cergy-le-Haut", "Conflans-Fin-d'Oise", "Sartrouville", "Maisons-Laffitte",
-                "Nanterre-Préfecture", "La Défense", "Auber", "Châtelet — Les Halles",
-                "Gare de Lyon", "Nation", "Vincennes", "Val de Fontenay",
-                "Noisy-le-Grand — Mont d'Est", "Val d'Europe", "Marne-la-Vallée – Chessy",
+                "Sartrouville", "Maisons-Laffitte", "Nanterre-Préfecture", "La Défense",
+                "Auber", "Châtelet — Les Halles", "Gare de Lyon", "Nation", "Vincennes",
             ],
-            ["Achères-Ville", "Poissy"],
             ["Le Vésinet — Le Pecq", "Saint-Germain-en-Laye"],
+            ["Conflans-Fin-d'Oise", "Cergy-le-Haut"],
+            ["Achères-Ville", "Poissy"],
+            [
+                "Val de Fontenay", "Noisy-le-Grand — Mont d'Est", "Val d'Europe",
+                "Marne-la-Vallée – Chessy",
+            ],
             ["Joinville-le-Pont", "Boissy-St-Léger"],
+        ])
+    }
+
+    @MainActor
+    func testTheCompleteRERADiagramNamesAllFiveTerminalBranches() async {
+        let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
+
+        let branchNames: [String] = viewModel.diagram.sections.compactMap { section in
+            guard case .branch(let name, _) = section.role else { return nil }
+            return name
+        }
+
+        XCTAssertEqual(Set(branchNames), [
+            "Saint-Germain-en-Laye",
+            "Cergy-le-Haut",
+            "Poissy",
+            "Marne-la-Vallée – Chessy",
+            "Boissy-St-Léger",
+        ])
+        XCTAssertEqual(branchNames.count, 5)
+
+        let stationIDs = viewModel.diagram.sections.flatMap { $0.stops.map(\.stop.id) }
+        XCTAssertEqual(stationIDs.count, Set(stationIDs).count)
+    }
+
+    func testASingleSidedForkDoesNotTurnTheOppositeTerminusIntoAThirdBranch() {
+        func stops(_ names: [String]) -> [LineSchemaStop] {
+            names.map { LineSchemaStop(id: $0, name: $0) }
+        }
+
+        let direction = LineDirection(
+            id: "single-sided-fork",
+            directionId: 0,
+            label: "North",
+            sections: [
+                LineSchemaSection(
+                    role: .branch,
+                    label: "Branche A",
+                    origins: ["A"],
+                    termini: ["North"],
+                    stops: stops(["A", "A near"])
+                ),
+                LineSchemaSection(
+                    role: .branch,
+                    label: "Branche B",
+                    origins: ["B"],
+                    termini: ["North"],
+                    stops: stops(["B", "B near"])
+                ),
+                LineSchemaSection(
+                    role: .trunk,
+                    label: nil,
+                    origins: ["A", "B"],
+                    termini: ["North"],
+                    stops: stops(["Junction", "Middle", "North"])
+                ),
+            ]
+        )
+
+        let diagram = LinePlan.diagram(for: [direction], disruptions: [])
+        let branchNames: [String] = diagram.sections.compactMap { section in
+            guard case .branch(let name, _) = section.role else { return nil }
+            return name
+        }
+
+        XCTAssertEqual(Set(branchNames), ["A", "B"])
+        XCTAssertEqual(diagram.sections.first?.stops.map(\.stop.id), [
+            "Junction", "Middle", "North",
         ])
     }
 

@@ -158,12 +158,6 @@ extension EmptyState {
         message: "Les disponibilités des opérateurs ne répondent pas. Réessaie dans un instant.",
     )
 
-    static let noSharedMobilityInArea = EmptyState(
-        systemImage: "bicycle",
-        title: "Aucun véhicule dans cette zone",
-        message: "Déplace la carte pour explorer une autre zone.",
-    )
-
     /// The planner answered, with nothing to ride. Distinct from
     /// `transitUnavailable`, where it did not answer at all: here the walk and
     /// the ride above it are the whole offer.

@@ -47,8 +47,8 @@ enum MapRoute: Hashable, Sendable {
             guard
                 components.count == 2,
                 components[0].lowercased() == "trip",
-                let token = components.last,
-                Self.isValidShareToken(token)
+                let rawToken = components.last,
+                let token = Self.shareToken(from: rawToken)
             else { return nil }
 
             self = .sharedJourney(token)
@@ -74,14 +74,17 @@ enum MapRoute: Hashable, Sendable {
             guard let stationID = value("stationId"), !stationID.isEmpty else { return nil }
             self = .station(StationID(rawValue: stationID))
         case "trip":
-            let pathToken = url.pathComponents
+            let rawToken = url.pathComponents
                 .first(where: { $0 != "/" && !$0.isEmpty })
-            guard let token = pathToken, Self.isValidShareToken(token) else { return nil }
+            guard
+                let rawToken,
+                let token = Self.shareToken(from: rawToken)
+            else { return nil }
             self = .sharedJourney(token)
         case "journey":
             if value("mode")?.lowercased() == "shared",
-               let token = value("token"),
-               Self.isValidShareToken(token) {
+               let rawToken = value("token"),
+               let token = Self.shareToken(from: rawToken) {
                 self = .sharedJourney(token)
                 return
             }
@@ -103,6 +106,33 @@ enum MapRoute: Hashable, Sendable {
         default:
             return nil
         }
+    }
+
+    private static let legacyShareMessage = " Voici un trajet partagé dans Metyro."
+
+    /// ShareLink's former optional message was appended to the URL by some
+    /// activities. Decode the two forms observed at the web boundary and only
+    /// recover the token when the complete historical suffix matches.
+    private static func shareToken(from value: String) -> String? {
+        var candidate = value
+
+        for pass in 0...2 {
+            if isValidShareToken(candidate) { return candidate }
+
+            if candidate.hasSuffix(legacyShareMessage) {
+                let token = String(candidate.dropLast(legacyShareMessage.count))
+                if isValidShareToken(token) { return token }
+            }
+
+            guard
+                pass < 2,
+                let decoded = candidate.removingPercentEncoding,
+                decoded != candidate
+            else { break }
+            candidate = decoded
+        }
+
+        return nil
     }
 
     private static func isValidShareToken(_ token: String) -> Bool {

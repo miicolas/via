@@ -1,5 +1,7 @@
 import { expect, test } from 'bun:test';
 
+import { selectInArea } from '../../geo/area';
+
 import {
   findManifestFeed,
   parseDottVehicles,
@@ -187,6 +189,31 @@ test('Lime is normalized to bicycles while keeping optional feed fields', () => 
     rangeMeters: 9_000,
     operatorUrl: 'https://li.me/',
   })]);
+});
+
+test('Lime keeps a rentable bicycle in a suburban viewport', () => {
+  const result = parseLimeVehicles(
+    feed({
+      bikes: [{
+        bike_id: 'lime-creteil',
+        lat: 48.7904,
+        lon: 2.4556,
+        is_reserved: false,
+        is_disabled: false,
+      }],
+    }),
+    null,
+    now
+  );
+
+  const items = selectInArea(result?.items ?? [], {
+    minLatitude: 48.78,
+    maxLatitude: 48.80,
+    minLongitude: 2.44,
+    maxLongitude: 2.47,
+  });
+
+  expect(items.map((item) => item.id)).toEqual(['lime:lime-creteil']);
 });
 
 test('YEGO is normalized to scooters regardless of malformed form factors', () => {

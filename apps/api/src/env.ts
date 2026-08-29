@@ -110,7 +110,7 @@ const envSchema = z.object({
   LIME_GBFS_URL: z
     .url()
     .default(
-      "https://data.lime.bike/api/partners/v2/gbfs/parisproper/gbfs.json",
+      "https://data.lime.bike/api/partners/v2/gbfs/paris/gbfs.json",
     ),
   YEGO_GBFS_URL: z
     .url()

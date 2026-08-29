@@ -32,10 +32,10 @@ struct JourneyTimelineRail: View {
         case .minor: 14
         case .none: 0
         }
-        // A marked hole carries a colour or a cross inside it, and needs the
-        // few extra points for either to read at a glance.
+        // A marked hole carries a real pictogram, not colour alone. The extra
+        // room keeps its white rim and lets the sign read at a glance.
         guard base > 0, mark != .open else { return base }
-        return base + 5
+        return base + 7
     }
 
     private static let pedestrianWidth: CGFloat = 7
@@ -215,14 +215,15 @@ struct JourneyTimelineRail: View {
         Circle()
             .fill(mark.condition?.tint ?? beadTint)
             .overlay {
-                if case .closed = mark {
-                    Image(systemName: "xmark")
-                        .font(.system(size: beadSize * 0.6, weight: .black))
-                        .foregroundStyle(.white)
-                } else {
+                switch mark {
+                case .open:
                     Circle()
                         .fill(.white)
                         .frame(width: beadSize * 0.38, height: beadSize * 0.38)
+                case .warned(let condition):
+                    markerSymbol("exclamationmark", condition: condition)
+                case .closed(let condition):
+                    markerSymbol("xmark", condition: condition)
                 }
             }
             .frame(width: beadSize, height: beadSize)
@@ -237,23 +238,34 @@ struct JourneyTimelineRail: View {
             .opacity(state == .done ? 0.72 : 1)
     }
 
-    /// The white hole keeps its rim whatever the mark: a disruption tint alone
-    /// would disappear into a band of the same colour — a red suspension on a
-    /// red line — and the rim is what keeps the station visible at all.
+    /// The white hole keeps its rim whatever the mark: the inset coloured disc
+    /// can never disappear into a band of the same colour, while its symbol
+    /// makes the disruption readable without relying on colour.
     @ViewBuilder
     private var markGlyph: some View {
         switch mark {
         case .open:
             EmptyView()
         case .warned(let condition):
-            Circle()
-                .fill(condition.tint)
-                .padding(3)
+            markerDisc("exclamationmark", condition: condition)
         case .closed(let condition):
-            Image(systemName: "xmark")
-                .font(.system(size: beadSize * 0.6, weight: .black))
-                .foregroundStyle(condition.tint)
+            markerDisc("xmark", condition: condition)
         }
+    }
+
+    private func markerDisc(_ systemImage: String, condition: LineCondition) -> some View {
+        Circle()
+            .fill(condition.tint)
+            .padding(2)
+            .overlay {
+                markerSymbol(systemImage, condition: condition)
+            }
+    }
+
+    private func markerSymbol(_ systemImage: String, condition: LineCondition) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: beadSize * 0.5, weight: .black))
+            .foregroundStyle(condition == .attention ? Color.black.opacity(0.72) : .white)
     }
 
     private var beadTint: Color {

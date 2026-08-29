@@ -65,14 +65,6 @@ struct LinePlanSectionView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.trailing, 10)
                 .padding(.vertical, 10)
-
-            if row.isCutEdge, let condition = row.condition {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(condition.tint)
-                    .padding(.trailing, 4)
-                    .padding(.vertical, 10)
-            }
         }
         .frame(minHeight: 58, alignment: .topLeading)
         .accessibilityElement(children: .combine)

@@ -138,19 +138,39 @@ extension SharedMobilityArea {
 }
 
 extension Array where Element == StationMapItem {
-    /// Keeps close zoom individual and makes a dezoomed vehicle layer readable.
-    /// Physical Vélib’ stations are intentionally never merged.
+    /// Keeps sparse close-zoom vehicles individual, collapses dense piles that
+    /// would make SwiftUI build dozens of annotations at one point, and uses a
+    /// broader grid when the map is dezoomed. Physical Vélib’ stations are
+    /// intentionally never merged.
     func groupedSharedMobility(for viewport: NetworkViewport) -> [StationMapItem] {
-        viewport.groupsSharedMobility ? groupedSharedMobility() : self
+        viewport.groupsSharedMobility
+            ? groupedSharedMobility()
+            : denselyGroupedSharedMobility()
     }
 
-    /// The grid alone, with no camera in it.
-    ///
-    /// Only the 850 m threshold above depends on the viewport; the 250 m cells
-    /// do not, so a caller that already knows which side of the threshold it is
-    /// on can group once and reuse the result across frames instead of
-    /// rebuilding the dictionary, the cosines and the sort on every one.
+    /// The overview grid alone, with no camera in it, so it can be cached and
+    /// reused across continuous camera frames.
     func groupedSharedMobility() -> [StationMapItem] {
+        groupedSharedMobility(
+            cellSizeMeters: SharedMobilityGrouping.overviewCellSizeMeters,
+            minimumClusterCount: 2
+        )
+    }
+
+    /// A close-zoom safety net. Four vehicles inside one 20 m cell already
+    /// overlap more than they can be tapped, while one to three remain useful
+    /// individual choices.
+    func denselyGroupedSharedMobility() -> [StationMapItem] {
+        groupedSharedMobility(
+            cellSizeMeters: SharedMobilityGrouping.denseCellSizeMeters,
+            minimumClusterCount: SharedMobilityGrouping.denseMinimumClusterCount
+        )
+    }
+
+    private func groupedSharedMobility(
+        cellSizeMeters: Double,
+        minimumClusterCount: Int
+    ) -> [StationMapItem] {
         // The default map carries no vehicles at all, and every snapshot
         // publish came through here — a viewport change, a filter tap, both
         // sides of every refresh. Without this the whole station list was
@@ -160,7 +180,6 @@ extension Array where Element == StationMapItem {
             return false
         }) else { return self }
 
-        let cellSizeMeters = 250.0
         let latitudeCellSize = cellSizeMeters / 111_000
         var grouped: [SharedMobilityClusterKey: [StationMapItem]] = [:]
         var untouched: [StationMapItem] = []
@@ -184,25 +203,37 @@ extension Array where Element == StationMapItem {
             grouped[key, default: []].append(item)
         }
 
-        let clusters = grouped.compactMap { key, items -> StationMapItem? in
-            guard items.count > 1 else { return items.first }
+        let clusters = grouped.flatMap { key, items -> [StationMapItem] in
+            guard items.count >= minimumClusterCount else { return items }
             let latitude = items.map(\.coordinate.latitude).reduce(0, +) / Double(items.count)
             let longitude = items.map(\.coordinate.longitude).reduce(0, +) / Double(items.count)
-            return StationMapItem(sharedMobilityCluster: SharedMobilityCluster(
-                id: "\(key.provider.rawValue):\(key.mode.rawValue):\(key.latitudeIndex):\(key.longitudeIndex)",
+            let clusterID = [
+                "\(Int(cellSizeMeters))m",
+                key.provider.rawValue,
+                key.mode.rawValue,
+                String(key.latitudeIndex),
+                String(key.longitudeIndex),
+            ].joined(separator: ":")
+            return [StationMapItem(sharedMobilityCluster: SharedMobilityCluster(
+                id: clusterID,
                 coordinate: GeoCoordinate(latitude: latitude, longitude: longitude),
                 provider: key.provider,
                 mode: key.mode,
                 count: items.count
-            ))
+            ))]
         }
 
-        // Only the clusters need ordering: they come out of a dictionary, whose
-        // iteration order is not stable between publishes, and an annotation
-        // that changes index flickers. `untouched` already arrives in the
-        // source's own order.
+        // The vehicle output comes from a dictionary, whose iteration order is
+        // not stable between publishes, and an annotation that changes index
+        // flickers. `untouched` already arrives in the source's own order.
         return untouched + clusters.sorted { $0.id.rawValue < $1.id.rawValue }
     }
+}
+
+private enum SharedMobilityGrouping {
+    static let overviewCellSizeMeters = 250.0
+    static let denseCellSizeMeters = 20.0
+    static let denseMinimumClusterCount = 4
 }
 
 private struct SharedMobilityClusterKey: Hashable {

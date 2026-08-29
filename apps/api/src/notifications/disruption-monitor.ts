@@ -173,7 +173,9 @@ export function journeyDisruptionNotification(
     sound: "default",
     threadId: `via.notification.journey.${stableIdentifierHash(subscription.journeyId)}`,
     categoryId: "via.notification.journey",
-    interruptionLevel: disruption.severity === "suspended" ? "timeSensitive" : "active",
+    // Every match is happening during the journey the person explicitly chose
+    // to follow, so it is relevant now rather than suitable for a summary.
+    interruptionLevel: "timeSensitive",
     relevanceScore: disruption.severity === "suspended" ? 1 : 0.7,
     expirationAt,
     collapseId,

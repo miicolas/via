@@ -118,8 +118,8 @@ extension NetworkViewport {
   private static let fullyVisibleStationSpanMeters = 1_000.0
   private static let maximumStationSpanMeters = 1_600.0
 
-  /// Past this the individual vehicle symbols overlap each other faster than
-  /// station labels do, so they merge into counted clusters.
+  /// Past this every nearby vehicle group uses the broad overview grid. Closer
+  /// zooms keep sparse vehicles individual and only collapse dense piles.
   private static let groupedSharedMobilitySpanMeters = 850.0
 
   var showsStations: Bool {

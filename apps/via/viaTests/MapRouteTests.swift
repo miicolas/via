@@ -42,6 +42,24 @@ final class MapRouteTests: XCTestCase {
         )
     }
 
+    func testRecoversTokenFromLegacyShareLinkMessage() {
+        let token = String(repeating: "A", count: 43)
+        let message = " Voici un trajet partagé dans Metyro."
+        let encodedMessage = message.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!
+        let doubleEncodedMessage = encodedMessage.addingPercentEncoding(
+            withAllowedCharacters: .alphanumerics
+        )!
+
+        XCTAssertEqual(
+            MapRoute(url: URL(string: "https://metyro.app/trip/\(token)\(encodedMessage)")!),
+            .sharedJourney(token)
+        )
+        XCTAssertEqual(
+            MapRoute(url: URL(string: "https://metyro.app/trip/\(token)\(doubleEncodedMessage)")!),
+            .sharedJourney(token)
+        )
+    }
+
     func testRejectsUnknownOrIncompleteRoutes() {
         XCTAssertNil(MapRoute(url: URL(string: "https://example.com")!))
         XCTAssertNil(MapRoute(url: URL(string: "https://metyro.app/trip/short")!))

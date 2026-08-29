@@ -34,6 +34,9 @@ struct MapShellView: View {
   @State private var activeTab: MapShellTab = .stations
   @State private var previousTab: MapShellTab = .stations
   @State private var position: MapCameraPosition
+  /// A pan, zoom, pitch, or rotation hands the camera back to the traveller.
+  /// The route-aware location button is the only gesture that resumes follow.
+  @State private var journeyCameraFollowsLocation = false
   @State private var selectedMapStation: StationMapItem?
   @State private var selectedBikeStation: BikeStation?
   @State private var selectedSharedMobility: SharedMobilityItem?
@@ -59,6 +62,7 @@ struct MapShellView: View {
   @State private var savedDestinationSelectionContext: SavedDestinationSelectionContext?
   @State private var savedDestinationDraft: SavedDestinationDraft?
   @State private var returnsToPreviousTabAfterSavingDestination = false
+  @State private var reportOpenTick = 0
 
   init(
     networkViewModel: NetworkViewModel,
@@ -117,6 +121,9 @@ struct MapShellView: View {
 
   var body: some View {
     appEventMap
+      // Journey sheets disappear in the same update that opens Signaler, so
+      // the cue belongs to this root view that survives the transition.
+      .haptic(Haptic.commit, on: reportOpenTick)
   }
 
   private var presentedMap: some View {
@@ -152,6 +159,32 @@ struct MapShellView: View {
         position = .region(userRegion)
       }
     }
+    .onChange(of: locationModel.coordinate) { _, _ in
+      updateJourneyTrackingCamera()
+    }
+    .onChange(of: position) { _, newPosition in
+      guard journeyCameraFollowsLocation, newPosition.positionedByUser else { return }
+      journeyCameraFollowsLocation = false
+    }
+    .onChange(of: activeJourneyModel.isTracking, initial: true) { _, isTracking in
+      journeyCameraFollowsLocation = isTracking
+      if isTracking {
+        updateJourneyTrackingCamera()
+      }
+    }
+    .onChange(of: activeJourneyModel.currentSectionIndex) { _, _ in
+      if journeyCameraFollowsLocation, journeyTrackingCamera == nil {
+        // Rail and waiting legs keep an overview; the close third-person
+        // camera is reserved for geometry the traveller moves through on
+        // foot or by bike.
+        frameJourney(sectionID: activeJourneyModel.highlightedSectionID)
+      } else {
+        updateJourneyTrackingCamera()
+      }
+    }
+    .onChange(of: reduceMotion) { _, _ in
+      updateJourneyTrackingCamera(animated: false)
+    }
     // Selection is cleared on the next line, so the trigger is the tap itself:
     // a pin taken under the thumb, and the journey surface leaving for good.
     // Every map annotation enters through selectedMapStation. Keeping the cue
@@ -167,7 +200,10 @@ struct MapShellView: View {
       presentStation(newValue)
     }
     .onChange(of: displayedJourneyPresentation) { _, presentation in
-      guard !activeJourneyModel.isTracking else { return }
+      if activeJourneyModel.isTracking {
+        updateJourneyTrackingCamera()
+        return
+      }
       guard let mapRect = presentation?.mapRect else { return }
       position = .rect(mapRect)
     }
@@ -324,6 +360,12 @@ struct MapShellView: View {
       stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
       journeyPresentation: displayedJourneyPresentation,
       highlightedJourneySegmentID: displayedHighlightedSectionID,
+      journeyTracking: journeyTrackingCamera.map { _ in
+        JourneyTrackingControl(
+          isFollowing: journeyCameraFollowsLocation,
+          recenter: recenterJourneyTrackingCamera
+        )
+      },
       selectedStation: $selectedMapStation
     )
   }
@@ -402,6 +444,12 @@ struct MapShellView: View {
     returnsToPreviousTabAfterSavingDestination = false
     searchViewModel.resetSearch()
     activeTab = previousTab
+  }
+
+  private func openReportFromJourney() {
+    reportOpenTick &+= 1
+    searchSheetDestination = nil
+    activeTab = .report
   }
 
   private func openJourney(_ result: SearchResult) {
@@ -728,10 +776,7 @@ struct MapShellView: View {
           isLargeScreen: isLargeScreen,
           detent: $journeySheetDetent,
           onExpandMap: { journeySheetDetent = journeyPeekDetent },
-          onOpenReport: {
-            searchSheetDestination = nil
-            activeTab = .report
-          }
+          onOpenReport: openReportFromJourney
         )
       case .plannedJourney(let journeyID):
         JourneySheetView(
@@ -746,10 +791,7 @@ struct MapShellView: View {
           isLargeScreen: isLargeScreen,
           detent: $journeySheetDetent,
           onExpandMap: { journeySheetDetent = journeyPeekDetent },
-          onOpenReport: {
-            searchSheetDestination = nil
-            activeTab = .report
-          }
+          onOpenReport: openReportFromJourney
         )
       case .scheduledJourney(let journeyID):
         JourneySheetView(
@@ -764,10 +806,7 @@ struct MapShellView: View {
           isLargeScreen: isLargeScreen,
           detent: $journeySheetDetent,
           onExpandMap: { journeySheetDetent = journeyPeekDetent },
-          onOpenReport: {
-            searchSheetDestination = nil
-            activeTab = .report
-          }
+          onOpenReport: openReportFromJourney
         )
       }
     }
@@ -896,6 +935,36 @@ struct MapShellView: View {
     let mapRect = presentation.mapRect(for: sectionID)
     guard let mapRect else { return }
     position = .rect(mapRect)
+  }
+
+  private var journeyTrackingCamera: JourneyTrackingCamera? {
+    guard activeJourneyModel.isTracking,
+          let journey = activeJourneyModel.journey,
+          let sectionIndex = activeJourneyModel.currentSectionIndex,
+          journey.sections.indices.contains(sectionIndex),
+          let coordinate = locationModel.coordinate
+    else { return nil }
+
+    return JourneyTrackingCamera(
+      section: journey.sections[sectionIndex],
+      userCoordinate: coordinate
+    )
+  }
+
+  private func recenterJourneyTrackingCamera() {
+    journeyCameraFollowsLocation = true
+    updateJourneyTrackingCamera()
+  }
+
+  private func updateJourneyTrackingCamera(animated: Bool = true) {
+    guard journeyCameraFollowsLocation,
+          let journeyTrackingCamera
+    else { return }
+
+    let camera = journeyTrackingCamera.mapCamera(reducesMotion: reduceMotion)
+    withAnimation(animated && !reduceMotion ? .easeInOut(duration: 0.45) : nil) {
+      position = .camera(camera)
+    }
   }
 
   private func showActiveJourney() {

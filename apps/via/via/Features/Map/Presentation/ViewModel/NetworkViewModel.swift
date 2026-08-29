@@ -42,16 +42,17 @@ final class NetworkViewModel {
   /// What the map can draw, before it knows where the camera is.
   ///
   /// `publishSnapshot` runs on every frame of a pan, and none of the work below
-  /// depends on the frame: the filter criteria, the source TTLs and the 250 m
-  /// grid are functions of the loaded sets alone. Doing them here leaves the
-  /// frame with a bounds test, and has the side benefit that a cluster's count
-  /// no longer changes as its members cross the edge of the viewport.
+  /// depends on the frame: the filter criteria, the source TTLs and both cached
+  /// grouping grids are functions of the loaded sets alone. Doing them here
+  /// leaves the frame with a bounds test, and has the side benefit that a
+  /// cluster's count no longer changes as its members cross the viewport edge.
   ///
   /// A `didSet` on each input rather than a call at each load and refresh path:
   /// there are five of those, and the one that forgets shows stale vehicles.
   @ObservationIgnored private var drawableStations: [StationMapItem] = []
   @ObservationIgnored private var drawableBikeStations: [StationMapItem] = []
   @ObservationIgnored private var drawableVehicles: [StationMapItem] = []
+  @ObservationIgnored private var denselyGroupedVehicles: [StationMapItem] = []
   @ObservationIgnored private var groupedVehicles: [StationMapItem] = []
   @ObservationIgnored private var sharedMobilityRefreshTask: Task<Void, Never>?
   @ObservationIgnored private var viewportTask: Task<Void, Never>?
@@ -310,7 +311,7 @@ final class NetworkViewModel {
   }
 
   /// Applies everything the camera has no say in: the active criteria, the
-  /// per-source TTL, and the 250 m grouping the dezoomed map draws.
+  /// per-source TTL, and the close/overview grouping grids.
   private func rebuildDrawableItems() {
     let now = Date.now
     drawableStations = loadedStations.filter(stationFilter.matches)
@@ -323,6 +324,7 @@ final class NetworkViewModel {
             && stationFilter.matches($0)
         }
       : []
+    denselyGroupedVehicles = drawableVehicles.denselyGroupedSharedMobility()
     groupedVehicles = drawableVehicles.groupedSharedMobility()
   }
 
@@ -335,7 +337,7 @@ final class NetworkViewModel {
     var sources = sharedMobilitySources
     if viewport.showsStations {
       let bounds = viewport.bounds
-      let vehicles = viewport.groupsSharedMobility ? groupedVehicles : drawableVehicles
+      let vehicles = viewport.groupsSharedMobility ? groupedVehicles : denselyGroupedVehicles
       visibleStations = drawableStations.filter { bounds.contains($0.coordinate) }
         + drawableBikeStations.filter { bounds.contains($0.coordinate) }
         + vehicles.filter { bounds.contains($0.coordinate) }

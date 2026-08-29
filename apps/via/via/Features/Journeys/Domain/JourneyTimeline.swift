@@ -38,9 +38,9 @@ enum JourneyTimelineBeadMark: Sendable, Hashable {
     /// Trains call normally: the plain white hole of a platform display.
     case open
     /// The station sits inside a disruption but trains still call: the hole
-    /// takes the disruption's colour.
+    /// carries an exclamation mark in the disruption's colour.
     case warned(LineCondition)
-    /// No train calls here at all: the hole is struck through.
+    /// No train calls here at all: the hole carries a cross.
     case closed(LineCondition)
 
     /// The disruption behind the mark; nil while the station runs normally.

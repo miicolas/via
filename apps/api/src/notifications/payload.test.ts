@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 
 import {
+  deviceNotificationPayload,
   fitDeviceNotification,
   payloadByteLength,
   truncateUTF8,
@@ -20,4 +21,14 @@ test('pathological custom data is stripped before an APNs payload escapes', () =
 
   expect(payloadByteLength(notification)).toBeLessThanOrEqual(4_096);
   expect(notification.data).toBeUndefined();
+});
+
+test('time-sensitive notifications use the APNs wire value', () => {
+  expect(deviceNotificationPayload({
+    title: 'Perturbation',
+    body: 'Votre ligne est perturbée.',
+    interruptionLevel: 'timeSensitive',
+  })).toMatchObject({
+    aps: { 'interruption-level': 'time-sensitive' },
+  });
 });

@@ -41,6 +41,10 @@ final class ReportViewModel {
     private(set) var submissionState: ReportSubmissionState = .idle
     private(set) var stationSearchState: ReportStationSearchState = .idle
     private(set) var activeJourney: ActiveJourneyContext?
+    private(set) var submissionCommitTrigger = 0
+    private(set) var stationSelectionTrigger = 0
+    private(set) var sheetCancellationTrigger = 0
+    private(set) var confirmationDoneTrigger = 0
 
     var presentedSheet: ReportSheetDestination?
     var stationQuery: String = "" {
@@ -118,11 +122,13 @@ final class ReportViewModel {
     }
 
     func cancelPresentedSheet() {
+        sheetCancellationTrigger &+= 1
         presentedSheet = nil
     }
 
     func selectStation(_ station: StationSearchResult) {
         contextResolver.selectManualStation(station)
+        stationSelectionTrigger &+= 1
         stationSearchTask?.cancel()
         stationQuery = ""
         stationSearchState = .idle
@@ -140,6 +146,7 @@ final class ReportViewModel {
 
     func finishConfirmation() {
         guard case .confirmed = submissionState else { return }
+        confirmationDoneTrigger &+= 1
         submissionState = .idle
     }
 
@@ -172,6 +179,7 @@ final class ReportViewModel {
     private func submit(category: ReportCategory, value: ReportValue) {
         guard canSubmit, let selection = contextResolver.state.selection else { return }
 
+        submissionCommitTrigger &+= 1
         let submission = ReportSubmission(
             id: makeID(),
             category: category,
