@@ -5,6 +5,7 @@
     "buildCommand": "bun run --filter=@via/worker typecheck",
     "watchPatterns": [
       "/apps/worker/**",
+      "/packages/contract/**",
       "/packages/db/**",
       "/package.json",
       "/bun.lock",

@@ -538,7 +538,16 @@ final class OnDeviceNaturalJourneyServiceTests: XCTestCase {
         )
         let journeys = OnDeviceJourneyRecorder(results: [.mapPreview])
         let service = makeService(
-            parser: InMemoryNaturalIntentParser(),
+            parser: InMemoryNaturalIntentParser(intent: RouteIntent(
+                scope: .journey,
+                origin: .currentLocation,
+                destinationQuery: "Nation",
+                requestedAt: now,
+                datetimeRepresents: .departure,
+                requiredModes: [],
+                excludedModes: [.bus],
+                preferredModes: [.bus],
+            )),
             results: [destination],
             journeys: journeys,
         )

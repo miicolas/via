@@ -19,7 +19,7 @@ enum LocationState: Sendable, Equatable {
 
 enum LocationAdapterEvent: Sendable, Equatable {
     case authorizationChanged(LocationAuthorization)
-    case located(GeoCoordinate)
+    case located(LocationSample)
     case updated(LocationSample)
     case failed(LocationAuthorization)
 }
@@ -47,12 +47,18 @@ final class LocationModel {
     @ObservationIgnored var onStateChange: (@MainActor (LocationState) -> Void)?
 
     @ObservationIgnored private let adapter: any LocationAdapter
+    @ObservationIgnored private let now: @Sendable () -> Date
+    @ObservationIgnored private(set) var lastSample: LocationSample?
     @ObservationIgnored private var trackingContinuations: [UUID: AsyncStream<LocationSample>.Continuation] = [:]
     @ObservationIgnored private var allowsJourneyBackgroundUpdates = false
     @ObservationIgnored private var journeyTrackingStartedAt: Date?
 
-    init(adapter: any LocationAdapter) {
+    init(
+        adapter: any LocationAdapter,
+        now: @escaping @Sendable () -> Date = { .now }
+    ) {
         self.adapter = adapter
+        self.now = now
         state = .idle(authorization: adapter.authorization)
         adapter.onEvent = { [weak self] event in
             self?.handle(event)
@@ -71,8 +77,10 @@ final class LocationModel {
     }
 
     var coordinate: GeoCoordinate? {
-        guard case .located(let coordinate) = state else { return nil }
-        return coordinate
+        guard case .located = state, let sample = lastSample else { return nil }
+        let age = now().timeIntervalSince(sample.recordedAt)
+        guard age >= -5, age <= Self.maximumReusableLocationAge else { return nil }
+        return sample.coordinate
     }
 
     var backgroundAuthorizationGranted: Bool {
@@ -155,7 +163,7 @@ final class LocationModel {
     ) -> AsyncStream<LocationSample> {
         let updates = trackingUpdates()
         allowsJourneyBackgroundUpdates = allowsBackgroundUpdates
-        journeyTrackingStartedAt = .now
+        journeyTrackingStartedAt = now()
         if allowsBackgroundUpdates {
             adapter.requestBackgroundAuthorization()
         }
@@ -228,20 +236,32 @@ final class LocationModel {
             case .notDetermined:
                 publish(.idle(authorization: authorization))
             case .restricted, .denied:
+                lastSample = nil
                 publish(.failed(authorization))
             }
-        case .located(let coordinate):
-            publish(.located(coordinate))
+        case .located(let sample):
+            guard sample.recordedAt <= now().addingTimeInterval(5) else {
+                return
+            }
+            lastSample = sample
+            publish(.located(sample.coordinate))
         case .updated(let sample):
+            guard sample.recordedAt <= now().addingTimeInterval(5) else {
+                return
+            }
             guard let journeyTrackingStartedAt,
                   sample.recordedAt >= journeyTrackingStartedAt.addingTimeInterval(-5) else {
                 return
             }
+            lastSample = sample
             publish(.located(sample.coordinate))
             for continuation in trackingContinuations.values {
                 continuation.yield(sample)
             }
         case .failed(let authorization):
+            if authorization == .denied || authorization == .restricted {
+                lastSample = nil
+            }
             publish(.failed(authorization))
         }
     }
@@ -253,6 +273,8 @@ final class LocationModel {
             continuation.yield(newState)
         }
     }
+
+    private static let maximumReusableLocationAge: TimeInterval = 60
 }
 
 @MainActor
@@ -343,17 +365,18 @@ final class CoreLocationAdapter: NSObject, LocationAdapter, @preconcurrency CLLo
             latitude: value.coordinate.latitude,
             longitude: value.coordinate.longitude
         )
+        let sample = LocationSample(
+            coordinate: coordinate,
+            horizontalAccuracy: value.horizontalAccuracy > 0 ? value.horizontalAccuracy : nil,
+            recordedAt: value.timestamp
+        )
         if isTrackingJourney {
-            onEvent?(.updated(LocationSample(
-                coordinate: coordinate,
-                horizontalAccuracy: value.horizontalAccuracy >= 0 ? value.horizontalAccuracy : nil,
-                recordedAt: value.timestamp
-            )))
+            onEvent?(.updated(sample))
         } else if isLocatingOnce,
                   value.timestamp >= Date.now.addingTimeInterval(-Self.maximumCachedLocationAge) {
             manager.stopUpdatingLocation()
             isLocatingOnce = false
-            onEvent?(.located(coordinate))
+            onEvent?(.located(sample))
         }
     }
 
@@ -406,7 +429,11 @@ final class InMemoryLocationAdapter: LocationAdapter {
             onEvent?(.failed(authorization))
             return
         }
-        onEvent?(.located(coordinate))
+        onEvent?(.located(LocationSample(
+            coordinate: coordinate,
+            horizontalAccuracy: horizontalAccuracy,
+            recordedAt: .now
+        )))
     }
 
     func requestBackgroundAuthorization() {

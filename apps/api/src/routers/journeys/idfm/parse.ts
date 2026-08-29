@@ -108,9 +108,25 @@ function parseJourney(
         const message = (disruption as Record<string, unknown>)?.message;
         return typeof message === 'string' ? [message] : ['Perturbation sur cet itinéraire'];
       }),
+      fare: fareOf(value.fare),
       sections,
     },
   ];
+}
+
+function fareOf(value: unknown): Journey['fare'] {
+  const fare = value as Record<string, any> | null;
+  if (!fare || fare.found !== true) return undefined;
+  const total = fare.total as Record<string, unknown> | null;
+  if (!total || total.currency !== 'centime') return undefined;
+  const rawValue = total.value;
+  if (
+    (typeof rawValue !== 'string' && typeof rawValue !== 'number')
+    || (typeof rawValue === 'string' && rawValue.trim() === '')
+  ) return undefined;
+  const amountInCents = Number(rawValue);
+  if (!Number.isSafeInteger(amountInCents) || amountInCents < 0) return undefined;
+  return { amountInCents, currency: 'EUR' };
 }
 
 function toSection(value: unknown, input: JourneyInput, generatedAt: Date): JourneySection[] {

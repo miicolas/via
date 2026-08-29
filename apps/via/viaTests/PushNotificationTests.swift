@@ -131,6 +131,46 @@ final class PushNotificationTests: XCTestCase {
         XCTAssertTrue(persisted.unregisterDevice)
     }
 
+    func testLateUnregisterFromAnOlderActivationCannotRemoveTheNewerSameJourney() async {
+        let remote = FakePushNotificationRemote()
+        let manager = makeManager(
+            store: InMemoryPushNotificationRemovalStore(),
+            remote: remote
+        )
+        await manager.registerForAuthenticatedSession()
+        await manager.setNotificationsAuthorized(true)
+
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let activationA = UUID()
+        let activationB = UUID()
+        await manager.registerActiveJourney(journey, activationID: activationA)
+        await manager.registerActiveJourney(journey, activationID: activationB)
+        await manager.unregisterActiveJourney(journey, activationID: activationA)
+
+        let registeredActivationIDs = await remote.registeredActivationIDs
+        let unregisteredJourneyIDs = await remote.unregisteredJourneyIDs
+        XCTAssertEqual(registeredActivationIDs, [activationA, activationB])
+        XCTAssertTrue(unregisteredJourneyIDs.isEmpty)
+    }
+
+    func testCurrentActivationUnregistersTheJourneyAndQueuesNoStaleRegistration() async {
+        let remote = FakePushNotificationRemote()
+        let manager = makeManager(
+            store: InMemoryPushNotificationRemovalStore(),
+            remote: remote
+        )
+        await manager.registerForAuthenticatedSession()
+        await manager.setNotificationsAuthorized(true)
+
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let activation = UUID()
+        await manager.registerActiveJourney(journey, activationID: activation)
+        await manager.unregisterActiveJourney(journey, activationID: activation)
+
+        let unregisteredJourneyIDs = await remote.unregisteredJourneyIDs
+        XCTAssertEqual(unregisteredJourneyIDs, [journey.id.rawValue])
+    }
+
     private func makeManager(
         store: any PushNotificationRemovalStoring,
         remote: any PushNotificationRemote
@@ -156,6 +196,7 @@ private actor FakePushNotificationRemote: PushNotificationRemote {
     private let failJourneyRemoval: Bool
     private(set) var unregisteredJourneyIDs: [String] = []
     private(set) var unregisteredInstallationIDs: [String] = []
+    private(set) var registeredActivationIDs: [UUID] = []
 
     init(failJourneyRemoval: Bool = false) {
         self.failJourneyRemoval = failJourneyRemoval
@@ -167,7 +208,9 @@ private actor FakePushNotificationRemote: PushNotificationRemote {
         unregisteredInstallationIDs.append(installationID)
     }
 
-    func registerActiveJourney(_ registration: PushActiveJourneyRegistration) {}
+    func registerActiveJourney(_ registration: PushActiveJourneyRegistration) {
+        registeredActivationIDs.append(registration.activationID)
+    }
 
     func unregisterActiveJourney(installationID: String, journeyID: String) throws {
         unregisteredJourneyIDs.append(journeyID)

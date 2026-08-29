@@ -5,6 +5,7 @@ import {
   journeyDestinationSchema,
   journeyExitSchema,
   journeyInputSchema,
+  journeyFareSchema,
   journeyModeSchema,
   journeySchema,
   journeysResponseSchema,
@@ -22,6 +23,7 @@ export type BoardingPosition = z.infer<typeof boardingPositionSchema>;
 export type JourneyExit = z.infer<typeof journeyExitSchema>;
 export type JourneyDestination = z.infer<typeof journeyDestinationSchema>;
 export type JourneyInput = z.infer<typeof journeyInputSchema>;
+export type JourneyFare = z.infer<typeof journeyFareSchema>;
 export type JourneyMode = z.infer<typeof journeyModeSchema>;
 export type Journey = z.infer<typeof journeySchema>;
 export type JourneySection = z.infer<typeof journeySectionSchema>;

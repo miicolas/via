@@ -33,6 +33,14 @@ test('the ratio compares consumption to the hour prorata', async () => {
   expect(decision.ratio).toBeCloseTo(0.5, 2);
 });
 
+test('the daily counter receives a 48-hour TTL', async () => {
+  const { client, expiries } = fakeRedis();
+
+  await tryConsumeBudget(client, 1000, noonParis);
+
+  expect(expiries.get('prim:budget:stop-monitoring:2026-08-12')).toBe(48 * 3600);
+});
+
 test('the day key follows Paris, not UTC', async () => {
   const { client, store } = fakeRedis();
 
@@ -44,7 +52,7 @@ test('the day key follows Paris, not UTC', async () => {
 
 test('redis failing denies rather than risking the quota', async () => {
   const { client } = fakeRedis();
-  client.incr = async () => {
+  client.incrementWithExpiry = async () => {
     throw new Error('boom');
   };
 

@@ -1,4 +1,5 @@
 import type { RedisClient } from '../../redis';
+import { incrementFixedWindow } from '../../http/redis-rate-limit';
 
 export type CircuitBreakerConfig = {
   /** Consecutive failures that trip the breaker. */
@@ -34,10 +35,7 @@ export function createCircuitBreaker(
       await redis.del(FAILURES_KEY);
     },
     recordFailure: async () => {
-      const failures = await redis.incr(FAILURES_KEY);
-      // Keep the counter from outliving a quiet period: a lone failure with no
-      // follow-up should decay rather than pre-load the next trip.
-      if (failures === 1) await redis.expire(FAILURES_KEY, openSeconds);
+      const failures = await incrementFixedWindow(redis, FAILURES_KEY, openSeconds);
       if (failures >= failureThreshold) {
         await redis.set(OPEN_KEY, '1', { ex: openSeconds });
         await redis.del(FAILURES_KEY);

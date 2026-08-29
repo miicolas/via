@@ -43,7 +43,18 @@ export function serverHeaders(): HeadersInit {
  * réveiller. Toute panne se solde donc par `null`, et la page qui perd sa
  * surcouche reste juste et complète.
  */
-const TIMEOUT_MS = 3_000;
+export const API_REQUEST_TIMEOUT_MS = 3_000;
+
+export function boundedApiSignal(
+  upstream?: AbortSignal,
+  timeoutMs: number = API_REQUEST_TIMEOUT_MS,
+): AbortSignal {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new RangeError("API request timeout must be a positive finite number.");
+  }
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return upstream ? AbortSignal.any([upstream, timeout]) : timeout;
+}
 
 export async function readJson<T>(path: string, revalidate: number): Promise<T | null> {
   const origin = apiOrigin();
@@ -52,7 +63,7 @@ export async function readJson<T>(path: string, revalidate: number): Promise<T |
   try {
     const response = await fetch(`${origin}${path}`, {
       headers: serverHeaders(),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: boundedApiSignal(),
       next: { revalidate },
     });
     if (!response.ok) return null;

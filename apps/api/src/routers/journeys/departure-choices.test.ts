@@ -142,6 +142,7 @@ describe('journey departure choices module', () => {
 
   test('selecting a passage that keeps the downstream connection costs no plan', async () => {
     const current = connectingJourney();
+    current.fare = { amountInCents: 255, currency: 'EUR' };
     const snapshot = stationSnapshot([{
       routeId: 'line-a',
       destination: 'Destination',
@@ -172,10 +173,14 @@ describe('journey departure choices module', () => {
     expect(response.journey.sections.find((section) => section.id === 'connection')).toMatchObject({
       departureAt: '2026-08-22T10:40:00Z',
     });
+    expect(response.journey.fare).toEqual(current.fare);
   });
 
   test('a broken downstream connection performs one plan from the alighting station', async () => {
+    const current = connectingJourney();
+    current.fare = { amountInCents: 255, currency: 'EUR' };
     const downstream = journey('downstream', '2026-08-22T10:50:00Z', '2026-08-22T11:10:00Z');
+    downstream.fare = { amountInCents: 205, currency: 'EUR' };
     downstream.departureAt = '2026-08-22T10:45:00Z';
     downstream.sections[0] = {
       ...downstream.sections[0]!,
@@ -188,7 +193,7 @@ describe('journey departure choices module', () => {
     });
 
     const response = await module.resolve(
-      input(connectingJourney(), {
+      input(current, {
         sectionId: 'ride',
         departureId: 'departure:ride:trip-late',
       }),
@@ -206,6 +211,7 @@ describe('journey departure choices module', () => {
       arrivalAt: '2026-08-22T10:42:00.000Z',
     });
     expect(response.journey.arrivalAt).toBe('2026-08-22T11:10:00Z');
+    expect(response.journey.fare).toBeUndefined();
   });
 
   test('a failed downstream replan returns the existing unavailable error without mutation', async () => {

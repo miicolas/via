@@ -1,4 +1,5 @@
 import { project } from "@/constants/project";
+import { siteLocale } from "@/constants/locale";
 import type { Metadata } from "next";
 
 const metadata = project.metadata;
@@ -28,7 +29,7 @@ export const baseMetadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    locale: "en_US",
+    locale: siteLocale.openGraph,
     url: metadata.url,
     title: metadata.name,
     description: metadata.description,
@@ -66,6 +67,7 @@ export function createPageMetadata({
     description,
     alternates: { canonical: path },
     openGraph: {
+      locale: siteLocale.openGraph,
       title,
       description,
       url: `${metadata.url}${path}`,
@@ -107,7 +109,7 @@ export function createArticleMetadata({
     alternates: { canonical: path },
     openGraph: {
       type: "article",
-      locale: "fr_FR",
+      locale: siteLocale.openGraph,
       title,
       description,
       url: `${metadata.url}${path}`,

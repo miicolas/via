@@ -14,7 +14,5 @@ export async function incrementFixedWindow(
     throw new Error('A rate-limit window needs a positive integer duration');
   }
 
-  const count = await redis.incr(key);
-  if (count === 1) await redis.expire(key, windowSeconds);
-  return count;
+  return redis.incrementWithExpiry(key, windowSeconds);
 }

@@ -25,17 +25,6 @@ const pageStatements: Record<
   MarketingPageSlug,
   { readonly label: string; readonly title: string; readonly body: string }
 > = {
-  api: {
-    label: "08:17:42 · République",
-    title:
-      "Une rame ralentit. Votre produit le sait avant que le quai ne se remplisse.",
-    body: "Metyro ne livre pas un dump de données. L’API raconte l’état du réseau au présent : ce qui arrive, ce qui change et le niveau de confiance de chaque réponse.",
-  },
-  integrations: {
-    label: "De l’événement à l’action",
-    title: "Une perturbation utile n’attend pas dans un nouvel onglet.",
-    body: "Elle apparaît sur l’écran du hall, dans le canal de l’équipe ou dans le produit du voyageur — déjà traduite, filtrée et prête à déclencher la bonne décision.",
-  },
   security: {
     label: "Notre ligne rouge",
     title: "Savoir où vous allez ne nous donne pas le droit de vous suivre.",
@@ -62,20 +51,6 @@ const closingCopy: Record<
     readonly href: string;
   }
 > = {
-  api: {
-    title: "Mettez le réseau dans votre produit, pas dans votre backlog.",
-    description:
-      "Commencez par une station, une ligne ou un événement. L’architecture suivra votre ambition.",
-    label: "Préparer l’intégration",
-    href: "/help#api-et-integrations",
-  },
-  integrations: {
-    title: "Le bon signal. Dans le bon outil. Avant la mauvaise surprise.",
-    description:
-      "Partez d’un usage réel et construisez le flux qui lui manque.",
-    label: "Explorer l’API",
-    href: "/api",
-  },
   security: {
     title: "La confiance ne se demande pas. Elle se démontre.",
     description:

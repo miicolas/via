@@ -139,6 +139,7 @@ export type AccessibilityStationFactCondition =
 export const STATION_FACT_CONDITIONS = [
   ...ACCESSIBILITY_STATION_FACT_CONDITIONS,
   'available',
+  'unavailable',
 ] as const;
 export type StationFactCondition = (typeof STATION_FACT_CONDITIONS)[number];
 
@@ -155,7 +156,7 @@ export const stationFacts = pgTable(
     stopId: text('stop_id')
       .notNull()
       .references(() => transitStops.id, { onDelete: 'cascade' }),
-    kind: text('kind', { enum: ['accessibility', 'toilets'] }).notNull(),
+    kind: text('kind', { enum: ['accessibility', 'toilets', 'fountains'] }).notNull(),
     condition: text('condition', { enum: STATION_FACT_CONDITIONS }).notNull(),
     /** Displayable free text from the source, e.g. the IDFM agent-hours note. */
     detail: text('detail'),
@@ -178,6 +179,9 @@ export const stationFacts = pgTable(
       ) OR (
         ${table.kind} = 'toilets'
         AND ${table.condition} = 'available'
+      ) OR (
+        ${table.kind} = 'fountains'
+        AND ${table.condition} IN ('available', 'unavailable')
       )`
     ),
   ]

@@ -1,6 +1,9 @@
 import * as z from "zod";
 
-import { journeySchema } from "../journeys/schema";
+import {
+  journeyClientPayloadSchema,
+  journeySchema,
+} from "../journeys/schema";
 
 /**
  * A journey share is an immutable, deliberately small copy of the journey the
@@ -15,13 +18,18 @@ export const journeyShareSnapshotSchema = z.object({
   timeZone: z.string().min(1).max(64),
 });
 
+/** Client-created snapshots are bounded; stored snapshots keep the response schema. */
+export const journeyShareClientSnapshotSchema = journeyShareSnapshotSchema.extend({
+  journey: journeyClientPayloadSchema,
+});
+
 /** A URL-safe 256-bit token. The raw token is never stored by the API. */
 export const journeyShareTokenSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{43}$/, "Invalid journey share token");
 
 export const journeyShareCreateInputSchema = z.object({
-  snapshot: journeyShareSnapshotSchema,
+  snapshot: journeyShareClientSnapshotSchema,
   /** Client-generated so a retry cannot create duplicate links. */
   idempotencyKey: z.uuid(),
 });

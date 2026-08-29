@@ -69,6 +69,7 @@ struct JourneyResultDTO: Decodable {
         let arrivalAt: Date
         let status: String
         let warnings: [String]
+        let fare: JourneyFare?
         let accessibility: AccessibilityDTO?
         let peak: PeakDTO?
         let reportedCrowding: ReportedCrowdingDTO?
@@ -118,6 +119,7 @@ struct JourneyResultDTO: Decodable {
                 arrivalAt: arrivalAt,
                 status: status,
                 warnings: warnings,
+                fare: fare,
                 accessibility: accessibility.flatMap { value in
                     guard let condition = Journey.Accessibility.Condition(rawValue: value.condition) else {
                         return nil

@@ -1,8 +1,6 @@
 import type { CallToAction } from "./types";
 
 export const marketingPageSlugs = [
-  "api",
-  "integrations",
   "security",
   "terms",
   "help",
@@ -82,151 +80,6 @@ export interface MarketingPageDefinition {
 }
 
 export const marketingPages = {
-  api: {
-    slug: "api",
-    kind: "product",
-    eyebrow: "API temps réel",
-    title: "La ville ne renvoie jamais deux fois la même réponse.",
-    description:
-      "Une rame démarre. Un quai se remplit. Un ascenseur s’arrête. L’API Metyro transforme ces mouvements en réponses précises, versionnées et assez rapides pour changer ce que votre produit fait maintenant.",
-    primaryAction: {
-      label: "Explorer l’API",
-      href: "/help#api-et-integrations",
-    },
-    secondaryAction: { label: "Voir la sécurité", href: "/security" },
-    signal: "api",
-    metrics: [
-      { value: "TEMPS RÉEL", label: "un état, pas une archive" },
-      { value: "VERSIONNÉ", label: "le contrat change sans vous casser" },
-      { value: "OBSERVABLE", label: "chaque réponse garde son contexte" },
-    ],
-    sections: [
-      {
-        eyebrow: "Le contrat",
-        title: "Une API doit réduire l’incertitude, pas la déplacer.",
-        description:
-          "Le réseau est complexe. L’interface ne doit pas l’être. Chaque choix est fait pour que votre équipe comprenne la réponse avant d’ouvrir la documentation.",
-        cards: [
-          {
-            icon: "braces",
-            title: "La réponse dit aussi ce qu’elle ignore.",
-            description:
-              "Temps réel, horaire théorique, fraîcheur et confiance voyagent ensemble. Une estimation ne se déguise jamais en certitude.",
-          },
-          {
-            icon: "webhook",
-            title: "Le présent n’attend pas la prochaine synchronisation.",
-            description:
-              "Les événements arrivent quand le réseau change, pas quand votre tâche planifiée se réveille.",
-          },
-          {
-            icon: "key",
-            title: "Une clé n’est pas un passe-partout.",
-            description:
-              "Chaque environnement reçoit uniquement les droits dont il a besoin, avec rotation prévue dès le premier jour.",
-          },
-        ],
-      },
-      {
-        eyebrow: "Le réseau traduit",
-        title: "Tout ce qu’une carte ne montre pas.",
-        description:
-          "Un trajet est une suite de contraintes mouvantes. Nous les réunissons dans un vocabulaire commun pour que votre produit puisse enfin raisonner comme un voyageur.",
-        cards: [
-          {
-            icon: "clock",
-            title: "Un départ, avec son degré de certitude.",
-            description:
-              "L’horaire prévu, l’estimation en direct et la fraîcheur du signal restent séparés — donc vraiment utiles.",
-          },
-          {
-            icon: "activity",
-            title: "Une perturbation racontée par son impact.",
-            description:
-              "Pas seulement « trafic perturbé » : la ligne, la portion, la durée, la cause et les voyageurs réellement concernés.",
-          },
-          {
-            icon: "map",
-            title: "Une station n’est pas un point sur une carte.",
-            description:
-              "C’est un ensemble d’accès, de quais, de correspondances et de chemins dont certains ne sont pas possibles pour tout le monde.",
-          },
-        ],
-      },
-    ],
-  },
-  integrations: {
-    slug: "integrations",
-    kind: "product",
-    eyebrow: "Intégrations",
-    title: "Vos outils ne devraient pas apprendre la panne par vos voyageurs.",
-    description:
-      "Metyro fait voyager le signal avant le problème : vers l’écran du hall, le canal d’astreinte, l’app employé ou la donnée qui déclenche votre propre logique.",
-    primaryAction: { label: "Voir les connexions", href: "#catalogue" },
-    secondaryAction: { label: "Utiliser l’API", href: "/api" },
-    signal: "integrations",
-    metrics: [
-      { value: "ENTRÉE", label: "un événement brut et horodaté" },
-      { value: "CONTEXTE", label: "ce qu’il change réellement" },
-      { value: "ACTION", label: "le bon outil est déjà prêt" },
-    ],
-    sections: [
-      {
-        eyebrow: "Catalogue",
-        title:
-          "Une information n’est utile qu’au moment où quelqu’un peut agir.",
-        description:
-          "Nous partons de la décision à prendre, puis remontons jusqu’au signal nécessaire. C’est l’inverse d’un catalogue de connecteurs sans histoire.",
-        cards: [
-          {
-            icon: "message",
-            title: "08:42 — l’équipe sait déjà quoi répondre.",
-            description:
-              "Une ligne s’interrompt. Le canal d’exploitation reçoit la zone, l’impact et l’alternative avant le premier message voyageur.",
-          },
-          {
-            icon: "layers",
-            title: "Le hall change avant que la foule n’arrive.",
-            description:
-              "L’affichage abandonne l’horaire devenu faux et montre immédiatement le prochain choix possible.",
-          },
-          {
-            icon: "database",
-            title: "Chaque incident laisse une trace exploitable.",
-            description:
-              "Le flux opérationnel devient un historique propre, sans perdre l’heure, la source ni la version qui expliquent ce qui s’est passé.",
-          },
-        ],
-      },
-      {
-        eyebrow: "Fiabilité",
-        title:
-          "Le silence d’un connecteur ne doit jamais ressembler au calme du réseau.",
-        description:
-          "Fraîcheur, reprise et journalisation rendent visible la différence entre « rien ne se passe » et « nous ne recevons plus rien ».",
-        cards: [
-          {
-            icon: "check",
-            title: "Le mauvais format s’arrête à la frontière.",
-            description:
-              "Chaque charge utile est contrôlée avant d’entrer dans vos systèmes, avec une erreur qui explique quoi corriger.",
-          },
-          {
-            icon: "activity",
-            title: "La fraîcheur est une donnée, pas une intuition.",
-            description:
-              "Dernier événement reçu, retard observé et état de la chaîne sont lisibles au même endroit.",
-          },
-          {
-            icon: "plug",
-            title: "Commencez par un moment qui compte.",
-            description:
-              "Une ligne, un écran, une alerte. La première intégration prouve sa valeur avant que la suivante ne commence.",
-          },
-        ],
-      },
-    ],
-  },
   security: {
     slug: "security",
     kind: "security",
@@ -324,7 +177,7 @@ export const marketingPages = {
         title: "3. Utilisation acceptable",
         paragraphs: [
           "Vous vous engagez à ne pas perturber le service, contourner ses protections, extraire massivement ses données ou l’utiliser d’une manière contraire à la loi ou aux droits d’autrui.",
-          "L’accès automatisé est réservé aux interfaces et conditions prévues à cet effet, notamment l’API lorsqu’elle est mise à disposition.",
+          "L’accès automatisé au contrat interne n’est pas proposé au public. Utilisez uniquement les interfaces officielles prévues par Metyro et leurs conditions d’utilisation.",
         ],
       },
       {
@@ -416,11 +269,11 @@ export const marketingPages = {
             href: "/security",
           },
           {
-            icon: "braces",
-            title: "Je construis avec les données Metyro",
+            icon: "message",
+            title: "Je veux signaler une information incorrecte",
             description:
-              "Obtenir un accès, lire la première réponse et comprendre la fraîcheur, les limites et les erreurs.",
-            href: "/api",
+              "Décrire précisément le lieu, l’heure et l’écart observé pour permettre à l’équipe de vérifier puis de corriger l’information.",
+            href: "/help#categories",
           },
         ],
       },

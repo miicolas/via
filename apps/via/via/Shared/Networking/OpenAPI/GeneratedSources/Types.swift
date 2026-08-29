@@ -4415,6 +4415,31 @@ internal enum Operations {
                             internal var status: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.statusPayload
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/warnings`.
                             internal var warnings: [Swift.String]
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/fare`.
+                            internal struct farePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/fare/amountInCents`.
+                                internal var amountInCents: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/fare/currency`.
+                                internal var currency: OpenAPIRuntime.OpenAPIValueContainer
+                                /// Creates a new `farePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - amountInCents:
+                                ///   - currency:
+                                internal init(
+                                    amountInCents: Swift.Int,
+                                    currency: OpenAPIRuntime.OpenAPIValueContainer
+                                ) {
+                                    self.amountInCents = amountInCents
+                                    self.currency = currency
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case amountInCents
+                                    case currency
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/fare`.
+                            internal var fare: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.farePayload?
                             /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/accessibility`.
                             internal struct accessibilityPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/journeys/GET/responses/200/content/json/journeysPayload/accessibility/condition`.
@@ -5124,6 +5149,7 @@ internal enum Operations {
                             ///   - arrivalAt:
                             ///   - status:
                             ///   - warnings:
+                            ///   - fare:
                             ///   - accessibility:
                             ///   - peak:
                             ///   - reportedCrowding:
@@ -5139,6 +5165,7 @@ internal enum Operations {
                                 arrivalAt: Foundation.Date,
                                 status: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.statusPayload,
                                 warnings: [Swift.String],
+                                fare: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.farePayload? = nil,
                                 accessibility: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.accessibilityPayload? = nil,
                                 peak: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.peakPayload? = nil,
                                 reportedCrowding: Operations.journeys_period_plan.Output.Ok.Body.jsonPayload.journeysPayloadPayload.reportedCrowdingPayload? = nil,
@@ -5154,6 +5181,7 @@ internal enum Operations {
                                 self.arrivalAt = arrivalAt
                                 self.status = status
                                 self.warnings = warnings
+                                self.fare = fare
                                 self.accessibility = accessibility
                                 self.peak = peak
                                 self.reportedCrowding = reportedCrowding
@@ -5170,6 +5198,7 @@ internal enum Operations {
                                 case arrivalAt
                                 case status
                                 case warnings
+                                case fare
                                 case accessibility
                                 case peak
                                 case reportedCrowding
@@ -5349,6 +5378,31 @@ internal enum Operations {
                         internal var status: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.statusPayload
                         /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/warnings`.
                         internal var warnings: [Swift.String]
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/fare`.
+                        internal struct farePayload: Codable, Hashable, Sendable {
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/fare/amountInCents`.
+                            internal var amountInCents: Swift.Int
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/fare/currency`.
+                            internal var currency: OpenAPIRuntime.OpenAPIValueContainer
+                            /// Creates a new `farePayload`.
+                            ///
+                            /// - Parameters:
+                            ///   - amountInCents:
+                            ///   - currency:
+                            internal init(
+                                amountInCents: Swift.Int,
+                                currency: OpenAPIRuntime.OpenAPIValueContainer
+                            ) {
+                                self.amountInCents = amountInCents
+                                self.currency = currency
+                            }
+                            internal enum CodingKeys: String, CodingKey {
+                                case amountInCents
+                                case currency
+                            }
+                        }
+                        /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/fare`.
+                        internal var fare: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.farePayload?
                         /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/accessibility`.
                         internal struct accessibilityPayload: Codable, Hashable, Sendable {
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/requestBody/json/journey/accessibility/condition`.
@@ -6058,6 +6112,7 @@ internal enum Operations {
                         ///   - arrivalAt:
                         ///   - status:
                         ///   - warnings:
+                        ///   - fare:
                         ///   - accessibility:
                         ///   - peak:
                         ///   - reportedCrowding:
@@ -6073,6 +6128,7 @@ internal enum Operations {
                             arrivalAt: Foundation.Date,
                             status: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.statusPayload,
                             warnings: [Swift.String],
+                            fare: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.farePayload? = nil,
                             accessibility: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.accessibilityPayload? = nil,
                             peak: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.peakPayload? = nil,
                             reportedCrowding: Operations.journeys_period_departureChoices.Input.Body.jsonPayload.journeyPayload.reportedCrowdingPayload? = nil,
@@ -6088,6 +6144,7 @@ internal enum Operations {
                             self.arrivalAt = arrivalAt
                             self.status = status
                             self.warnings = warnings
+                            self.fare = fare
                             self.accessibility = accessibility
                             self.peak = peak
                             self.reportedCrowding = reportedCrowding
@@ -6104,6 +6161,7 @@ internal enum Operations {
                             case arrivalAt
                             case status
                             case warnings
+                            case fare
                             case accessibility
                             case peak
                             case reportedCrowding
@@ -6463,6 +6521,31 @@ internal enum Operations {
                             internal var status: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.statusPayload
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/warnings`.
                             internal var warnings: [Swift.String]
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/fare`.
+                            internal struct farePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/fare/amountInCents`.
+                                internal var amountInCents: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/fare/currency`.
+                                internal var currency: OpenAPIRuntime.OpenAPIValueContainer
+                                /// Creates a new `farePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - amountInCents:
+                                ///   - currency:
+                                internal init(
+                                    amountInCents: Swift.Int,
+                                    currency: OpenAPIRuntime.OpenAPIValueContainer
+                                ) {
+                                    self.amountInCents = amountInCents
+                                    self.currency = currency
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case amountInCents
+                                    case currency
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/fare`.
+                            internal var fare: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.farePayload?
                             /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/accessibility`.
                             internal struct accessibilityPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/journeys/departure-choices/POST/responses/200/content/json/journey/accessibility/condition`.
@@ -7172,6 +7255,7 @@ internal enum Operations {
                             ///   - arrivalAt:
                             ///   - status:
                             ///   - warnings:
+                            ///   - fare:
                             ///   - accessibility:
                             ///   - peak:
                             ///   - reportedCrowding:
@@ -7187,6 +7271,7 @@ internal enum Operations {
                                 arrivalAt: Foundation.Date,
                                 status: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.statusPayload,
                                 warnings: [Swift.String],
+                                fare: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.farePayload? = nil,
                                 accessibility: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.accessibilityPayload? = nil,
                                 peak: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.peakPayload? = nil,
                                 reportedCrowding: Operations.journeys_period_departureChoices.Output.Ok.Body.jsonPayload.journeyPayload.reportedCrowdingPayload? = nil,
@@ -7202,6 +7287,7 @@ internal enum Operations {
                                 self.arrivalAt = arrivalAt
                                 self.status = status
                                 self.warnings = warnings
+                                self.fare = fare
                                 self.accessibility = accessibility
                                 self.peak = peak
                                 self.reportedCrowding = reportedCrowding
@@ -7218,6 +7304,7 @@ internal enum Operations {
                                 case arrivalAt
                                 case status
                                 case warnings
+                                case fare
                                 case accessibility
                                 case peak
                                 case reportedCrowding
@@ -7542,6 +7629,31 @@ internal enum Operations {
                                 internal var status: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload
                                 /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/warnings`.
                                 internal var warnings: [Swift.String]
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/fare`.
+                                internal struct farePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/fare/amountInCents`.
+                                    internal var amountInCents: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/fare/currency`.
+                                    internal var currency: OpenAPIRuntime.OpenAPIValueContainer
+                                    /// Creates a new `farePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - amountInCents:
+                                    ///   - currency:
+                                    internal init(
+                                        amountInCents: Swift.Int,
+                                        currency: OpenAPIRuntime.OpenAPIValueContainer
+                                    ) {
+                                        self.amountInCents = amountInCents
+                                        self.currency = currency
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case amountInCents
+                                        case currency
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/fare`.
+                                internal var fare: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.farePayload?
                                 /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/accessibility`.
                                 internal struct accessibilityPayload: Codable, Hashable, Sendable {
                                     /// - Remark: Generated from `#/paths/journeys/shares/GET/responses/200/content/json/snapshot/journey/accessibility/condition`.
@@ -8251,6 +8363,7 @@ internal enum Operations {
                                 ///   - arrivalAt:
                                 ///   - status:
                                 ///   - warnings:
+                                ///   - fare:
                                 ///   - accessibility:
                                 ///   - peak:
                                 ///   - reportedCrowding:
@@ -8266,6 +8379,7 @@ internal enum Operations {
                                     arrivalAt: Foundation.Date,
                                     status: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload,
                                     warnings: [Swift.String],
+                                    fare: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.farePayload? = nil,
                                     accessibility: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload? = nil,
                                     peak: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload? = nil,
                                     reportedCrowding: Operations.journeyShares_period_get.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload? = nil,
@@ -8281,6 +8395,7 @@ internal enum Operations {
                                     self.arrivalAt = arrivalAt
                                     self.status = status
                                     self.warnings = warnings
+                                    self.fare = fare
                                     self.accessibility = accessibility
                                     self.peak = peak
                                     self.reportedCrowding = reportedCrowding
@@ -8297,6 +8412,7 @@ internal enum Operations {
                                     case arrivalAt
                                     case status
                                     case warnings
+                                    case fare
                                     case accessibility
                                     case peak
                                     case reportedCrowding
@@ -8511,6 +8627,31 @@ internal enum Operations {
                             internal var status: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload
                             /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/warnings`.
                             internal var warnings: [Swift.String]
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/fare`.
+                            internal struct farePayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/fare/amountInCents`.
+                                internal var amountInCents: Swift.Int
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/fare/currency`.
+                                internal var currency: OpenAPIRuntime.OpenAPIValueContainer
+                                /// Creates a new `farePayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - amountInCents:
+                                ///   - currency:
+                                internal init(
+                                    amountInCents: Swift.Int,
+                                    currency: OpenAPIRuntime.OpenAPIValueContainer
+                                ) {
+                                    self.amountInCents = amountInCents
+                                    self.currency = currency
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case amountInCents
+                                    case currency
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/fare`.
+                            internal var fare: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.farePayload?
                             /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/accessibility`.
                             internal struct accessibilityPayload: Codable, Hashable, Sendable {
                                 /// - Remark: Generated from `#/paths/journeys/shares/POST/requestBody/json/snapshot/journey/accessibility/condition`.
@@ -9220,6 +9361,7 @@ internal enum Operations {
                             ///   - arrivalAt:
                             ///   - status:
                             ///   - warnings:
+                            ///   - fare:
                             ///   - accessibility:
                             ///   - peak:
                             ///   - reportedCrowding:
@@ -9235,6 +9377,7 @@ internal enum Operations {
                                 arrivalAt: Foundation.Date,
                                 status: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload,
                                 warnings: [Swift.String],
+                                fare: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.farePayload? = nil,
                                 accessibility: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload? = nil,
                                 peak: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload? = nil,
                                 reportedCrowding: Operations.journeyShares_period_create.Input.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload? = nil,
@@ -9250,6 +9393,7 @@ internal enum Operations {
                                 self.arrivalAt = arrivalAt
                                 self.status = status
                                 self.warnings = warnings
+                                self.fare = fare
                                 self.accessibility = accessibility
                                 self.peak = peak
                                 self.reportedCrowding = reportedCrowding
@@ -9266,6 +9410,7 @@ internal enum Operations {
                                 case arrivalAt
                                 case status
                                 case warnings
+                                case fare
                                 case accessibility
                                 case peak
                                 case reportedCrowding
@@ -9393,6 +9538,31 @@ internal enum Operations {
                                 internal var status: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload
                                 /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/warnings`.
                                 internal var warnings: [Swift.String]
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/fare`.
+                                internal struct farePayload: Codable, Hashable, Sendable {
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/fare/amountInCents`.
+                                    internal var amountInCents: Swift.Int
+                                    /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/fare/currency`.
+                                    internal var currency: OpenAPIRuntime.OpenAPIValueContainer
+                                    /// Creates a new `farePayload`.
+                                    ///
+                                    /// - Parameters:
+                                    ///   - amountInCents:
+                                    ///   - currency:
+                                    internal init(
+                                        amountInCents: Swift.Int,
+                                        currency: OpenAPIRuntime.OpenAPIValueContainer
+                                    ) {
+                                        self.amountInCents = amountInCents
+                                        self.currency = currency
+                                    }
+                                    internal enum CodingKeys: String, CodingKey {
+                                        case amountInCents
+                                        case currency
+                                    }
+                                }
+                                /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/fare`.
+                                internal var fare: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.farePayload?
                                 /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/accessibility`.
                                 internal struct accessibilityPayload: Codable, Hashable, Sendable {
                                     /// - Remark: Generated from `#/paths/journeys/shares/POST/responses/200/content/json/snapshot/journey/accessibility/condition`.
@@ -10102,6 +10272,7 @@ internal enum Operations {
                                 ///   - arrivalAt:
                                 ///   - status:
                                 ///   - warnings:
+                                ///   - fare:
                                 ///   - accessibility:
                                 ///   - peak:
                                 ///   - reportedCrowding:
@@ -10117,6 +10288,7 @@ internal enum Operations {
                                     arrivalAt: Foundation.Date,
                                     status: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.statusPayload,
                                     warnings: [Swift.String],
+                                    fare: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.farePayload? = nil,
                                     accessibility: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.accessibilityPayload? = nil,
                                     peak: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.peakPayload? = nil,
                                     reportedCrowding: Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.snapshotPayload.journeyPayload.reportedCrowdingPayload? = nil,
@@ -10132,6 +10304,7 @@ internal enum Operations {
                                     self.arrivalAt = arrivalAt
                                     self.status = status
                                     self.warnings = warnings
+                                    self.fare = fare
                                     self.accessibility = accessibility
                                     self.peak = peak
                                     self.reportedCrowding = reportedCrowding
@@ -10148,6 +10321,7 @@ internal enum Operations {
                                     case arrivalAt
                                     case status
                                     case warnings
+                                    case fare
                                     case accessibility
                                     case peak
                                     case reportedCrowding
@@ -14031,6 +14205,42 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/toilets`.
                             internal var toilets: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload?
+                            /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/fountains`.
+                            internal struct fountainsPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/fountains/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case available = "available"
+                                    case unavailable = "unavailable"
+                                }
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/fountains/status`.
+                                internal var status: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.fountainsPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/fountains/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/fountains/detail`.
+                                internal var detail: Swift.String?
+                                /// Creates a new `fountainsPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - status:
+                                ///   - label:
+                                ///   - detail:
+                                internal init(
+                                    status: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.fountainsPayload.statusPayload,
+                                    label: Swift.String,
+                                    detail: Swift.String? = nil
+                                ) {
+                                    self.status = status
+                                    self.label = label
+                                    self.detail = detail
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case status
+                                    case label
+                                    case detail
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stationsPayload/fountains`.
+                            internal var fountains: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.fountainsPayload?
                             /// Creates a new `stationsPayloadPayload`.
                             ///
                             /// - Parameters:
@@ -14041,6 +14251,7 @@ internal enum Operations {
                             ///   - accessibility:
                             ///   - hasElevators:
                             ///   - toilets:
+                            ///   - fountains:
                             internal init(
                                 id: Swift.String,
                                 name: Swift.String,
@@ -14048,7 +14259,8 @@ internal enum Operations {
                                 routeIds: [Swift.String],
                                 accessibility: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil,
                                 hasElevators: Swift.Bool? = nil,
-                                toilets: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload? = nil
+                                toilets: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload? = nil,
+                                fountains: Operations.network_period_railMap.Output.Ok.Body.jsonPayload.stationsPayloadPayload.fountainsPayload? = nil
                             ) {
                                 self.id = id
                                 self.name = name
@@ -14057,6 +14269,7 @@ internal enum Operations {
                                 self.accessibility = accessibility
                                 self.hasElevators = hasElevators
                                 self.toilets = toilets
+                                self.fountains = fountains
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case id
@@ -14066,6 +14279,7 @@ internal enum Operations {
                                 case accessibility
                                 case hasElevators
                                 case toilets
+                                case fountains
                             }
                         }
                         /// - Remark: Generated from `#/paths/network/rail-map/GET/responses/200/content/json/stations`.
@@ -14335,6 +14549,42 @@ internal enum Operations {
                             }
                             /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/toilets`.
                             internal var toilets: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload?
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/fountains`.
+                            internal struct fountainsPayload: Codable, Hashable, Sendable {
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/fountains/status`.
+                                internal enum statusPayload: String, Codable, Hashable, Sendable, CaseIterable {
+                                    case available = "available"
+                                    case unavailable = "unavailable"
+                                }
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/fountains/status`.
+                                internal var status: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.fountainsPayload.statusPayload
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/fountains/label`.
+                                internal var label: Swift.String
+                                /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/fountains/detail`.
+                                internal var detail: Swift.String?
+                                /// Creates a new `fountainsPayload`.
+                                ///
+                                /// - Parameters:
+                                ///   - status:
+                                ///   - label:
+                                ///   - detail:
+                                internal init(
+                                    status: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.fountainsPayload.statusPayload,
+                                    label: Swift.String,
+                                    detail: Swift.String? = nil
+                                ) {
+                                    self.status = status
+                                    self.label = label
+                                    self.detail = detail
+                                }
+                                internal enum CodingKeys: String, CodingKey {
+                                    case status
+                                    case label
+                                    case detail
+                                }
+                            }
+                            /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stationsPayload/fountains`.
+                            internal var fountains: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.fountainsPayload?
                             /// Creates a new `stationsPayloadPayload`.
                             ///
                             /// - Parameters:
@@ -14345,6 +14595,7 @@ internal enum Operations {
                             ///   - accessibility:
                             ///   - hasElevators:
                             ///   - toilets:
+                            ///   - fountains:
                             internal init(
                                 id: Swift.String,
                                 name: Swift.String,
@@ -14352,7 +14603,8 @@ internal enum Operations {
                                 routeIds: [Swift.String],
                                 accessibility: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.accessibilityPayload? = nil,
                                 hasElevators: Swift.Bool? = nil,
-                                toilets: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload? = nil
+                                toilets: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.toiletsPayload? = nil,
+                                fountains: Operations.network_period_stationsInArea.Output.Ok.Body.jsonPayload.stationsPayloadPayload.fountainsPayload? = nil
                             ) {
                                 self.id = id
                                 self.name = name
@@ -14361,6 +14613,7 @@ internal enum Operations {
                                 self.accessibility = accessibility
                                 self.hasElevators = hasElevators
                                 self.toilets = toilets
+                                self.fountains = fountains
                             }
                             internal enum CodingKeys: String, CodingKey {
                                 case id
@@ -14370,6 +14623,7 @@ internal enum Operations {
                                 case accessibility
                                 case hasElevators
                                 case toilets
+                                case fountains
                             }
                         }
                         /// - Remark: Generated from `#/paths/network/stations/GET/responses/200/content/json/stations`.

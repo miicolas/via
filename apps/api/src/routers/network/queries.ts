@@ -20,6 +20,7 @@ import type { RouteBadgeRow } from '../route-badge';
 
 const networkAccessibilityFacts = alias(stationFacts, 'network_accessibility_facts');
 const networkToiletFacts = alias(stationFacts, 'network_toilet_facts');
+const networkFountainFacts = alias(stationFacts, 'network_fountain_facts');
 
 /**
  * The métro and RER tracks, precomputed at import time (`@via/db/drawn-geometry`)
@@ -66,6 +67,9 @@ export function selectRailStationPositions() {
       accessibilityDetail: networkAccessibilityFacts.detail,
       toiletStopId: networkToiletFacts.stopId,
       toiletDetail: networkToiletFacts.detail,
+      fountainStopId: networkFountainFacts.stopId,
+      fountainCondition: sql<'available' | 'unavailable' | null>`${networkFountainFacts.condition}`,
+      fountainDetail: networkFountainFacts.detail,
     })
     .from(transitRoutePatternStops)
     .innerJoin(
@@ -85,6 +89,13 @@ export function selectRailStationPositions() {
       networkToiletFacts,
       and(eq(networkToiletFacts.stopId, transitStops.id), eq(networkToiletFacts.kind, 'toilets'))
     )
+    .leftJoin(
+      networkFountainFacts,
+      and(
+        eq(networkFountainFacts.stopId, transitStops.id),
+        eq(networkFountainFacts.kind, 'fountains')
+      )
+    )
     .where(and(drawnRouteCondition(), isNotNull(transitRoutePatternStops.snappedLocation)))
     .groupBy(
       transitStops.id,
@@ -93,7 +104,10 @@ export function selectRailStationPositions() {
       networkAccessibilityFacts.condition,
       networkAccessibilityFacts.detail,
       networkToiletFacts.stopId,
-      networkToiletFacts.detail
+      networkToiletFacts.detail,
+      networkFountainFacts.stopId,
+      networkFountainFacts.condition,
+      networkFountainFacts.detail
     )
     .orderBy(asc(transitStops.name), asc(transitRoutes.id));
 }
@@ -114,6 +128,9 @@ export function selectStationsInArea(area: StationsInAreaInput) {
       accessibilityDetail: networkAccessibilityFacts.detail,
       toiletStopId: networkToiletFacts.stopId,
       toiletDetail: networkToiletFacts.detail,
+      fountainStopId: networkFountainFacts.stopId,
+      fountainCondition: sql<'available' | 'unavailable' | null>`${networkFountainFacts.condition}`,
+      fountainDetail: networkFountainFacts.detail,
       hasElevators: sql<boolean>`EXISTS (
         SELECT 1
         FROM ${stationElevators}
@@ -141,6 +158,13 @@ export function selectStationsInArea(area: StationsInAreaInput) {
       networkToiletFacts,
       and(eq(networkToiletFacts.stopId, transitStops.id), eq(networkToiletFacts.kind, 'toilets'))
     )
+    .leftJoin(
+      networkFountainFacts,
+      and(
+        eq(networkFountainFacts.stopId, transitStops.id),
+        eq(networkFountainFacts.kind, 'fountains')
+      )
+    )
     .where(
       and(
         networkRouteCondition(),
@@ -155,7 +179,10 @@ export function selectStationsInArea(area: StationsInAreaInput) {
       networkAccessibilityFacts.condition,
       networkAccessibilityFacts.detail,
       networkToiletFacts.stopId,
-      networkToiletFacts.detail
+      networkToiletFacts.detail,
+      networkFountainFacts.stopId,
+      networkFountainFacts.condition,
+      networkFountainFacts.detail
     )
     .orderBy(asc(transitStops.name));
 }

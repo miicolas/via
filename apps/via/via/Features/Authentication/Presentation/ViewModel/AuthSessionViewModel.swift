@@ -14,7 +14,7 @@ final class AuthSessionViewModel {
     @ObservationIgnored private let onAuthenticatedSessionEnded: @MainActor () async -> Void
     @ObservationIgnored private(set) var anonymousSession: StoredAuthSession?
     @ObservationIgnored private var didRestore = false
-    @ObservationIgnored private var isRevalidating = false
+    @ObservationIgnored private var revalidatingGeneration: UInt64?
     @ObservationIgnored private var lifecycleTask: Task<Void, Never>?
 
     init(
@@ -31,9 +31,7 @@ final class AuthSessionViewModel {
         lifecycleTask = Task { [weak self] in
             for await rejectedBearerToken in unauthorizedEvents {
                 guard let self else { return }
-                await self.authenticatedRequestWasRejected(
-                    bearerToken: rejectedBearerToken
-                )
+                await self.authenticatedRequestWasRejected(bearerToken: rejectedBearerToken)
             }
         }
     }
@@ -58,7 +56,8 @@ final class AuthSessionViewModel {
         guard !didRestore else { return }
         didRestore = true
         do {
-            guard let storedSession = try await vault.load() else {
+            let initial = try await vault.snapshot()
+            guard let storedSession = initial.session else {
                 account.activateAnonymous()
                 state = .signedOut
                 await establishAnonymousSession()
@@ -69,7 +68,7 @@ final class AuthSessionViewModel {
                 anonymousSession = storedSession
                 account.activateAnonymous()
                 state = .signedOut
-                await revalidateAnonymous()
+                await revalidateAnonymous(initial)
                 return
             }
 
@@ -79,11 +78,16 @@ final class AuthSessionViewModel {
             // local Apple credential state can be unavailable after a reinstall
             // or when running a development bundle, so it must not log out a
             // still-valid server session.
-            await revalidate()
+            await revalidateAuthenticatedSession(initial)
         } catch {
+            // A malformed payload is the one recovery path that cannot carry a
+            // snapshot identity. Clear it before starting a fresh anonymous
+            // session; all normal mutations use a compare-and-clear below.
+            try? await vault.clear()
             account.activateAnonymous()
             state = .signedOut
             errorMessage = "La session enregistrée est illisible. Reconnecte-toi avec Apple."
+            await establishAnonymousSession()
         }
     }
 
@@ -99,27 +103,35 @@ final class AuthSessionViewModel {
 
         case .authorized(let credentials):
             state = .authenticating
+            let baseline = try? await vault.snapshot()
+            guard let baseline else {
+                state = .signedOut
+                errorMessage = "La connexion est momentanément indisponible. Réessaie."
+                return
+            }
+            let bearerToken = baseline.session?.user.isAnonymous == true
+                ? baseline.session?.bearerToken
+                : nil
             do {
-                var bearerToken = anonymousSession?.bearerToken
-                if bearerToken == nil,
-                   let storedSession = try? await vault.load(),
-                   storedSession.user.isAnonymous {
-                    bearerToken = storedSession.bearerToken
-                }
-                let session = try await client.signIn(
+                let signedIn = try await client.signIn(
                     with: credentials,
                     existingBearerToken: bearerToken
                 )
-                guard !session.user.isAnonymous else {
+                guard !signedIn.user.isAnonymous else {
                     throw AuthenticationClientError.invalidResponse
                 }
-                try await vault.save(session)
+                guard let installed = try? await vault.install(
+                    signedIn,
+                    replacingGeneration: baseline.generation
+                ) else { return }
                 anonymousSession = nil
-                account.activate(userID: session.user.id)
-                state = .authenticated(session, .online)
+                account.activate(userID: signedIn.user.id)
+                state = .authenticated(signedIn, .online)
                 errorMessage = nil
+                _ = installed
                 account.synchronize()
             } catch {
+                guard await isCurrent(baseline) else { return }
                 state = .signedOut
                 errorMessage = message(for: error)
             }
@@ -132,40 +144,60 @@ final class AuthSessionViewModel {
     }
 
     func revalidate() async {
-        guard !isRevalidating else { return }
-        if session != nil {
-            await revalidateAuthenticatedSession()
-        } else if anonymousSession != nil {
-            await revalidateAnonymous()
+        guard revalidatingGeneration == nil,
+              let snapshot = try? await vault.snapshot(),
+              let storedSession = snapshot.session else { return }
+        revalidatingGeneration = snapshot.generation
+        defer {
+            if revalidatingGeneration == snapshot.generation {
+                revalidatingGeneration = nil
+            }
+        }
+        if storedSession.user.isAnonymous {
+            await revalidateAnonymous(snapshot)
+        } else {
+            await revalidateAuthenticatedSession(snapshot)
         }
     }
 
     func authenticatedRequestWasRejected(bearerToken: String) async {
-        guard let currentSession = try? await vault.load(),
+        guard let snapshot = try? await vault.snapshot(),
+              let currentSession = snapshot.session,
               currentSession.bearerToken == bearerToken else { return }
-        if session != nil {
-            await clearConfirmedSession(message: "Ta session n’est plus valide. Reconnecte-toi.")
-        } else if anonymousSession != nil {
-            try? await vault.clear()
+        if currentSession.user.isAnonymous {
+            guard let cleared = try? await vault.clear(matching: snapshot) else { return }
+            _ = cleared
             anonymousSession = nil
             account.activateAnonymous()
             await establishAnonymousSession()
+        } else {
+            await clearConfirmedSession(
+                message: "Ta session n’est plus valide. Reconnecte-toi.",
+                matching: snapshot
+            )
         }
     }
 
     func appleCredentialWasRevoked() async {
-        guard session != nil else { return }
+        guard let snapshot = try? await vault.snapshot(),
+              let currentSession = snapshot.session,
+              !currentSession.user.isAnonymous else { return }
         await clearConfirmedSession(
-            message: "Ton autorisation Apple a été révoquée. Reconnecte-toi."
+            message: "Ton autorisation Apple a été révoquée. Reconnecte-toi.",
+            matching: snapshot
         )
     }
 
     func signOut() async {
-        guard let displayedSession = session else { return }
-        let storedSession = (try? await vault.load()) ?? displayedSession
+        guard let displayedSession = session,
+              let snapshot = try? await vault.snapshot(),
+              let storedSession = snapshot.session,
+              !storedSession.user.isAnonymous,
+              storedSession.user.id == displayedSession.user.id else { return }
         await onAuthenticatedSessionEnded()
         try? await client.signOut(bearerToken: storedSession.bearerToken)
-        try? await vault.clear()
+        guard let cleared = try? await vault.clear(matchingGeneration: snapshot.generation) else { return }
+        _ = cleared
         anonymousSession = nil
         account.activateAnonymous()
         state = .signedOut
@@ -177,7 +209,8 @@ final class AuthSessionViewModel {
     /// account remains intact; a fresh anonymous session may be established if
     /// the network is available.
     func eraseDeviceData() async {
-        if let storedSession = try? await vault.load() {
+        guard let snapshot = try? await vault.snapshot() else { return }
+        if let storedSession = snapshot.session {
             if storedSession.user.isAnonymous {
                 try? await client.deleteAnonymousUser(bearerToken: storedSession.bearerToken)
             } else {
@@ -185,7 +218,14 @@ final class AuthSessionViewModel {
                 try? await client.signOut(bearerToken: storedSession.bearerToken)
             }
         }
-        try? await vault.clear()
+        let cleared: AuthSessionSnapshot?
+        if snapshot.session == nil {
+            cleared = try? await vault.clear(matching: snapshot)
+        } else {
+            cleared = try? await vault.clear(matchingGeneration: snapshot.generation)
+        }
+        guard let cleared else { return }
+        _ = cleared
         anonymousSession = nil
         account.eraseDeviceData()
         state = .signedOut
@@ -194,7 +234,9 @@ final class AuthSessionViewModel {
     }
 
     func completeAccountDeletion(_ outcome: AppleDeletionOutcome) async {
-        guard session != nil else { return }
+        guard let snapshot = try? await vault.snapshot(),
+              let currentSession = snapshot.session,
+              !currentSession.user.isAnonymous else { return }
         switch outcome {
         case .cancelled:
             errorMessage = nil
@@ -208,24 +250,34 @@ final class AuthSessionViewModel {
             do {
                 try await account.delete(using: proof)
                 await onAuthenticatedSessionEnded()
-                try await vault.clear()
+                guard let cleared = try? await vault.clear(matchingGeneration: snapshot.generation) else { return }
+                _ = cleared
                 anonymousSession = nil
                 account.activateAnonymous()
                 state = .signedOut
                 errorMessage = nil
                 await establishAnonymousSession()
             } catch {
+                guard await isCurrent(snapshot) else { return }
                 errorMessage = "La révocation Apple a échoué. Le compte a été conservé; tu peux réessayer."
             }
         }
     }
 
     private func establishAnonymousSession() async {
-        guard session == nil, anonymousSession == nil else { return }
+        guard let baseline = try? await vault.snapshot(),
+              baseline.session == nil,
+              session == nil,
+              anonymousSession == nil else { return }
         do {
-            let session = try await client.signInAnonymously()
-            try await vault.save(session)
-            anonymousSession = session
+            let anonymous = try await client.signInAnonymously()
+            guard anonymous.user.isAnonymous else { return }
+            guard let installed = try? await vault.install(
+                anonymous,
+                replacingGeneration: baseline.generation
+            ) else { return }
+            _ = installed
+            anonymousSession = anonymous
             account.activateAnonymous()
         } catch is CancellationError {
         } catch {
@@ -233,38 +285,37 @@ final class AuthSessionViewModel {
         }
     }
 
-    private func revalidateAuthenticatedSession() async {
-        guard !isRevalidating, let displayedSession = session else { return }
-        isRevalidating = true
-        defer { isRevalidating = false }
-        let storedSession = (try? await vault.load()) ?? displayedSession
-
+    private func revalidateAuthenticatedSession(_ snapshot: AuthSessionSnapshot) async {
+        guard let storedSession = snapshot.session, !storedSession.user.isAnonymous else { return }
         do {
             let refreshed = try await client.validate(storedSession)
-            try await vault.save(refreshed)
+            guard let accepted = try? await vault.refresh(refreshed, matching: snapshot) else { return }
+            _ = accepted
             state = .authenticated(refreshed, .online)
             errorMessage = nil
             account.synchronize()
         } catch AuthenticationClientError.unauthorized {
-            await clearConfirmedSession(message: "Ta session a expiré. Reconnecte-toi avec Apple.")
+            await clearConfirmedSession(
+                message: "Ta session a expiré. Reconnecte-toi avec Apple.",
+                matching: snapshot
+            )
         } catch is CancellationError {
         } catch {
+            guard await isCurrent(snapshot) else { return }
             state = .authenticated(storedSession, .offline)
         }
     }
 
-    private func revalidateAnonymous() async {
-        guard !isRevalidating, let displayedSession = anonymousSession else { return }
-        isRevalidating = true
-        defer { isRevalidating = false }
-        let storedSession = (try? await vault.load()) ?? displayedSession
-
+    private func revalidateAnonymous(_ snapshot: AuthSessionSnapshot) async {
+        guard let storedSession = snapshot.session, storedSession.user.isAnonymous else { return }
         do {
             let refreshed = try await client.validate(storedSession)
-            try await vault.save(refreshed)
+            guard let accepted = try? await vault.refresh(refreshed, matching: snapshot) else { return }
+            _ = accepted
             anonymousSession = refreshed
         } catch AuthenticationClientError.unauthorized {
-            try? await vault.clear()
+            guard let cleared = try? await vault.clear(matching: snapshot) else { return }
+            _ = cleared
             anonymousSession = nil
             await establishAnonymousSession()
         } catch is CancellationError {
@@ -274,14 +325,23 @@ final class AuthSessionViewModel {
         }
     }
 
-    private func clearConfirmedSession(message: String) async {
+    private func clearConfirmedSession(
+        message: String,
+        matching snapshot: AuthSessionSnapshot
+    ) async {
         await onAuthenticatedSessionEnded()
-        try? await vault.clear()
+        guard let cleared = try? await vault.clear(matching: snapshot) else { return }
+        _ = cleared
         anonymousSession = nil
         account.activateAnonymous()
         state = .signedOut
         errorMessage = message
         await establishAnonymousSession()
+    }
+
+    private func isCurrent(_ snapshot: AuthSessionSnapshot) async -> Bool {
+        guard let current = try? await vault.snapshot() else { return false }
+        return current == snapshot
     }
 
     private func message(for error: any Error) -> String {

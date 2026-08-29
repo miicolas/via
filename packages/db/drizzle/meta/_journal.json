@@ -281,6 +281,13 @@
       "when": 1787750830057,
       "tag": "0039_omniscient_sunspot",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1788009048278,
+      "tag": "0040_chilly_black_knight",
+      "breakpoints": true
     }
   ]
 }

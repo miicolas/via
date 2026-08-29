@@ -114,10 +114,11 @@ struct BearerAuthenticationMiddleware: ClientMiddleware {
             OpenAPIRuntime.HTTPBody?,
             URL
         ) async throws -> (HTTPTypes.HTTPResponse, OpenAPIRuntime.HTTPBody?)
-    ) async throws -> (HTTPTypes.HTTPResponse, OpenAPIRuntime.HTTPBody?) {
+        ) async throws -> (HTTPTypes.HTTPResponse, OpenAPIRuntime.HTTPBody?) {
         var request = request
         var bearerToken: String?
-        if let session = try? await vault.load() {
+        let sessionSnapshot = try? await vault.snapshot()
+        if let session = sessionSnapshot?.session {
             bearerToken = session.bearerToken
             request.headerFields[.authorization] = "Bearer \(session.bearerToken)"
         }
@@ -125,8 +126,9 @@ struct BearerAuthenticationMiddleware: ClientMiddleware {
         let response = try await next(request, body, baseURL)
         if let name = HTTPField.Name("set-auth-token"),
            let bearer = response.0.headerFields[name],
-           !bearer.isEmpty {
-            try? await vault.updateBearer(bearer)
+           !bearer.isEmpty,
+           let sessionSnapshot {
+            _ = try? await vault.updateBearer(bearer, matching: sessionSnapshot)
         }
         if response.0.status == .unauthorized, let bearerToken {
             await onUnauthorized(bearerToken)

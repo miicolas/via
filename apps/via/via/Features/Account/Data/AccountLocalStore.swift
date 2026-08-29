@@ -41,11 +41,13 @@ final class AccountLocalStore: @unchecked Sendable {
     /// an older anonymous workspace must not reappear on the next launch.
     func eraseAll() {
         locked {
-            defaults.removeObject(forKey: Self.legacyRecentsKey)
-            defaults.removeObject(forKey: storageKey(for: .anonymous))
-            if let activeScope {
-                defaults.removeObject(forKey: storageKey(for: activeScope))
+            let accountKeys = defaults.dictionaryRepresentation().keys.filter {
+                $0.hasPrefix(Self.accountPrefix)
             }
+            for key in accountKeys {
+                defaults.removeObject(forKey: key)
+            }
+            defaults.removeObject(forKey: Self.legacyRecentsKey)
             cachedSnapshot = nil
             activeScope = nil
         }

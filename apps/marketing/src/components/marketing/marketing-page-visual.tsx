@@ -1,73 +1,14 @@
 import type { MarketingPageDefinition } from "@/constants/marketing-pages";
 import {
-  Activity,
   BarChart3,
-  Braces,
   Check,
   ChevronRight,
   FileText,
-  Link2,
   LockKeyhole,
-  MessageCircle,
   Search,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
-
-function ApiVisual(): ReactNode {
-  return (
-    <div className="rounded-3xl bg-[#0b1220] p-5 text-sm text-white shadow-2xl/20 sm:p-7">
-      <div className="mb-6 flex items-center justify-between text-white/45">
-        <span className="font-mono text-xs">GET /v1/departures</span>
-        <Braces className="h-4 w-4" aria-hidden="true" />
-      </div>
-      <pre className="overflow-hidden font-mono text-[11px] leading-6 sm:text-xs">
-        <code>
-          <span className="text-[#8cb9ff]">{"{"}</span>
-          {"\n"}
-          {"  "}
-          <span className="text-[#a6e3a1]">&quot;station&quot;</span>:{" "}
-          <span className="text-[#f9c784]">&quot;République&quot;</span>,{"\n"}
-          {"  "}
-          <span className="text-[#a6e3a1]">&quot;line&quot;</span>:{" "}
-          <span className="text-[#f9c784]">&quot;11&quot;</span>,{"\n"}
-          {"  "}
-          <span className="text-[#a6e3a1]">&quot;departures&quot;</span>: [
-          <span className="text-[#c9b8ff]">2, 6, 11</span>],{"\n"}
-          {"  "}
-          <span className="text-[#a6e3a1]">&quot;live&quot;</span>:{" "}
-          <span className="text-[#8cb9ff]">true</span>
-          {"\n"}
-          <span className="text-[#8cb9ff]">{"}"}</span>
-        </code>
-      </pre>
-    </div>
-  );
-}
-
-function IntegrationsVisual(): ReactNode {
-  const items = [
-    { label: "Metyro", icon: Sparkles, featured: true },
-    { label: "Alertes", icon: MessageCircle, featured: false },
-    { label: "Données", icon: Activity, featured: false },
-    { label: "Produits", icon: Link2, featured: false },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-      {items.map(({ label, icon: Icon, featured }) => (
-        <div
-          key={label}
-          className={`flex aspect-[1.3] flex-col justify-between rounded-3xl p-5 ${featured ? "bg-accent text-white" : "bg-frame text-foreground"}`}
-        >
-          <Icon className="h-6 w-6" aria-hidden="true" />
-          <span className="text-sm font-semibold">{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function SecurityVisual(): ReactNode {
   return (
@@ -162,12 +103,6 @@ export function MarketingPageVisual({
   let visual: ReactNode;
 
   switch (page.signal) {
-    case "api":
-      visual = <ApiVisual />;
-      break;
-    case "integrations":
-      visual = <IntegrationsVisual />;
-      break;
     case "security":
       visual = <SecurityVisual />;
       break;

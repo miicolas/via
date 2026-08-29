@@ -7,6 +7,8 @@ import Foundation
 enum ApplicationLifecycle {
     static func restore(
         authSessionViewModel: AuthSessionViewModel,
+        accountModel: AccountModel,
+        notificationScheduleCoordinator: NotificationScheduleCoordinator,
         journeyNotificationCoordinator: JourneyNotificationCoordinator,
         activeJourneyModel: ActiveJourneyModel,
         plannedJourneyDraftModel: PlannedJourneyDraftModel,
@@ -18,6 +20,10 @@ enum ApplicationLifecycle {
         async let plannedJourney: Void = plannedJourneyDraftModel.restore()
 
         await auth
+        await notificationScheduleCoordinator.reconcile(
+            schedules: accountModel.notificationSchedules,
+            preferences: accountModel.notificationPreferences
+        )
         await notifications
         await activeJourney
         await plannedJourney

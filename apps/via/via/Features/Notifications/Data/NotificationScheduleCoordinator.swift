@@ -11,12 +11,13 @@ final class NotificationScheduleCoordinator {
     private(set) var lastError: String?
     private(set) var isReconciling = false
 
-    private let center: UNUserNotificationCenter
+    private let center: any JourneyNotificationCenterClient
     private let defaults: UserDefaults
     private let now: @Sendable () -> Date
+    private var pendingReconcile: ReconcileRequest?
 
     init(
-        center: UNUserNotificationCenter = .current(),
+        center: any JourneyNotificationCenterClient = SystemJourneyNotificationCenter(),
         defaults: UserDefaults = .standard,
         now: @escaping @Sendable () -> Date = { .now }
     ) {
@@ -33,13 +34,13 @@ final class NotificationScheduleCoordinator {
     }
 
     func restore() async {
-        authorizationStatus = await center.notificationSettings().authorizationStatus
+        authorizationStatus = await center.authorizationStatus()
     }
 
     /// Through the shared seam so the grant registers the APNs token on the
     /// same turn rather than on the next foreground.
     func requestAuthorization() async {
-        let granted = await NotificationAuthorization.request()
+        let granted = await NotificationAuthorization.request(center: center)
         await restore()
         lastError = granted ? nil : "Les notifications n’ont pas pu être activées."
     }
@@ -71,8 +72,30 @@ final class NotificationScheduleCoordinator {
         preferences: NotificationPreferences,
         now: Date? = nil
     ) async {
+        let request = ReconcileRequest(
+            schedules: schedules,
+            preferences: preferences,
+            reference: now ?? self.now()
+        )
+        if isReconciling {
+            pendingReconcile = request
+            return
+        }
+
         isReconciling = true
-        defer { isReconciling = false }
+        defer {
+            isReconciling = false
+            pendingReconcile = nil
+        }
+        var next: ReconcileRequest? = request
+        while let current = next {
+            await reconcileOnce(current)
+            next = pendingReconcile
+            pendingReconcile = nil
+        }
+    }
+
+    private func reconcileOnce(_ input: ReconcileRequest) async {
         await restore()
         let identifiers = await center.pendingNotificationRequests()
             .map(\.identifier)
@@ -84,12 +107,11 @@ final class NotificationScheduleCoordinator {
                 : nil
             return
         }
-        guard preferences.categories.first(where: { $0.category == .commute })?.enabled ?? true else {
+        guard input.preferences.categories.first(where: { $0.category == .commute })?.enabled ?? true else {
             return
         }
 
-        let reference = now ?? self.now()
-        let events = schedules
+        let events = input.schedules
             .filter {
                 $0.kind == .commute &&
                     $0.enabled &&
@@ -97,7 +119,7 @@ final class NotificationScheduleCoordinator {
                     !isMuted(scheduleID: $0.id)
             }
             .flatMap { schedule in
-                upcomingEvents(for: schedule, preferences: preferences, after: reference)
+                upcomingEvents(for: schedule, preferences: input.preferences, after: input.reference)
             }
             .prefix(60)
 
@@ -233,6 +255,12 @@ final class NotificationScheduleCoordinator {
         let day = ((h + l - 7 * m + 114) % 31) + 1
         return calendar.date(from: DateComponents(year: year, month: month, day: day)) ?? .distantPast
     }
+}
+
+private struct ReconcileRequest {
+    let schedules: [NotificationSchedule]
+    let preferences: NotificationPreferences
+    let reference: Date
 }
 
 private struct LocalNotificationEvent {

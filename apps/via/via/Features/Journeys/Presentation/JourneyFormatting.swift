@@ -31,6 +31,24 @@ enum JourneyFormatting {
         carbon(grams: grams, kilogramUnit: "kilogrammes de CO₂e", gramUnit: "grammes de CO₂e")
     }
 
+    static func fare(amountInCents: Int) -> String {
+        let amount = max(0, amountInCents)
+        let euros = amount / 100
+        let cents = amount % 100
+        guard cents > 0 else { return "\(euros) €" }
+        return String(format: "%d,%02d €", euros, cents)
+    }
+
+    static func fareAccessibility(amountInCents: Int) -> String {
+        let amount = max(0, amountInCents)
+        let euros = amount / 100
+        let cents = amount % 100
+        let euroUnit = euros > 1 ? "euros" : "euro"
+        guard cents > 0 else { return "\(euros) \(euroUnit)" }
+        let centUnit = cents > 1 ? "centimes" : "centime"
+        return "\(euros) \(euroUnit) et \(cents) \(centUnit)"
+    }
+
     /// One rounding rule for the number the eye reads and the one VoiceOver
     /// speaks: only the unit differs, and two copies would let them disagree
     /// about the same estimate.
@@ -85,7 +103,9 @@ enum JourneyFormatting {
     }
 
     private static func number(_ value: Double, maximumFractionDigits: Int) -> String {
-        value.formatted(
+        let scale = pow(10.0, Double(maximumFractionDigits))
+        let rounded = (value * scale).rounded(.toNearestOrAwayFromZero) / scale
+        return rounded.formatted(
             .number
                 .precision(.fractionLength(0...maximumFractionDigits))
                 .locale(Locale(identifier: "fr_FR"))

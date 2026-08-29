@@ -31,6 +31,7 @@ struct InfoBadgeButton: View {
             .accessibilityLabel(accessibilityLabel)
             .accessibilityValue(accessibilityValue)
             .accessibilityHint("Explique ce que signifie ce badge")
+            .haptic(Haptic.commit, on: isExplaining) { !$0 && $1 }
             .popover(isPresented: $isExplaining) {
                 InfoBadgeExplanationView(
                     symbol: symbol,

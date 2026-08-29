@@ -3,10 +3,19 @@ import CryptoKit
 import Security
 
 protocol AuthSessionVault: Sendable {
-    func load() async throws -> StoredAuthSession?
-    func save(_ session: StoredAuthSession) async throws
-    func updateBearer(_ bearerToken: String) async throws
+    func snapshot() async throws -> AuthSessionSnapshot
+    func install(_ session: StoredAuthSession, replacingGeneration: UInt64) async throws -> AuthSessionSnapshot?
+    func refresh(_ session: StoredAuthSession, matching snapshot: AuthSessionSnapshot) async throws -> AuthSessionSnapshot?
+    func updateBearer(_ bearerToken: String, matching snapshot: AuthSessionSnapshot) async throws -> AuthSessionSnapshot?
+    func clear(matching snapshot: AuthSessionSnapshot) async throws -> AuthSessionSnapshot?
+    func clear(matchingGeneration generation: UInt64) async throws -> AuthSessionSnapshot?
     func clear() async throws
+}
+
+struct AuthSessionSnapshot: Sendable, Equatable {
+    let session: StoredAuthSession?
+    let generation: UInt64
+    let revision: UInt64
 }
 
 actor KeychainAuthSessionVault: AuthSessionVault {
@@ -18,6 +27,8 @@ actor KeychainAuthSessionVault: AuthSessionVault {
     /// cached so the Keychain is read once per launch, not once per request.
     /// `.some(nil)` records a known-empty vault; `nil` means not read yet.
     private var cachedSession: StoredAuthSession??
+    private var generation: UInt64 = 0
+    private var revision: UInt64 = 0
 
     init(apiBaseURL: URL) {
         service = Self.service(for: apiBaseURL)
@@ -29,7 +40,78 @@ actor KeychainAuthSessionVault: AuthSessionVault {
         return "\(servicePrefix).\(suffix)"
     }
 
-    func load() throws -> StoredAuthSession? {
+    func snapshot() throws -> AuthSessionSnapshot {
+        AuthSessionSnapshot(
+            session: try loadSession(),
+            generation: generation,
+            revision: revision
+        )
+    }
+
+    func install(
+        _ session: StoredAuthSession,
+        replacingGeneration expectedGeneration: UInt64
+    ) throws -> AuthSessionSnapshot? {
+        guard generation == expectedGeneration else { return nil }
+        try writeSession(session)
+        generation &+= 1
+        revision &+= 1
+        return AuthSessionSnapshot(session: session, generation: generation, revision: revision)
+    }
+
+    func refresh(
+        _ session: StoredAuthSession,
+        matching expected: AuthSessionSnapshot
+    ) throws -> AuthSessionSnapshot? {
+        guard try matches(expected),
+              let current = try loadSession(),
+              current.user.id == session.user.id,
+              current.user.isAnonymous == session.user.isAnonymous else { return nil }
+        try writeSession(session)
+        revision &+= 1
+        return AuthSessionSnapshot(session: session, generation: generation, revision: revision)
+    }
+
+    func updateBearer(
+        _ bearerToken: String,
+        matching expected: AuthSessionSnapshot
+    ) throws -> AuthSessionSnapshot? {
+        guard try matches(expected), var session = try loadSession() else { return nil }
+        guard session.user.id == expected.session?.user.id,
+              session.user.isAnonymous == expected.session?.user.isAnonymous else { return nil }
+        guard session.bearerToken != bearerToken else {
+            return AuthSessionSnapshot(session: session, generation: generation, revision: revision)
+        }
+        session.bearerToken = bearerToken
+        try writeSession(session)
+        revision &+= 1
+        return AuthSessionSnapshot(session: session, generation: generation, revision: revision)
+    }
+
+    func clear(matching expected: AuthSessionSnapshot) throws -> AuthSessionSnapshot? {
+        guard try matches(expected) else { return nil }
+        try clear()
+        generation &+= 1
+        revision &+= 1
+        return AuthSessionSnapshot(session: nil, generation: generation, revision: revision)
+    }
+
+    func clear(matchingGeneration expectedGeneration: UInt64) throws -> AuthSessionSnapshot? {
+        guard generation == expectedGeneration, try loadSession() != nil else { return nil }
+        try clear()
+        generation &+= 1
+        revision &+= 1
+        return AuthSessionSnapshot(session: nil, generation: generation, revision: revision)
+    }
+
+    private func matches(_ expected: AuthSessionSnapshot) throws -> Bool {
+        guard generation == expected.generation,
+              revision == expected.revision else { return false }
+        let current = try loadSession()
+        return current == expected.session
+    }
+
+    private func loadSession() throws -> StoredAuthSession? {
         if let cachedSession { return cachedSession }
 
         if let session = try readSession(for: service) {
@@ -41,7 +123,7 @@ actor KeychainAuthSessionVault: AuthSessionVault {
         // existing login while preventing a local token from being reused in
         // production (or the reverse).
         if let legacySession = try readSession(for: Self.legacyService) {
-            try save(legacySession)
+            try writeSession(legacySession)
             try deleteSession(for: Self.legacyService)
             return legacySession
         }
@@ -50,7 +132,7 @@ actor KeychainAuthSessionVault: AuthSessionVault {
         return nil
     }
 
-    func save(_ session: StoredAuthSession) throws {
+    private func writeSession(_ session: StoredAuthSession) throws {
         let data = try JSONEncoder.via.encode(session)
         let query = keychainQuery(for: service)
         let updateStatus = SecItemUpdate(query as CFDictionary, [
@@ -72,12 +154,6 @@ actor KeychainAuthSessionVault: AuthSessionVault {
             throw AuthenticationClientError.invalidResponse
         }
         cachedSession = session
-    }
-
-    func updateBearer(_ bearerToken: String) throws {
-        guard var session = try load(), session.bearerToken != bearerToken else { return }
-        session.bearerToken = bearerToken
-        try save(session)
     }
 
     func clear() throws {
@@ -126,15 +202,65 @@ actor KeychainAuthSessionVault: AuthSessionVault {
 
 actor InMemoryAuthSessionVault: AuthSessionVault {
     private var session: StoredAuthSession?
+    private var generation: UInt64 = 0
+    private var revision: UInt64 = 0
 
     init(session: StoredAuthSession? = nil) {
         self.session = session
     }
 
-    func load() -> StoredAuthSession? { session }
-    func save(_ session: StoredAuthSession) { self.session = session }
-    func updateBearer(_ bearerToken: String) {
-        session?.bearerToken = bearerToken
+    func snapshot() -> AuthSessionSnapshot {
+        AuthSessionSnapshot(session: session, generation: generation, revision: revision)
     }
+
+    func install(_ session: StoredAuthSession, replacingGeneration expectedGeneration: UInt64) -> AuthSessionSnapshot? {
+        guard generation == expectedGeneration else { return nil }
+        self.session = session
+        generation &+= 1
+        revision &+= 1
+        return snapshot()
+    }
+
+    func refresh(_ session: StoredAuthSession, matching expected: AuthSessionSnapshot) -> AuthSessionSnapshot? {
+        guard matches(expected),
+              let current = self.session,
+              current.user.id == session.user.id,
+              current.user.isAnonymous == session.user.isAnonymous else { return nil }
+        self.session = session
+        revision &+= 1
+        return snapshot()
+    }
+
+    func updateBearer(_ bearerToken: String, matching expected: AuthSessionSnapshot) -> AuthSessionSnapshot? {
+        guard matches(expected), var current = session,
+              current.user.id == expected.session?.user.id,
+              current.user.isAnonymous == expected.session?.user.isAnonymous else { return nil }
+        guard current.bearerToken != bearerToken else { return snapshot() }
+        current.bearerToken = bearerToken
+        session = current
+        revision &+= 1
+        return snapshot()
+    }
+
+    func clear(matching expected: AuthSessionSnapshot) -> AuthSessionSnapshot? {
+        guard matches(expected) else { return nil }
+        session = nil
+        generation &+= 1
+        revision &+= 1
+        return snapshot()
+    }
+
+    func clear(matchingGeneration expectedGeneration: UInt64) -> AuthSessionSnapshot? {
+        guard generation == expectedGeneration, session != nil else { return nil }
+        session = nil
+        generation &+= 1
+        revision &+= 1
+        return snapshot()
+    }
+
+    private func matches(_ expected: AuthSessionSnapshot) -> Bool {
+        generation == expected.generation && revision == expected.revision && session == expected.session
+    }
+
     func clear() { session = nil }
 }

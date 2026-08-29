@@ -150,6 +150,8 @@ struct ApplicationEntry: App {
             .task {
                 await ApplicationLifecycle.restore(
                     authSessionViewModel: authSessionViewModel,
+                    accountModel: accountModel,
+                    notificationScheduleCoordinator: NotificationScheduleCoordinator.shared,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
                     activeJourneyModel: activeJourneyModel,
                     plannedJourneyDraftModel: plannedJourneyDraftModel,
@@ -159,6 +161,10 @@ struct ApplicationEntry: App {
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
                 await authSessionViewModel.sceneBecameActive()
+                await NotificationScheduleCoordinator.shared.reconcile(
+                    schedules: accountModel.notificationSchedules,
+                    preferences: accountModel.notificationPreferences
+                )
                 await activeJourneyModel.sceneBecameActive()
                 await journeyNotificationCoordinator.sceneBecameActive()
                 await pushNotificationManager.setNotificationsAuthorized(

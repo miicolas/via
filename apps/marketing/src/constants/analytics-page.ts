@@ -1,9 +1,5 @@
+import { launch } from "./launch";
 import type { CallToAction } from "./types";
-
-const appStoreAction = {
-  label: "Télécharger Metyro",
-  href: "#",
-} satisfies CallToAction;
 
 export const analyticsContent = {
   metadata: {
@@ -20,7 +16,7 @@ export const analyticsContent = {
     },
     description:
       "Metyro lit les jeux de données publics d’Île-de-France Mobilités et n’en garde que ce qui change votre prochain trajet.",
-    action: appStoreAction,
+    action: launch,
     secondaryAction: {
       label: "Voir les sources",
       href: "#sources",
@@ -111,7 +107,7 @@ export const analyticsContent = {
     title: "Le réseau lu pour vous, à chaque trajet.",
     description:
       "Metyro fait ce travail dans votre poche : l’heure creuse de votre station et l’ascenseur qui fonctionne, sans ouvrir un seul jeu de données.",
-    action: appStoreAction,
+    action: launch,
   },
 } as const;
 

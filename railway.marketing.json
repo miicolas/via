@@ -5,6 +5,7 @@
     "buildCommand": "bun run --filter=@via/marketing build",
     "watchPatterns": [
       "/apps/marketing/**",
+      "/packages/contract/**",
       "/package.json",
       "/bun.lock",
       "/turbo.json",

@@ -102,7 +102,7 @@ const journeyDepartureChoices = createJourneyDepartureChoicesModule(
   { now: () => new Date() },
   {
     readStationSnapshot: async (stationId) => {
-      const version = await transitNetworkCacheVersion(redis);
+      const version = await transitNetworkCacheVersion();
       return readCachedStationSnapshot(
         redis,
         transitStationSnapshotCacheKey(version, stationId),

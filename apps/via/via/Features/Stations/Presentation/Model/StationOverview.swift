@@ -55,6 +55,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
     let routes: [RouteBadge]
     let accessibility: StationAccessibility?
     let toilets: StationToilets?
+    let fountains: StationFountains?
     let distanceMeters: Double?
     /// One representative passage per direction, used by the compact station
     /// row in the Stations tab.
@@ -75,6 +76,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         routes: [RouteBadge],
         accessibility: StationAccessibility? = nil,
         toilets: StationToilets? = nil,
+        fountains: StationFountains? = nil,
         distanceMeters: Double?,
         departures: [StationDeparture],
         departureSource: DepartureBoard.Source,
@@ -89,6 +91,7 @@ struct StationOverview: Sendable, Hashable, Identifiable {
         self.routes = routes
         self.accessibility = accessibility
         self.toilets = toilets
+        self.fountains = fountains
         self.distanceMeters = distanceMeters
         self.departures = departures
         self.departureBoard = departureBoard ?? departures
@@ -172,6 +175,11 @@ extension StationOverview {
             toilets: StationToilets(
                 label: "Sanitaires disponibles",
                 detail: "Accès gratuit · Accessible PMR\nÀ proximité de la sortie 3."
+            ),
+            fountains: StationFountains(
+                status: .available,
+                label: "Fontaine d’eau potable à proximité",
+                detail: "Accessible PMR · Remplissage de gourde possible"
             ),
             distanceMeters: 250,
             departures: [

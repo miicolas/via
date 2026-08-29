@@ -430,6 +430,9 @@ async function scheduledCandidateWithReplannedDownstream(
     section: selected,
     journey: {
       ...downstream,
+      // This candidate is only the selected leg plus a plan from its alighting
+      // stop. The downstream total is not the fare of the composite journey.
+      fare: undefined,
       departureAt: selected.departureAt!,
       durationSeconds: Math.max(
         0,
@@ -601,6 +604,9 @@ function spliceJourney(
         ? 'disrupted'
         : candidateJourney.status,
     warnings: [...new Set([...current.warnings, ...candidateJourney.warnings])],
+    // A retimed unchanged route carries the original full fare. A partially
+    // replanned route explicitly clears it because neither subtotal is exact.
+    fare: candidateJourney.fare,
     accessibility: candidateJourney.accessibility ?? current.accessibility,
     peak: candidateJourney.peak ?? current.peak,
     sections,

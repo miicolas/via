@@ -103,26 +103,21 @@ struct SearchDeparturePickerView: View {
                 isSelected: selection == .currentLocation,
                 action: { select(.currentLocation) },
             )
+        }
 
-            ForEach(savedPlaces) { place in
-                shortcutRow(
-                    title: place.role.displayTitle,
-                    subtitle: place.name == place.role.displayTitle ? "Lieu enregistré" : place.name,
-                    systemImage: place.role.systemImage,
-                    isSelected: selection == .saved(place),
-                    action: { select(.saved(place)) },
-                )
-            }
-
-            ForEach(savedDestinations) { destination in
-                shortcutRow(
-                    title: destination.label,
-                    subtitle: destination.label == destination.name ? "Lieu enregistré" : destination.name,
-                    systemImage: SavedDestinationSymbols.resolved(destination.systemImage),
-                    isSelected: selection == .savedDestination(destination),
-                    action: { select(.savedDestination(destination)) },
-                )
-            }
+        if !savedPlaces.isEmpty || !savedDestinations.isEmpty {
+            SavedPlacesBar(
+                places: savedPlaces,
+                destinations: savedDestinations,
+                selectionAccessibilityHint: "Sélectionne ce point de départ",
+                isSelectedPlace: { selection == .saved($0) },
+                isSelectedDestination: { selection == .savedDestination($0) },
+                onSelectPlace: { select(.saved($0)) },
+                onSelectDestination: { select(.savedDestination($0)) }
+            )
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 0))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
         }
     }
 

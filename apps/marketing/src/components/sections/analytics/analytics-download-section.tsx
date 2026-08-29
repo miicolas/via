@@ -1,4 +1,4 @@
-import { AppStoreBadgeLink } from "@/components/ui/app-store-badge-link";
+import { LaunchAction } from "@/components/ui/launch-action";
 import { Reveal } from "@/components/ui/reveal";
 import type { AnalyticsContent } from "@/constants/analytics-page";
 import type { ReactNode } from "react";
@@ -24,7 +24,7 @@ export function AnalyticsDownloadSection({
             {content.description}
           </p>
         </div>
-        <AppStoreBadgeLink {...content.action} appearance="white" />
+        <LaunchAction configuration={content.action} mode="badge" appearance="white" />
       </Reveal>
     </section>
   );

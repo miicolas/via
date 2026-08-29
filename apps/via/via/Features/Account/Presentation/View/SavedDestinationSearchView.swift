@@ -43,6 +43,19 @@ struct SavedDestinationSearchView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
 
+                if showsSavedPlacesBar(viewModel) {
+                    SavedPlacesBar(
+                        places: viewModel.savedPlaces,
+                        destinations: viewModel.savedDestinations,
+                        selectionAccessibilityHint: accessibilityHint,
+                        onSelectPlace: { select($0.searchResult) },
+                        onSelectDestination: { select($0.searchResult) }
+                    )
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
+
                 Section {
                     SearchResultsSection(
                         state: viewModel.departureLoadState,
@@ -76,6 +89,12 @@ struct SavedDestinationSearchView: View {
     private func select(_ result: SearchResult) {
         onSelect(result)
         dismiss()
+    }
+
+    private func showsSavedPlacesBar(_ viewModel: SearchViewModel) -> Bool {
+        viewModel.departureQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && viewModel.departureLoadState == .idle
+            && (!viewModel.savedPlaces.isEmpty || !viewModel.savedDestinations.isEmpty)
     }
 }
 

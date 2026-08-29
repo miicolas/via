@@ -138,6 +138,78 @@ final class LocationModelTests: XCTestCase {
         XCTAssertEqual(adapter.locationRequestCount, 1)
     }
 
+    func testCachedLocationExpiresAndRefreshesAtTheNextRequest() async {
+        let clock = TestClock(Date(timeIntervalSince1970: 1_000))
+        let first = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let second = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let adapter = RecordingLocationAdapter(
+            authorization: .authorized,
+            coordinate: first,
+            recordedAt: clock.now()
+        )
+        let model = LocationModel(adapter: adapter, now: clock.now)
+
+        let firstResult = await model.requestCurrentLocation()
+        XCTAssertEqual(firstResult, first)
+        XCTAssertEqual(adapter.locationRequestCount, 1)
+
+        clock.advance(by: 59)
+        XCTAssertEqual(model.coordinate, first)
+        let cachedResult = await model.requestCurrentLocation()
+        XCTAssertEqual(cachedResult, first)
+        XCTAssertEqual(adapter.locationRequestCount, 1)
+
+        clock.advance(by: 2)
+        XCTAssertNil(model.coordinate)
+        adapter.coordinate = second
+        adapter.recordedAt = clock.now()
+
+        let refreshedResult = await model.requestCurrentLocation()
+        XCTAssertEqual(refreshedResult, second)
+        XCTAssertEqual(adapter.locationRequestCount, 2)
+    }
+
+    func testFutureLocationSampleIsNotReusable() async {
+        let clock = TestClock(Date(timeIntervalSince1970: 2_000))
+        let coordinate = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let adapter = RecordingLocationAdapter(
+            authorization: .authorized,
+            coordinate: coordinate,
+            recordedAt: clock.now().addingTimeInterval(6)
+        )
+        let model = LocationModel(adapter: adapter, now: clock.now)
+
+        let result = await model.requestFreshLocation(timeout: .milliseconds(20))
+        XCTAssertNil(result)
+        XCTAssertNil(model.coordinate)
+    }
+
+    func testUpdatedJourneySampleFeedsTheSharedTimestampedCache() async {
+        let clock = TestClock(Date(timeIntervalSince1970: 3_000))
+        let initial = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
+        let updated = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
+        let adapter = RecordingLocationAdapter(
+            authorization: .authorized,
+            coordinate: initial,
+            recordedAt: clock.now()
+        )
+        let model = LocationModel(adapter: adapter, now: clock.now)
+
+        let initialResult = await model.requestCurrentLocation()
+        XCTAssertEqual(initialResult, initial)
+        var updates = model.startJourneyTracking(allowsBackgroundUpdates: false).makeAsyncIterator()
+        _ = await updates.next()
+        adapter.emit(.updated(LocationSample(
+            coordinate: updated,
+            horizontalAccuracy: 12,
+            recordedAt: clock.now()
+        )))
+
+        XCTAssertEqual(model.coordinate, updated)
+        XCTAssertEqual(model.lastSample?.horizontalAccuracy, 12)
+        model.stopJourneyTracking()
+    }
+
     func testJourneyTrackingDropsSamplesFromBeforeTheSession() async {
         let initial = GeoCoordinate(latitude: 48.8566, longitude: 2.3522)
         let stale = GeoCoordinate(latitude: 48.8666, longitude: 2.3622)
@@ -176,13 +248,19 @@ private final class SilentLocationAdapter: LocationAdapter {
 private final class RecordingLocationAdapter: LocationAdapter {
     var authorization: LocationAuthorization
     var onEvent: (@MainActor (LocationAdapterEvent) -> Void)?
-    let coordinate: GeoCoordinate?
+    var coordinate: GeoCoordinate?
+    var recordedAt: Date
     private(set) var authorizationRequestCount = 0
     private(set) var locationRequestCount = 0
 
-    init(authorization: LocationAuthorization, coordinate: GeoCoordinate?) {
+    init(
+        authorization: LocationAuthorization,
+        coordinate: GeoCoordinate?,
+        recordedAt: Date = .now
+    ) {
         self.authorization = authorization
         self.coordinate = coordinate
+        self.recordedAt = recordedAt
     }
 
     func requestAuthorization() {
@@ -197,6 +275,45 @@ private final class RecordingLocationAdapter: LocationAdapter {
             onEvent?(.failed(authorization))
             return
         }
-        onEvent?(.located(coordinate))
+        onEvent?(.located(LocationSample(
+            coordinate: coordinate,
+            horizontalAccuracy: nil,
+            recordedAt: recordedAt
+        )))
+    }
+
+    func startUpdatingLocation(allowsBackgroundUpdates _: Bool) {
+        guard authorization == .authorized, let coordinate else {
+            onEvent?(.failed(authorization))
+            return
+        }
+        onEvent?(.updated(LocationSample(
+            coordinate: coordinate,
+            horizontalAccuracy: nil,
+            recordedAt: recordedAt
+        )))
+    }
+
+    func emit(_ event: LocationAdapterEvent) {
+        onEvent?(event)
+    }
+}
+
+private final class TestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Date
+
+    init(_ value: Date) {
+        self.value = value
+    }
+
+    func now() -> Date {
+        lock.withLock { value }
+    }
+
+    func advance(by interval: TimeInterval) {
+        lock.withLock {
+            value.addTimeInterval(interval)
+        }
     }
 }

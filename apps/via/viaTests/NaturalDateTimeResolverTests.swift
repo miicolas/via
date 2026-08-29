@@ -69,12 +69,15 @@ final class NaturalDateTimeResolverTests: XCTestCase {
     }
 
     func testExplicitClockEvidenceOverridesAnInventedExactHour() throws {
-        let generatedParts = parts(
+        var generatedParts = parts(
             reference: .implicitToday,
             timePrecision: .exact,
             hour: 17,
             minute: 45
         )
+        // The fixture's calendar year is a test default, not text the person
+        // supplied. Only the clock is explicitly grounded by this phrase.
+        generatedParts.yearWasExplicit = false
 
         let grounded = try generatedParts.validatingExplicitTime(in: "avant 18 h 30")
 

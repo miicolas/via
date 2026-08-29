@@ -34,7 +34,7 @@ const BASELINE_LOOK_BEHIND_SECONDS = 15 * 60;
 
 export const getStationDepartures = implementer.departures.forStation.handler(
   async ({ input, context, signal }) => {
-    const networkVersion = await transitNetworkCacheVersion(redis);
+    const networkVersion = await transitNetworkCacheVersion();
     const cacheKey = transitStationSnapshotCacheKey(networkVersion, input.stationId);
     let fallbackRoutes: RouteBadge[] | undefined;
     const loadRoutes = async () => {

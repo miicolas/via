@@ -1,6 +1,7 @@
 import Foundation
 
 struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
+    let activationID: UUID
     var journey: Journey
     let destination: JourneyDestination
     let source: JourneyResult.Source?
@@ -27,6 +28,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
     }
 
     init(
+        activationID: UUID = UUID(),
         journey: Journey,
         destination: JourneyDestination,
         source: JourneyResult.Source?,
@@ -38,6 +40,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         isTrackingStarted: Bool,
         allowsBackgroundTracking: Bool
     ) {
+        self.activationID = activationID
         self.journey = journey
         self.destination = destination
         self.source = source
@@ -51,6 +54,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
     }
 
     private enum CodingKeys: String, CodingKey {
+        case activationID
         case journey
         case destination
         case source
@@ -70,6 +74,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        activationID = try container.decodeIfPresent(UUID.self, forKey: .activationID) ?? UUID()
         journey = try container.decode(Journey.self, forKey: .journey)
         destination = try container.decode(JourneyDestination.self, forKey: .destination)
         source = try container.decodeIfPresent(JourneyResult.Source.self, forKey: .source)

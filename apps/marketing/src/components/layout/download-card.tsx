@@ -1,6 +1,6 @@
 import type { PageContent } from "@/constants/page";
 import { marketingMedia } from "@/constants/media";
-import { SplitActionLink } from "@/components/ui/split-action-link";
+import { LaunchAction } from "@/components/ui/launch-action";
 import type { ReactNode } from "react";
 
 export function DownloadCard({
@@ -28,7 +28,7 @@ export function DownloadCard({
           <h2 className="max-w-xl text-5xl leading-[1.05] font-medium tracking-tight text-balance text-black max-[850px]:text-3xl">
             {content.headline}
           </h2>
-          <SplitActionLink {...content.action} tone="dark" />
+          <LaunchAction configuration={content.action} mode="button" tone="dark" />
         </div>
       </div>
     </div>

@@ -45,10 +45,10 @@ export const communityContent = {
         ],
       },
     },
-    api: {
-      title: "Détournez l’API vers un usage inattendu.",
-      hint: "Une installation, un outil d’accessibilité, une expérience locale : montrez-nous ce que les mêmes données peuvent devenir.",
-      action: { label: "Explorer l’API", href: "/api" },
+    dataQuality: {
+      title: "Signalez une donnée qui ne correspond pas au quai.",
+      hint: "Ascenseur, sortie, équipement ou état observé : indiquez le lieu et l’heure pour permettre une vérification précise.",
+      action: { label: "Ouvrir l’aide", href: "/help" },
     },
     expansion: {
       title: "Amenez Metyro dans votre ville.",

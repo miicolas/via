@@ -3,6 +3,8 @@ import Foundation
 protocol ActiveJourneyStore: Sendable {
     func load() async throws -> ActiveJourneySession?
     func save(_ session: ActiveJourneySession) async throws
+    @discardableResult
+    func clear(ifActivationID activationID: UUID) async -> Bool
     func clear() async
 }
 
@@ -29,6 +31,14 @@ actor UserDefaultsActiveJourneyStore: ActiveJourneyStore {
         defaults.set(try encoder.encode(session), forKey: key)
     }
 
+    func clear(ifActivationID activationID: UUID) -> Bool {
+        guard let data = defaults.data(forKey: key),
+              let session = try? decoder.decode(ActiveJourneySession.self, from: data),
+              session.activationID == activationID else { return false }
+        defaults.removeObject(forKey: key)
+        return true
+    }
+
     func clear() {
         defaults.removeObject(forKey: key)
     }
@@ -45,6 +55,12 @@ actor InMemoryActiveJourneyStore: ActiveJourneyStore {
 
     func save(_ session: ActiveJourneySession) {
         self.session = session
+    }
+
+    func clear(ifActivationID activationID: UUID) -> Bool {
+        guard session?.activationID == activationID else { return false }
+        session = nil
+        return true
     }
 
     func clear() {

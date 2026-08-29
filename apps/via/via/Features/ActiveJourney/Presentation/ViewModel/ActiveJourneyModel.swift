@@ -194,7 +194,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         startLocationTracking(allowsBackgroundUpdates: allowsBackgroundTracking)
         startTimeMonitoring()
         await persist()
-        await journeyNotificationManager.registerActiveJourney(session.journey)
+        await journeyNotificationManager.registerActiveJourney(
+            session.journey,
+            activationID: session.activationID
+        )
         await startActivity()
     }
 
@@ -223,7 +226,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         guard let restored, session == nil else { return }
         referenceDate = now()
         guard !ActiveJourneyRules.isExpired(restored.journey, at: referenceDate) else {
-            await store.clear()
+            _ = await store.clear(ifActivationID: restored.activationID)
             return
         }
 
@@ -255,7 +258,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         }
         await persist()
         if session.isTrackingStarted {
-            await journeyNotificationManager.registerActiveJourney(session.journey)
+            await journeyNotificationManager.registerActiveJourney(
+                session.journey,
+                activationID: session.activationID
+            )
         }
         await startActivity()
     }
@@ -279,7 +285,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         updateSectionFromLocation(at: referenceDate)
         startTimeMonitoring()
         if session.isTrackingStarted {
-            await journeyNotificationManager.registerActiveJourney(session.journey)
+            await journeyNotificationManager.registerActiveJourney(
+                session.journey,
+                activationID: session.activationID
+            )
             startLocationTracking(
                 allowsBackgroundUpdates: session.allowsBackgroundTracking
             )
@@ -308,37 +317,46 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
 
     func finishJourney() async {
-        guard let session else { return }
+        guard let captured = session else { return }
         let finishedAt = now()
         referenceDate = finishedAt
-        arrival = JourneyArrival(
-            journeyID: session.journey.id,
-            destinationName: session.destination.name,
+        let finalArrival = JourneyArrival(
+            journeyID: captured.journey.id,
+            destinationName: captured.destination.name,
             arrivedAt: finishedAt
         )
+        let finalState = activityState(isArrived: true)
+        detachSession(captured, arrival: finalArrival)
+        _ = await store.clear(ifActivationID: captured.activationID)
         await activityManager.end(
-            journeyID: session.journey.id,
-            finalState: activityState(isArrived: true),
+            journeyID: captured.journey.id,
+            finalState: finalState,
             dismissAt: finishedAt.addingTimeInterval(60)
         )
-        await journeyNotificationManager.unregisterActiveJourney(session.journey)
-        await clearSession()
+        await journeyNotificationManager.unregisterActiveJourney(
+            captured.journey,
+            activationID: captured.activationID
+        )
     }
 
     func cancelJourney() async {
-        guard let session else { return }
+        guard let captured = session else { return }
         let stoppedAt = now()
+        let finalState = terminalActivityState(
+            title: "Trajet arrêté",
+            session: captured
+        )
+        detachSession(captured, arrival: nil)
+        _ = await store.clear(ifActivationID: captured.activationID)
         await activityManager.end(
-            journeyID: session.journey.id,
-            finalState: terminalActivityState(
-                title: "Trajet arrêté",
-                session: session
-            ),
+            journeyID: captured.journey.id,
+            finalState: finalState,
             dismissAt: stoppedAt
         )
-        await journeyNotificationManager.unregisterActiveJourney(session.journey)
-        arrival = nil
-        await clearSession()
+        await journeyNotificationManager.unregisterActiveJourney(
+            captured.journey,
+            activationID: captured.activationID
+        )
     }
 
     func completeArrival() {
@@ -367,7 +385,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         recalculationState = .idle
         await persist()
         if current.isTrackingStarted {
-            await journeyNotificationManager.registerActiveJourney(journey)
+            await journeyNotificationManager.registerActiveJourney(
+                journey,
+                activationID: current.activationID
+            )
         }
         await updateActivity()
     }
@@ -432,7 +453,10 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         locationModel.stopJourneyTracking()
 
         if let previousSession, previousSession.journey.id != journey.id {
-            await journeyNotificationManager.unregisterActiveJourney(previousSession.journey)
+            await journeyNotificationManager.unregisterActiveJourney(
+                previousSession.journey,
+                activationID: previousSession.activationID
+            )
             await activityManager.end(
                 journeyID: previousSession.journey.id,
                 finalState: terminalActivityState(
@@ -690,39 +714,52 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             ),
             dismissAt: acceptedAt
         )
-        await journeyNotificationManager.unregisterActiveJourney(previous.journey)
+        await journeyNotificationManager.unregisterActiveJourney(
+            previous.journey,
+            activationID: previous.activationID
+        )
         await persist()
         if session?.isTrackingStarted == true {
-            await journeyNotificationManager.registerActiveJourney(journey)
+            if let current = session {
+                await journeyNotificationManager.registerActiveJourney(
+                    journey,
+                    activationID: current.activationID
+                )
+            }
         }
         await startActivity()
     }
 
     private func expireJourney() async {
-        guard let session else { return }
+        guard let captured = session else { return }
         let expiredAt = now()
+        let finalState = terminalActivityState(
+            title: "Trajet terminé",
+            session: captured
+        )
+        detachSession(captured, arrival: nil)
+        _ = await store.clear(ifActivationID: captured.activationID)
         await activityManager.end(
-            journeyID: session.journey.id,
-            finalState: terminalActivityState(
-                title: "Trajet terminé",
-                session: session
-            ),
+            journeyID: captured.journey.id,
+            finalState: finalState,
             dismissAt: expiredAt
         )
-        await journeyNotificationManager.unregisterActiveJourney(session.journey)
-        arrival = nil
-        await clearSession()
+        await journeyNotificationManager.unregisterActiveJourney(
+            captured.journey,
+            activationID: captured.activationID
+        )
     }
 
-    private func clearSession() async {
+    private func detachSession(_ captured: ActiveJourneySession, arrival: JourneyArrival?) {
+        _ = captured
         stopTasks()
         locationModel.stopJourneyTracking()
         session = nil
         alternative = nil
+        self.arrival = arrival
         requiresResume = false
         recalculationState = .idle
         lastAutomaticRecalculationSectionID = nil
-        await store.clear()
     }
 
     private func stopTasks() {

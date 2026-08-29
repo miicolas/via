@@ -41,7 +41,10 @@ import { formatCount, formatDuration, logStep, step } from './progress';
 import { importSchedules, type ScheduledTrip } from './schedule/import-schedules';
 import { addScheduledTrip } from './schedule/scheduled-trips';
 import { importShapes } from './shapes/import-shapes';
-import { bumpTransitNetworkCacheVersion } from './network-cache-version';
+import {
+  GTFS_FEED_HASH_KEY,
+  finalizeGtfsImportMetadata,
+} from './gtfs-import-metadata';
 
 /**
  * A route once its required fields have actually been checked.
@@ -72,7 +75,6 @@ const INSERT_BATCH = 5_000;
 const PATTERN_INSERT_BATCH = 1_000;
 const IMPORT_TABLE_LOCK_TIMEOUT_MS = 30_000;
 const DRAWN_GEOMETRY_TIMEOUT_MS = 30_000;
-const GTFS_FEED_HASH_KEY = 'gtfs:feed:sha256';
 
 /**
  * Every file the import reads. Absent optional files still stamp the hash so
@@ -523,14 +525,7 @@ async function runImport(path: string, force: boolean): Promise<GtfsImportResult
      * Only a fully completed import records its hash: a crash in any phase
      * above leaves the previous value, so the next run redoes everything.
      */
-    await db
-      .insert(importMeta)
-      .values({ key: GTFS_FEED_HASH_KEY, value: feedHash })
-      .onConflictDoUpdate({
-        target: importMeta.key,
-        set: { value: feedHash, updatedAt: new Date() },
-      });
-    await bumpTransitNetworkCacheVersion();
+    await finalizeGtfsImportMetadata(feedHash);
     logStep(`Import complete in ${formatDuration(performance.now() - importStartedAt)}.`);
     return { status: 'imported', feedHash };
   }

@@ -47,12 +47,14 @@ final class SelectedStationModelTests: XCTestCase {
     XCTAssertEqual(model.overview?.departureSource, .unavailable)
     XCTAssertTrue(model.overview?.departures.isEmpty == true)
     XCTAssertEqual(model.overview?.accessibility?.condition, .autonomous)
+    XCTAssertEqual(model.overview?.fountains?.status, .available)
 
     await waitUntil { model.overview?.departureSource == .realtime }
 
     XCTAssertEqual(model.overview?.departures.first?.destination, "La Défense")
     XCTAssertEqual(model.overview?.departureBoard.map(\.id), ["first", "second"])
     XCTAssertEqual(model.overview?.accessibility?.condition, .autonomous)
+    XCTAssertEqual(model.overview?.fountains?.status, .available)
     XCTAssertEqual(model.loadingState, .loaded)
   }
 
@@ -341,6 +343,11 @@ final class SelectedStationModelTests: XCTestCase {
         condition: .autonomous,
         label: "En autonomie",
         comment: nil
+      ),
+      fountains: StationFountains(
+        status: .available,
+        label: "Fontaine d’eau potable à proximité",
+        detail: "Accessible PMR"
       )
     )
   }

@@ -4,9 +4,8 @@
     "builder": "RAILPACK",
     "buildCommand": "bun run --filter=@via/api typecheck",
     "watchPatterns": [
-      "/apps/api/src/jobs/**",
-      "/apps/api/src/routers/lines/disruptions/**",
-      "/packages/db/**",
+      "/apps/api/**",
+      "/packages/**",
       "/package.json",
       "/bun.lock",
       "/turbo.json",

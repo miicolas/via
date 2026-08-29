@@ -12,3 +12,17 @@ export type {
   PublicLineStatus,
   PublicLineStatuses,
 } from './lines';
+export {
+  publicCoordinateSchema,
+  publicJourneyRouteSchema,
+  publicJourneySectionSchema,
+  publicJourneySchema,
+  publicJourneyShareResponseSchema,
+  publicJourneyShareSnapshotSchema,
+} from './journey-shares';
+export type {
+  PublicJourney,
+  PublicJourneySection,
+  PublicJourneyShareResponse,
+  PublicJourneyShareSnapshot,
+} from './journey-shares';

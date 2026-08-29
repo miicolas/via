@@ -2,6 +2,7 @@ import type { StationsInArea } from '@via/contract';
 
 import { toRouteBadge, type RouteBadgeRow } from '../route-badge';
 import { ACCESSIBILITY_CONDITION_LABELS } from '../accessibility-labels';
+import { toStationFountains } from '../station-fountains';
 import type { StationInAreaRow } from './queries';
 
 /**
@@ -36,6 +37,9 @@ export function toStationsInArea(rows: StationInAreaRow[]): StationsInArea {
               label: 'Sanitaires disponibles',
               detail: row.toiletDetail ?? undefined,
             } }
+          : {}),
+        ...(row.fountainStopId && row.fountainCondition
+          ? { fountains: toStationFountains(row.fountainCondition, row.fountainDetail) }
           : {}),
       };
     }),

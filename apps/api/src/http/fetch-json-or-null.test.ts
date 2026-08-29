@@ -3,6 +3,7 @@ import { expect, test } from 'bun:test';
 import {
   fetchJsonOrNull,
   type PrimRequestEvent,
+  type UpstreamRequestEvent,
 } from './fetch-json-or-null';
 
 test('a successful PRIM request emits one bounded structured event', async () => {
@@ -56,4 +57,49 @@ test('a failed PRIM response reports its status without leaking its body', async
     httpStatus: 503,
   });
   expect(JSON.stringify(events[0])).not.toContain('provider-secret-body');
+});
+
+test('a non-PRIM invalid JSON response emits a closed event', async () => {
+  const events: UpstreamRequestEvent[] = [];
+
+  const result = await fetchJsonOrNull(new URL('https://ban.example/private?address=private-street'), {
+    timeoutMs: 100,
+    logLabel: 'BAN departures',
+    recorder: (event) => events.push(event),
+    fetcher: async () => new Response('not-json', { status: 200 }),
+  });
+
+  expect(result).toBeNull();
+  expect(events).toHaveLength(1);
+  expect(events[0]).toMatchObject({
+    event: 'upstream_request',
+    logLabel: 'BAN departures',
+    outcome: 'invalid_json',
+    httpStatus: 200,
+  });
+  expect(JSON.stringify(events[0])).not.toContain('private-street');
+  expect(JSON.stringify(events[0])).not.toContain('not-json');
+});
+
+test('a non-PRIM network failure never records the upstream error', async () => {
+  const events: UpstreamRequestEvent[] = [];
+
+  const result = await fetchJsonOrNull(new URL('https://ban.example/private'), {
+    timeoutMs: 100,
+    logLabel: 'BAN departures',
+    recorder: (event) => events.push(event),
+    fetcher: async () => {
+      throw new Error('fetch failed for https://private.example/secret?address=private-street');
+    },
+  });
+
+  expect(result).toBeNull();
+  expect(events).toHaveLength(1);
+  expect(events[0]).toMatchObject({
+    event: 'upstream_request',
+    logLabel: 'BAN departures',
+    outcome: 'network_error',
+  });
+  expect(JSON.stringify(events[0])).not.toContain('private.example');
+  expect(JSON.stringify(events[0])).not.toContain('private-street');
 });

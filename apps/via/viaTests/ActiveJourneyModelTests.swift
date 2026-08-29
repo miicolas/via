@@ -174,6 +174,94 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertNil(persisted)
     }
 
+    func testFinishDetachesBeforeActivityCleanupSuspends() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let store = InMemoryActiveJourneyStore()
+        let activityManager = SuspendedJourneyActivityManager()
+        let model = makeModel(
+            store: store,
+            activityManager: activityManager,
+            now: journey.arrivalAt
+        )
+        await model.go(
+            journey: journey,
+            destination: destination,
+            source: .realtime,
+            allowsBackgroundTracking: false
+        )
+
+        let finishTask = Task { @MainActor in await model.finishJourney() }
+        await activityManager.waitUntilEndStarted()
+
+        XCTAssertNil(model.session)
+        XCTAssertFalse(model.isTracking)
+        XCTAssertNotNil(model.arrival)
+        let persisted = await store.load()
+        XCTAssertNil(persisted)
+
+        await activityManager.resumeEnd()
+        await finishTask.value
+    }
+
+    func testCancelDetachesBeforeActivityCleanupSuspends() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let store = InMemoryActiveJourneyStore()
+        let activityManager = SuspendedJourneyActivityManager()
+        let model = makeModel(
+            store: store,
+            activityManager: activityManager,
+            now: journey.departureAt
+        )
+        await model.go(
+            journey: journey,
+            destination: destination,
+            source: .realtime,
+            allowsBackgroundTracking: false
+        )
+
+        let cancelTask = Task { @MainActor in await model.cancelJourney() }
+        await activityManager.waitUntilEndStarted()
+
+        XCTAssertNil(model.session)
+        XCTAssertFalse(model.isTracking)
+        XCTAssertNil(model.arrival)
+        let persisted = await store.load()
+        XCTAssertNil(persisted)
+
+        await activityManager.resumeEnd()
+        await cancelTask.value
+    }
+
+    func testExpirationDetachesBeforeActivityCleanupSuspends() async {
+        let journey = JourneyResult.mapPreview.journeys[0]
+        let clock = ActiveJourneyTestClock(journey.departureAt)
+        let store = InMemoryActiveJourneyStore()
+        let activityManager = SuspendedJourneyActivityManager()
+        let model = makeModel(
+            store: store,
+            activityManager: activityManager,
+            now: { clock.value }
+        )
+        await model.activate(
+            journey: journey,
+            destination: destination,
+            source: .realtime
+        )
+
+        clock.value = journey.arrivalAt.addingTimeInterval(30 * 60 + 1)
+        let expireTask = Task { @MainActor in await model.sceneBecameActive() }
+        await activityManager.waitUntilEndStarted()
+
+        XCTAssertNil(model.session)
+        XCTAssertFalse(model.isTracking)
+        XCTAssertNil(model.arrival)
+        let persisted = await store.load()
+        XCTAssertNil(persisted)
+
+        await activityManager.resumeEnd()
+        await expireTask.value
+    }
+
     func testLocationAtDestinationAfterFinalStepCompletesJourney() async throws {
         let journey = JourneyResult.mapPreview.journeys[0]
         let store = InMemoryActiveJourneyStore()
@@ -427,7 +515,7 @@ final class ActiveJourneyModelTests: XCTestCase {
         let connectivity = InMemoryConnectivityMonitor(isConnected: false)
         let coordinate = journey.sections[0].from.coordinate
         let adapter = InMemoryLocationAdapter(coordinate: coordinate)
-        let location = LocationModel(adapter: adapter)
+        let location = LocationModel(adapter: adapter, now: { clock.value })
         let model = makeModel(
             location: location,
             connectivity: connectivity,
@@ -520,13 +608,19 @@ final class ActiveJourneyModelTests: XCTestCase {
         var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         // The shape written before the policy existed: the bare flag, no policy.
         object.removeValue(forKey: "planningPolicy")
+        object.removeValue(forKey: "activationID")
         object["requiresAccessibleStations"] = true
         let legacy = try JSONSerialization.data(withJSONObject: object)
 
         let decoded = try JSONDecoder().decode(ActiveJourneySession.self, from: legacy)
+        let roundTripped = try JSONDecoder().decode(
+            ActiveJourneySession.self,
+            from: JSONEncoder().encode(decoded)
+        )
 
         XCTAssertTrue(decoded.planningPolicy.requiresAccessibleStations)
         XCTAssertTrue(decoded.planningPolicy.requiredModes.isEmpty)
+        XCTAssertEqual(decoded.activationID, roundTripped.activationID)
     }
 
     private var destination: JourneyDestination {
@@ -661,4 +755,43 @@ private actor RecordingJourneyActivityManager: JourneyActivityManaging {
         finalState: JourneyActivityAttributes.ContentState,
         dismissAt: Date
     ) {}
+}
+
+private actor SuspendedJourneyActivityManager: JourneyActivityManaging {
+    private var endContinuation: CheckedContinuation<Void, Never>?
+    private var endStarted = false
+
+    func start(
+        attributes _: JourneyActivityAttributes,
+        state _: JourneyActivityAttributes.ContentState,
+        staleAt _: Date
+    ) {}
+
+    func update(
+        journeyID _: JourneyID,
+        state _: JourneyActivityAttributes.ContentState,
+        staleAt _: Date
+    ) {}
+
+    func end(
+        journeyID _: JourneyID,
+        finalState _: JourneyActivityAttributes.ContentState,
+        dismissAt _: Date
+    ) async {
+        endStarted = true
+        await withCheckedContinuation { continuation in
+            endContinuation = continuation
+        }
+    }
+
+    func waitUntilEndStarted() async {
+        while !endStarted {
+            await Task.yield()
+        }
+    }
+
+    func resumeEnd() {
+        endContinuation?.resume()
+        endContinuation = nil
+    }
 }

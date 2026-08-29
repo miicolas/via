@@ -10,6 +10,7 @@ export {
   journeyDestinationSchema,
   journeyDatetimeRepresentsSchema,
   journeyInputSchema,
+  journeyFareSchema,
   journeyModeSchema,
   journeyQualifierSchema,
   journeyRouteSchema,
@@ -28,6 +29,7 @@ export type {
   Journey,
   JourneyDestination,
   JourneyInput,
+  JourneyFare,
   JourneySection,
   JourneysResponse,
 } from './type';

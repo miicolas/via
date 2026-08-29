@@ -117,8 +117,12 @@ mounts oRPC twice over the same procedures:
 
 | Mount  | Protocol                                                       | Who calls it                |
 | ------ | -------------------------------------------------------------- | --------------------------- |
-| `/api` | REST at the contract's paths, described by `/api/openapi.json` | iOS app and third parties   |
-| `/rpc` | oRPC                                                           | internal typed integrations |
+| `/api` | REST at the contract's paths, described by `/api/openapi.json` | iOS app and explicitly approved Metyro first-party clients |
+| `/rpc` | oRPC                                                           | internal typed first-party integrations |
+
+The contract and OpenAPI document are not a public developer offering. The
+site's narrow public exceptions live under `/public` and are hand-written
+projections as required by ADR 0003.
 
 The iOS client uses cacheable `GET` operations through `URLSession`. Metro and RER carry normalized polylines. Bus routes carry their stops and metadata but no geometry, keeping the surface network from covering the map in strokes.
 

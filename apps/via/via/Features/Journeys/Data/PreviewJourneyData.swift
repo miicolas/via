@@ -121,6 +121,7 @@ extension Journey {
             arrivalAt: base.arrivalAt.addingTimeInterval(720),
             status: .normal,
             warnings: [],
+            fare: base.fare,
             sections: Array(base.sections.dropLast()) + [
                 extraTransfer,
                 extraTransit,
@@ -184,6 +185,7 @@ private func previewJourney(
         arrivalAt: departureAt.addingTimeInterval(TimeInterval(duration)),
         status: .normal,
         warnings: [],
+        fare: JourneyFare(amountInCents: 255, currency: "EUR"),
         sections: [
             JourneySection(
                 id: "\(id):walk-start",

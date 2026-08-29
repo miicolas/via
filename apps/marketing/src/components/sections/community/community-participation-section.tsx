@@ -1,7 +1,7 @@
 import { SectionHeading } from "@/components/ui/section-heading";
 import { TransitText } from "@/components/ui/transit-text";
 import type { CommunityContent } from "@/constants/community-page";
-import { Braces, Check, CircleDashed, MessageCircle } from "lucide-react";
+import { Check, CircleDashed, MessageCircle } from "lucide-react";
 import type { ReactNode } from "react";
 import { ParticipationTile } from "./participation-tile";
 
@@ -62,30 +62,33 @@ function FieldCheckVisual({
   );
 }
 
-function ApiVisual(): ReactNode {
+function DataQualityVisual(): ReactNode {
+  const rows = [
+    { label: "Source officielle", status: "Référence", done: true },
+    { label: "Observé sur place", status: "Signal reçu", done: true },
+    { label: "À vérifier", status: "En relecture", done: false },
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-xs rounded-2xl bg-[#0b1220] p-5 font-mono text-[11px] leading-6 text-white shadow-2xl/20">
-      <div className="mb-3 flex items-center justify-between text-white/45">
-        <span>GET /v1/elevators</span>
-        <Braces className="h-4 w-4" aria-hidden="true" />
-      </div>
-      <pre className="overflow-hidden">
-        <code>
-          <span className="text-[#8cb9ff]">{"{"}</span>
-          {"\n"}
-          {"  "}
-          <span className="text-[#a6e3a1]">&quot;station&quot;</span>:{" "}
-          <span className="text-[#f9c784]">&quot;Jaurès&quot;</span>,{"\n"}
-          {"  "}
-          <span className="text-[#a6e3a1]">&quot;status&quot;</span>:{" "}
-          <span className="text-[#f9c784]">&quot;down&quot;</span>,{"\n"}
-          {"  "}
-          <span className="text-[#a6e3a1]">&quot;since&quot;</span>:{" "}
-          <span className="text-[#f9c784]">&quot;07:12&quot;</span>
-          {"\n"}
-          <span className="text-[#8cb9ff]">{"}"}</span>
-        </code>
-      </pre>
+    <div className="mx-auto w-full max-w-xs space-y-2.5">
+      {rows.map((row) => (
+        <div
+          key={row.label}
+          className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 py-3"
+        >
+          <span className="text-sm font-medium text-foreground">{row.label}</span>
+          <span
+            className={`inline-flex items-center gap-1.5 text-xs font-medium ${row.done ? "text-accent" : "text-muted-foreground"}`}
+          >
+            {row.done ? (
+              <Check className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <CircleDashed className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            {row.status}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -154,13 +157,13 @@ export function CommunityParticipationSection({
             <FieldCheckVisual visual={content.fieldCheck.visual} />
           </ParticipationTile>
           <ParticipationTile
-            title={content.api.title}
-            hint={content.api.hint}
+            title={content.dataQuality.title}
+            hint={content.dataQuality.hint}
             index={2}
-            action={content.api.action}
+            action={content.dataQuality.action}
             className="md:col-span-2"
           >
-            <ApiVisual />
+            <DataQualityVisual />
           </ParticipationTile>
           <ParticipationTile
             title={content.expansion.title}

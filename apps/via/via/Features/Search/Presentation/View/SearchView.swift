@@ -18,6 +18,11 @@ struct SearchView: View {
   let isSavedDestination: (SearchResult) -> Bool
   let onEditSavedDestination: (SearchResult) -> Void
   let canAddSavedDestination: Bool
+  let onConfigurePlace: ((SavedPlace.Role) -> Void)?
+  let onAddSavedDestination: (() -> Void)?
+  let onClearPlace: ((SavedPlace.Role) -> Void)?
+  let onRemoveSavedDestination: ((UUID) -> Void)?
+  let onManageSavedDestinations: (() -> Void)?
 
   @Environment(\.sheetTabVisibilityProgress) private var tabVisibilityProgress
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -46,6 +51,11 @@ struct SearchView: View {
     isSavedDestination: @escaping (SearchResult) -> Bool = { _ in false },
     onEditSavedDestination: @escaping (SearchResult) -> Void = { _ in },
     canAddSavedDestination: Bool = true,
+    onConfigurePlace: ((SavedPlace.Role) -> Void)? = nil,
+    onAddSavedDestination: (() -> Void)? = nil,
+    onClearPlace: ((SavedPlace.Role) -> Void)? = nil,
+    onRemoveSavedDestination: ((UUID) -> Void)? = nil,
+    onManageSavedDestinations: (() -> Void)? = nil,
   ) {
     self.viewModel = viewModel
     self.activeJourneyModel = activeJourneyModel
@@ -60,6 +70,11 @@ struct SearchView: View {
     self.isSavedDestination = isSavedDestination
     self.onEditSavedDestination = onEditSavedDestination
     self.canAddSavedDestination = canAddSavedDestination
+    self.onConfigurePlace = onConfigurePlace
+    self.onAddSavedDestination = onAddSavedDestination
+    self.onClearPlace = onClearPlace
+    self.onRemoveSavedDestination = onRemoveSavedDestination
+    self.onManageSavedDestinations = onManageSavedDestinations
   }
 
   var body: some View {
@@ -285,6 +300,13 @@ struct SearchView: View {
         .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 10, trailing: 16))
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
+
+      if showsSavedPlacesBar(viewModel.wrappedValue) {
+        savedPlacesBar(viewModel: viewModel.wrappedValue)
+          .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 0))
+          .listRowSeparator(.hidden)
+          .listRowBackground(Color.clear)
+      }
 
       if viewModel.wrappedValue.naturalJourneyCriteria == nil && !isSelectingSavedDestination {
         SearchOptionsBar(
@@ -552,6 +574,49 @@ struct SearchView: View {
         : "Ouvre l’éditeur du favori"
     )
     .animation(reduceMotion ? nil : .default, value: isSaved)
+  }
+
+  @ViewBuilder
+  private func savedPlacesBar(viewModel: SearchViewModel) -> some View {
+    if isSelectingSavedDestination {
+      SavedPlacesBar(
+        places: viewModel.savedPlaces,
+        destinations: viewModel.savedDestinations,
+        selectionAccessibilityHint: "Choisit ce lieu comme favori",
+        onSelectPlace: { selectResult($0.searchResult, viewModel: viewModel) },
+        onSelectDestination: { selectResult($0.searchResult, viewModel: viewModel) },
+      )
+    } else {
+      SavedPlacesBar(
+        places: viewModel.savedPlaces,
+        destinations: viewModel.savedDestinations,
+        selectionAccessibilityHint: "Calcule un trajet vers ce lieu",
+        onSelectPlace: { selectResult($0.searchResult, viewModel: viewModel) },
+        onSelectDestination: { selectResult($0.searchResult, viewModel: viewModel) },
+        onConfigure: onConfigurePlace,
+        onAdd: onAddSavedDestination,
+        onEditPlace: { onEditSavedDestination($0.searchResult) },
+        onEditDestination: { onEditSavedDestination($0.searchResult) },
+        onClearPlace: onClearPlace,
+        onRemoveDestination: onRemoveSavedDestination,
+        onManage: onManageSavedDestinations,
+      )
+    }
+  }
+
+  private func showsSavedPlacesBar(_ viewModel: SearchViewModel) -> Bool {
+    guard viewModel.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+      viewModel.loadState == .idle
+    else { return false }
+
+    if isSelectingSavedDestination {
+      return !viewModel.savedPlaces.isEmpty || !viewModel.savedDestinations.isEmpty
+    }
+
+    return !viewModel.savedPlaces.isEmpty
+      || !viewModel.savedDestinations.isEmpty
+      || onConfigurePlace != nil
+      || onAddSavedDestination != nil
   }
 
   /// The planned journey rides above the recent searches, on the same quiet

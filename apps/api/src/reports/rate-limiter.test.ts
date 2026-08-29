@@ -21,6 +21,13 @@ class FakeRedis {
     return value;
   }
 
+  async incrementWithExpiry(key: string, _seconds: number) {
+    if (this.fail) throw new Error('redis unavailable');
+    const value = Number(this.values.get(key) ?? 0) + 1;
+    this.values.set(key, value);
+    return value;
+  }
+
   async expire() { return 1; }
 }
 
