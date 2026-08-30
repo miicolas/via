@@ -7,12 +7,15 @@ import type {
 } from '@via/contract';
 
 import { parisDay, previousDate, toInstant } from '../../../time/paris';
+import { accessStopsAround } from './access-stops';
+import { rankedStopTimes } from './ranked-stop-times';
+import { DEFAULT_SEARCH_BUDGET, type SearchBudget } from './search-budget';
+import type { StopTimeDirection } from './stop-time-candidates';
 
 const WALKING_METERS_PER_SECOND = 1.25;
 /** A conservative upper bound used only for pruning impossible alternatives. */
 const MAX_TRANSIT_SPEED_METERS_PER_SECOND = 120_000 / 3_600;
 const MAX_ROUNDS = 2;
-const MAX_ACCESS_STOPS = 8;
 const MAX_FRONTIER_LABELS = 512;
 const ALTERNATIVE_SLACK_SECONDS = 20 * 60;
 
@@ -44,47 +47,58 @@ export type PlannerCall = {
   departureSeconds: number;
   serviceDate: string;
 };
-export type PlannerBoarding = {
+/** One timetable event: a departure for 'board' searches, an arrival for 'alight'. */
+export type PlannerStopTime = {
   tripId: string;
   stopId: string;
-  departureSeconds: number;
+  seconds: number;
   serviceDate: string;
 };
-export type PlannerAlighting = {
-  tripId: string;
-  stopId: string;
-  arrivalSeconds: number;
-  serviceDate: string;
-};
+/** One declared transfer, with `stop` the hydrated far end — see `transfers`. */
 export type PlannerTransfer = {
   fromStopId: string;
-  toStop: PlannerStop;
-  minTransferSeconds: number;
-};
-export type PlannerReverseTransfer = {
-  fromStop: PlannerStop;
   toStopId: string;
+  stop: PlannerStop;
   minTransferSeconds: number;
 };
 
+/**
+ * Raw feed access for one search. Fetching only: every ceiling, ranking and
+ * reservation decision lives on the planner side and arrives as a parameter.
+ */
 export type GtfsPlannerLoader = {
-  accessStops: (coordinate: Coordinate, limit: number, stationId?: string) => Promise<PlannerStop[]>;
-  boardings: (
-    stopIds: string[],
-    earliestByStop: Map<string, number>,
-    serviceDates: string[]
-  ) => Promise<PlannerBoarding[]>;
-  alightings: (
-    stopIds: string[],
-    latestByStop: Map<string, number>,
-    serviceDates: string[]
-  ) => Promise<PlannerAlighting[]>;
+  /**
+   * Stops within walking range of a point, nearest first. `stationId`
+   * restricts the result to that one stop; `structuringOnly` to non-bus modes.
+   */
+  nearbyStops: (
+    coordinate: Coordinate,
+    limit: number,
+    filter?: { stationId?: string; structuringOnly?: boolean }
+  ) => Promise<PlannerStop[]>;
+  /**
+   * Raw timetable events for each group of frontier stops: at most `limit`
+   * rows per underlying query, those closest to the group's bound —
+   * departures at or after it for 'board', arrivals at or before it for
+   * 'alight'. Neither ranked nor capped per stop beyond that.
+   */
+  stopTimes: (
+    direction: StopTimeDirection,
+    groups: Array<{ stopIds: string[]; bound: number }>,
+    serviceDates: string[],
+    limit: number
+  ) => Promise<PlannerStopTime[]>;
+  /** Trips with their full call sequences, calls in stop-sequence order. */
   trips: (
     references: Array<{ tripId: string; serviceDate: string }>
   ) => Promise<Map<string, { trip: PlannerTrip; calls: PlannerCall[] }>>;
+  /** Shape polylines by id. */
   shapes: (shapeIds: string[]) => Promise<Map<string, Coordinate[]>>;
-  transfers: (stopIds: string[]) => Promise<PlannerTransfer[]>;
-  reverseTransfers: (stopIds: string[]) => Promise<PlannerReverseTransfer[]>;
+  /**
+   * Declared transfers touching the given stops: rows leaving them for 'to',
+   * rows reaching them for 'from', with `stop` the hydrated far end.
+   */
+  transfers: (stopIds: string[], hydrate: 'to' | 'from') => Promise<PlannerTransfer[]>;
 };
 
 type Label = {
@@ -128,8 +142,9 @@ export async function planWithGtfs(
   loader: GtfsPlannerLoader,
   datetimeRepresents: 'departure' | 'arrival' = 'departure',
   requiresAccessibleStations = false,
-  originStationId?: string
-): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; source: 'gtfs-theoretical'; journeys: Journey[] }> {
+  originStationId?: string,
+  budget: SearchBudget = DEFAULT_SEARCH_BUDGET
+): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; journeys: Journey[] }> {
   return datetimeRepresents === 'arrival'
     ? planArrivalWithGtfs(
         origin,
@@ -138,7 +153,8 @@ export async function planWithGtfs(
         limit,
         loader,
         requiresAccessibleStations,
-        originStationId
+        originStationId,
+        budget
       )
     : planDepartureWithGtfs(
         origin,
@@ -147,7 +163,8 @@ export async function planWithGtfs(
         limit,
         loader,
         requiresAccessibleStations,
-        originStationId
+        originStationId,
+        budget
       );
 }
 
@@ -158,16 +175,18 @@ async function planDepartureWithGtfs(
   limit: number,
   loader: GtfsPlannerLoader,
   requiresAccessibleStations: boolean,
-  originStationId?: string
-): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; source: 'gtfs-theoretical'; journeys: Journey[] }> {
-  const originStops = await loader.accessStops(origin, MAX_ACCESS_STOPS, originStationId);
-  const destinationStops = await loader.accessStops(
+  originStationId: string | undefined,
+  budget: SearchBudget
+): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; journeys: Journey[] }> {
+  const originStops = await accessStopsAround(loader.nearbyStops, origin, budget, originStationId);
+  const destinationStops = await accessStopsAround(
+    loader.nearbyStops,
     destination.coordinate,
-    MAX_ACCESS_STOPS,
+    budget,
     destination.kind === 'station' ? destination.id : undefined
   );
   if (originStops.length === 0 || destinationStops.length === 0) {
-    return { status: 'unavailable', source: 'gtfs-theoretical', journeys: [] };
+    return { status: 'unavailable', journeys: [] };
   }
 
   const destinationIds = new Set(destinationStops.map((stop) => stop.id));
@@ -201,24 +220,24 @@ async function planDepartureWithGtfs(
       atStop.push(label);
       frontierByStop.set(label.stop.id, atStop);
     }
-    const boardings = await loader.boardings([...earliestByStop.keys()], earliestByStop, serviceDates);
+    const boardings = await rankedStopTimes('board', loader, earliestByStop, serviceDates, budget);
     const trips = await loader.trips(boardings);
     const next = new Map<string, Label[]>();
     const seenBoardings = new Set<string>();
 
     for (const boarding of boardings) {
-      const boardingKey = `${plannerTripKey(boarding.tripId, boarding.serviceDate)}:${boarding.stopId}:${boarding.departureSeconds}`;
+      const boardingKey = `${plannerTripKey(boarding.tripId, boarding.serviceDate)}:${boarding.stopId}:${boarding.seconds}`;
       if (seenBoardings.has(boardingKey)) continue;
       seenBoardings.add(boardingKey);
       const bases = (frontierByStop.get(boarding.stopId) ?? []).filter(
-        (label) => label.arrivalSeconds <= boarding.departureSeconds
+        (label) => label.arrivalSeconds <= boarding.seconds
       );
       if (bases.length === 0) continue;
 
       const loaded = trips.get(plannerTripKey(boarding.tripId, boarding.serviceDate));
       if (!loaded) continue;
       const fromIndex = loaded.calls.findIndex(
-        (call) => call.stop.id === boarding.stopId && call.departureSeconds === boarding.departureSeconds
+        (call) => call.stop.id === boarding.stopId && call.departureSeconds === boarding.seconds
       );
       if (fromIndex < 0) continue;
       const from = loaded.calls[fromIndex];
@@ -270,12 +289,12 @@ async function planDepartureWithGtfs(
       }
     }
 
-    const transferRows = await loader.transfers([...next.keys()]);
+    const transferRows = await loader.transfers([...next.keys()], 'to');
     const expanded = new Map([...next].map(([stopId, labels]) => [stopId, [...labels]]));
     for (const transfer of transferRows) {
       for (const base of next.get(transfer.fromStopId) ?? []) {
         addParetoLabel(expanded, {
-          stop: transfer.toStop,
+          stop: transfer.stop,
           arrivalSeconds: base.arrivalSeconds + transfer.minTransferSeconds,
           walkingSeconds: base.walkingSeconds + transfer.minTransferSeconds,
           transfers: base.transfers + 1,
@@ -284,7 +303,7 @@ async function planDepartureWithGtfs(
             {
               type: 'transfer',
               from: base.stop,
-              to: transfer.toStop,
+              to: transfer.stop,
               durationSeconds: transfer.minTransferSeconds,
             },
           ],
@@ -307,11 +326,7 @@ async function planDepartureWithGtfs(
 
   const selected = dedupeAndQualify(results, limit, byEarliestArrival, { pruneDominated: true });
   const journeys = await hydrateShapes(selected, loader);
-  return {
-    status: journeys.length > 0 ? 'ready' : 'no-route',
-    source: 'gtfs-theoretical',
-    journeys,
-  };
+  return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys };
 }
 
 async function planArrivalWithGtfs(
@@ -321,16 +336,18 @@ async function planArrivalWithGtfs(
   limit: number,
   loader: GtfsPlannerLoader,
   requiresAccessibleStations: boolean,
-  originStationId?: string
-): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; source: 'gtfs-theoretical'; journeys: Journey[] }> {
-  const originStops = await loader.accessStops(origin, MAX_ACCESS_STOPS, originStationId);
-  const destinationStops = await loader.accessStops(
+  originStationId: string | undefined,
+  budget: SearchBudget
+): Promise<{ status: 'ready' | 'no-route' | 'unavailable'; journeys: Journey[] }> {
+  const originStops = await accessStopsAround(loader.nearbyStops, origin, budget, originStationId);
+  const destinationStops = await accessStopsAround(
+    loader.nearbyStops,
     destination.coordinate,
-    MAX_ACCESS_STOPS,
+    budget,
     destination.kind === 'station' ? destination.id : undefined
   );
   if (originStops.length === 0 || destinationStops.length === 0) {
-    return { status: 'unavailable', source: 'gtfs-theoretical', journeys: [] };
+    return { status: 'unavailable', journeys: [] };
   }
 
   const originIds = new Set(originStops.map((stop) => stop.id));
@@ -364,24 +381,24 @@ async function planArrivalWithGtfs(
       atStop.push(label);
       frontierByStop.set(label.stop.id, atStop);
     }
-    const alightings = await loader.alightings([...latestByStop.keys()], latestByStop, serviceDates);
+    const alightings = await rankedStopTimes('alight', loader, latestByStop, serviceDates, budget);
     const trips = await loader.trips(alightings);
     const next = new Map<string, ReverseLabel[]>();
     const seenAlightings = new Set<string>();
 
     for (const alighting of alightings) {
-      const alightingKey = `${plannerTripKey(alighting.tripId, alighting.serviceDate)}:${alighting.stopId}:${alighting.arrivalSeconds}`;
+      const alightingKey = `${plannerTripKey(alighting.tripId, alighting.serviceDate)}:${alighting.stopId}:${alighting.seconds}`;
       if (seenAlightings.has(alightingKey)) continue;
       seenAlightings.add(alightingKey);
       const bases = (frontierByStop.get(alighting.stopId) ?? []).filter(
-        (label) => alighting.arrivalSeconds <= label.departureSeconds
+        (label) => alighting.seconds <= label.departureSeconds
       );
       if (bases.length === 0) continue;
 
       const loaded = trips.get(plannerTripKey(alighting.tripId, alighting.serviceDate));
       if (!loaded) continue;
       const toIndex = loaded.calls.findIndex(
-        (call) => call.stop.id === alighting.stopId && call.arrivalSeconds === alighting.arrivalSeconds
+        (call) => call.stop.id === alighting.stopId && call.arrivalSeconds === alighting.seconds
       );
       if (toIndex <= 0) continue;
       const to = loaded.calls[toIndex]!;
@@ -433,19 +450,19 @@ async function planArrivalWithGtfs(
       }
     }
 
-    const transferRows = await loader.reverseTransfers([...next.keys()]);
+    const transferRows = await loader.transfers([...next.keys()], 'from');
     const expanded = new Map([...next].map(([stopId, labels]) => [stopId, [...labels]]));
     for (const transfer of transferRows) {
       for (const base of next.get(transfer.toStopId) ?? []) {
         addReverseParetoLabel(expanded, {
-          stop: transfer.fromStop,
+          stop: transfer.stop,
           departureSeconds: base.departureSeconds - transfer.minTransferSeconds,
           walkingSeconds: base.walkingSeconds + transfer.minTransferSeconds,
           transfers: base.transfers + 1,
           legs: [
             {
               type: 'transfer',
-              from: transfer.fromStop,
+              from: transfer.stop,
               to: base.stop,
               durationSeconds: transfer.minTransferSeconds,
             },
@@ -472,11 +489,7 @@ async function planArrivalWithGtfs(
 
   const selected = dedupeAndQualify(results, limit, byLatestDeparture);
   const journeys = await hydrateShapes(selected, loader);
-  return {
-    status: journeys.length > 0 ? 'ready' : 'no-route',
-    source: 'gtfs-theoretical',
-    journeys,
-  };
+  return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys };
 }
 
 /**

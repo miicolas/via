@@ -8,6 +8,11 @@ filter:
   operations:
     - account.delete
     - account.sync
+    - friends.list
+    - friends.createInvitation
+    - friends.previewInvitation
+    - friends.acceptInvitation
+    - friends.remove
     - notifications.registerDevice
     - notifications.unregisterDevice
     - notifications.registerActiveJourney
@@ -22,6 +27,26 @@ filter:
     - journeys.departureChoices
     - journeyShares.create
     - journeyShares.get
+    - meetups.create
+    - meetups.list
+    - meetups.get
+    - meetups.update
+    - meetups.cancel
+    - meetups.createInvitation
+    - meetups.previewInvitation
+    - meetups.acceptInvitation
+    - meetups.declineInvitation
+    - meetups.revokeInvitation
+    - meetups.configureParticipant
+    - meetups.leave
+    - meetups.removeParticipant
+    - meetups.publishLive
+    - meetups.pollLive
+    - meetups.registerDeviceKey
+    - meetups.uploadKeyEnvelopes
+    - meetups.syncKeys
+    - meetups.registerActivity
+    - meetups.unregisterActivity
     - lines.detail
     - lines.search
     - lines.statuses

@@ -87,7 +87,8 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             schedule: ActiveJourneyRules.schedule(for: session.journey),
             sectionIndex: session.currentSectionIndex,
             at: date,
-            isPaused: requiresResume
+            isPaused: requiresResume,
+            liveStopProgress: liveStopProgress
         )
     }
     var destinationName: String { session?.destination.name ?? "Destination" }
@@ -97,7 +98,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     /// look-ahead survives, for the Live Activity's "Ensuite" line.
     var nextInstruction: ActiveJourneyInstruction? {
         guard let session else { return nil }
-        return instruction(at: session.currentSectionIndex + 1)
+        return JourneyActivityPresentation.nextInstruction(in: session)
     }
 
     var isOffline: Bool { !isConnected || recalculationState == .offline }
@@ -110,6 +111,28 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
     }
     var hasLiveLocationFix: Bool { isLocationUsable(at: referenceDate) }
     var currentSectionIndex: Int? { session?.currentSectionIndex }
+    var liveStopProgress: JourneyStopProgress? {
+        guard hasLiveLocationFix,
+              let session,
+              let coordinate = session.lastCoordinate,
+              session.journey.sections.indices.contains(session.currentSectionIndex),
+              let section = session.currentSection,
+              section.kind == .transit else {
+            return nil
+        }
+
+        let stops = JourneyTimeline.transitStops(
+            in: session.journey,
+            sectionIndex: session.currentSectionIndex
+        )
+        return JourneyLocationMatcher.stopProgress(
+            sectionID: section.id,
+            stops: stops,
+            path: session.journey.path(at: session.currentSectionIndex),
+            to: coordinate,
+            horizontalAccuracy: session.horizontalAccuracy
+        )
+    }
 
     func phase(at date: Date) -> ActiveJourneyPhase {
         guard let journey else { return .underway }
@@ -325,7 +348,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
             destinationName: captured.destination.name,
             arrivedAt: finishedAt
         )
-        let finalState = activityState(isArrived: true)
+        let finalState = activityState(for: captured, isArrived: true)
         detachSession(captured, arrival: finalArrival)
         _ = await store.clear(ifActivationID: captured.activationID)
         await activityManager.end(
@@ -395,6 +418,7 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
 
     func receive(_ sample: LocationSample, at date: Date? = nil) async {
         guard var session else { return }
+        let previousStopProgress = liveStopProgress
         referenceDate = date ?? now()
         guard !ActiveJourneyRules.isExpired(session.journey, at: referenceDate) else {
             await expireJourney()
@@ -415,6 +439,14 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         updateSectionFromLocation(at: referenceDate)
         let didChangeSection = self.session?.currentSectionIndex != previousSectionIndex
         let didChangeLocationMode = wasLiveLocation != isLocationUsable(at: referenceDate)
+        let currentStopProgress = liveStopProgress
+        let didChangeStopProgress = currentStopProgress != previousStopProgress
+        let alightingAlert = isNewSample && isLocationUsable(at: referenceDate)
+            ? consumeAlightingAlert(
+                for: currentStopProgress,
+                coordinate: sample.coordinate
+            )
+            : nil
 
         // A buffered point can still be useful for diagnostics, but it must
         // not finish the journey after a newer fix.
@@ -426,12 +458,15 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
                horizontalAccuracy: sample.horizontalAccuracy,
                now: referenceDate
            ) {
+            if let alightingAlert {
+                await updateActivity(alert: alightingAlert)
+            }
             await finishJourney()
             return
         }
 
-        if didChangeSection || didChangeLocationMode {
-            await updateActivity()
+        if didChangeSection || didChangeLocationMode || didChangeStopProgress || alightingAlert != nil {
+            await updateActivity(alert: alightingAlert)
             if isCurrentConnectionCompromised(at: referenceDate) {
                 scheduleRecalculation(force: false)
             }
@@ -781,182 +816,75 @@ final class ActiveJourneyModel: ActiveJourneyProvider {
         try? await store.save(persistedSession)
     }
 
-    private func instruction(at index: Int?) -> ActiveJourneyInstruction? {
-        guard let session, let index,
-              session.journey.sections.indices.contains(index) else { return nil }
-        let section = session.journey.sections[index]
-        let title: String
-        let detail: String?
-
-        switch section.kind {
-        case .walk, .bike, .wait, .transfer:
-            title = JourneySectionNarration.movementSentence(for: section, voice: .guidance)
-            detail = if section.kind == .transfer {
-                section.durationSeconds > 0
-                    ? "Correspondance · \(JourneyFormatting.duration(section.durationSeconds))"
-                    : "Correspondance"
-            } else {
-                section.durationSeconds > 0
-                    ? JourneyFormatting.duration(section.durationSeconds)
-                    : nil
-            }
-        case .transit:
-            title = section.route.map { "Prenez \($0.longName)" } ?? "Prenez le transport"
-            let direction = section.direction.map { "Direction \($0)" }
-            let platform = section.platform.map { "Quai \($0)" }
-            // Where to stand comes before where to leave: one is acted on now,
-            // on this platform, the other several stops later.
-            let car = section.boardingPosition.map { "Voiture \($0.car)/\($0.carCount)" }
-            let exit = section.exit.map(JourneyGuidance.exitLabel)
-            detail = [direction, platform, car, exit]
-                .compactMap { $0 }
-                .joined(separator: " · ")
-                .nilIfEmpty
-        }
-
-        return ActiveJourneyInstruction(
-            title: title,
-            detail: detail,
-            route: section.route,
-            startsAt: section.departureAt,
-            endsAt: section.arrivalAt,
-            stops: section.stops,
-            sectionKind: section.kind
-        )
-    }
-
     private func startActivity() async {
         guard let session else { return }
         await activityManager.start(
             attributes: JourneyActivityAttributes(
                 journeyID: session.journey.id.rawValue
             ),
-            state: activityState(isArrived: false),
-            staleAt: nextStaleDate
+            state: activityState(for: session, isArrived: false),
+            staleAt: JourneyActivityPresentation.staleDate(
+                for: session.journey,
+                at: referenceDate
+            )
         )
     }
 
-    private func activityState(isArrived: Bool) -> JourneyActivityAttributes.ContentState {
-        let statePhase: JourneyActivityAttributes.Phase
-        let phaseTitle: String
-        if isArrived {
-            statePhase = .arrived
-            phaseTitle = "Vous êtes arrivé"
-        } else if requiresResume {
-            statePhase = .paused
-            phaseTitle = "Trajet en pause"
-        } else {
-            switch phase {
-            case .scheduled:
-                statePhase = .scheduled
-                phaseTitle = "Départ"
-            case .underway:
-                statePhase = .underway
-                phaseTitle = "En route"
-            }
-        }
-        // The lock screen says the same sentence as the guidance header and the
-        // tab bar accessory, from the same derivation.
-        let headline = guidanceHeadline
-        let instructionTitle: String
-        let instructionDetail: String?
-        if isArrived {
-            instructionTitle = destinationName
-            instructionDetail = nil
-        } else if statePhase == .scheduled {
-            // The countdown belongs to the system-rendered timer. Keep the
-            // title stable so it does not freeze at the value from the last
-            // app update.
-            instructionTitle = "Trajet vers \(destinationName)"
-            instructionDetail = headline?.detail
-        } else {
-            instructionTitle = headline?.title ?? destinationName
-            instructionDetail = headline?.detail
-        }
-        return JourneyActivityAttributes.ContentState(
-            phaseTitle: phaseTitle,
-            instructionTitle: instructionTitle,
-            instructionDetail: instructionDetail,
-            nextAction: isArrived ? nil : nextInstruction?.title,
-            line: isArrived ? nil : activityLine,
-            nextLine: isArrived ? nil : activityNextLine,
-            arrivalAt: journey?.arrivalAt ?? referenceDate,
-            isOffline: isArrived ? false : isOffline,
+    /// The whole payload — wording included — comes from
+    /// `JourneyActivityPresentation`; the model only supplies its state.
+    private func activityState(
+        for session: ActiveJourneySession,
+        isArrived: Bool
+    ) -> JourneyActivityAttributes.ContentState {
+        JourneyActivityPresentation.contentState(
+            session: session,
             isArrived: isArrived,
-            phase: statePhase,
-            departureAt: journey?.departureAt
+            requiresResume: requiresResume,
+            isOffline: isOffline,
+            at: referenceDate,
+            liveStopProgress: liveStopProgress
         )
-    }
-
-    /// The line the Live Activity puts forward: the one being ridden, or the
-    /// one the current walk or wait leads to, so the badge survives the legs
-    /// that have no route of their own.
-    private var activityLine: JourneyActivityAttributes.LineBadge? {
-        (guidanceHeadline?.route ?? upcomingRoute).map { JourneyActivityAttributes.LineBadge(route: $0) }
-    }
-
-    /// Only worth a badge on the "Ensuite" line when it is not the line already
-    /// shown for the current step.
-    private var activityNextLine: JourneyActivityAttributes.LineBadge? {
-        guard let route = nextInstruction?.route else { return nil }
-        let badge = JourneyActivityAttributes.LineBadge(route: route)
-        return badge == activityLine ? nil : badge
-    }
-
-    private var upcomingRoute: JourneyRoute? {
-        guard let session else { return nil }
-        let sections = session.journey.sections
-        let index = max(0, session.currentSectionIndex)
-        guard sections.indices.contains(index) else { return nil }
-        return sections[index...].first { $0.kind == .transit }?.route
     }
 
     private func terminalActivityState(
         title: String,
         session: ActiveJourneySession
     ) -> JourneyActivityAttributes.ContentState {
-        JourneyActivityAttributes.ContentState(
-            phaseTitle: title,
-            instructionTitle: session.destination.name,
-            instructionDetail: nil,
-            nextAction: nil,
-            line: nil,
-            nextLine: nil,
-            arrivalAt: session.journey.arrivalAt,
-            isOffline: false,
-            isArrived: false,
-            phase: .ended,
-            departureAt: session.journey.departureAt
-        )
+        JourneyActivityPresentation.terminal(title: title, session: session)
     }
 
-    private func updateActivity() async {
+    private func updateActivity(alert: JourneyActivityAlert? = nil) async {
         guard let session else { return }
         await activityManager.update(
             journeyID: session.journey.id,
-            state: activityState(isArrived: false),
-            staleAt: nextStaleDate
+            state: activityState(for: session, isArrived: false),
+            staleAt: JourneyActivityPresentation.staleDate(
+                for: session.journey,
+                at: referenceDate
+            ),
+            alert: alert
         )
     }
 
-    private var nextStaleDate: Date {
-        let interval = journey.map {
-            ActiveJourneyRules.nextMonitoringDelay(in: $0, at: referenceDate)
-        } ?? ActiveJourneyRules.standardMonitoringInterval
-        return referenceDate.addingTimeInterval(max(45, interval * 1.5))
-    }
-}
+    /// Marks the section before returning its alert so every subsequent GPS
+    /// sample — including jitter around the same platform — is silent.
+    private func consumeAlightingAlert(
+        for progress: JourneyStopProgress?,
+        coordinate: GeoCoordinate
+    ) -> JourneyActivityAlert? {
+        guard var session,
+              let progress,
+              progress.sectionID == session.currentSection?.id,
+              !session.alertedAlightingSectionIDs.contains(progress.sectionID),
+              JourneyLocationMatcher.shouldAlertForAlighting(
+                progress: progress,
+                coordinate: coordinate
+              ),
+              let alert = JourneyActivityPresentation.alightingAlert(for: progress)
+        else { return nil }
 
-private extension String {
-    var nilIfEmpty: String? { isEmpty ? nil : self }
-}
-
-private extension JourneyActivityAttributes.LineBadge {
-    init(route: JourneyRoute) {
-        self.init(
-            shortName: route.shortName,
-            colorHex: route.colorHex,
-            textColorHex: route.textColorHex
-        )
+        session.alertedAlightingSectionIDs.insert(progress.sectionID)
+        self.session = session
+        return alert
     }
 }

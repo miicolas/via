@@ -14,6 +14,8 @@ export type ApiContext = ResponseHeadersPluginContext & {
   isAnonymous?: boolean;
   /** Request address reduced to an HMAC on demand; the raw IP never reaches a handler. */
   requestIPHash?: () => string;
+  /** Raw per-Participant capability supplied by the first-party app only. */
+  meetupParticipantToken?: string;
 };
 
 /**

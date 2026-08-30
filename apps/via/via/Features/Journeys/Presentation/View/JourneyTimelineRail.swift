@@ -13,6 +13,8 @@ struct JourneyTimelineRail: View {
     /// What is wrong at this station, when anything is. A journey leaves it
     /// `.open`; a line plan is where the marks come from.
     var mark: JourneyTimelineBeadMark = .open
+    /// A fresh GPS fix replaces this station's white hole with the live diode.
+    var liveStopStatus: JourneyStopProgress.Status? = nil
     let state: JourneyTimelineNodeState
     var beadTopInset: CGFloat = 0
 
@@ -60,12 +62,13 @@ struct JourneyTimelineRail: View {
         .frame(width: Self.width)
         .overlay(alignment: .top) {
             beadView
-                .offset(y: beadPosition - beadSize / 2)
+                .offset(y: beadPosition - renderedBeadSize / 2)
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: state)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: above)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: below)
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: mark)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: liveStopStatus)
         .accessibilityHidden(true)
     }
 
@@ -146,9 +149,37 @@ struct JourneyTimelineRail: View {
     /// same stroke chopped into dashes, so an interruption reads as a broken
     /// rail rather than as a rail that merely changed colour.
     private func band(_ fill: BandFill, shape: some Shape, height: CGFloat) -> some View {
-        shape
-            .fill(fill.tint)
+        Rectangle()
+            .fill(fill.tint.opacity(0.86))
+            // Keep the material's horizontal boundaries outside this row.
+            // Adjacent slices then read as one long piece of glass instead of
+            // a stack of individually outlined tiles.
+            .frame(
+                width: Self.transitWidth,
+                height: height + Self.transitWidth * 2
+            )
+            .glassEffect(
+                .regular.tint(fill.tint.opacity(0.32)),
+                in: Rectangle()
+            )
+            .overlay {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: .white.opacity(0.22), location: 0),
+                                .init(color: .clear, location: 0.42),
+                                .init(color: .black.opacity(0.08), location: 1),
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .blendMode(.softLight)
+            }
             .frame(width: Self.transitWidth, height: height)
+            .clipped()
+            .mask { shape }
             .mask {
                 if fill.isBroken {
                     JourneyRailPath()
@@ -194,6 +225,10 @@ struct JourneyTimelineRail: View {
         Self.beadDiameter(for: bead, mark: mark)
     }
 
+    private var renderedBeadSize: CGFloat {
+        liveStopStatus == nil ? beadSize : beadSize + 4
+    }
+
     /// A hole is punched *through* something. With no band under it there is
     /// nothing to punch, and a white disc on a white card would be no bead at
     /// all — so an unrailed node wears the disc itself instead.
@@ -230,12 +265,20 @@ struct JourneyTimelineRail: View {
             .opacity(state == .done ? 0.5 : 1)
     }
 
+    @ViewBuilder
     private var stationHole: some View {
-        Circle()
-            .fill(.white)
-            .frame(width: beadSize, height: beadSize)
-            .overlay { markGlyph }
-            .opacity(state == .done ? 0.72 : 1)
+        if let liveStopStatus {
+            JourneyPositionIndicatorView(
+                status: liveStopStatus,
+                diameter: beadSize + 4
+            )
+        } else {
+            Circle()
+                .fill(.white)
+                .frame(width: beadSize, height: beadSize)
+                .overlay { markGlyph }
+                .opacity(state == .done ? 0.72 : 1)
+        }
     }
 
     /// The white hole keeps its rim whatever the mark: the inset coloured disc

@@ -2,6 +2,7 @@ import { env } from "../env";
 import { implementer } from "../orpc/implementer";
 import { redis } from "../redis";
 import { accountRouter } from "./account/router";
+import { friendsRouter } from "./friends/router";
 import { departuresRouter } from "./departures/router";
 import { healthRouter } from "./health/router";
 import { createGtfsJourneyPlanner } from "./journeys/gtfs/loader";
@@ -12,6 +13,13 @@ import { withLastDeparture } from "./journeys/last-departure";
 import { createJourneyPlanner } from "./journeys/service";
 import { createJourneyDepartureChoicesModule } from "./journeys/departure-choices";
 import { journeySharesRouter } from "./journey-shares/router";
+import { createMeetupsRouter } from "./meetups/router";
+import { createMeetupService } from "./meetups/service";
+import { createMeetupPlanningService } from "./meetups/planning";
+import { createMeetupLiveStore } from "./meetups/live-store";
+import { createMeetupOriginCipher, meetupOriginKeys } from "./meetups/origin-crypto";
+import { createMeetupSemanticNotifier } from './meetups/notifier';
+import { notificationDelivery } from '../notifications';
 import { linesRouter } from "./lines/router";
 import { createNaturalJourneysRouter } from "./natural-journeys/router";
 import { createOpenAiResponsesTransport } from "./natural-journeys/openai-transport";
@@ -70,6 +78,24 @@ const baseJourneyPlanner = createJourneyPlanner({
  */
 const journeyPlanner = withLastDeparture(baseJourneyPlanner);
 
+const meetupOriginCipher = createMeetupOriginCipher(
+  meetupOriginKeys(env.MEETUP_DATA_ENCRYPTION_KEYS, env.BETTER_AUTH_SECRET),
+);
+const meetupLiveStore = createMeetupLiveStore(redis, { now: () => new Date() });
+export const meetupSemanticNotifier = createMeetupSemanticNotifier(notificationDelivery);
+export const meetupPlanning = createMeetupPlanningService({
+  journeyPlanner,
+  originCipher: meetupOriginCipher,
+  clock: { now: () => new Date() },
+});
+const meetupService = createMeetupService({
+  planning: meetupPlanning,
+  originCipher: meetupOriginCipher,
+  live: meetupLiveStore,
+  notifier: meetupSemanticNotifier,
+  clock: { now: () => new Date() },
+});
+
 const naturalJourneyService = createNaturalJourneyService({
   redis,
   // Null adapter when no key: the service answers a recoverable unavailable result
@@ -124,8 +150,10 @@ export const apiRouter = implementer.router({
   account: accountRouter,
   departures: departuresRouter,
   health: healthRouter,
+  friends: friendsRouter,
   journeys: createJourneysRouter(journeyPlanner, journeyDepartureChoices),
   journeyShares: journeySharesRouter,
+  meetups: createMeetupsRouter(meetupService),
   naturalJourneys: createNaturalJourneysRouter(naturalJourneyService),
   notifications: notificationsRouter,
   lines: linesRouter,

@@ -288,6 +288,13 @@
       "when": 1788009048278,
       "tag": "0040_chilly_black_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1788035806124,
+      "tag": "0041_lush_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }

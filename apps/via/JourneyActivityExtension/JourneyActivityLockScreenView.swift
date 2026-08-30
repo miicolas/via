@@ -29,10 +29,15 @@ struct JourneyActivityLockScreenView: View {
                     Text(detail)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(context.state.stopProgress == nil ? 2 : 1)
                 }
 
-                if let nextAction = context.state.nextAction {
+                if let stopProgress = context.state.stopProgress {
+                    JourneyActivityStopProgressView(progress: stopProgress)
+                }
+
+                if context.state.stopProgress == nil,
+                   let nextAction = context.state.nextAction {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.turn.down.right")
                             .font(.caption2.weight(.semibold))
@@ -146,6 +151,18 @@ extension JourneyActivityAttributes.ContentState {
             return Status(
                 title: "Hors connexion",
                 systemImage: "wifi.slash",
+                tint: .orange,
+                overridesPhase: true
+            )
+        }
+        if presentationPhase == .underway,
+           let stopProgress,
+           stopProgress.remainingStopCount <= 1 {
+            return Status(
+                title: stopProgress.remainingStopCount == 0
+                    ? "Descendez maintenant"
+                    : "Prochain arrêt",
+                systemImage: "arrow.down.circle.fill",
                 tint: .orange,
                 overridesPhase: true
             )

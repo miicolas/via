@@ -17,6 +17,11 @@ struct ApplicationDependencies {
     let connectivityMonitor: any ConnectivityMonitoring
     let journeyRepository: any JourneyRepository
     let journeyShareRepository: any JourneyShareRepository
+    let meetupRepository: any MeetupRepository
+    let meetupLiveTransport: any MeetupLiveTransport
+    let meetupCryptography: any MeetupCryptography
+    let meetupActivityManager: any MeetupActivityManaging
+    let friendsRepository: any FriendsRepository
     let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
     let naturalJourneyRepository: any NaturalJourneyRepository
     let naturalLanguageAvailability: @Sendable () -> NaturalLanguageAvailability
@@ -74,6 +79,11 @@ enum ApplicationDependencyFactory {
                     account: accountModel,
                 ),
                 journeyShareRepository: InMemoryJourneyShareRepository(),
+                meetupRepository: InMemoryMeetupRepository(),
+                meetupLiveTransport: InMemoryMeetupRepository(),
+                meetupCryptography: MeetupCryptoVault(),
+                meetupActivityManager: NoOpMeetupActivityManager(),
+                friendsRepository: InMemoryFriendsRepository(),
                 journeyDepartureChoicesRepository: InMemoryJourneyDepartureChoicesRepository.unavailable,
                 naturalJourneyRepository: InMemoryNaturalJourneyRepository(),
                 naturalLanguageAvailability: { .available },
@@ -124,6 +134,12 @@ enum ApplicationDependencyFactory {
             account: accountModel,
         )
         let journeyShareRepository = LiveJourneyShareRepository(transport: transport)
+        let meetupCryptography = MeetupCryptoVault()
+        let meetupRepository = LiveMeetupRepository(
+            transport: transport,
+            credentials: MeetupCredentialVault(),
+            cryptography: meetupCryptography
+        )
         let searchRepository = LiveSearchRepository(transport: transport)
         let lineStatusRepository = LiveLineStatusRepository(transport: transport)
         let naturalIntentParser = FoundationModelsIntentParser()
@@ -190,6 +206,15 @@ enum ApplicationDependencyFactory {
             connectivityMonitor: NetworkConnectivityMonitor(),
             journeyRepository: journeyRepository,
             journeyShareRepository: journeyShareRepository,
+            meetupRepository: meetupRepository,
+            meetupLiveTransport: meetupRepository,
+            meetupCryptography: meetupCryptography,
+            meetupActivityManager: MeetupActivityManager(
+                transport: meetupRepository,
+                installationID: { PushInstallationIDStore.loadOrCreate() },
+                environment: configuration.apnsEnvironment
+            ),
+            friendsRepository: LiveFriendsRepository(transport: transport),
             journeyDepartureChoicesRepository: LiveJourneyDepartureChoicesRepository(
                 transport: transport
             ),

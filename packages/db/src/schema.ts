@@ -1220,6 +1220,252 @@ export const journeyShares = pgTable(
   ]
 );
 
+export const MEETUP_PHASES = [
+  'draft',
+  'planning',
+  'ready',
+  'live',
+  'completed',
+  'cancelled',
+  'expired',
+] as const;
+export const MEETUP_PARTICIPANT_ROLES = ['organizer', 'member'] as const;
+export const MEETUP_PARTICIPANT_STATES = [
+  'configuring',
+  'ready',
+  'underway',
+  'joined',
+  'arrived',
+  'declined',
+  'left',
+  'removed',
+] as const;
+export const MEETUP_SHARE_LEVELS = ['positionAndProgress', 'progressOnly', 'off'] as const;
+export const MEETUP_INVITATION_STATUSES = [
+  'pending',
+  'accepted',
+  'declined',
+  'revoked',
+  'expired',
+] as const;
+export const FRIEND_INVITATION_STATUSES = ['pending', 'accepted', 'revoked', 'expired'] as const;
+
+export type EncryptedMeetupOrigin = {
+  keyVersion: number;
+  nonce: string;
+  ciphertext: string;
+  authenticationTag: string;
+};
+
+/**
+ * The durable intent and latest Plan de convergence. Coordinates here describe
+ * the public destination station only; each private origin belongs to its
+ * Participant row and is encrypted before it reaches PostgreSQL.
+ */
+export const meetups = pgTable(
+  'meetups',
+  {
+    id: text('id').primaryKey(),
+    organizerUserId: text('organizer_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    destinationId: text('destination_id').notNull(),
+    destinationName: text('destination_name').notNull(),
+    destinationLatitude: doublePrecision('destination_latitude').notNull(),
+    destinationLongitude: doublePrecision('destination_longitude').notNull(),
+    targetArrivalAt: timestamp('target_arrival_at', { withTimezone: true }).notNull(),
+    phase: text('phase', { enum: MEETUP_PHASES }).notNull().default('planning'),
+    revision: integer('revision').notNull().default(0),
+    keyRevision: integer('key_revision').notNull().default(1),
+    plan: jsonb('plan').$type<Record<string, unknown>>(),
+    nextRefreshAt: timestamp('next_refresh_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    purgeAt: timestamp('purge_at', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index('meetups_target_arrival_idx').on(table.targetArrivalAt),
+    index('meetups_refresh_idx').on(table.nextRefreshAt),
+    index('meetups_purge_idx').on(table.purgeAt),
+    index('meetups_organizer_idx').on(table.organizerUserId),
+    check('meetups_phase_check', oneOf(table.phase, MEETUP_PHASES)),
+    check('meetups_revision_check', sql`${table.revision} >= 0`),
+    check('meetups_key_revision_check', sql`${table.keyRevision} > 0`),
+  ],
+);
+
+export const meetupParticipants = pgTable(
+  'meetup_participants',
+  {
+    id: text('id').primaryKey(),
+    meetupId: text('meetup_id')
+      .notNull()
+      .references(() => meetups.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    idempotencyKey: text('idempotency_key').notNull().unique(),
+    displayName: text('display_name').notNull(),
+    role: text('role', { enum: MEETUP_PARTICIPANT_ROLES }).notNull(),
+    state: text('state', { enum: MEETUP_PARTICIPANT_STATES }).notNull(),
+    shareLevel: text('share_level', { enum: MEETUP_SHARE_LEVELS }).notNull(),
+    zone: text('zone', { enum: ['front', 'middle', 'rear'] }).notNull().default('middle'),
+    encryptedOrigin: jsonb('encrypted_origin').$type<EncryptedMeetupOrigin>().notNull(),
+    planningPolicy: jsonb('planning_policy').$type<Record<string, unknown>>().notNull(),
+    /** Server-side encrypted full route, visible only to this participant. */
+    journey: jsonb('journey').$type<EncryptedMeetupOrigin>(),
+    firstBoardingStation: jsonb('first_boarding_station').$type<Record<string, unknown>>(),
+    departureAt: timestamp('departure_at', { withTimezone: true }),
+    arrivalAt: timestamp('arrival_at', { withTimezone: true }),
+    publicKey: text('public_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('meetup_participants_meetup_idx').on(table.meetupId),
+    index('meetup_participants_user_idx').on(table.userId),
+    check('meetup_participants_role_check', oneOf(table.role, MEETUP_PARTICIPANT_ROLES)),
+    check('meetup_participants_state_check', oneOf(table.state, MEETUP_PARTICIPANT_STATES)),
+    check('meetup_participants_share_level_check', oneOf(table.shareLevel, MEETUP_SHARE_LEVELS)),
+    check('meetup_participants_zone_check', oneOf(table.zone, ['front', 'middle', 'rear'])),
+  ],
+);
+
+export const meetupInvitations = pgTable(
+  'meetup_invitations',
+  {
+    id: text('id').primaryKey(),
+    meetupId: text('meetup_id')
+      .notNull()
+      .references(() => meetups.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull().unique(),
+    idempotencyKey: text('idempotency_key').notNull().unique(),
+    invitedUserId: text('invited_user_id').references(() => users.id, { onDelete: 'set null' }),
+    status: text('status', { enum: MEETUP_INVITATION_STATUSES }).notNull().default('pending'),
+    claimedByParticipantId: text('claimed_by_participant_id').references(
+      () => meetupParticipants.id,
+      { onDelete: 'set null' },
+    ),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    respondedAt: timestamp('responded_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('meetup_invitations_meetup_status_idx').on(table.meetupId, table.status),
+    index('meetup_invitations_user_status_idx').on(table.invitedUserId, table.status),
+    index('meetup_invitations_expires_idx').on(table.expiresAt),
+    check('meetup_invitations_status_check', oneOf(table.status, MEETUP_INVITATION_STATUSES)),
+  ],
+);
+
+/** A mutual relation is stored once, with user ids in lexical order. */
+export const friendships = pgTable(
+  'friendships',
+  {
+    firstUserId: text('first_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    secondUserId: text('second_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.firstUserId, table.secondUserId] }),
+    index('friendships_second_user_idx').on(table.secondUserId),
+    check('friendships_distinct_ordered_users_check', sql`${table.firstUserId} < ${table.secondUserId}`),
+  ],
+);
+
+export const friendInvitations = pgTable(
+  'friend_invitations',
+  {
+    id: text('id').notNull().unique(),
+    tokenHash: text('token_hash').primaryKey(),
+    idempotencyKey: text('idempotency_key').notNull().unique(),
+    inviterUserId: text('inviter_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    acceptedUserId: text('accepted_user_id').references(() => users.id, { onDelete: 'set null' }),
+    status: text('status', { enum: FRIEND_INVITATION_STATUSES }).notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('friend_invitations_inviter_idx').on(table.inviterUserId),
+    index('friend_invitations_expires_idx').on(table.expiresAt),
+    check('friend_invitations_status_check', oneOf(table.status, FRIEND_INVITATION_STATUSES)),
+  ],
+);
+
+export const meetupDeviceKeys = pgTable(
+  'meetup_device_keys',
+  {
+    id: text('id').primaryKey(),
+    meetupId: text('meetup_id')
+      .notNull()
+      .references(() => meetups.id, { onDelete: 'cascade' }),
+    participantId: text('participant_id')
+      .notNull()
+      .references(() => meetupParticipants.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    publicKey: text('public_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('meetup_device_keys_meetup_idx').on(table.meetupId),
+    index('meetup_device_keys_participant_idx').on(table.participantId),
+  ],
+);
+
+export const meetupKeyEnvelopes = pgTable(
+  'meetup_key_envelopes',
+  {
+    meetupId: text('meetup_id')
+      .notNull()
+      .references(() => meetups.id, { onDelete: 'cascade' }),
+    keyRevision: integer('key_revision').notNull(),
+    recipientKeyId: text('recipient_key_id')
+      .notNull()
+      .references(() => meetupDeviceKeys.id, { onDelete: 'cascade' }),
+    senderParticipantId: text('sender_participant_id').references(() => meetupParticipants.id, {
+      onDelete: 'set null',
+    }),
+    ciphertext: text('ciphertext').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.meetupId, table.keyRevision, table.recipientKeyId] }),
+    check('meetup_key_envelopes_revision_check', sql`${table.keyRevision} > 0`),
+  ],
+);
+
+export const meetupActivityTokens = pgTable(
+  'meetup_activity_tokens',
+  {
+    meetupId: text('meetup_id')
+      .notNull()
+      .references(() => meetups.id, { onDelete: 'cascade' }),
+    participantId: text('participant_id')
+      .notNull()
+      .references(() => meetupParticipants.id, { onDelete: 'cascade' }),
+    installationId: text('installation_id').notNull(),
+    activityId: text('activity_id').notNull(),
+    token: text('token').notNull(),
+    environment: text('environment', { enum: ['sandbox', 'production'] }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.meetupId, table.installationId, table.activityId] }),
+    index('meetup_activity_tokens_participant_idx').on(table.participantId),
+    check('meetup_activity_tokens_environment_check', oneOf(table.environment, ['sandbox', 'production'])),
+  ],
+);
+
 /**
  * Every disruption PRIM has ever shown us, kept after the live path is done
  * with it.
@@ -1302,4 +1548,12 @@ export type ReportCurrentVote = typeof reportCurrentVotes.$inferSelect;
 export type ReportEvent = typeof reportEvents.$inferSelect;
 export type CityDemandVote = typeof cityDemandVotes.$inferSelect;
 export type JourneyShareRow = typeof journeyShares.$inferSelect;
+export type MeetupRow = typeof meetups.$inferSelect;
+export type MeetupParticipantRow = typeof meetupParticipants.$inferSelect;
+export type MeetupInvitationRow = typeof meetupInvitations.$inferSelect;
+export type FriendshipRow = typeof friendships.$inferSelect;
+export type FriendInvitationRow = typeof friendInvitations.$inferSelect;
+export type MeetupDeviceKeyRow = typeof meetupDeviceKeys.$inferSelect;
+export type MeetupKeyEnvelopeRow = typeof meetupKeyEnvelopes.$inferSelect;
+export type MeetupActivityTokenRow = typeof meetupActivityTokens.$inferSelect;
 export type DisruptionHistoryRow = typeof disruptionHistory.$inferSelect;

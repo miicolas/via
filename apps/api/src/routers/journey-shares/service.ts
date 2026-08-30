@@ -8,7 +8,7 @@ import {
   type JourneyShareResponse,
 } from "@via/contract";
 
-import { env } from "../../env";
+import { env, siteURL } from "../../env";
 
 const SHARE_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 
@@ -59,7 +59,7 @@ function createResponse(
   return {
     ...shareResponse(row),
     token,
-    url: `${env.VIA_SITE_URL.replace(/\/+$/, "")}/trip/${token}`,
+    url: siteURL(`trip/${token}`),
   };
 }
 

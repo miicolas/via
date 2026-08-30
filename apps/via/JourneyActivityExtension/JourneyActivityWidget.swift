@@ -7,6 +7,7 @@ import WidgetKit
 struct JourneyActivityWidgetBundle: WidgetBundle {
     var body: some Widget {
         JourneyActivityWidget()
+        MeetupActivityWidget()
     }
 }
 
@@ -47,7 +48,12 @@ struct JourneyActivityWidget: Widget {
                                 .lineLimit(1)
                         }
 
-                        if let nextAction = context.state.nextAction {
+                        if let stopProgress = context.state.stopProgress {
+                            JourneyActivityStopProgressView(progress: stopProgress)
+                        }
+
+                        if context.state.stopProgress == nil,
+                           let nextAction = context.state.nextAction {
                             Text("Ensuite · \(nextAction)")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -88,9 +94,13 @@ struct JourneyActivityWidget: Widget {
                     .accessibilityLabel("Temps avant le départ")
             }
         case .underway:
-            Text(state.arrivalAt, style: .time)
-                .font(.caption2.monospacedDigit())
-                .accessibilityLabel("Arrivée prévue à")
+            if let progress = state.stopProgress {
+                compactStopProgress(progress)
+            } else {
+                Text(state.arrivalAt, style: .time)
+                    .font(.caption2.monospacedDigit())
+                    .accessibilityLabel("Arrivée prévue à")
+            }
         case .paused:
             Text(state.arrivalAt, style: .time)
                 .font(.caption2.monospacedDigit())
@@ -103,6 +113,28 @@ struct JourneyActivityWidget: Widget {
             Image(systemName: "xmark.circle.fill")
                 .foregroundStyle(.secondary)
                 .accessibilityLabel(state.phaseTitle)
+        }
+    }
+
+    @ViewBuilder
+    private func compactStopProgress(
+        _ progress: JourneyActivityAttributes.StopProgress
+    ) -> some View {
+        if progress.remainingStopCount == 0 {
+            Image(systemName: "arrow.down")
+                .foregroundStyle(.orange)
+                .accessibilityLabel("Descendez maintenant")
+        } else {
+            Text("\(progress.remainingStopCount) arr.")
+                .font(.caption2.weight(.semibold).monospacedDigit())
+                .foregroundStyle(
+                    progress.remainingStopCount == 1 ? Color.orange : Color.primary
+                )
+                .accessibilityLabel(
+                    progress.remainingStopCount == 1
+                        ? "Votre arrêt est le prochain"
+                        : "\(progress.remainingStopCount) arrêts restants"
+                )
         }
     }
 

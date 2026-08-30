@@ -4,10 +4,13 @@ import { getDisruptionsSnapshot } from "../routers/lines/disruptions/snapshot";
 import type { DisruptionsSnapshot } from "../routers/lines/disruptions/snapshot";
 import type { NormalizedDisruption } from "../routers/lines/disruptions/parse";
 import type { RedisClient } from "../redis";
+import { NotificationCycle } from "./cycle";
+import { createRedisNotificationCycleClaims } from "./cycle-claims";
 import {
   NotificationDeliveryError,
   type NotificationDelivery,
 } from "./delivery";
+import { disruptionVersion } from "./disruption-version";
 import {
   fitDeviceNotification,
   notificationTextEncoder as encoder,
@@ -96,40 +99,6 @@ export function journeyDisruptionMatches(
   return inJourneyWindow && touchesJourneyAtTheRightTime && disruptionIsActive;
 }
 
-// Keyed on the snapshot object, so a new poll's disruptions hash afresh while
-// one tick's N recipients share a single hash.
-const disruptionVersions = new WeakMap<NormalizedDisruption, string>();
-
-export function disruptionVersion(disruption: NormalizedDisruption): string {
-  const cached = disruptionVersions.get(disruption);
-  if (cached !== undefined) return cached;
-  const version = computeDisruptionVersion(disruption);
-  disruptionVersions.set(disruption, version);
-  return version;
-}
-
-function computeDisruptionVersion(disruption: NormalizedDisruption): string {
-  const explicitVersion = disruption.updatedAt;
-  if (explicitVersion !== undefined) {
-    return `${explicitVersion}:${disruption.severity}`;
-  }
-
-  const value = JSON.stringify({
-    severity: disruption.severity,
-    cause: disruption.cause,
-    title: disruption.title,
-    message: disruption.message,
-    routeIds: disruption.routeIds,
-    periods: disruption.periods,
-  });
-  let hash = 2166136261;
-  for (const character of value) {
-    hash ^= character.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `${disruption.severity}:${(hash >>> 0).toString(16)}`;
-}
-
 export function journeyDisruptionNotification(
   subscription: Pick<
     NotificationJourneySubscription,
@@ -208,8 +177,7 @@ function indexDisruptionsByRoute(
 }
 
 export class NotificationDisruptionMonitor {
-  private isPolling = false;
-  private deliveryCircuitOpen = false;
+  private readonly cycle: NotificationCycle;
 
   constructor(
     private readonly options: {
@@ -221,53 +189,60 @@ export class NotificationDisruptionMonitor {
       shardCount?: number;
       shardCycleMilliseconds?: number;
     },
-  ) {}
+  ) {
+    this.cycle = new NotificationCycle({
+      cycleMilliseconds:
+        options.shardCycleMilliseconds ?? SHARD_CYCLE_MILLISECONDS,
+      concurrency: DELIVERY_CONCURRENCY,
+      claims: createRedisNotificationCycleClaims(options.redis),
+      circuit: {
+        key: DELIVERY_CIRCUIT_KEY,
+        ttlSeconds: DELIVERY_CIRCUIT_TTL_SECONDS,
+      },
+      now: options.now,
+    });
+  }
 
   async pollOnce(): Promise<void> {
-    if (this.isPolling) return;
-    this.isPolling = true;
-    const now = this.options.now?.() ?? new Date();
-
-    try {
-      this.deliveryCircuitOpen =
-        (await this.options.redis.get(DELIVERY_CIRCUIT_KEY)) !== null;
-      if (this.deliveryCircuitOpen) return;
-      if (!(await this.options.subscriptions.hasActive(now))) return;
-      const snapshot = await (
-        this.options.snapshot ??
-        ((date) => getDisruptionsSnapshot(this.options.redis, date))
-      )(now);
-      if (!snapshot) return;
-      const disruptionsByRoute = indexDisruptionsByRoute(snapshot.disruptions);
-      const shardCount =
-        this.options.shardCount ?? NOTIFICATION_DELIVERY_SHARD_COUNT;
-      const shardCycleMilliseconds =
-        this.options.shardCycleMilliseconds ?? SHARD_CYCLE_MILLISECONDS;
-      const cycle = Math.floor(now.getTime() / shardCycleMilliseconds);
-      const shardClaimTTLSeconds = Math.max(
-        SHARD_CLAIM_TTL_SECONDS,
-        Math.ceil((shardCycleMilliseconds * 2) / 1_000),
-      );
-      for (let shardIndex = 0; shardIndex < shardCount; shardIndex += 1) {
-        const claimed = await this.options.redis.set(
-          `notifications:disruption-cycle:${cycle}:shard:${shardIndex}`,
-          "1",
-          { nx: true, ex: shardClaimTTLSeconds },
+    await this.cycle.poll(undefined, async ({ now, cycle }) => {
+      try {
+        if (await this.cycle.checkCircuit()) return;
+        if (!(await this.options.subscriptions.hasActive(now))) return;
+        const snapshot = await (
+          this.options.snapshot ??
+          ((date) => getDisruptionsSnapshot(this.options.redis, date))
+        )(now);
+        if (!snapshot) return;
+        const disruptionsByRoute = indexDisruptionsByRoute(
+          snapshot.disruptions,
         );
-        if (claimed === null) continue;
-        await this.processShard(
-          { index: shardIndex, count: shardCount },
-          disruptionsByRoute,
-          now,
+        const shardCount =
+          this.options.shardCount ?? NOTIFICATION_DELIVERY_SHARD_COUNT;
+        const shardCycleMilliseconds =
+          this.options.shardCycleMilliseconds ?? SHARD_CYCLE_MILLISECONDS;
+        const shardClaimTTLSeconds = Math.max(
+          SHARD_CLAIM_TTL_SECONDS,
+          Math.ceil((shardCycleMilliseconds * 2) / 1_000),
         );
-        if (this.deliveryCircuitOpen) return;
+        for (let shardIndex = 0; shardIndex < shardCount; shardIndex += 1) {
+          const claimed = await this.cycle.claim(
+            `notifications:disruption-cycle:${cycle}:shard:${shardIndex}`,
+            shardClaimTTLSeconds,
+          );
+          if (!claimed) continue;
+          await this.processShard(
+            { index: shardIndex, count: shardCount },
+            disruptionsByRoute,
+            now,
+          );
+          if (this.cycle.circuitOpen) return;
+        }
+      } catch (error) {
+        console.error("[notifications] disruption monitor failed", error);
+      } finally {
+        await this.cleanupExpired(now);
       }
-    } catch (error) {
-      console.error("[notifications] disruption monitor failed", error);
-    } finally {
-      await this.cleanupExpired(now);
-      this.isPolling = false;
-    }
+    });
   }
 
   private async processShard(
@@ -285,15 +260,9 @@ export class NotificationDisruptionMonitor {
       );
       if (recipients.length === 0) break;
 
-      for (
-        let start = 0;
-        start < recipients.length;
-        start += DELIVERY_CONCURRENCY
-      ) {
+      await this.cycle.forEachWave(recipients, async (batch) => {
         const currentRecipients =
-          await this.options.subscriptions.filterCurrentBatch(
-            recipients.slice(start, start + DELIVERY_CONCURRENCY),
-          );
+          await this.options.subscriptions.filterCurrentBatch(batch);
         const disruptions = currentRecipients.map((recipient) => ({
           recipient,
           disruptions: this.matchingDisruptions(
@@ -314,9 +283,10 @@ export class NotificationDisruptionMonitor {
               : [];
           });
           await this.deliverClaimRound(claims);
-          if (this.deliveryCircuitOpen) return;
+          if (this.cycle.circuitOpen) return;
         }
-      }
+      });
+      if (this.cycle.circuitOpen) return;
 
       afterInstallationId = recipients.at(-1)?.installationId;
       if (recipients.length < SUBSCRIPTION_BATCH_SIZE) break;
@@ -326,13 +296,14 @@ export class NotificationDisruptionMonitor {
   private async cleanupExpired(now: Date) {
     const deadline = Date.now() + EXPIRATION_CLEANUP_BUDGET_MILLISECONDS;
     try {
+      // The cleanup cadence is pinned to the default cycle length even when a
+      // deployment shortens the delivery cycle.
       const cycle = Math.floor(now.getTime() / SHARD_CYCLE_MILLISECONDS);
-      const claimed = await this.options.redis.set(
+      const claimed = await this.cycle.claim(
         `notifications:subscriptions:cleanup:${cycle}`,
-        "1",
-        { nx: true, ex: SHARD_CLAIM_TTL_SECONDS },
+        SHARD_CLAIM_TTL_SECONDS,
       );
-      if (claimed === null) return;
+      if (!claimed) return;
       let deleted: number;
       do {
         deleted = await this.options.subscriptions.deleteExpiredBatch(
@@ -525,12 +496,7 @@ export class NotificationDisruptionMonitor {
       const globalFailure = failure.failureScope === "global";
       if (globalFailure) {
         releaseClaim = false;
-        this.deliveryCircuitOpen = true;
-        await this.options.redis
-          .set(DELIVERY_CIRCUIT_KEY, "1", {
-            ex: DELIVERY_CIRCUIT_TTL_SECONDS,
-          })
-          .catch(() => null);
+        await this.cycle.tripCircuit();
       } else if (!retryable && !invalidToken) {
         await this.options.redis.set(claim.dedupKey, "1", {
           ex: DEDUP_TTL_SECONDS,

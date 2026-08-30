@@ -17,30 +17,17 @@ import { absoluteTimetableSeconds } from '@via/db/timetable';
 import { and, asc, desc, eq, gte, inArray, isNotNull, lte, ne, sql } from 'drizzle-orm';
 
 import { parisDay, previousDate } from '../../../time/paris';
-import { readTimetableHorizon } from './timetable-horizon';
+import { readTimetableHorizon, UNKNOWN_TIMETABLE_HORIZON } from './timetable-horizon';
 import type { GtfsJourneyPlanner } from '../service';
 import { plannerTripKey, planWithGtfs } from './planner';
 import type {
   GtfsPlannerLoader,
-  PlannerAlighting,
-  PlannerBoarding,
   PlannerCall,
   PlannerStop,
-  PlannerTrip,
-  PlannerReverseTransfer,
   PlannerTransfer,
+  PlannerTrip,
 } from './planner';
-import { mergeAccessStops, STRUCTURING_ACCESS_STOPS } from './access-stops';
-import {
-  boundGroups,
-  MAX_BOARDING_CANDIDATES,
-  MAX_BOARDINGS_PER_STOP,
-  rankStopTimeCandidates,
-  type StopTimeCandidate,
-  type StopTimeDirection,
-} from './stop-time-candidates';
-
-export type { StopTimeDirection } from './stop-time-candidates';
+import type { StopTimeDirection } from './stop-time-candidates';
 
 /**
  * Whether yesterday's service day can still contain a boarding this search
@@ -70,9 +57,25 @@ export function yesterdayIsSearchable(
   return bound + 86_400 <= horizonSeconds;
 }
 
-async function yesterdayCanStillBeRunning(direction: StopTimeDirection, bound: number) {
-  if (direction !== 'board') return true;
-  return yesterdayIsSearchable(direction, bound, await readTimetableHorizon());
+/**
+ * Translates the planner's stop-id groups into the numeric keys the timetable
+ * tables are indexed by.
+ *
+ * Every stop the planner can name came out of this loader, which keyed it on
+ * the way; an id with no key has no timetable rows to find, so it is dropped
+ * rather than sent to SQL, and a group left with no keys issues no query.
+ */
+export function stopKeyGroups(
+  groups: Array<{ stopIds: string[]; bound: number }>,
+  stopKeyById: Map<string, number>
+): Array<{ stopKeys: number[]; bound: number }> {
+  return groups.flatMap(({ stopIds, bound }) => {
+    const stopKeys = stopIds.flatMap((stopId) => {
+      const stopKey = stopKeyById.get(stopId);
+      return stopKey === undefined ? [] : [stopKey];
+    });
+    return stopKeys.length === 0 ? [] : [{ stopKeys, bound }];
+  });
 }
 
 export function createGtfsLoader(now: Date, requiresAccessibleStations = false): GtfsPlannerLoader {
@@ -100,56 +103,48 @@ export function createGtfsLoader(now: Date, requiresAccessibleStations = false):
     return activeServiceIdsByDate;
   };
 
-  const stopTimeEvents = async (
+  const loadStopTimes = async (
     direction: StopTimeDirection,
-    stopIds: string[],
-    boundByStop: Map<string, number>,
-    serviceDates: string[]
+    groups: Array<{ stopIds: string[]; bound: number }>,
+    serviceDates: string[],
+    limit: number
   ) => {
-    if (stopIds.length === 0) return [];
-    const stops = stopIds.flatMap((id) => {
-      const stopKey = stopKeyById.get(id);
-      const bound = boundByStop.get(id);
-      return stopKey === undefined || bound === undefined ? [] : [{ stopKey, bound }];
-    });
-    if (stops.length === 0) return [];
-    const boundByStopKey = new Map(stops.map((stop) => [stop.stopKey, stop.bound]));
+    const keyed = stopKeyGroups(groups, stopKeyById);
+    if (keyed.length === 0) return [];
     const services = await activeServices(serviceDates);
+    // 'alight' never drops yesterday, so it never needs the horizon read.
+    const horizon =
+      direction === 'board' ? await readTimetableHorizon() : UNKNOWN_TIMETABLE_HORIZON;
     const candidates = await Promise.all(
-      boundGroups(direction, stops).map(async ({ stopKeys, bound }) => {
+      keyed.map(async ({ stopKeys, bound }) => {
         const todayRows = await loadStopTimeCandidates(
           direction,
           stopKeys,
           services.get(date) ?? [],
           bound,
           date,
-          0
+          0,
+          limit
         );
-        const yesterdayRows = (await yesterdayCanStillBeRunning(direction, bound))
+        const yesterdayRows = yesterdayIsSearchable(direction, bound, horizon)
           ? await loadStopTimeCandidates(
               direction,
               stopKeys,
               services.get(yesterday) ?? [],
               bound + 86_400,
               yesterday,
-              -86_400
+              -86_400,
+              limit
             )
           : [];
         return [...todayRows, ...yesterdayRows];
       })
     );
-    const rows = rankStopTimeCandidates(direction, candidates.flat(), (stopKey) =>
-      boundByStopKey.get(stopKey)
-    );
-
-    const counts = new Map<string, number>();
-    return rows.flatMap((row) => {
+    return candidates.flat().flatMap((row) => {
       const stopId = stopIdByKey.get(row.stopKey);
-      if (!stopId) return [];
-      const count = counts.get(stopId) ?? 0;
-      if (count >= MAX_BOARDINGS_PER_STOP) return [];
-      counts.set(stopId, count + 1);
-      return [{ tripId: row.tripId, stopId, seconds: row.seconds, serviceDate: row.serviceDate }];
+      return stopId === undefined
+        ? []
+        : [{ tripId: row.tripId, stopId, seconds: row.seconds, serviceDate: row.serviceDate }];
     });
   };
 
@@ -255,27 +250,9 @@ export function createGtfsLoader(now: Date, requiresAccessibleStations = false):
   };
 
   return {
-    accessStops: async (coordinate, limit, stationId) => {
-      // A named stop is the traveller's own choice: it wins outright, and no
-      // reserved slot may widen what they pinned.
-      if (stationId) return loadAccessStops(coordinate, limit, { stationId });
+    nearbyStops: (coordinate, limit, filter = {}) => loadAccessStops(coordinate, limit, filter),
 
-      const [nearest, structuring] = await Promise.all([
-        loadAccessStops(coordinate, limit, {}),
-        loadAccessStops(coordinate, STRUCTURING_ACCESS_STOPS, { structuringOnly: true }),
-      ]);
-      return mergeAccessStops(nearest, structuring);
-    },
-
-    boardings: async (stopIds, earliestByStop, serviceDates) =>
-      (await stopTimeEvents('board', stopIds, earliestByStop, serviceDates)).map(
-        ({ seconds, ...event }): PlannerBoarding => ({ ...event, departureSeconds: seconds })
-      ),
-
-    alightings: async (stopIds, latestByStop, serviceDates) =>
-      (await stopTimeEvents('alight', stopIds, latestByStop, serviceDates)).map(
-        ({ seconds, ...event }): PlannerAlighting => ({ ...event, arrivalSeconds: seconds })
-      ),
+    stopTimes: loadStopTimes,
 
     trips: async (boardings) => {
       const tripIds = [...new Set(boardings.map((boarding) => boarding.tripId))];
@@ -393,20 +370,12 @@ export function createGtfsLoader(now: Date, requiresAccessibleStations = false):
       );
     },
 
-    transfers: async (stopIds) =>
-      (await loadTransfers(stopIds, 'to')).map(
+    transfers: async (stopIds, hydrate) =>
+      (await loadTransfers(stopIds, hydrate)).map(
         ({ row, stop }): PlannerTransfer => ({
           fromStopId: row.fromStopId,
-          toStop: stop,
-          minTransferSeconds: row.minTransferSeconds,
-        })
-      ),
-
-    reverseTransfers: async (stopIds) =>
-      (await loadTransfers(stopIds, 'from')).map(
-        ({ row, stop }): PlannerReverseTransfer => ({
-          fromStop: stop,
           toStopId: row.toStopId,
+          stop,
           minTransferSeconds: row.minTransferSeconds,
         })
       ),
@@ -434,14 +403,22 @@ export function createGtfsJourneyPlanner(): GtfsJourneyPlanner {
   };
 }
 
+type KeyedStopTimeRow = {
+  tripId: string;
+  stopKey: number;
+  seconds: number;
+  serviceDate: string;
+};
+
 async function loadStopTimeCandidates(
   direction: StopTimeDirection,
   stopKeys: number[],
   activeServiceIds: string[],
   boundSeconds: number,
   serviceDate: string,
-  offset: number
-): Promise<StopTimeCandidate[]> {
+  offset: number,
+  limit: number
+): Promise<KeyedStopTimeRow[]> {
   if (activeServiceIds.length === 0) return [];
   const offsetColumn =
     direction === 'board'
@@ -464,7 +441,7 @@ async function loadStopTimeCandidates(
       )
     )
     .orderBy(direction === 'board' ? asc(column) : desc(column))
-    .limit(MAX_BOARDING_CANDIDATES);
+    .limit(limit);
   return rows.map((row) => ({
     ...row,
     seconds: row.seconds + offset,

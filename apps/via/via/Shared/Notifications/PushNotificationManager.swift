@@ -462,7 +462,7 @@ private struct DesiredActiveJourney: Sendable, Hashable {
     let activationID: UUID
 }
 
-private enum PushInstallationIDStore {
+enum PushInstallationIDStore {
     private static let service = "dev.via.app.push-installation-id.v2"
     private static let legacyDefaultsKey = "via.push.installation-id.v1"
 

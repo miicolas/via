@@ -3,6 +3,7 @@ import type { Coordinate, JourneyDestination } from '@via/contract';
 
 import type { GtfsPlannerLoader, PlannerCall, PlannerStop, PlannerTrip } from './planner';
 import { plannerTripKey, planWithGtfs } from './planner';
+import { DEFAULT_SEARCH_BUDGET } from './search-budget';
 
 const origin: Coordinate = { latitude: 48.8566, longitude: 2.3522 };
 const destination: JourneyDestination = {
@@ -18,27 +19,35 @@ const to: PlannerStop = { id: 'to', name: 'Hôtel de Ville', coordinate: { latit
 const route = { id: 'metro-1', shortName: '1', longName: 'Métro 1', mode: 'metro' as const, color: '#FFCD00', textColor: '#000000' };
 const trip: PlannerTrip = { id: 'trip-1', route, headsign: 'Château de Vincennes' };
 
+type StopTimeGroups = Array<{ stopIds: string[]; bound: number }>;
+
+const groupedIds = (groups: StopTimeGroups) => groups.flatMap((group) => group.stopIds);
+const boundOf = (groups: StopTimeGroups, stopId: string) =>
+  groups.find((group) => group.stopIds.includes(stopId))?.bound;
+
 function loaderFor(calls: PlannerCall[]): GtfsPlannerLoader {
   return {
-    accessStops: async (_coordinate, limit) => [from, to].slice(0, limit),
-    boardings: async (stopIds, earliestByStop) =>
-      stopIds.includes(from.id) && (earliestByStop.get(from.id) ?? Infinity) <= 45_000
-        ? [{ tripId: trip.id, stopId: from.id, departureSeconds: 45_000, serviceDate: date }]
-        : [],
-    alightings: async (stopIds, latestByStop) =>
-      stopIds.includes(to.id) && (latestByStop.get(to.id) ?? -Infinity) >= 45_600
-        ? [{ tripId: trip.id, stopId: to.id, arrivalSeconds: 45_600, serviceDate: date }]
-        : [],
-    trips: async (boardings) =>
+    nearbyStops: async (_coordinate, limit, filter) =>
+      filter?.structuringOnly ? [] : [from, to].slice(0, limit),
+    stopTimes: async (direction, groups) => {
+      if (direction === 'board') {
+        return groupedIds(groups).includes(from.id) && (boundOf(groups, from.id) ?? Infinity) <= 45_000
+          ? [{ tripId: trip.id, stopId: from.id, seconds: 45_000, serviceDate: date }]
+          : [];
+      }
+      return groupedIds(groups).includes(to.id) && (boundOf(groups, to.id) ?? -Infinity) >= 45_600
+        ? [{ tripId: trip.id, stopId: to.id, seconds: 45_600, serviceDate: date }]
+        : [];
+    },
+    trips: async (references) =>
       new Map(
-        boardings.map((boarding) => [
-          plannerTripKey(boarding.tripId, boarding.serviceDate),
+        references.map((reference) => [
+          plannerTripKey(reference.tripId, reference.serviceDate),
           { trip, calls },
         ])
       ),
     shapes: async () => new Map(),
     transfers: async () => [],
-    reverseTransfers: async () => [],
   };
 }
 
@@ -89,7 +98,7 @@ test('finds the latest exact departure for an arrival deadline', async () => {
 test('returns no-route when no departure can board from the access stops', async () => {
   const response = await planWithGtfs(origin, destination, now, 4, {
     ...loaderFor([]),
-    boardings: async () => [],
+    stopTimes: async () => [],
   });
   expect(response.status).toBe('no-route');
   expect(response.journeys).toEqual([]);
@@ -109,13 +118,14 @@ test('does not query a frontier stop that cannot reach the target in the alterna
   const requestedStops: string[][] = [];
   const response = await planWithGtfs(origin, destination, now, 4, {
     ...loaderFor(calls),
-    accessStops: async (coordinate) =>
-      coordinate === origin ? [from] : [to],
-    boardings: async (stopIds, earliestByStop) => {
+    nearbyStops: async (coordinate, _limit, filter) =>
+      filter?.structuringOnly ? [] : coordinate === origin ? [from] : [to],
+    stopTimes: async (_direction, groups) => {
+      const stopIds = groupedIds(groups);
       requestedStops.push(stopIds);
-      return stopIds.includes(from.id) && (earliestByStop.get(from.id) ?? Infinity) <= 45_000
-        ? [{ tripId: trip.id, stopId: from.id, departureSeconds: 45_000, serviceDate: date }]
-        : []
+      return stopIds.includes(from.id) && (boundOf(groups, from.id) ?? Infinity) <= 45_000
+        ? [{ tripId: trip.id, stopId: from.id, seconds: 45_000, serviceDate: date }]
+        : [];
     },
   });
   expect(response.status).toBe('ready');
@@ -142,12 +152,14 @@ test('does not query a reverse frontier stop that cannot reach the origin in the
     4,
     {
       ...loaderFor(calls),
-      accessStops: async (coordinate) =>
-        coordinate === origin ? [from] : [to],
-      alightings: async (stopIds, latestByStop) => {
+      nearbyStops: async (coordinate, _limit, filter) =>
+        filter?.structuringOnly ? [] : coordinate === origin ? [from] : [to],
+      stopTimes: async (direction, groups) => {
+        if (direction !== 'alight') return [];
+        const stopIds = groupedIds(groups);
         requestedStops.push(stopIds);
-        return stopIds.includes(to.id) && (latestByStop.get(to.id) ?? -Infinity) >= 45_600
-          ? [{ tripId: trip.id, stopId: to.id, arrivalSeconds: 45_600, serviceDate: date }]
+        return stopIds.includes(to.id) && (boundOf(groups, to.id) ?? -Infinity) >= 45_600
+          ? [{ tripId: trip.id, stopId: to.id, seconds: 45_600, serviceDate: date }]
           : [];
       },
     },
@@ -220,7 +232,7 @@ test('keeps the connecting station a long first leg reaches, however dense that 
     return {
       trip: { id: `bus-trip-${index}`, route: busRoute, headsign: 'Poissy' },
       calls,
-      boarding: { tripId: `bus-trip-${index}`, stopId: stop.id, departureSeconds, serviceDate: date },
+      boarding: { tripId: `bus-trip-${index}`, stopId: stop.id, seconds: departureSeconds, serviceDate: date },
     };
   });
   const rerCalls: PlannerCall[] = [
@@ -234,16 +246,20 @@ test('keeps the connecting station a long first leg reaches, however dense that 
   ]);
 
   const response = await planWithGtfs(suburb, paris, new Date('2026-08-12T10:00:00Z'), 4, {
-    accessStops: async (coordinate) => (coordinate === suburb ? accessStops : [exit]),
-    boardings: async (stopIds) => [
-      ...busTrips
-        .filter((bus) => stopIds.includes(bus.boarding.stopId))
-        .map((bus) => bus.boarding),
-      ...(stopIds.includes(link.id)
-        ? [{ tripId: rerTrip.id, stopId: link.id, departureSeconds: 46_000, serviceDate: date }]
-        : []),
-    ],
-    alightings: async () => [],
+    nearbyStops: async (coordinate, _limit, filter) =>
+      filter?.structuringOnly ? [] : coordinate === suburb ? accessStops : [exit],
+    stopTimes: async (direction, groups) => {
+      if (direction !== 'board') return [];
+      const stopIds = groupedIds(groups);
+      return [
+        ...busTrips
+          .filter((bus) => stopIds.includes(bus.boarding.stopId))
+          .map((bus) => bus.boarding),
+        ...(stopIds.includes(link.id)
+          ? [{ tripId: rerTrip.id, stopId: link.id, seconds: 46_000, serviceDate: date }]
+          : []),
+      ];
+    },
     trips: async (references) =>
       new Map(
         references.flatMap((reference) => {
@@ -255,7 +271,6 @@ test('keeps the connecting station a long first leg reaches, however dense that 
       ),
     shapes: async () => new Map(),
     transfers: async () => [],
-    reverseTransfers: async () => [],
   });
 
   expect(response.status).toBe('ready');
@@ -264,4 +279,155 @@ test('keeps the connecting station a long first leg reaches, however dense that 
       section.type === 'transit' && section.route ? [section.route.shortName] : []
     )
   ).toEqual(['2', 'A']);
+});
+
+/**
+ * The Chatou shape: eight bus poles inside four hundred metres, the RER
+ * station nine hundred metres away, and only the station actually leaving the
+ * area. Distance alone hands every access slot to the poles; the reserved
+ * structuring slots are what keep the station in the search.
+ */
+test('a suburban origin keeps the structuring station its bus poles would crowd out', async () => {
+  const suburb: Coordinate = { latitude: 48.88, longitude: 2.15 };
+  const poles: PlannerStop[] = Array.from({ length: 8 }, (_, index) => ({
+    id: `pole-${index}`,
+    name: `Poteau ${index}`,
+    coordinate: { latitude: 48.88 + (index + 1) * 0.0004, longitude: 2.15 },
+  }));
+  const station: PlannerStop = {
+    id: 'rer-station',
+    name: 'Chatou — Croissy',
+    coordinate: { latitude: 48.888, longitude: 2.15 },
+  };
+  const rerRoute = { id: 'rer-a', shortName: 'A', longName: 'RER A', mode: 'rer' as const, color: '#E3051C', textColor: '#FFFFFF' };
+  const rerTrip: PlannerTrip = { id: 'rer-trip', route: rerRoute, headsign: 'Boissy' };
+  const rerCalls: PlannerCall[] = [
+    { stop: station, stopSequence: 0, arrivalSeconds: 45_000, departureSeconds: 45_000, serviceDate: date },
+    { stop: to, stopSequence: 1, arrivalSeconds: 46_800, departureSeconds: 46_800, serviceDate: date },
+  ];
+  const requestedStops: string[][] = [];
+
+  const response = await planWithGtfs(suburb, destination, now, 4, {
+    nearbyStops: async (coordinate, limit, filter) => {
+      if (coordinate !== suburb) return filter?.structuringOnly ? [] : [to];
+      // The poles alone fill the whole nearest-stops budget, as in a suburb.
+      return filter?.structuringOnly ? [station].slice(0, limit) : poles.slice(0, limit);
+    },
+    stopTimes: async (direction, groups) => {
+      if (direction !== 'board') return [];
+      const stopIds = groupedIds(groups);
+      requestedStops.push(stopIds);
+      return stopIds.includes(station.id)
+        ? [{ tripId: rerTrip.id, stopId: station.id, seconds: 45_000, serviceDate: date }]
+        : [];
+    },
+    trips: async (references) =>
+      new Map(
+        references.map((reference) => [
+          plannerTripKey(reference.tripId, reference.serviceDate),
+          { trip: rerTrip, calls: rerCalls },
+        ])
+      ),
+    shapes: async () => new Map(),
+    transfers: async () => [],
+  });
+
+  // The station rides along with every pole: reserved slots add, never evict.
+  expect(requestedStops[0]).toHaveLength(poles.length + 1);
+  expect(requestedStops[0]).toContain(station.id);
+  expect(response.status).toBe('ready');
+  expect(
+    response.journeys[0]?.sections.flatMap((section) =>
+      section.type === 'transit' && section.route ? [section.route.shortName] : []
+    )
+  ).toEqual(['A']);
+});
+
+test('a far frontier stop keeps its boarding under the boardings-per-stop cap', async () => {
+  const budget = { ...DEFAULT_SEARCH_BUDGET, maxBoardingsPerStop: 2 };
+  const near: PlannerStop = {
+    id: 'near',
+    name: 'Arrêt proche',
+    coordinate: { latitude: 48.8567, longitude: 2.3523 },
+  };
+  const farStop: PlannerStop = {
+    id: 'far-stop',
+    name: 'Gare éloignée',
+    coordinate: { latitude: 48.864, longitude: 2.3522 },
+  };
+  const tripRequests: string[][] = [];
+
+  await planWithGtfs(
+    origin,
+    destination,
+    now,
+    4,
+    {
+      nearbyStops: async (coordinate, _limit, filter) =>
+        filter?.structuringOnly ? [] : coordinate === origin ? [near, farStop] : [to],
+      stopTimes: async (direction, groups) => {
+        if (direction !== 'board') return [];
+        const stopIds = groupedIds(groups);
+        const nearBound = boundOf(groups, near.id);
+        const farBound = boundOf(groups, farStop.id);
+        return [
+          ...(stopIds.includes(near.id) && nearBound !== undefined
+            ? [0, 1, 2].map((index) => ({
+                tripId: `near-${index}`,
+                stopId: near.id,
+                seconds: nearBound + 60 * (index + 1),
+                serviceDate: date,
+              }))
+            : []),
+          ...(stopIds.includes(farStop.id) && farBound !== undefined
+            ? [{ tripId: 'far-trip', stopId: farStop.id, seconds: farBound + 160, serviceDate: date }]
+            : []),
+        ];
+      },
+      trips: async (references) => {
+        tripRequests.push(references.map((reference) => reference.tripId));
+        return new Map();
+      },
+      shapes: async () => new Map(),
+      transfers: async () => [],
+    },
+    'departure',
+    false,
+    undefined,
+    budget
+  );
+
+  // The dense stop is capped at the budget's two boardings; the far stop's
+  // single, later boarding survives instead of being crowded out.
+  expect(tripRequests[0]).toEqual(['near-0', 'near-1', 'far-trip']);
+});
+
+test('a pinned origin station is queried alone, with no structuring reservation', async () => {
+  const originCalls: Array<{ limit: number; filter?: { stationId?: string; structuringOnly?: boolean } }> = [];
+  const calls: PlannerCall[] = [
+    { stop: from, stopSequence: 1, arrivalSeconds: 45_000, departureSeconds: 45_000, serviceDate: date },
+    { stop: to, stopSequence: 2, arrivalSeconds: 45_600, departureSeconds: 45_600, serviceDate: date },
+  ];
+  const response = await planWithGtfs(
+    origin,
+    destination,
+    now,
+    4,
+    {
+      ...loaderFor(calls),
+      nearbyStops: async (coordinate, limit, filter) => {
+        if (coordinate !== origin) return filter?.structuringOnly ? [] : [to];
+        originCalls.push({ limit, filter });
+        return [from];
+      },
+    },
+    'departure',
+    false,
+    from.id
+  );
+
+  expect(response.status).toBe('ready');
+  expect(originCalls).toEqual([
+    { limit: DEFAULT_SEARCH_BUDGET.maxAccessStops, filter: { stationId: from.id } },
+  ]);
 });

@@ -5,6 +5,7 @@ struct StationDetailView: View {
   let selection: SelectedStationModel
   var isLargeScreen: Bool
   @Binding var detailDetent: PresentationDetent
+  var onMeetHere: (StationOverview) -> Void = { _ in }
 
   @Environment(\.dismiss) private var dismiss
   @Environment(\.scenePhase) private var scenePhase
@@ -81,6 +82,19 @@ struct StationDetailView: View {
           }
 
           if !isCollapsed {
+            if MeetupFeatureFlags.rendezVousEnabled {
+              ToolbarItem(placement: .bottomBar) {
+                Button {
+                  onMeetHere(currentStation)
+                  dismiss()
+                } label: {
+                  Image(systemName: "person.2.fill")
+                }
+                .accessibilityLabel("Se retrouver ici")
+                .accessibilityHint("Crée un rendez-vous avec cette station comme destination.")
+              }
+            }
+
             ToolbarItem(placement: .bottomBar) {
               Button {
                 // The prompt belongs to the moment someone follows the station,

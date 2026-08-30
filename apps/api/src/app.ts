@@ -21,6 +21,8 @@ import { clientCors, createClientGate } from "./http/client-gate";
 import { cityDemandRouter } from "./public/city-demand/router";
 import { publicLinesRouter } from "./public/lines/router";
 import { publicJourneySharesRouter } from "./public/journey-shares/router";
+import { publicMeetupInvitationsRouter } from "./public/meetups/router";
+import { publicFriendInvitationsRouter } from "./public/friends/router";
 import { env } from "./env";
 import { RAIL_MAP_PATH, RAIL_MAP_RPC_PATH } from "@via/contract";
 import { requestLogger } from "./http/request-logger";
@@ -91,6 +93,8 @@ app.use(
 app.route("/public/city-demand", cityDemandRouter);
 app.route("/public/lines", publicLinesRouter);
 app.route("/public/journey-shares", publicJourneySharesRouter);
+app.route("/public/meetup-invitations", publicMeetupInvitationsRouter);
+app.route("/public/friend-invitations", publicFriendInvitationsRouter);
 
 app.use("/api/*", requireAuth);
 app.use("/rpc/*", requireAuth);
@@ -137,6 +141,7 @@ function mount(handler: FetchHandler<ApiContext>, prefix: "/api" | "/rpc") {
         isAnonymous: authSession?.user.isAnonymous ?? undefined,
         // Lazy: only a procedure that needs to tell callers apart pays the HMAC.
         requestIPHash: () => requestIPHash(c.req.raw, env.BETTER_AUTH_SECRET),
+        meetupParticipantToken: c.req.header("x-via-meetup-token"),
       },
     });
 

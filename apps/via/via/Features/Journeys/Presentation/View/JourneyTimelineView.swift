@@ -17,6 +17,7 @@ struct JourneyTimelineView: View {
 
     let journey: Journey
     var mode: Mode = .plan
+    var liveStopProgress: JourneyStopProgress? = nil
     @Binding var expandedSectionIDs: Set<String>
     var departureChoices: JourneyDepartureChoicesModel?
     var revisableSectionIDs: Set<String> = []
@@ -45,6 +46,7 @@ struct JourneyTimelineView: View {
                 JourneyTimelineSectionView(
                     nodes: group.nodes,
                     currentSectionIndex: mode.currentSectionIndex,
+                    liveStopProgress: liveStopProgress,
                     isExpanded: binding(for: group.sectionID),
                     departureChoicesGroup: departureChoices?.groupsBySectionID[group.sectionID],
                     isDepartureChoicesLoading: departureChoices?.isRefreshing == true,
@@ -60,6 +62,7 @@ struct JourneyTimelineView: View {
             }
         }
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: mode)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: liveStopProgress)
         .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: expandedSectionIDs)
         // One leg folding open or shut moves the set by exactly one. A
         // programmatic reset moves it by more, and is not something the

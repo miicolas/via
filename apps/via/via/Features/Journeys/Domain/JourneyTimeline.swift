@@ -159,6 +159,31 @@ enum JourneyTimeline {
         return link(drafts)
     }
 
+    /// The station calls exactly as the timeline renders them for one transit
+    /// section, including synthesized endpoints when the planner omits them.
+    /// Location matching uses this list so its diode can always target a bead
+    /// that actually exists on screen.
+    static func transitStops(
+        in journey: Journey,
+        sectionIndex: Int
+    ) -> [JourneyStop] {
+        var stops: [JourneyStop] = []
+
+        for node in nodes(for: journey) where node.sectionIndex == sectionIndex {
+            let candidates: [JourneyStop] = switch node.kind {
+            case .board(let stop, _, _, _, _), .alight(let stop, _): [stop]
+            case .ride(let intermediate): intermediate
+            case .origin, .walk, .bike, .wait, .transfer, .destination: []
+            }
+
+            for stop in candidates where !stops.contains(where: { $0.id == stop.id }) {
+                stops.append(stop)
+            }
+        }
+
+        return stops
+    }
+
     // MARK: - Section description
 
     private static func sectionDrafts(for entry: JourneySectionSchedule, index: Int) -> [Draft] {

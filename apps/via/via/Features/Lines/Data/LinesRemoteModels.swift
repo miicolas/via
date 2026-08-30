@@ -74,6 +74,7 @@ struct LineDetailDTO: Decodable {
     struct SchemaStop: Decodable {
         let id: String
         let name: String
+        let isInterchange: Bool
     }
 
     struct Disruption: Decodable {
@@ -137,7 +138,11 @@ struct LineDetailDTO: Decodable {
                             origins: section.origins,
                             termini: section.termini,
                             stops: section.stops.map {
-                                LineSchemaStop(id: $0.id, name: $0.name)
+                                LineSchemaStop(
+                                    id: $0.id,
+                                    name: $0.name,
+                                    isInterchange: $0.isInterchange
+                                )
                             }
                         )
                     }

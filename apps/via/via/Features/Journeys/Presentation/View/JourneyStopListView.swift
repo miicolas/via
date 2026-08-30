@@ -7,6 +7,7 @@ struct JourneyStopListView: View {
     let rail: JourneyTimelineRailStyle
     let state: JourneyTimelineNodeState
     let isExpanded: Bool
+    var liveStopProgress: JourneyStopProgress? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,6 +17,7 @@ struct JourneyStopListView: View {
                         above: rail,
                         below: rail,
                         bead: .minor,
+                        liveStopStatus: liveStatus(for: stop),
                         state: state
                     )
                     .frame(maxHeight: .infinity)
@@ -51,8 +53,19 @@ struct JourneyStopListView: View {
     }
 
     private func label(for stop: JourneyStop) -> String {
-        guard let time = stop.arrivalAt ?? stop.departureAt else { return stop.name }
-        return "\(stop.name), \(JourneyFormatting.time(time))"
+        let time = (stop.arrivalAt ?? stop.departureAt).map(JourneyFormatting.time)
+        let position = liveStatus(for: stop).map { status in
+            switch status {
+            case .current: "station actuelle"
+            case .next: "prochaine station"
+            }
+        }
+        return [stop.name, time, position].compactMap(\.self).joined(separator: ", ")
+    }
+
+    private func liveStatus(for stop: JourneyStop) -> JourneyStopProgress.Status? {
+        guard liveStopProgress?.stopID == stop.id else { return nil }
+        return liveStopProgress?.status
     }
 }
 

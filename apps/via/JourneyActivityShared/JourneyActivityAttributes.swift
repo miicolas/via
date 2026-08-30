@@ -18,6 +18,23 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
         let textColorHex: String
     }
 
+    /// The live station marker mirrored from the in-app journey rail.
+    ///
+    /// It intentionally carries presentation-ready values: the extension
+    /// cannot link the app's journey models, and ActivityKit payloads must stay
+    /// self-contained while the app is suspended.
+    struct StopProgress: Codable, Hashable, Sendable {
+        enum Status: String, Codable, Hashable, Sendable {
+            case current
+            case next
+        }
+
+        let stopName: String
+        let alightingStopName: String
+        let remainingStopCount: Int
+        let status: Status
+    }
+
     struct ContentState: Codable, Hashable, Sendable {
         let phaseTitle: String
         let instructionTitle: String
@@ -42,6 +59,9 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
         /// Optional decoding keeps the state backward compatible with the
         /// first local ActivityKit payloads.
         let departureAt: Date?
+        /// The station reached from the latest fresh Core Location fix.
+        /// Optional decoding keeps activities started by an older build alive.
+        let stopProgress: StopProgress?
 
         init(
             phaseTitle: String,
@@ -54,7 +74,8 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             isOffline: Bool,
             isArrived: Bool,
             phase: Phase? = nil,
-            departureAt: Date? = nil
+            departureAt: Date? = nil,
+            stopProgress: StopProgress? = nil
         ) {
             self.phaseTitle = phaseTitle
             self.instructionTitle = instructionTitle
@@ -67,6 +88,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             self.isArrived = isArrived
             self.phase = phase
             self.departureAt = departureAt
+            self.stopProgress = stopProgress
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -81,6 +103,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             case isArrived
             case phase
             case departureAt
+            case stopProgress
         }
 
         init(from decoder: Decoder) throws {
@@ -96,6 +119,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             isArrived = try container.decode(Bool.self, forKey: .isArrived)
             phase = try container.decodeIfPresent(Phase.self, forKey: .phase)
             departureAt = try container.decodeIfPresent(Date.self, forKey: .departureAt)
+            stopProgress = try container.decodeIfPresent(StopProgress.self, forKey: .stopProgress)
         }
 
         func encode(to encoder: Encoder) throws {
@@ -111,6 +135,7 @@ struct JourneyActivityAttributes: ActivityAttributes, Sendable {
             try container.encode(isArrived, forKey: .isArrived)
             try container.encodeIfPresent(phase, forKey: .phase)
             try container.encodeIfPresent(departureAt, forKey: .departureAt)
+            try container.encodeIfPresent(stopProgress, forKey: .stopProgress)
         }
     }
 

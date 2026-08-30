@@ -40,6 +40,7 @@ struct ActiveJourneyPanelView: View {
               LiveJourneyTimelineView(
                 journey: journey,
                 currentSectionIndex: currentSectionIndex,
+                liveStopProgress: model.liveStopProgress,
                 expandedSectionIDs: $expandedSectionIDs,
                 departureChoices: departureChoicesModel,
                 revisableSectionIDs: ActiveJourneyRules.revisableSectionIDs(
@@ -294,15 +295,8 @@ struct ActiveJourneyPanelView: View {
   @ToolbarContentBuilder
   private var journeyToolbar: some ToolbarContent {
     ToolbarItem(placement: .topBarTrailing) {
-      Button(action: onOpenReport) {
-        GlassSquareBadge(tint: .orange, size: 36, isInteractive: true) {
-          Image(systemName: "exclamationmark.bubble.fill")
-            .font(.subheadline.weight(.semibold))
-        }
-      }
-        .buttonStyle(.plain)
-        .frame(width: 44, height: 44)
-        .accessibilityLabel("Signaler")
+      Button("Signaler", systemImage: "exclamationmark.bubble.fill", action: onOpenReport)
+        .labelStyle(.iconOnly)
         .accessibilityHint("Ouvre les signalements pour la station du trajet")
     }
 

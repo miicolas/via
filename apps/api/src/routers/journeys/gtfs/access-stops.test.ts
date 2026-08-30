@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 
-import { mergeAccessStops, STRUCTURING_ACCESS_STOPS } from './access-stops';
+import { mergeAccessStops } from './access-stops';
+import { DEFAULT_SEARCH_BUDGET } from './search-budget';
 
 const busPoles = Array.from({ length: 8 }, (_, index) => ({
   id: `bus-${index}`,
@@ -36,5 +37,5 @@ test('an empty network stays empty rather than inventing access', () => {
 });
 
 test('reserves enough slots for a station with several stop points', () => {
-  expect(STRUCTURING_ACCESS_STOPS).toBeGreaterThanOrEqual(2);
+  expect(DEFAULT_SEARCH_BUDGET.structuringAccessStops).toBeGreaterThanOrEqual(2);
 });

@@ -10,6 +10,9 @@ struct MapShellView: View {
   let linesViewModel: LinesViewModel
   let selectedStationModel: SelectedStationModel
   let searchViewModel: SearchViewModel
+  /// The natural-language conversation; the shell hosts its composer and
+  /// navigates on its one-shot outcome.
+  let naturalJourneyDialogue: NaturalJourneyDialogue
   let activeJourneyModel: ActiveJourneyModel
   let plannedJourneyDraftModel: PlannedJourneyDraftModel
   let reportViewModel: ReportViewModel
@@ -21,30 +24,27 @@ struct MapShellView: View {
   let pushNotificationManager: PushNotificationManager
   let journeyNotificationCoordinator: JourneyNotificationCoordinator
   let journeyShareRepository: any JourneyShareRepository
-  let initialSharedJourneyToken: String?
-  let onConsumeSharedJourney: @MainActor () -> Void
+  let meetupsModel: MeetupsModel
+  let friendsModel: FriendsModel
+  /// The single funnel deep links and push routes arrive through.
+  let routeInbox: RouteInbox
   let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
   /// Replays the first run from the root, offered inside Réglages.
   let onReplayOnboarding: @MainActor () -> Void
   let notificationInboxRemote: any NotificationInboxRemote
+  /// One resolver for the journey the map draws; the journey sheets share it.
+  private let journeyContextSource: JourneyContextSource
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   @State private var showTabSheet: Bool = true
   @State private var activeTab: MapShellTab = .stations
   @State private var previousTab: MapShellTab = .stations
-  @State private var position: MapCameraPosition
-  /// A pan, zoom, pitch, or rotation hands the camera back to the traveller.
-  /// The route-aware location button is the only gesture that resumes follow.
-  @State private var journeyCameraFollowsLocation = false
+  /// Owns the map camera; the shell only forwards the events that move it.
+  @State private var cameraDirector: JourneyCameraDirector
   @State private var selectedMapStation: StationMapItem?
   @State private var selectedBikeStation: BikeStation?
   @State private var selectedSharedMobility: SharedMobilityItem?
-
-  /// A cached fix can choose the first frame immediately. Otherwise Paris is
-  /// temporary until the first location answer; after that the camera is the
-  /// traveller's, whether the answer was inside the service area or not.
-  @State private var hasResolvedOpeningLocation: Bool
 
   @State private var isLargeScreen: Bool = false
   // The reference opens with the map still visible above the content sheet.
@@ -56,6 +56,8 @@ struct MapShellView: View {
   @State private var accountSheetDetent: PresentationDetent = .height(80)
   @State private var favoritesFocus: FavoritesFocus?
   @State private var journeyShareRoute: JourneyShareRoute?
+  @State private var showsMeetupInvitation = false
+  @State private var showsFriendInvitation = false
   // Journey details use one stacked sheet slot above the tab sheet.
   @State private var searchSheetDestination: SearchSheetDestination?
   @State private var journeySheetDetent: PresentationDetent = .large
@@ -63,6 +65,7 @@ struct MapShellView: View {
   @State private var savedDestinationDraft: SavedDestinationDraft?
   @State private var returnsToPreviousTabAfterSavingDestination = false
   @State private var reportOpenTick = 0
+  @State private var meetupOpenTick = 0
 
   init(
     networkViewModel: NetworkViewModel,
@@ -71,6 +74,7 @@ struct MapShellView: View {
     linesViewModel: LinesViewModel,
     selectedStationModel: SelectedStationModel,
     searchViewModel: SearchViewModel,
+    naturalJourneyDialogue: NaturalJourneyDialogue,
     activeJourneyModel: ActiveJourneyModel,
     plannedJourneyDraftModel: PlannedJourneyDraftModel,
     reportViewModel: ReportViewModel,
@@ -82,8 +86,9 @@ struct MapShellView: View {
     pushNotificationManager: PushNotificationManager = .preview,
     journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
     journeyShareRepository: any JourneyShareRepository = InMemoryJourneyShareRepository(),
-    initialSharedJourneyToken: String? = nil,
-    onConsumeSharedJourney: @escaping @MainActor () -> Void = {},
+    meetupsModel: MeetupsModel,
+    friendsModel: FriendsModel,
+    routeInbox: RouteInbox = RouteInbox(),
     journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository =
       InMemoryJourneyDepartureChoicesRepository.unavailable,
     onReplayOnboarding: @escaping @MainActor () -> Void = {},
@@ -95,15 +100,19 @@ struct MapShellView: View {
     self.linesViewModel = linesViewModel
     self.selectedStationModel = selectedStationModel
     self.searchViewModel = searchViewModel
+    self.naturalJourneyDialogue = naturalJourneyDialogue
     self.activeJourneyModel = activeJourneyModel
     self.plannedJourneyDraftModel = plannedJourneyDraftModel
     self.reportViewModel = reportViewModel
     self.locationModel = locationModel
-    _position = State(
-      initialValue: .region(MapOpeningCamera.region(for: locationModel.coordinate))
+    _cameraDirector = State(
+      initialValue: JourneyCameraDirector(openingCoordinate: locationModel.coordinate)
     )
-    _hasResolvedOpeningLocation = State(
-      initialValue: locationModel.coordinate != nil
+    journeyContextSource = JourneyContextSource(
+      searchViewModel: searchViewModel,
+      plannedJourneyDraftModel: plannedJourneyDraftModel,
+      journeyNotificationCoordinator: journeyNotificationCoordinator,
+      activeJourneyModel: activeJourneyModel
     )
     self.accountModel = accountModel
     self.favoriteRoutesModel = favoriteRoutesModel
@@ -112,8 +121,9 @@ struct MapShellView: View {
     self.pushNotificationManager = pushNotificationManager
     self.journeyNotificationCoordinator = journeyNotificationCoordinator
     self.journeyShareRepository = journeyShareRepository
-    self.initialSharedJourneyToken = initialSharedJourneyToken
-    self.onConsumeSharedJourney = onConsumeSharedJourney
+    self.meetupsModel = meetupsModel
+    self.friendsModel = friendsModel
+    self.routeInbox = routeInbox
     self.journeyDepartureChoicesRepository = journeyDepartureChoicesRepository
     self.onReplayOnboarding = onReplayOnboarding
     self.notificationInboxRemote = notificationInboxRemote
@@ -124,6 +134,7 @@ struct MapShellView: View {
       // Journey sheets disappear in the same update that opens Signaler, so
       // the cue belongs to this root view that survives the transition.
       .haptic(Haptic.commit, on: reportOpenTick)
+      .haptic(Haptic.commit, on: meetupOpenTick)
   }
 
   private var presentedMap: some View {
@@ -147,43 +158,35 @@ struct MapShellView: View {
       locationModel.requestLocation()
     }
     .onChange(of: locationModel.coordinate) { _, coordinate in
-      guard let coordinate, !hasResolvedOpeningLocation else { return }
-      hasResolvedOpeningLocation = true
-      // Only an untouched opening camera may jump. If the traveller has already
-      // moved the map while the fix was in flight, the map is theirs.
-      guard let region = position.region,
-            MapOpeningCamera.isUntouchedFallback(region),
-            let userRegion = MapOpeningCamera.userRegion(for: coordinate)
-      else { return }
-      withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.4)) {
-        position = .region(userRegion)
-      }
+      cameraDirector.locationChanged(
+        coordinate,
+        tracking: journeyTrackingCamera,
+        reducesMotion: reduceMotion
+      )
     }
-    .onChange(of: locationModel.coordinate) { _, _ in
-      updateJourneyTrackingCamera()
-    }
-    .onChange(of: position) { _, newPosition in
-      guard journeyCameraFollowsLocation, newPosition.positionedByUser else { return }
-      journeyCameraFollowsLocation = false
+    .onChange(of: cameraDirector.position) { _, newPosition in
+      guard newPosition.positionedByUser else { return }
+      cameraDirector.travellerMoved()
     }
     .onChange(of: activeJourneyModel.isTracking, initial: true) { _, isTracking in
-      journeyCameraFollowsLocation = isTracking
-      if isTracking {
-        updateJourneyTrackingCamera()
-      }
+      cameraDirector.trackingChanged(
+        isTracking: isTracking,
+        tracking: journeyTrackingCamera,
+        reducesMotion: reduceMotion
+      )
     }
     .onChange(of: activeJourneyModel.currentSectionIndex) { _, _ in
-      if journeyCameraFollowsLocation, journeyTrackingCamera == nil {
-        // Rail and waiting legs keep an overview; the close third-person
-        // camera is reserved for geometry the traveller moves through on
-        // foot or by bike.
-        frameJourney(sectionID: activeJourneyModel.highlightedSectionID)
-      } else {
-        updateJourneyTrackingCamera()
-      }
+      cameraDirector.sectionChanged(
+        tracking: journeyTrackingCamera,
+        journeyFrame: journeyFrame(for: activeJourneyModel.highlightedSectionID),
+        reducesMotion: reduceMotion
+      )
     }
-    .onChange(of: reduceMotion) { _, _ in
-      updateJourneyTrackingCamera(animated: false)
+    .onChange(of: reduceMotion) { _, reducesMotion in
+      cameraDirector.motionChanged(
+        tracking: journeyTrackingCamera,
+        reducesMotion: reducesMotion
+      )
     }
     // Selection is cleared on the next line, so the trigger is the tap itself:
     // a pin taken under the thumb, and the journey surface leaving for good.
@@ -200,16 +203,16 @@ struct MapShellView: View {
       presentStation(newValue)
     }
     .onChange(of: displayedJourneyPresentation) { _, presentation in
-      if activeJourneyModel.isTracking {
-        updateJourneyTrackingCamera()
-        return
-      }
-      guard let mapRect = presentation?.mapRect else { return }
-      position = .rect(mapRect)
+      cameraDirector.presentationChanged(
+        isTracking: activeJourneyModel.isTracking,
+        tracking: journeyTrackingCamera,
+        mapRect: presentation?.mapRect,
+        reducesMotion: reduceMotion
+      )
     }
     .onChange(of: displayedHighlightedSectionID) { _, sectionID in
       guard !activeJourneyModel.isTracking else { return }
-      frameJourney(sectionID: sectionID)
+      cameraDirector.frame(journeyFrame(for: sectionID))
     }
     .onChange(of: activeDetent) { _, detent in
       // Collapsing the sheet used to leave the running journey off
@@ -217,7 +220,7 @@ struct MapShellView: View {
       guard detent == collapsedDetent,
             activeJourneyModel.isActive,
             !activeJourneyModel.isTracking else { return }
-      frameJourney(sectionID: displayedHighlightedSectionID)
+      cameraDirector.frame(journeyFrame(for: displayedHighlightedSectionID))
     }
     .onChange(of: activeJourneyModel.session?.journey.id) { previousJourneyID, journeyID in
       if journeyID != nil {
@@ -239,18 +242,18 @@ struct MapShellView: View {
         searchSheetDestination = nil
       }
     }
-    .onChange(of: searchViewModel.naturalResultJourneyID) { _, journeyID in
-      guard let journeyID else { return }
-      activeTab = .search
-      journeySheetDetent = expandedDetent
-      searchSheetDestination = .journey(journeyID)
-      searchViewModel.consumeNaturalResultJourney()
-    }
-    .onChange(of: searchViewModel.naturalLineStatusNavigation) { _, navigation in
-      guard let navigation else { return }
-      linesViewModel.requestNaturalLineStatus(navigation)
-      activeTab = .lines
-      searchViewModel.consumeNaturalLineStatusNavigation()
+    .onChange(of: naturalJourneyDialogue.outcome) { _, outcome in
+      guard let outcome else { return }
+      switch outcome {
+      case .journey(let journeyID):
+        activeTab = .search
+        journeySheetDetent = expandedDetent
+        searchSheetDestination = .journey(journeyID)
+      case .lineStatus(let navigation):
+        linesViewModel.requestNaturalLineStatus(navigation)
+        activeTab = .lines
+      }
+      naturalJourneyDialogue.consumeOutcome()
     }
     .onChange(of: activeJourneyModel.isActive) { _, isActive in
       // Once guidance is running, peek so the map behind stays visible.
@@ -304,21 +307,13 @@ struct MapShellView: View {
         profileModel.activate(scope: .anonymous)
       }
     }
-    .task {
-      routePendingNotificationIfNeeded()
+    // The shell consumes the inbox as soon as it exists, so a link that
+    // arrived during onboarding presents on first appearance.
+    .onChange(of: routeInbox.pending, initial: true) { _, _ in
+      guard let pending = routeInbox.consume() else { return }
+      route(pending)
     }
-    .task(id: initialSharedJourneyToken) {
-      guard let initialSharedJourneyToken else { return }
-      journeyShareRoute = JourneyShareRoute(token: initialSharedJourneyToken)
-      onConsumeSharedJourney()
-    }
-    .onChange(of: pushNotificationManager.pendingRoute) { _, _ in
-      routePendingNotificationIfNeeded()
-    }
-    .onOpenURL { url in
-      route(url)
-    }
-    .onChange(of: searchViewModel.naturalSearchState) { oldState, newState in
+    .onChange(of: naturalJourneyDialogue.state) { oldState, newState in
       // A question or an answer needs room the collapsed sheet does not have;
       // the detent it interrupted comes back once the conversation moves on.
       let wasPanel = NaturalJourneyPresentationPolicy.showsPanel(oldState)
@@ -353,16 +348,17 @@ struct MapShellView: View {
   }
 
   private var map: some View {
+    @Bindable var cameraDirector = cameraDirector
     return NetworkMapView(
       viewModel: networkViewModel,
-      position: $position,
+      position: $cameraDirector.position,
       nearby: nearbyStationsModel,
       stationSelectionEnabled: activeTab != .search && searchSheetDestination == nil,
       journeyPresentation: displayedJourneyPresentation,
       highlightedJourneySegmentID: displayedHighlightedSectionID,
       journeyTracking: journeyTrackingCamera.map { _ in
         JourneyTrackingControl(
-          isFollowing: journeyCameraFollowsLocation,
+          isFollowing: cameraDirector.followsLocation,
           recenter: recenterJourneyTrackingCamera
         )
       },
@@ -373,7 +369,7 @@ struct MapShellView: View {
   /// The Siri-style edge light: quiet while the traveller types, swelling
   /// while Metyro thinks, and absent when a panel needs the attention.
   private var naturalGlowIntensity: AIScreenGlowView.Intensity? {
-    switch searchViewModel.naturalSearchState {
+    switch naturalJourneyDialogue.state {
     case .input:
       .ambient
     case .loading:
@@ -397,7 +393,7 @@ struct MapShellView: View {
   private func presentStation(_ item: StationMapItem) {
     if item.sharedMobilityCluster != nil {
       withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
-        position = .region(
+        cameraDirector.position = .region(
           MKCoordinateRegion(
             center: item.coordinate.clLocationCoordinate,
             latitudinalMeters: 500,
@@ -427,7 +423,7 @@ struct MapShellView: View {
   /// does more than tighten, so this is the gesture that says "take me there".
   private func revealStation(_ item: StationMapItem) {
     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.45)) {
-      position = .region(
+      cameraDirector.position = .region(
         MKCoordinateRegion(
           center: item.coordinate.clLocationCoordinate,
           latitudinalMeters: 600,
@@ -513,14 +509,9 @@ struct MapShellView: View {
     SavedDestinationEditing.deleteAction(for: draft, in: accountModel)
   }
 
-  private func routePendingNotificationIfNeeded() {
-    guard let url = pushNotificationManager.consumePendingRoute() else { return }
-    route(url)
-  }
-
-  private func route(_ url: URL) {
-    guard let route = MapRoute(url: url) else { return }
-
+  /// The one presentation switch for every deep link, whichever door it came
+  /// through — universal link, custom scheme, or push notification.
+  private func route(_ route: MapRoute) {
     switch route {
     case .notifications:
       presentAccountSheet(.notifications)
@@ -538,6 +529,24 @@ struct MapShellView: View {
       Task { await routeActiveJourney(journeyID) }
     case .sharedJourney(let token):
       journeyShareRoute = JourneyShareRoute(token: token)
+    case .meetup(let meetupID):
+      guard MeetupFeatureFlags.rendezVousEnabled else { return }
+      Task {
+        await meetupsModel.open(meetupId: meetupID)
+        presentAccountSheet(.meetups)
+      }
+    case .meetupInvitation(let token, let key):
+      guard MeetupFeatureFlags.rendezVousEnabled else { return }
+      Task {
+        await meetupsModel.prepareInvitation(token: token, key: key)
+        showsMeetupInvitation = true
+      }
+    case .friendInvitation(let token):
+      guard MeetupFeatureFlags.rendezVousEnabled else { return }
+      Task {
+        await friendsModel.prepareInvitation(token: token)
+        showsFriendInvitation = true
+      }
     }
   }
 
@@ -559,7 +568,7 @@ struct MapShellView: View {
   /// the guidance header says the same thing and the two overlap.
   private var isActiveJourneyCompactVisible: Bool {
     activeJourneyModel.isActive
-      && !searchViewModel.isNaturalSearchPresented
+      && !naturalJourneyDialogue.isPresented
       && activeDetent == collapsedDetent
   }
 
@@ -581,7 +590,8 @@ struct MapShellView: View {
         || selectedSharedMobility != nil
         || reportViewModel.isPresentingAnotherSheet || accountSheetDestination != nil
         || searchSheetDestination != nil || savedDestinationDraft != nil,
-      hidesTabBar: searchViewModel.isNaturalSearchPresented,
+      hidesTabBar: naturalJourneyDialogue.isPresented,
+      locksExpandedDetent: isNaturalJourneyOnboardingVisible,
       reservesCompactSpace: activeJourneyModel.isActive,
       isCompactVisible: isActiveJourneyCompactVisible,
       compactContent: { journeyCompact }
@@ -597,13 +607,16 @@ struct MapShellView: View {
           profileModel: profileModel,
           onSelectNearby: revealStation,
           onOpenSearch: { activeTab = .search },
-          naturalLanguageAccess: searchViewModel.naturalLanguageAccess,
-          showsNaturalSearchDiscovery: searchViewModel.showsNaturalSearchDiscovery,
+          naturalLanguageAccess: naturalJourneyDialogue.access,
+          showsNaturalSearchDiscovery: naturalJourneyDialogue.showsDiscovery,
           onOpenNaturalSearch: {
-            searchViewModel.openNaturalSearch()
+            naturalJourneyDialogue.open()
           },
           onOpenProfile: { presentAccountSheet(.profile) },
+          onOpenMeetups: { presentAccountSheet(.meetups) },
+          onOpenFriends: { presentAccountSheet(.friends) },
           onOpenSettings: { presentAccountSheet(.settings) },
+          onMeetAtStation: openMeetupComposer,
           onOpenSavedDestination: openJourney,
           onConfigurePlace: { presentFavorites(focus: .place($0)) },
           onAddSavedDestination: { presentFavorites(focus: .addDestination) },
@@ -633,6 +646,7 @@ struct MapShellView: View {
       Tab(value: MapShellTab.search, role: .search) {
         SearchView(
           viewModel: searchViewModel,
+          dialogue: naturalJourneyDialogue,
           activeJourneyModel: activeJourneyModel,
           plannedJourneyDraftModel: plannedJourneyDraftModel,
           journeyNotificationCoordinator: journeyNotificationCoordinator,
@@ -661,6 +675,7 @@ struct MapShellView: View {
         .sheetTabBarVisibility()
       }
     }
+    .accessibilityHidden(isNaturalJourneyOnboardingVisible)
     .sheet(item: $savedDestinationDraft) { draft in
       SavedDestinationEditorView(
         draft: draft,
@@ -765,6 +780,27 @@ struct MapShellView: View {
           isLargeScreen: isLargeScreen,
           selection: $accountSheetDetent
         )
+      case .meetups:
+        MeetupsView(
+          model: meetupsModel,
+          friendsModel: friendsModel,
+          isSignedIn: authSessionViewModel.isSignedIn,
+          profile: profileModel,
+          savedOrigins: savedMeetupOrigins
+        )
+        .detailSheetPresentation(
+          isLargeScreen: isLargeScreen,
+          selection: $accountSheetDetent
+        )
+      case .friends:
+        FriendsView(
+          model: friendsModel,
+          authSessionViewModel: authSessionViewModel
+        )
+        .detailSheetPresentation(
+          isLargeScreen: isLargeScreen,
+          selection: $accountSheetDetent
+        )
       }
     }
     .sheet(item: $searchSheetDestination) { destination in
@@ -778,6 +814,7 @@ struct MapShellView: View {
           journeyNotificationCoordinator: journeyNotificationCoordinator,
           journeyShareRepository: journeyShareRepository,
           departureChoicesRepository: journeyDepartureChoicesRepository,
+          journeyContextSource: journeyContextSource,
           isLargeScreen: isLargeScreen,
           detent: $journeySheetDetent,
           onExpandMap: { journeySheetDetent = journeyPeekDetent },
@@ -792,6 +829,7 @@ struct MapShellView: View {
           journeyNotificationCoordinator: journeyNotificationCoordinator,
           journeyShareRepository: journeyShareRepository,
           departureChoicesRepository: journeyDepartureChoicesRepository,
+          journeyContextSource: journeyContextSource,
           isPlannedJourney: true,
           isLargeScreen: isLargeScreen,
           detent: $journeySheetDetent,
@@ -807,6 +845,7 @@ struct MapShellView: View {
           journeyNotificationCoordinator: journeyNotificationCoordinator,
           journeyShareRepository: journeyShareRepository,
           departureChoicesRepository: journeyDepartureChoicesRepository,
+          journeyContextSource: journeyContextSource,
           scheduledReminder: journeyNotificationCoordinator.reminder(for: journeyID),
           isLargeScreen: isLargeScreen,
           detent: $journeySheetDetent,
@@ -816,10 +855,11 @@ struct MapShellView: View {
       }
     }
     .safeAreaInset(edge: .bottom, spacing: 0) {
-      if searchViewModel.isNaturalSearchPresented {
+      if naturalJourneyDialogue.isPresented && !isNaturalJourneyOnboardingVisible {
         NaturalJourneyComposerView(
-          viewModel: searchViewModel,
-          onClose: searchViewModel.dismissNaturalSearch
+          dialogue: naturalJourneyDialogue,
+          criteria: searchViewModel.naturalJourneyCriteria,
+          onClose: naturalJourneyDialogue.dismiss
         )
         .padding(.horizontal, 18)
         .padding(.bottom, 10)
@@ -830,15 +870,41 @@ struct MapShellView: View {
         )
       }
     }
+    .overlay {
+      if isNaturalJourneyOnboardingVisible {
+        AIOnboardingCard(
+          onTry: naturalJourneyDialogue.showInput,
+          onClose: naturalJourneyDialogue.dismiss
+        )
+        .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
+      }
+    }
     .animation(
       reduceMotion ? nil : .snappy(duration: 0.3, extraBounce: 0),
-      value: searchViewModel.isNaturalSearchPresented
+      value: naturalJourneyDialogue.isPresented
+    )
+    .animation(
+      reduceMotion ? nil : .smooth(duration: 0.35),
+      value: isNaturalJourneyOnboardingVisible
     )
     .sheet(item: $journeyShareRoute) { route in
       JourneyShareSheetView(
         token: route.token,
         repository: journeyShareRepository,
         onClose: { journeyShareRoute = nil }
+      )
+    }
+    .sheet(isPresented: $showsMeetupInvitation) {
+      MeetupInvitationView(
+        model: meetupsModel,
+        profile: profileModel,
+        savedOrigins: savedMeetupOrigins
+      )
+    }
+    .sheet(isPresented: $showsFriendInvitation) {
+      FriendInvitationView(
+        model: friendsModel,
+        authSessionViewModel: authSessionViewModel
       )
     }
   }
@@ -850,81 +916,53 @@ struct MapShellView: View {
     }
   }
 
+  private var isNaturalJourneyOnboardingVisible: Bool {
+    naturalJourneyDialogue.state == .onboarding
+  }
+
   private var displayedJourneyPresentation: JourneyMapPresentation? {
     activeJourneyModel.mapPresentation
       ?? journeyContext.map { JourneyMapPresentation(journey: $0.journey) }
   }
 
+  /// The trajet surface the shell is presenting, as the context source needs
+  /// it: a dedicated sheet wins over the search tab.
+  private var journeySurface: JourneyContextSource.Surface {
+    if let searchSheetDestination {
+      .sheet(searchSheetDestination)
+    } else if activeTab == .search {
+      .search
+    } else {
+      .hidden
+    }
+  }
+
   private var journeyContext: JourneyContext? {
-    let search: JourneyContext? = if activeTab == .search || isJourneySheetUp,
-                                    let journey = searchViewModel.selectedJourney,
-                                    let destination = searchViewModel.journeyDestination {
-      JourneyContext(
-        journey: journey,
-        destination: destination,
-        source: searchViewModel.journeyResult?.source,
-        planningPolicy: searchViewModel.journeyPlanningPolicy
-      )
-    } else {
-      nil
-    }
-
-    let planned: JourneyContext? = if case .plannedJourney = searchSheetDestination,
-                                      let draft = plannedJourneyDraftModel.draft {
-      JourneyContext(
-        journey: draft.journey,
-        destination: draft.destination,
-        source: draft.source,
-        planningPolicy: draft.planningPolicy
-      )
-    } else {
-      nil
-    }
-
-    let reminder: JourneyContext? = if case .scheduledJourney(let journeyID) = searchSheetDestination,
-                                       let reminder = journeyNotificationCoordinator.reminder(for: journeyID) {
-      JourneyContext(
-        journey: reminder.journey,
-        destination: reminder.destination,
-        source: reminder.source,
-        planningPolicy: reminder.planningPolicy
-      )
-    } else {
-      nil
-    }
-
-    let journeyID = searchViewModel.selectedJourneyID
-      ?? activeJourneyModel.journey?.id
-      ?? activeJourneyModel.arrival?.journeyID
-      ?? planned?.journey.id
-      ?? reminder?.journey.id
-
-    guard let journeyID else { return nil }
-    return JourneyContextResolver.resolve(
-      journeyID: journeyID,
-      active: activeJourneyModel.session.map {
-        JourneyContext(
-          journey: $0.journey,
-          destination: $0.destination,
-          source: $0.source,
-          planningPolicy: $0.planningPolicy
-        )
-      },
-      reminder: reminder,
-      planned: planned,
-      search: search
-    )
+    journeyContextSource.current(for: journeySurface)
   }
 
   private var displayedHighlightedSectionID: String? {
-    activeJourneyModel.highlightedSectionID
-      ?? ((activeTab == .search || isJourneySheetUp)
-        ? searchViewModel.highlightedJourneySectionID : nil)
+    journeyContextSource.highlightedSectionID(for: journeySurface)
   }
 
   private func presentAccountSheet(_ destination: AccountSheetDestination) {
     accountSheetDetent = isLargeScreen ? .fraction(0.97) : .large
     accountSheetDestination = destination
+  }
+
+  private var savedMeetupOrigins: [MeetupOrigin] {
+    accountModel.places.map { MeetupOrigin(result: $0.searchResult, favorite: true) }
+      + accountModel.destinations.map { MeetupOrigin(result: $0.searchResult, favorite: true) }
+  }
+
+  private func openMeetupComposer(at station: StationOverview) {
+    meetupOpenTick += 1
+    meetupsModel.composeDestination = MeetupStation(station)
+    selectedStationModel.dismiss()
+    Task { @MainActor in
+      await Task.yield()
+      presentAccountSheet(.meetups)
+    }
   }
 
   /// Configuring a shortcut is a settings job, so the rail opens Favorites
@@ -934,12 +972,9 @@ struct MapShellView: View {
     presentAccountSheet(.favorites)
   }
 
-  /// Frames the selected section, without deriving a synthetic route position.
-  private func frameJourney(sectionID: String?) {
-    guard let presentation = displayedJourneyPresentation else { return }
-    let mapRect = presentation.mapRect(for: sectionID)
-    guard let mapRect else { return }
-    position = .rect(mapRect)
+  /// The rect framing one selected section of the displayed journey.
+  private func journeyFrame(for sectionID: String?) -> MKMapRect? {
+    displayedJourneyPresentation?.mapRect(for: sectionID)
   }
 
   private var journeyTrackingCamera: JourneyTrackingCamera? {
@@ -957,19 +992,10 @@ struct MapShellView: View {
   }
 
   private func recenterJourneyTrackingCamera() {
-    journeyCameraFollowsLocation = true
-    updateJourneyTrackingCamera()
-  }
-
-  private func updateJourneyTrackingCamera(animated: Bool = true) {
-    guard journeyCameraFollowsLocation,
-          let journeyTrackingCamera
-    else { return }
-
-    let camera = journeyTrackingCamera.mapCamera(reducesMotion: reduceMotion)
-    withAnimation(animated && !reduceMotion ? .easeInOut(duration: 0.45) : nil) {
-      position = .camera(camera)
-    }
+    cameraDirector.recenter(
+      tracking: journeyTrackingCamera,
+      reducesMotion: reduceMotion
+    )
   }
 
   private func showActiveJourney() {
@@ -994,10 +1020,6 @@ struct MapShellView: View {
 
   private var collapsedDetent: PresentationDetent {
     SheetTabDetents.collapsed(hasCompactContent: activeJourneyModel.isActive)
-  }
-
-  private var guidanceDetent: PresentationDetent {
-    isLargeScreen ? .fraction(0.97) : .fraction(0.45)
   }
 
   private var expandedDetent: PresentationDetent {
@@ -1025,6 +1047,19 @@ struct MapShellView: View {
     repository: InMemoryNetworkRepository.mapPreview,
     filterStore: filterStore
   )
+  let meetupRepository = InMemoryMeetupRepository()
+  let meetupCryptography = MeetupCryptoVault()
+  let meetupLive = MeetupLiveCoordinator(
+    transport: meetupRepository,
+    cryptography: meetupCryptography,
+    locationModel: locationModel
+  )
+  let searchViewModel = SearchViewModel(
+    repository: InMemorySearchRepository.preview,
+    journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+    locationModel: locationModel,
+    account: accountModel
+  )
 
   MapShellView(
     networkViewModel: NetworkViewModel(
@@ -1047,11 +1082,10 @@ struct MapShellView: View {
       account: accountModel,
       locationModel: locationModel
     ),
-    searchViewModel: SearchViewModel(
-      repository: InMemorySearchRepository.preview,
-      journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+    searchViewModel: searchViewModel,
+    naturalJourneyDialogue: NaturalJourneyDialogue(
       locationModel: locationModel,
-      account: accountModel
+      planner: searchViewModel
     ),
     activeJourneyModel: ActiveJourneyModel(
       locationModel: locationModel,
@@ -1087,6 +1121,13 @@ struct MapShellView: View {
       vault: InMemoryAuthSessionVault(),
       account: accountModel
     ),
-    profileModel: ProfileModel(store: InMemoryProfileStore())
+    profileModel: ProfileModel(store: InMemoryProfileStore()),
+    meetupsModel: MeetupsModel(
+      repository: meetupRepository,
+      searchRepository: InMemorySearchRepository.preview,
+      locationModel: locationModel,
+      live: meetupLive
+    ),
+    friendsModel: FriendsModel(repository: InMemoryFriendsRepository())
   )
 }

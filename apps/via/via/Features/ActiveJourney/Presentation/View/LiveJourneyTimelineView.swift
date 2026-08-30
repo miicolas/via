@@ -7,6 +7,7 @@ import SwiftUI
 struct LiveJourneyTimelineView: View {
   let journey: Journey
   var currentSectionIndex: Int? = nil
+  var liveStopProgress: JourneyStopProgress? = nil
   @Binding var expandedSectionIDs: Set<String>
   var departureChoices: JourneyDepartureChoicesModel? = nil
   var revisableSectionIDs: Set<String> = []
@@ -17,6 +18,7 @@ struct LiveJourneyTimelineView: View {
     JourneyTimelineView(
       journey: journey,
       mode: currentSectionIndex.map { .live(currentSectionIndex: $0) } ?? .plan,
+      liveStopProgress: liveStopProgress,
       expandedSectionIDs: $expandedSectionIDs,
       departureChoices: departureChoices,
       revisableSectionIDs: revisableSectionIDs,

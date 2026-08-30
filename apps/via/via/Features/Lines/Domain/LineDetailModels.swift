@@ -46,6 +46,13 @@ struct LineSchemaStop: Identifiable, Sendable, Hashable {
     let id: String
     let name: String
     /// Served by at least one other metro, RER, Transilien or tram line.
+    let isInterchange: Bool
+
+    init(id: String, name: String, isInterchange: Bool = false) {
+        self.id = id
+        self.name = name
+        self.isInterchange = isInterchange
+    }
 }
 
 /// A run of consecutive stations sharing the same service: the trunk every

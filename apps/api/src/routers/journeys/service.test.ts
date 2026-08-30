@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { Journey, JourneyInput, JourneyMode, JourneysResponse } from '@via/contract';
 
 import { fakeRedis } from '../departures/__fixtures__/fake-redis';
+import { createIdfmJourneyPlanner } from './idfm/client';
 import {
   createJourneyPlanner,
   rankPreferredJourney,
@@ -23,7 +24,8 @@ const input: JourneyInput = {
   limit: 4,
 };
 
-const realtime = { status: 'ready' as const, journeys: [] };
+/** What the real adapter reports for a persistent empty answer: two draws, still nothing. */
+const nothingLive = { outcome: 'empty' as const, attempts: 2 as const };
 const theoretical = { status: 'no-route' as const, journeys: [] };
 
 function setup(options: {
@@ -47,8 +49,7 @@ function setup(options: {
     plan: async (_input, _now, signal) => {
       calls.idfm += 1;
       signals.push(signal);
-      return options.idfmResults?.[calls.idfm - 1] ??
-        (options.idfmResult === undefined ? realtime : options.idfmResult);
+      return options.idfmResults?.[calls.idfm - 1] ?? options.idfmResult ?? nothingLive;
     },
   };
   const gtfs: GtfsJourneyPlanner = {
@@ -112,6 +113,44 @@ function cachedTtl(expiries: Map<string, number>) {
   return [...expiries.entries()].find(([key]) => key.startsWith('journeys:cache:'))?.[1];
 }
 
+/**
+ * The full chain, crossing the client/service seam: the real IDFM adapter over
+ * a fake HTTP transport, composed into the service with a fake timetable — so
+ * `calls.fetch` counts round-trips, not adapter calls.
+ */
+function setupThroughHttp(options: {
+  fetcher: (url: URL, init?: RequestInit) => Promise<Response>;
+  gtfsResult?: Awaited<ReturnType<GtfsJourneyPlanner['plan']>>;
+  timeoutMs?: number;
+}) {
+  const { client } = fakeRedis();
+  const calls = { fetch: 0, gtfs: 0 };
+  const idfm = createIdfmJourneyPlanner({
+    apiKey: 'test',
+    url: 'https://prim.test/journeys',
+    loadShapes: async () => [],
+    ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
+    fetcher: (url, init) => {
+      calls.fetch += 1;
+      return options.fetcher(url, init);
+    },
+  });
+  const gtfs: GtfsJourneyPlanner = {
+    plan: async () => {
+      calls.gtfs += 1;
+      return options.gtfsResult ?? theoretical;
+    },
+  };
+  const planner = createJourneyPlanner({
+    redis: client,
+    idfm,
+    gtfs,
+    clock: { now: () => now },
+    config: { personalLimit: 20, personalWindowSeconds: 900, dailyBudget: 1_000 },
+  });
+  return { planner, calls };
+}
+
 describe('journey planning module', () => {
   test('returns a cache hit without consulting either planner', async () => {
     const { planner, calls } = setup();
@@ -144,7 +183,7 @@ describe('journey planning module', () => {
       }),
     };
     const { planner, calls } = setup({
-      idfmResult: { status: 'ready', journeys: [journey] },
+      idfmResult: { outcome: 'answered', journeys: [journey] },
       reports,
     });
 
@@ -171,7 +210,7 @@ describe('journey planning module', () => {
       }),
     };
     const { planner, calls } = setup({
-      idfmResult: { status: 'ready', journeys: [journey] },
+      idfmResult: { outcome: 'answered', journeys: [journey] },
       disruptions,
     });
 
@@ -199,7 +238,7 @@ describe('journey planning module', () => {
     const cycling = directJourney('bike', 600);
     const { planner } = setup({
       idfmResult: {
-        status: 'ready',
+        outcome: 'answered',
         journeys: [modalJourney('metro', 1_800), walking, cycling],
       },
     });
@@ -278,7 +317,7 @@ describe('journey planning module', () => {
    */
   test('asks its own timetable when IDFM answers with nothing to ride', async () => {
     const { planner, calls } = setup({
-      idfmResult: { status: 'no-route', journeys: [] },
+      idfmResult: { outcome: 'empty', attempts: 1 },
       gtfsResult: { status: 'ready', journeys: [modalJourney('rer', 2_400)] },
     });
 
@@ -289,8 +328,10 @@ describe('journey planning module', () => {
     expect(response.journeys).toHaveLength(1);
   });
 
-  test('keeps the realtime TTL when IDFM fails and GTFS takes over', async () => {
-    const { planner, calls, expiries } = setup({ idfmResult: null });
+  test('keeps the realtime TTL when IDFM refuses and GTFS takes over', async () => {
+    const { planner, calls, expiries } = setup({
+      idfmResult: { outcome: 'refused', cause: 'timeout' },
+    });
 
     const response = await plan(planner);
 
@@ -324,7 +365,9 @@ describe('journey planning module', () => {
 
   test('propagates the request cancellation signal to upstream planners', async () => {
     const controller = new AbortController();
-    const { planner, signals } = setup({ idfmResult: null });
+    const { planner, signals } = setup({
+      idfmResult: { outcome: 'refused', cause: 'timeout' },
+    });
 
     await plan(planner, controller.signal);
 
@@ -344,8 +387,8 @@ describe('journey planning module', () => {
     const bus = modalJourney('bus', 2_000);
     const { planner, calls } = setup({
       idfmResults: [
-        { status: 'ready', journeys: [metro] },
-        { status: 'ready', journeys: [bus] },
+        { outcome: 'answered', journeys: [metro] },
+        { outcome: 'answered', journeys: [bus] },
       ],
     });
     const response = await plan(planner, undefined, { ...input, preferredModes: ['bus'] });
@@ -357,7 +400,7 @@ describe('journey planning module', () => {
   test('keeps a wheelchair IDFM detour without requiring local station facts', async () => {
     const detour = modalJourney('bus', 3_600);
     const { planner, calls } = setup({
-      idfmResult: { status: 'ready', journeys: [detour] },
+      idfmResult: { outcome: 'answered', journeys: [detour] },
     });
 
     const response = await plan(planner, undefined, {
@@ -415,6 +458,44 @@ describe('journey planning module', () => {
     const calm = modalJourney('rer', 1_920);
     expect(rankPreferredJourney([crowded, calm], []).map((journey) => journey.id))
       .toEqual(['rer', 'metro']);
+  });
+
+  /**
+   * The chain nothing owned before: PRIM answers empty, the client retries on
+   * a fresh connection — two HTTP round-trips for one adapter call — the
+   * timetable gives its second opinion, finds nothing either, and the
+   * realtime verdict is the one that reaches the screen.
+   */
+  test('a persistent empty PRIM answer costs two round-trips, then the timetable, and the realtime verdict stands', async () => {
+    const { planner, calls } = setupThroughHttp({
+      fetcher: async () => new Response(JSON.stringify({}), { status: 200 }),
+    });
+
+    const response = await plan(planner);
+
+    expect(calls).toEqual({ fetch: 2, gtfs: 1 });
+    expect(response).toMatchObject({ status: 'no-route', source: 'idfm-realtime' });
+    expect(response.journeys).toEqual([]);
+  });
+
+  test('a PRIM timeout is refused without a retry and the timetable answers', async () => {
+    const { planner, calls } = setupThroughHttp({
+      timeoutMs: 5,
+      fetcher: (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('The operation timed out', 'TimeoutError'))
+          );
+        }),
+      gtfsResult: { status: 'ready', journeys: [modalJourney('rer', 2_400)] },
+    });
+
+    const response = await plan(planner);
+
+    // A refusal claims nothing about the route: no fresh-connection retry.
+    expect(calls).toEqual({ fetch: 1, gtfs: 1 });
+    expect(response).toMatchObject({ status: 'ready', source: 'gtfs-theoretical' });
+    expect(response.journeys).toHaveLength(1);
   });
 });
 

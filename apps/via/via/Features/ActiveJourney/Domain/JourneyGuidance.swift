@@ -17,7 +17,8 @@ enum JourneyGuidance {
         schedule: [JourneySectionSchedule],
         sectionIndex: Int,
         at date: Date,
-        isPaused: Bool
+        isPaused: Bool,
+        liveStopProgress: JourneyStopProgress? = nil
     ) -> JourneyGuidanceHeadline {
         if isPaused {
             return JourneyGuidanceHeadline(
@@ -46,7 +47,13 @@ enum JourneyGuidance {
 
         switch section.kind {
         case .transit:
-            return riding(section: section, endsAt: endsAt)
+            return riding(
+                section: section,
+                endsAt: endsAt,
+                liveStopProgress: liveStopProgress?.sectionID == section.id
+                    ? liveStopProgress
+                    : nil
+            )
         case .walk, .bike, .transfer, .wait:
             guard let title = JourneySectionNarration.sentence(
                 for: section,
@@ -71,13 +78,31 @@ enum JourneyGuidance {
 
     private static func riding(
         section: JourneySection,
-        endsAt: Date
+        endsAt: Date,
+        liveStopProgress: JourneyStopProgress?
     ) -> JourneyGuidanceHeadline {
-        let alightName = section.stops.last?.name ?? section.to.name
-        let title = "Descendre à \(alightName)"
+        let alightName = liveStopProgress?.alightingStopName
+            ?? section.stops.last?.name
+            ?? section.to.name
+        let title: String
+        if liveStopProgress?.remainingStopCount == 0 {
+            title = "Descendez maintenant · \(alightName)"
+        } else if liveStopProgress?.remainingStopCount == 1 {
+            title = "Prochain arrêt · \(alightName)"
+        } else {
+            title = "Descendre à \(alightName)"
+        }
+
         let destinationDetail = section.exit.map(exitLabel) ?? alightName
         let carriage = section.boardingPosition.map { "Voiture \($0.car)/\($0.carCount)" }
-        let detail = [carriage, destinationDetail, JourneyFormatting.time(endsAt)]
+        let remainingStops = liveStopProgress.flatMap { progress -> String? in
+            guard progress.remainingStopCount > 1 else { return nil }
+            return "\(progress.remainingStopCount) arrêts"
+        }
+        let preparation = liveStopProgress?.remainingStopCount == 1
+            ? "Préparez-vous à descendre"
+            : nil
+        let detail = [remainingStops, preparation, carriage, destinationDetail, JourneyFormatting.time(endsAt)]
             .compactMap { $0 }
             .joined(separator: " · ")
 

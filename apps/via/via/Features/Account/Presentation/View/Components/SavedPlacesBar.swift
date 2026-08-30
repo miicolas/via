@@ -55,46 +55,47 @@ struct SavedPlacesBar: View {
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(SavedPlace.Role.allCases) { role in
-                    if let place = places.first(where: { $0.role == role }) {
-                        placeButton(for: role, place: place)
-                    } else if onConfigure != nil {
-                        placeButton(for: role, place: nil)
+        GlassEffectContainer(spacing: 8) {
+            ScrollView(.horizontal) {
+                HStack(spacing: 8) {
+                    ForEach(SavedPlace.Role.allCases) { role in
+                        if let place = places.first(where: { $0.role == role }) {
+                            placeButton(for: role, place: place)
+                        } else if onConfigure != nil {
+                            placeButton(for: role, place: nil)
+                        }
+                    }
+
+                    ForEach(destinations.sorted { $0.position < $1.position }) { destination in
+                        destinationButton(destination)
+                    }
+
+                    if let onAdd {
+                        Button {
+                            addTick += 1
+                            onAdd()
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.headline.weight(.semibold))
+                        }
+                        .iconAction(isProminent: true)
+                        .tint(Color.accentColor)
+                        .disabled(destinations.count >= AccountLocalSnapshot.destinationLimit)
+                        .haptic(Haptic.tap, on: addTick)
+                        .accessibilityLabel("Ajouter un lieu favori")
+                        .accessibilityHint(
+                            destinations.count >= AccountLocalSnapshot.destinationLimit
+                                ? "La limite de favoris est atteinte"
+                                : "Recherche une destination à enregistrer"
+                        )
                     }
                 }
-
-                ForEach(destinations.sorted { $0.position < $1.position }) { destination in
-                    destinationButton(destination)
-                }
-
-                if let onAdd {
-                    Button {
-                        addTick += 1
-                        onAdd()
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.accentColor, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(destinations.count >= AccountLocalSnapshot.destinationLimit)
-                    .haptic(Haptic.tap, on: addTick)
-                    .accessibilityLabel("Ajouter un lieu favori")
-                    .accessibilityHint(
-                        destinations.count >= AccountLocalSnapshot.destinationLimit
-                            ? "La limite de favoris est atteinte"
-                            : "Recherche une destination à enregistrer"
-                    )
-                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
+            .scrollIndicators(.hidden)
+            .scrollClipDisabled()
         }
-        .scrollClipDisabled()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Destinations enregistrées")
         // Removing a favourite is confirmed in a dialog that covers the rail:
@@ -134,7 +135,9 @@ struct SavedPlacesBar: View {
                 isConfigured: place != nil
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
         .accessibilityValue(placeAccessibilityValue(place))
         .accessibilityHint(
             place == nil
@@ -177,7 +180,9 @@ struct SavedPlacesBar: View {
                 isConfigured: true
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
+        .buttonBorderShape(.capsule)
+        .controlSize(.large)
         .accessibilityValue(destinationAccessibilityValue(destination))
         .accessibilityHint(selectionAccessibilityHint)
         .accessibilityAddTraits(isSelected(destination) ? .isSelected : [])
@@ -209,9 +214,7 @@ struct SavedPlacesBar: View {
         Label(title, systemImage: systemImage)
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(isConfigured ? Color.primary : Color.secondary)
-            .padding(.horizontal, 16)
-            .frame(minHeight: 44)
-            .background(Color.secondary.opacity(isConfigured ? 0.12 : 0.07), in: Capsule())
+            .lineLimit(1)
             .opacity(isConfigured ? 1 : 0.72)
     }
 

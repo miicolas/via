@@ -90,6 +90,13 @@ const envSchema = z.object({
   VIA_ALLOWED_ORIGINS: originList(),
   /** Canonical web origin embedded in links created by the iOS app. */
   VIA_SITE_URL: z.url().default("https://metyro.app"),
+  /** Rotatable `version:base64url-32-byte-key` entries for private Meetup origins. */
+  MEETUP_DATA_ENCRYPTION_KEYS: z.string().default(""),
+  /** Independent emergency switch; progression continues when precise presence is disabled. */
+  MEETUP_PRECISE_PRESENCE_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
   /** The Géoplateforme (BAN) geocoder. Overridable to point tests at a fake. */
   BAN_SEARCH_URL: z.url().default("https://data.geopf.fr/geocodage/search"),
   /** Public GBFS feeds published by Vélib' Métropole and refreshed every minute. */
@@ -257,3 +264,13 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
+
+/**
+ * A link into the web site. `VIA_SITE_URL` is operator-supplied, so it may or
+ * may not carry a trailing slash; normalising at each call site is how one of
+ * them ends up emitting `https://metyro.app//meet/<token>`.
+ */
+export function siteURL(path: string): string {
+  const base = env.VIA_SITE_URL.replace(/\/+$/, "");
+  return `${base}/${path.replace(/^\/+/, "")}`;
+}
