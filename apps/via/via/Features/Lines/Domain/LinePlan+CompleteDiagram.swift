@@ -13,7 +13,7 @@ extension LinePlan {
     /// paths: the shared core, every branch arm declared by the schema, and
     /// direction-specific loops. Every consecutive pair shown to the rider is
     /// a real edge, and every physical station is owned by exactly one path.
-    static func diagram(
+    static func completeDiagram(
         for directions: [LineDirection],
         disruptions: [LineDisruption]
     ) -> Diagram {
@@ -123,10 +123,17 @@ private struct CompleteLineGraph {
 
             let firstIndex = sectionIndexByID[firstSection] ?? 0
             let secondIndex = sectionIndexByID[secondSection] ?? 0
+            let isFirstSectionEarlier = firstIndex < secondIndex
             sectionEdges.insert(
                 LinePlan.Diagram.Edge(
-                    fromSectionID: firstIndex < secondIndex ? firstSection : secondSection,
-                    toSectionID: firstIndex < secondIndex ? secondSection : firstSection,
+                    fromSectionID: isFirstSectionEarlier ? firstSection : secondSection,
+                    toSectionID: isFirstSectionEarlier ? secondSection : firstSection,
+                    fromStopID: isFirstSectionEarlier
+                        ? physicalEdge.first
+                        : physicalEdge.second,
+                    toStopID: isFirstSectionEarlier
+                        ? physicalEdge.second
+                        : physicalEdge.first,
                     rail: rail
                 )
             )
@@ -135,7 +142,8 @@ private struct CompleteLineGraph {
         return LinePlan.Diagram(
             sections: sections,
             edges: sectionEdges.sorted {
-                ($0.fromSectionID, $0.toSectionID) < ($1.fromSectionID, $1.toSectionID)
+                ($0.fromSectionID, $0.toSectionID, $0.fromStopID, $0.toStopID)
+                    < ($1.fromSectionID, $1.toSectionID, $1.fromStopID, $1.toStopID)
             }
         )
     }
@@ -165,11 +173,11 @@ private struct CompleteLineGraph {
         }
 
         for edge in diagram.edges {
-            guard let firstID = sectionByID[edge.fromSectionID]?.stops.last?.stop.id,
-                  let secondID = sectionByID[edge.toSectionID]?.stops.first?.stop.id else {
+            guard sectionByID[edge.fromSectionID] != nil,
+                  sectionByID[edge.toSectionID] != nil else {
                 continue
             }
-            addEdge(from: firstID, to: secondID, rail: edge.rail)
+            addEdge(from: edge.fromStopID, to: edge.toStopID, rail: edge.rail)
         }
     }
 

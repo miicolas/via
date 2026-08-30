@@ -21,33 +21,21 @@ final class LineDetailViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func testTheCompletePlanUsesTheRichestDirectionAsItsStableReference() async {
+    func testTheCompletePlanKeepsTheRealRERAStemAndFiveTerminalArms() async {
         let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
 
-        // Direction 1 of the fixture is a stub. The richer direction fixes the
-        // stable orientation, but the plan remains a union of every direction
-        // rather than a copy of that direction alone.
         XCTAssertEqual(viewModel.diagram.sections.map(\.role), [
             .main,
-            .branch(name: "Saint-Germain-en-Laye", junction: "Nanterre-Préfecture"),
-            .branch(name: "Cergy-le-Haut", junction: "Sartrouville"),
-            .branch(name: "Poissy", junction: "Sartrouville"),
-            .branch(name: "Marne-la-Vallée – Chessy", junction: "Vincennes"),
-            .branch(name: "Boissy-St-Léger", junction: "Vincennes"),
+            .branch(name: "Boissy-Saint-Léger", junction: "Vincennes"),
+            .branch(name: "Marne-la-Vallée - Chessy", junction: "Vincennes"),
+            .branch(name: "Cergy le Haut", junction: "Maisons-Laffitte"),
+            .branch(name: "Poissy", junction: "Maisons-Laffitte"),
+            .branch(name: "Saint-Germain-en-Laye", junction: "Nanterre - Préfecture"),
         ])
-        XCTAssertEqual(viewModel.diagram.sections.map { $0.stops.map(\.stop.name) }, [
-            [
-                "Sartrouville", "Maisons-Laffitte", "Nanterre-Préfecture", "La Défense",
-                "Auber", "Châtelet — Les Halles", "Gare de Lyon", "Nation", "Vincennes",
-            ],
-            ["Le Vésinet — Le Pecq", "Saint-Germain-en-Laye"],
-            ["Conflans-Fin-d'Oise", "Cergy-le-Haut"],
-            ["Achères-Ville", "Poissy"],
-            [
-                "Val de Fontenay", "Noisy-le-Grand — Mont d'Est", "Val d'Europe",
-                "Marne-la-Vallée – Chessy",
-            ],
-            ["Joinville-le-Pont", "Boissy-St-Léger"],
+        XCTAssertEqual(viewModel.diagram.sections[0].stops.map(\.stop.name), [
+            "Vincennes", "Nation", "Gare de Lyon", "Châtelet - Les Halles", "Auber",
+            "Charles de Gaulle - Étoile", "La Défense", "Nanterre - Préfecture",
+            "Houilles - Carrières-sur-Seine", "Sartrouville", "Maisons-Laffitte",
         ])
     }
 
@@ -62,15 +50,74 @@ final class LineDetailViewModelTests: XCTestCase {
 
         XCTAssertEqual(Set(branchNames), [
             "Saint-Germain-en-Laye",
-            "Cergy-le-Haut",
+            "Cergy le Haut",
             "Poissy",
-            "Marne-la-Vallée – Chessy",
-            "Boissy-St-Léger",
+            "Marne-la-Vallée - Chessy",
+            "Boissy-Saint-Léger",
         ])
         XCTAssertEqual(branchNames.count, 5)
 
         let stationIDs = viewModel.diagram.sections.flatMap { $0.stops.map(\.stop.id) }
         XCTAssertEqual(stationIDs.count, Set(stationIDs).count)
+    }
+
+    @MainActor
+    func testTheRERAPreviewContainsTheCompleteOfficialStationSet() async {
+        let viewModel = await makeViewModel(detail: PreviewLineStatusRepository.rerADetail)
+        let stationNames = Set(
+            viewModel.diagram.sections.flatMap { section in
+                section.stops.map(\.stop.name)
+            }
+        )
+
+        XCTAssertEqual(stationNames, [
+            "Achères Grand Cormier",
+            "Achères Ville",
+            "Auber",
+            "Boissy-Saint-Léger",
+            "Bry-sur-Marne",
+            "Bussy-Saint-Georges",
+            "Cergy Préfecture",
+            "Cergy Saint-Christophe",
+            "Cergy le Haut",
+            "Champigny",
+            "Charles de Gaulle - Étoile",
+            "Chatou - Croissy",
+            "Châtelet - Les Halles",
+            "Conflans Fin d'Oise",
+            "Fontenay-sous-Bois",
+            "Gare de Lyon",
+            "Houilles - Carrières-sur-Seine",
+            "Joinville-le-Pont",
+            "La Défense",
+            "La Varenne - Chennevières",
+            "Le Parc de Saint-Maur",
+            "Le Vésinet - Centre",
+            "Le Vésinet - Le Pecq",
+            "Lognes",
+            "Maisons-Laffitte",
+            "Marne-la-Vallée - Chessy",
+            "Nanterre - Préfecture",
+            "Nanterre - Ville",
+            "Nanterre Université",
+            "Nation",
+            "Neuilly-Plaisance",
+            "Neuville - Université",
+            "Nogent-sur-Marne",
+            "Noisiel",
+            "Noisy - Champs",
+            "Noisy-le-Grand - Mont d'Est",
+            "Poissy",
+            "Rueil-Malmaison",
+            "Saint-Germain-en-Laye",
+            "Saint-Maur - Créteil",
+            "Sartrouville",
+            "Sucy - Bonneuil",
+            "Torcy",
+            "Val d'Europe",
+            "Val de Fontenay",
+            "Vincennes",
+        ])
     }
 
     func testASingleSidedForkDoesNotTurnTheOppositeTerminusIntoAThirdBranch() {
@@ -107,7 +154,7 @@ final class LineDetailViewModelTests: XCTestCase {
             ]
         )
 
-        let diagram = LinePlan.diagram(for: [direction], disruptions: [])
+        let diagram = LinePlan.completeDiagram(for: [direction], disruptions: [])
         let branchNames: [String] = diagram.sections.compactMap { section in
             guard case .branch(let name, _) = section.role else { return nil }
             return name
@@ -228,7 +275,7 @@ final class LineDetailViewModelTests: XCTestCase {
             .loop(from: "Javel", to: "Boulogne Jean Jaurès"),
         ])
         XCTAssertEqual(
-            LinePlan.diagram(
+            LinePlan.completeDiagram(
                 for: Array(detail.directions.reversed()),
                 disruptions: detail.disruptions
             ),

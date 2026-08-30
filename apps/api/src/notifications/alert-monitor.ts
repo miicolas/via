@@ -2,6 +2,8 @@ import { parisDay, parisWeekday } from '../time/paris';
 import type { DisruptionsSnapshot } from '../routers/lines/disruptions/snapshot';
 import type { NormalizedDisruption } from '../routers/lines/disruptions/parse';
 import type { RedisClient } from '../redis';
+import { NotificationCycle } from './cycle';
+import { createRedisNotificationCycleClaims } from './cycle-claims';
 import type { NotificationDelivery } from './delivery';
 import type { NotificationInboxStore } from './inbox-store';
 import { impactedStopIds } from './impacted-stop-ids';
@@ -13,7 +15,7 @@ import { evaluateDelivery } from './policy';
 import { fitDeviceNotification, stableIdentifierHash } from './payload';
 import { renderNotification } from './render';
 import type { NotificationAlertSubscriptionStore } from './alert-subscription-store';
-import { disruptionVersion } from './disruption-monitor';
+import { disruptionVersion } from './disruption-version';
 import type { NotificationAlertSubscription } from '@via/contract';
 
 // A cycle claim only needs to outlive a slow poll and a scheduler retry. Keeping
@@ -23,7 +25,8 @@ const ALERT_CONTENT_DEDUP_TTL_SECONDS = 15 * 60;
 const RESTORED_CONFIRMATION_CYCLES = 2;
 
 export class NotificationAlertMonitor {
-  private isPolling = false;
+  /** Alert delivery is deliberately serial: the cycle only claims and dedups. */
+  private readonly cycle: NotificationCycle;
 
   constructor(
     private readonly options: {
@@ -38,133 +41,133 @@ export class NotificationAlertMonitor {
       now?: () => Date;
       cycleMilliseconds?: number;
     },
-  ) {}
+  ) {
+    this.cycle = new NotificationCycle({
+      cycleMilliseconds: options.cycleMilliseconds ?? 120_000,
+      claims: createRedisNotificationCycleClaims(options.redis),
+      now: options.now,
+    });
+  }
 
   async pollOnce(): Promise<number> {
-    if (this.isPolling) return 0;
-    this.isPolling = true;
-    const now = this.options.now?.() ?? new Date();
-    const cycle = Math.floor(now.getTime() / (this.options.cycleMilliseconds ?? 120_000));
+    return this.cycle.poll(0, (tick) => this.pollCycle(tick.now, tick.cycle));
+  }
+
+  private async pollCycle(now: Date, cycle: number): Promise<number> {
     let delivered = 0;
-    try {
-      const [allLineSubscriptions, allStationSubscriptions] = await Promise.all([
-        this.options.subscriptions.listActive('line'),
-        this.options.subscriptions.listActive('station'),
-      ]);
-      const lineSubscriptions = allLineSubscriptions.filter((subscription) =>
-        isAlertWindowActive(subscription, now)
+    const [allLineSubscriptions, allStationSubscriptions] = await Promise.all([
+      this.options.subscriptions.listActive('line'),
+      this.options.subscriptions.listActive('station'),
+    ]);
+    const lineSubscriptions = allLineSubscriptions.filter((subscription) =>
+      isAlertWindowActive(subscription, now)
+    );
+    const stationSubscriptions = allStationSubscriptions.filter((subscription) =>
+      isAlertWindowActive(subscription, now)
+    );
+    if (lineSubscriptions.length === 0 && stationSubscriptions.length === 0) return 0;
+
+    const snapshot = await this.options.snapshot(now);
+    if (!snapshot) return 0;
+    const routes = new Set([
+      ...snapshot.disruptions.flatMap((disruption) => disruption.routeIds),
+      ...lineSubscriptions.map((subscription) => subscription.topicId),
+    ]);
+    for (const routeId of routes) {
+      const subscriptions = lineSubscriptions.filter(
+        (subscription) => subscription.topicId === routeId,
       );
-      const stationSubscriptions = allStationSubscriptions.filter((subscription) =>
-        isAlertWindowActive(subscription, now)
+      // Do not advance a route's global state just because another alert
+      // caused us to load the snapshot. Otherwise an alert enabled later
+      // sees an already-active disruption as old and never receives it.
+      if (subscriptions.length === 0) continue;
+
+      const claimed = await this.cycle.claim(
+        `notifications:alert-cycle:${cycle}:line:${routeId}`,
+        ALERT_CLAIM_TTL_SECONDS,
       );
-      if (lineSubscriptions.length === 0 && stationSubscriptions.length === 0) return 0;
-
-      const snapshot = await this.options.snapshot(now);
-      if (!snapshot) return 0;
-      const routes = new Set([
-        ...snapshot.disruptions.flatMap((disruption) => disruption.routeIds),
-        ...lineSubscriptions.map((subscription) => subscription.topicId),
-      ]);
-      for (const routeId of routes) {
-        const subscriptions = lineSubscriptions.filter(
-          (subscription) => subscription.topicId === routeId,
-        );
-        // Do not advance a route's global state just because another alert
-        // caused us to load the snapshot. Otherwise an alert enabled later
-        // sees an already-active disruption as old and never receives it.
-        if (subscriptions.length === 0) continue;
-
-        const claimed = await this.options.redis.set(
-          `notifications:alert-cycle:${cycle}:line:${routeId}`,
-          '1',
-          { nx: true, ex: ALERT_CLAIM_TTL_SECONDS },
-        );
-        if (claimed === null) continue;
-        const current = snapshot.disruptions.filter((disruption) => disruption.routeIds.includes(routeId));
-        const previous = await this.options.lineState.get(routeId);
-        const currentSubscriptionIds = new Set(subscriptions.map((subscription) => subscription.id));
-        const newlyActiveSubscriptionIds = new Set(
-          [...currentSubscriptionIds].filter((id) => !previous.subscriptionIds.has(id)),
-        );
-        const transition = advanceNotificationState(
-          previous,
-          current,
-          routeId,
-          currentSubscriptionIds,
-        );
-        for (const subscription of subscriptions) {
-          const appeared = newlyActiveSubscriptionIds.has(subscription.id)
-            ? current
-            : transition.appeared;
-          for (const disruption of appeared) {
-            if (!matchesAlert(subscription, now, disruption.severity)) continue;
-            if (await this.deliver(subscription, disruption, 'disruption', now)) delivered += 1;
-          }
-          for (const disruption of transition.restored) {
-            if (!matchesAlert(subscription, now, 'attention')) continue;
-            if (await this.deliver(subscription, disruption, 'restored', now)) delivered += 1;
-          }
+      if (!claimed) continue;
+      const current = snapshot.disruptions.filter((disruption) => disruption.routeIds.includes(routeId));
+      const previous = await this.options.lineState.get(routeId);
+      const currentSubscriptionIds = new Set(subscriptions.map((subscription) => subscription.id));
+      const newlyActiveSubscriptionIds = new Set(
+        [...currentSubscriptionIds].filter((id) => !previous.subscriptionIds.has(id)),
+      );
+      const transition = advanceNotificationState(
+        previous,
+        current,
+        routeId,
+        currentSubscriptionIds,
+      );
+      for (const subscription of subscriptions) {
+        const appeared = newlyActiveSubscriptionIds.has(subscription.id)
+          ? current
+          : transition.appeared;
+        for (const disruption of appeared) {
+          if (!matchesAlert(subscription, now, disruption.severity)) continue;
+          if (await this.deliver(subscription, disruption, 'disruption', now)) delivered += 1;
         }
-        await this.options.lineState.set(routeId, transition.next);
-      }
-
-      const stations = new Map<string, NormalizedDisruption[]>();
-      for (const disruption of snapshot.disruptions) {
-        const stops = await impactedStopIds(disruption.impactedSections);
-        for (const stopId of stops) {
-          const bucket = stations.get(stopId) ?? [];
-          bucket.push(disruption);
-          stations.set(stopId, bucket);
+        for (const disruption of transition.restored) {
+          if (!matchesAlert(subscription, now, 'attention')) continue;
+          if (await this.deliver(subscription, disruption, 'restored', now)) delivered += 1;
         }
       }
-      const stationIDs = new Set([
-        ...stations.keys(),
-        ...stationSubscriptions.map((subscription) => subscription.topicId),
-      ]);
-      for (const stationID of stationIDs) {
-        const subscriptions = stationSubscriptions.filter(
-          (subscription) => subscription.topicId === stationID,
-        );
-        if (subscriptions.length === 0) continue;
-
-        const disruptions = stations.get(stationID) ?? [];
-        const stateKey = `station:${stationID}`;
-        const claimed = await this.options.redis.set(
-          `notifications:alert-cycle:${cycle}:station:${stationID}`,
-          '1',
-          { nx: true, ex: ALERT_CLAIM_TTL_SECONDS },
-        );
-        if (claimed === null) continue;
-        const previous = await this.options.lineState.get(stateKey);
-        const currentSubscriptionIds = new Set(subscriptions.map((subscription) => subscription.id));
-        const newlyActiveSubscriptionIds = new Set(
-          [...currentSubscriptionIds].filter((id) => !previous.subscriptionIds.has(id)),
-        );
-        const transition = advanceNotificationState(
-          previous,
-          disruptions,
-          stationID,
-          currentSubscriptionIds,
-        );
-        for (const subscription of subscriptions) {
-          const appeared = newlyActiveSubscriptionIds.has(subscription.id)
-            ? disruptions
-            : transition.appeared;
-          for (const disruption of appeared) {
-            if (!matchesAlert(subscription, now, disruption.severity)) continue;
-            if (await this.deliver(subscription, disruption, 'disruption', now)) delivered += 1;
-          }
-          for (const disruption of transition.restored) {
-            if (!matchesAlert(subscription, now, 'attention')) continue;
-            if (await this.deliver(subscription, disruption, 'restored', now)) delivered += 1;
-          }
-        }
-        await this.options.lineState.set(stateKey, transition.next);
-      }
-      return delivered;
-    } finally {
-      this.isPolling = false;
+      await this.options.lineState.set(routeId, transition.next);
     }
+
+    const stations = new Map<string, NormalizedDisruption[]>();
+    for (const disruption of snapshot.disruptions) {
+      const stops = await impactedStopIds(disruption.impactedSections);
+      for (const stopId of stops) {
+        const bucket = stations.get(stopId) ?? [];
+        bucket.push(disruption);
+        stations.set(stopId, bucket);
+      }
+    }
+    const stationIDs = new Set([
+      ...stations.keys(),
+      ...stationSubscriptions.map((subscription) => subscription.topicId),
+    ]);
+    for (const stationID of stationIDs) {
+      const subscriptions = stationSubscriptions.filter(
+        (subscription) => subscription.topicId === stationID,
+      );
+      if (subscriptions.length === 0) continue;
+
+      const disruptions = stations.get(stationID) ?? [];
+      const stateKey = `station:${stationID}`;
+      const claimed = await this.cycle.claim(
+        `notifications:alert-cycle:${cycle}:station:${stationID}`,
+        ALERT_CLAIM_TTL_SECONDS,
+      );
+      if (!claimed) continue;
+      const previous = await this.options.lineState.get(stateKey);
+      const currentSubscriptionIds = new Set(subscriptions.map((subscription) => subscription.id));
+      const newlyActiveSubscriptionIds = new Set(
+        [...currentSubscriptionIds].filter((id) => !previous.subscriptionIds.has(id)),
+      );
+      const transition = advanceNotificationState(
+        previous,
+        disruptions,
+        stationID,
+        currentSubscriptionIds,
+      );
+      for (const subscription of subscriptions) {
+        const appeared = newlyActiveSubscriptionIds.has(subscription.id)
+          ? disruptions
+          : transition.appeared;
+        for (const disruption of appeared) {
+          if (!matchesAlert(subscription, now, disruption.severity)) continue;
+          if (await this.deliver(subscription, disruption, 'disruption', now)) delivered += 1;
+        }
+        for (const disruption of transition.restored) {
+          if (!matchesAlert(subscription, now, 'attention')) continue;
+          if (await this.deliver(subscription, disruption, 'restored', now)) delivered += 1;
+        }
+      }
+      await this.options.lineState.set(stateKey, transition.next);
+    }
+    return delivered;
   }
 
   private async deliver(
@@ -201,17 +204,14 @@ export class NotificationAlertMonitor {
         body: normalizeNotificationText(body),
       })),
     ].join(':');
-    const claimed = await this.options.redis.set(claimKey, '1', {
-      nx: true,
-      ex: ALERT_CLAIM_TTL_SECONDS,
-    });
-    if (claimed === null) return false;
+    const claimed = await this.cycle.claim(claimKey, ALERT_CLAIM_TTL_SECONDS);
+    if (!claimed) return false;
 
-    const contentClaimed = await this.options.redis.set(contentClaimKey, '1', {
-      nx: true,
-      ex: ALERT_CONTENT_DEDUP_TTL_SECONDS,
-    });
-    if (contentClaimed === null) return false;
+    const contentClaimed = await this.cycle.claim(
+      contentClaimKey,
+      ALERT_CONTENT_DEDUP_TTL_SECONDS,
+    );
+    if (!contentClaimed) return false;
 
     const notification = fitDeviceNotification({
       ...renderNotification({
@@ -306,8 +306,8 @@ export class NotificationAlertMonitor {
       // can retry; the content-based APNs collapse-id keeps a retry of the
       // same alert from creating a second pending notification.
       await Promise.all([
-        this.options.redis.del(claimKey).catch(() => undefined),
-        this.options.redis.del(contentClaimKey).catch(() => undefined),
+        this.cycle.release(claimKey),
+        this.cycle.release(contentClaimKey),
       ]);
       console.error('[notifications] alert delivery failed', {
         category: subscription.topicKind,

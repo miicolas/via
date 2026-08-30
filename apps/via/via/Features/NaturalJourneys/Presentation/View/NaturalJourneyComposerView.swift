@@ -1,38 +1,41 @@
 import SwiftUI
 
 struct NaturalJourneyComposerView: View {
-  var viewModel: SearchViewModel
+  var dialogue: NaturalJourneyDialogue
+  /// The criteria the last finished answer produced, shown by the failure
+  /// panel so an offline retry keeps what was already understood.
+  var criteria: NaturalJourneyCriteria?
   var onClose: () -> Void = {}
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @FocusState private var isInputFocused: Bool
 
   var body: some View {
-    @Bindable var viewModel = viewModel
+    @Bindable var dialogue = dialogue
 
     VStack(spacing: 12) {
       if showsPanel {
-        NaturalJourneyStatePanel(viewModel: viewModel)
+        NaturalJourneyStatePanel(dialogue: dialogue, criteria: criteria)
           .transition(reduceMotion ? .opacity : AnyTransition(.blurReplace))
       }
 
       if showsField {
         NaturalJourneyInputView(
-          query: $viewModel.naturalQuery,
+          query: $dialogue.query,
           isFocused: $isInputFocused,
-          errorMessage: viewModel.naturalInputErrorMessage,
-          isThinking: viewModel.naturalSearchState == .loading,
+          errorMessage: dialogue.inputErrorMessage,
+          isThinking: dialogue.state == .loading,
           onEdit: editQuery,
-          onSubmit: viewModel.submitNaturalSearch,
+          onSubmit: dialogue.submit,
           onDismiss: onClose
         )
       }
     }
     .animation(
       reduceMotion ? nil : .smooth(duration: 0.35),
-      value: viewModel.naturalSearchState
+      value: dialogue.state
     )
-    .onChange(of: viewModel.naturalSearchState, initial: true) { _, state in
+    .onChange(of: dialogue.state, initial: true) { _, state in
       // Only the typing state owns the keyboard: raised anywhere else it
       // would cover the very panel asking the question.
       if NaturalJourneyPresentationPolicy.expandsForInput(state) {
@@ -45,14 +48,14 @@ struct NaturalJourneyComposerView: View {
 
   /// Which states have an answer or a question to show above the field.
   private var showsPanel: Bool {
-    NaturalJourneyPresentationPolicy.showsPanel(viewModel.naturalSearchState)
+    NaturalJourneyPresentationPolicy.showsPanel(dialogue.state)
   }
 
   /// The field stays under every conversational panel — the phrase is right
   /// there for « Modifier la demande » — but has nothing to offer while
   /// Apple Intelligence itself is unavailable or the onboarding is showing.
   private var showsField: Bool {
-    switch viewModel.naturalSearchState {
+    switch dialogue.state {
     case .availability, .onboarding:
       false
     case .dismissed, .input, .loading, .clarification, .decision, .unsupported, .failed:
@@ -61,9 +64,9 @@ struct NaturalJourneyComposerView: View {
   }
 
   private func editQuery() {
-    if viewModel.naturalSearchState != .input {
-      viewModel.modifyNaturalQuery()
+    if dialogue.state != .input {
+      dialogue.modifyQuery()
     }
-    viewModel.naturalQueryDidChange()
+    dialogue.queryDidChange()
   }
 }

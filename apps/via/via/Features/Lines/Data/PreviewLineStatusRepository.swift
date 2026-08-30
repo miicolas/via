@@ -212,11 +212,91 @@ struct PreviewLineStatusRepository: LineStatusRepository {
         ]
     )
 
-    private static func schemaStop(_ id: String, _ name: String) -> LineSchemaStop {
-        LineSchemaStop(id: id, name: name)
+    private static func schemaStop(
+        _ id: String,
+        _ name: String,
+        interchange: Bool = false
+    ) -> LineSchemaStop {
+        LineSchemaStop(id: id, name: name, isInterchange: interchange)
     }
 
-    /// A branched line with a shared sub-trunk, the shape the schema exists for.
+    // The January 2026 RATP/IDFM plan, kept complete so previews exercise the
+    // same 46-station topology travellers see on platforms. Arrays are stored
+    // east-to-west; the opposite direction reverses them without inventing a
+    // second version of the line.
+    private static let rerABoissyBranch = [
+        schemaStop("IDFM:72881", "Boissy-Saint-Léger"),
+        schemaStop("IDFM:72929", "Sucy - Bonneuil"),
+        schemaStop("IDFM:72998", "La Varenne - Chennevières"),
+        schemaStop("IDFM:73042", "Champigny"),
+        schemaStop("IDFM:70359", "Le Parc de Saint-Maur"),
+        schemaStop("IDFM:70393", "Saint-Maur - Créteil"),
+        schemaStop("IDFM:70640", "Joinville-le-Pont"),
+        schemaStop("IDFM:71590", "Nogent-sur-Marne"),
+        schemaStop("IDFM:71630", "Fontenay-sous-Bois"),
+    ]
+
+    private static let rerAMarneBranch = [
+        schemaStop("IDFM:68385", "Marne-la-Vallée - Chessy"),
+        schemaStop("IDFM:68266", "Val d'Europe"),
+        schemaStop("IDFM:68105", "Bussy-Saint-Georges"),
+        schemaStop("IDFM:68129", "Torcy"),
+        schemaStop("IDFM:68123", "Lognes"),
+        schemaStop("IDFM:68153", "Noisiel"),
+        schemaStop("IDFM:73163", "Noisy - Champs"),
+        schemaStop("IDFM:412697", "Noisy-le-Grand - Mont d'Est"),
+        schemaStop("IDFM:73166", "Bry-sur-Marne"),
+        schemaStop("IDFM:73190", "Neuilly-Plaisance"),
+        schemaStop("IDFM:71718", "Val de Fontenay", interchange: true),
+    ]
+
+    private static let rerATrunk = [
+        schemaStop("IDFM:71651", "Vincennes"),
+        schemaStop("IDFM:71673", "Nation", interchange: true),
+        schemaStop("IDFM:73626", "Gare de Lyon", interchange: true),
+        schemaStop("IDFM:474151", "Châtelet - Les Halles", interchange: true),
+        schemaStop("IDFM:478926", "Auber"),
+        schemaStop("IDFM:71347", "Charles de Gaulle - Étoile", interchange: true),
+        schemaStop("IDFM:71517", "La Défense", interchange: true),
+        schemaStop("IDFM:70945", "Nanterre - Préfecture"),
+    ]
+
+    private static let rerACergyPoissyStem = [
+        schemaStop("IDFM:64741", "Houilles - Carrières-sur-Seine", interchange: true),
+        schemaStop("IDFM:64918", "Sartrouville", interchange: true),
+        schemaStop("IDFM:65048", "Maisons-Laffitte", interchange: true),
+    ]
+
+    private static let rerACergyBranch = [
+        schemaStop("IDFM:73604", "Achères Ville", interchange: true),
+        schemaStop("IDFM:73605", "Conflans Fin d'Oise", interchange: true),
+        schemaStop("IDFM:66436", "Neuville - Université", interchange: true),
+        schemaStop("IDFM:66696", "Cergy Préfecture", interchange: true),
+        schemaStop("IDFM:66858", "Cergy Saint-Christophe", interchange: true),
+        schemaStop("IDFM:66834", "Cergy le Haut", interchange: true),
+    ]
+
+    private static let rerAPoissyBranch = [
+        schemaStop("IDFM:65190", "Achères Grand Cormier"),
+        schemaStop("IDFM:64883", "Poissy", interchange: true),
+    ]
+
+    private static let rerASaintGermainBranch = [
+        schemaStop("IDFM:70956", "Nanterre Université", interchange: true),
+        schemaStop("IDFM:70940", "Nanterre - Ville"),
+        schemaStop("IDFM:70902", "Rueil-Malmaison"),
+        schemaStop("IDFM:64483", "Chatou - Croissy"),
+        schemaStop("IDFM:64514", "Le Vésinet - Centre"),
+        schemaStop("IDFM:64582", "Le Vésinet - Le Pecq"),
+        schemaStop("IDFM:64589", "Saint-Germain-en-Laye", interchange: true),
+    ]
+
+    private static let rerAEastOrigins = ["IDFM:72881", "IDFM:68385"]
+    private static let rerAWestTermini = ["IDFM:66834", "IDFM:64883", "IDFM:64589"]
+
+    /// Full real topology: two eastern branches, the Paris trunk, a western
+    /// Saint-Germain branch, and the shared stem that later forks to Cergy and
+    /// Poissy.
     static let rerADetail = LineDetail(
         route: rerA,
         branches: [],
@@ -224,116 +304,112 @@ struct PreviewLineStatusRepository: LineStatusRepository {
             LineDirection(
                 id: "direction-0",
                 directionId: 0,
-                label: "Marne-la-Vallée – Chessy / Boissy-St-Léger",
+                label: "Cergy le Haut / Poissy / Saint-Germain-en-Laye",
                 sections: [
                     LineSchemaSection(
                         role: .branch,
-                        label: "Branche Saint-Germain-en-Laye",
-                        origins: ["IDFM:73618"],
-                        termini: ["IDFM:74001", "IDFM:70648"],
-                        stops: [
-                            schemaStop("IDFM:73618", "Saint-Germain-en-Laye"),
-                            schemaStop("IDFM:73620", "Le Vésinet — Le Pecq"),
-                        ]
+                        label: "Branche Boissy-Saint-Léger",
+                        origins: ["IDFM:72881"],
+                        termini: rerAWestTermini,
+                        stops: rerABoissyBranch
                     ),
                     LineSchemaSection(
                         role: .branch,
-                        label: "Branche Cergy-le-Haut",
-                        origins: ["IDFM:73731"],
-                        termini: ["IDFM:74001", "IDFM:70648"],
-                        stops: [
-                            schemaStop("IDFM:73731", "Cergy-le-Haut"),
-                            schemaStop("IDFM:73733", "Conflans-Fin-d'Oise"),
-                        ]
-                    ),
-                    LineSchemaSection(
-                        role: .branch,
-                        label: "Branche Poissy",
-                        origins: ["IDFM:73699"],
-                        termini: ["IDFM:74001", "IDFM:70648"],
-                        stops: [
-                            schemaStop("IDFM:73699", "Poissy"),
-                            schemaStop("IDFM:73697", "Achères-Ville"),
-                        ]
-                    ),
-                    LineSchemaSection(
-                        role: .branch,
-                        label: "Branches Cergy-le-Haut / Poissy",
-                        origins: ["IDFM:73731", "IDFM:73699"],
-                        termini: ["IDFM:74001", "IDFM:70648"],
-                        stops: [
-                            schemaStop("IDFM:73688", "Sartrouville"),
-                            schemaStop("IDFM:73690", "Maisons-Laffitte"),
-                        ]
+                        label: "Branche Marne-la-Vallée - Chessy",
+                        origins: ["IDFM:68385"],
+                        termini: rerAWestTermini,
+                        stops: rerAMarneBranch
                     ),
                     LineSchemaSection(
                         role: .trunk,
                         label: nil,
-                        origins: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
-                        termini: ["IDFM:74001", "IDFM:70648"],
-                        stops: [
-                            schemaStop("IDFM:71517", "Nanterre-Préfecture"),
-                            schemaStop("IDFM:71264", "La Défense"),
-                            schemaStop("IDFM:71304", "Auber"),
-                            schemaStop("IDFM:71150", "Châtelet — Les Halles"),
-                            schemaStop("IDFM:71270", "Gare de Lyon"),
-                            schemaStop("IDFM:71135", "Nation"),
-                            schemaStop("IDFM:71129", "Vincennes"),
-                        ]
+                        origins: rerAEastOrigins,
+                        termini: rerAWestTermini,
+                        stops: rerATrunk
                     ),
                     LineSchemaSection(
                         role: .branch,
-                        label: "Branche Marne-la-Vallée – Chessy",
-                        origins: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
-                        termini: ["IDFM:74001"],
-                        stops: [
-                            schemaStop("IDFM:73942", "Val de Fontenay"),
-                            schemaStop("IDFM:73952", "Noisy-le-Grand — Mont d'Est"),
-                            schemaStop("IDFM:73963", "Val d'Europe"),
-                            schemaStop("IDFM:74001", "Marne-la-Vallée – Chessy"),
-                        ]
+                        label: "Branches Cergy le Haut / Poissy",
+                        origins: rerAEastOrigins,
+                        termini: ["IDFM:66834", "IDFM:64883"],
+                        stops: rerACergyPoissyStem
                     ),
                     LineSchemaSection(
                         role: .branch,
-                        label: "Branche Boissy-St-Léger",
-                        origins: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
-                        termini: ["IDFM:70648"],
-                        stops: [
-                            schemaStop("IDFM:70645", "Joinville-le-Pont"),
-                            schemaStop("IDFM:70648", "Boissy-St-Léger"),
-                        ]
+                        label: "Branche Cergy le Haut",
+                        origins: rerAEastOrigins,
+                        termini: ["IDFM:66834"],
+                        stops: rerACergyBranch
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Poissy",
+                        origins: rerAEastOrigins,
+                        termini: ["IDFM:64883"],
+                        stops: rerAPoissyBranch
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Saint-Germain-en-Laye",
+                        origins: rerAEastOrigins,
+                        termini: ["IDFM:64589"],
+                        stops: rerASaintGermainBranch
                     ),
                 ]
             ),
             LineDirection(
                 id: "direction-1",
                 directionId: 1,
-                label: "Saint-Germain-en-Laye / Cergy-le-Haut / Poissy",
+                label: "Boissy-Saint-Léger / Marne-la-Vallée - Chessy",
                 sections: [
-                    LineSchemaSection(
-                        role: .trunk,
-                        label: nil,
-                        origins: ["IDFM:74001", "IDFM:70648"],
-                        termini: ["IDFM:73618", "IDFM:73731", "IDFM:73699"],
-                        stops: [
-                            schemaStop("IDFM:71129", "Vincennes"),
-                            schemaStop("IDFM:71135", "Nation"),
-                            schemaStop("IDFM:71270", "Gare de Lyon"),
-                            schemaStop("IDFM:71150", "Châtelet — Les Halles"),
-                            schemaStop("IDFM:71304", "Auber"),
-                            schemaStop("IDFM:71264", "La Défense"),
-                            schemaStop("IDFM:71517", "Nanterre-Préfecture"),
-                        ]
-                    ),
                     LineSchemaSection(
                         role: .branch,
                         label: "Branche Saint-Germain-en-Laye",
-                        origins: ["IDFM:74001", "IDFM:70648"],
-                        termini: ["IDFM:73618"],
-                        stops: [
-                            schemaStop("IDFM:73620", "Le Vésinet — Le Pecq"),
-                            schemaStop("IDFM:73618", "Saint-Germain-en-Laye"),
-                        ]
+                        origins: ["IDFM:64589"],
+                        termini: rerAEastOrigins,
+                        stops: rerASaintGermainBranch.reversed()
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Cergy le Haut",
+                        origins: ["IDFM:66834"],
+                        termini: rerAEastOrigins,
+                        stops: rerACergyBranch.reversed()
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Poissy",
+                        origins: ["IDFM:64883"],
+                        termini: rerAEastOrigins,
+                        stops: rerAPoissyBranch.reversed()
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branches Cergy le Haut / Poissy",
+                        origins: ["IDFM:66834", "IDFM:64883"],
+                        termini: rerAEastOrigins,
+                        stops: rerACergyPoissyStem.reversed()
+                    ),
+                    LineSchemaSection(
+                        role: .trunk,
+                        label: nil,
+                        origins: rerAWestTermini,
+                        termini: rerAEastOrigins,
+                        stops: rerATrunk.reversed()
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Boissy-Saint-Léger",
+                        origins: rerAWestTermini,
+                        termini: ["IDFM:72881"],
+                        stops: rerABoissyBranch.reversed()
+                    ),
+                    LineSchemaSection(
+                        role: .branch,
+                        label: "Branche Marne-la-Vallée - Chessy",
+                        origins: rerAWestTermini,
+                        termini: ["IDFM:68385"],
+                        stops: rerAMarneBranch.reversed()
                     ),
                 ]
             ),
@@ -356,10 +432,10 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                 ],
                 impactedSections: [
                     LineImpactedSection(
-                        fromStopID: "IDFM:73952",
-                        fromName: "Noisy-le-Grand — Mont d'Est",
-                        toStopID: "IDFM:74001",
-                        toName: "Marne-la-Vallée – Chessy"
+                        fromStopID: "IDFM:412697",
+                        fromName: "Noisy-le-Grand - Mont d'Est",
+                        toStopID: "IDFM:68385",
+                        toName: "Marne-la-Vallée - Chessy"
                     )
                 ],
                 updatedAt: Date(timeIntervalSince1970: 1_755_499_000)
@@ -379,9 +455,9 @@ struct PreviewLineStatusRepository: LineStatusRepository {
                 ],
                 impactedSections: [
                     LineImpactedSection(
-                        fromStopID: "IDFM:71304",
+                        fromStopID: "IDFM:478926",
                         fromName: "Auber",
-                        toStopID: "IDFM:71270",
+                        toStopID: "IDFM:73626",
                         toName: "Gare de Lyon"
                     )
                 ],

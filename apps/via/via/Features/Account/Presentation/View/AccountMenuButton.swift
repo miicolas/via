@@ -3,6 +3,8 @@ import SwiftUI
 struct AccountMenuButton: View {
     let profile: ProfileModel
     let onOpenProfile: () -> Void
+    let onOpenMeetups: () -> Void
+    let onOpenFriends: () -> Void
     let onOpenSettings: () -> Void
 
     var body: some View {
@@ -22,6 +24,17 @@ struct AccountMenuButton: View {
 
             Button(action: onOpenSettings) {
                 Label("Réglages", systemImage: "gearshape")
+            }
+
+            if MeetupFeatureFlags.rendezVousEnabled {
+                Section {
+                    Button(action: onOpenMeetups) {
+                        Label("Rendez-vous", systemImage: "person.2.fill")
+                    }
+                    Button(action: onOpenFriends) {
+                        Label("Amis", systemImage: "person.2")
+                    }
+                }
             }
         } label: {
             ProfileAvatarView(
@@ -46,6 +59,12 @@ struct AccountMenuButton: View {
         model.activate(scope: .anonymous, seedName: "Alex Martin")
         return model
     }()
-    AccountMenuButton(profile: model, onOpenProfile: {}, onOpenSettings: {})
+    AccountMenuButton(
+        profile: model,
+        onOpenProfile: {},
+        onOpenMeetups: {},
+        onOpenFriends: {},
+        onOpenSettings: {}
+    )
         .padding()
 }

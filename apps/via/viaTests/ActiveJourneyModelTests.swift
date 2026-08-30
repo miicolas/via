@@ -297,6 +297,65 @@ final class ActiveJourneyModelTests: XCTestCase {
         XCTAssertNil(persisted)
     }
 
+    func testPenultimateStationAlertsTheLiveActivityOnlyOnce() async throws {
+        let journey = makeAlightingAlertJourney()
+        let activityManager = RecordingJourneyActivityManager()
+        let origin = try XCTUnwrap(journey.sections.first?.stops.first?.coordinate)
+        let penultimate = try XCTUnwrap(journey.sections.first?.stops.dropFirst().first)
+        let location = LocationModel(
+            adapter: InMemoryLocationAdapter(coordinate: origin, horizontalAccuracy: 10)
+        )
+        let model = makeModel(
+            location: location,
+            activityManager: activityManager,
+            now: journey.departureAt
+        )
+
+        await model.go(
+            journey: journey,
+            destination: .station(
+                id: StationID(rawValue: "station:2"),
+                name: "Nation",
+                coordinate: journey.sections[0].to.coordinate
+            ),
+            source: .realtime,
+            allowsBackgroundTracking: false
+        )
+
+        let reachedAt = journey.departureAt.addingTimeInterval(5 * 60)
+        let sample = LocationSample(
+            coordinate: penultimate.coordinate,
+            horizontalAccuracy: 10,
+            recordedAt: reachedAt
+        )
+        await model.receive(sample, at: reachedAt)
+
+        let state = await activityManager.lastUpdate
+        let alerts = await activityManager.alerts
+        XCTAssertEqual(state?.stopProgress?.stopName, "Gare de Lyon")
+        XCTAssertEqual(state?.stopProgress?.remainingStopCount, 1)
+        XCTAssertEqual(state?.instructionTitle, "Prochain arrêt · Nation")
+        XCTAssertEqual(alerts, [
+            JourneyActivityAlert(
+                title: "Prochain arrêt · Nation",
+                body: "Préparez-vous à descendre."
+            )
+        ])
+
+        await model.receive(
+            LocationSample(
+                coordinate: penultimate.coordinate,
+                horizontalAccuracy: 10,
+                recordedAt: reachedAt.addingTimeInterval(1)
+            ),
+            at: reachedAt.addingTimeInterval(1)
+        )
+
+        let alertCount = await activityManager.alerts.count
+        XCTAssertEqual(alertCount, 1)
+        XCTAssertTrue(model.session?.alertedAlightingSectionIDs.contains("section:rer-a") == true)
+    }
+
     func testFastestAlternativeIsProposedAndAcceptedWithoutSilentReplacement() async {
         let result = JourneyResult.mapPreview
         let current = result.journeys[0]
@@ -620,6 +679,7 @@ final class ActiveJourneyModelTests: XCTestCase {
 
         XCTAssertTrue(decoded.planningPolicy.requiresAccessibleStations)
         XCTAssertTrue(decoded.planningPolicy.requiredModes.isEmpty)
+        XCTAssertTrue(decoded.alertedAlightingSectionIDs.isEmpty)
         XCTAssertEqual(decoded.activationID, roundTripped.activationID)
     }
 
@@ -629,6 +689,69 @@ final class ActiveJourneyModelTests: XCTestCase {
             name: "La Défense",
             context: "Puteaux",
             coordinate: GeoCoordinate(latitude: 48.8918, longitude: 2.2380)
+        )
+    }
+
+    private func makeAlightingAlertJourney() -> Journey {
+        let departureAt = Date.now
+        let places = [
+            JourneyPlace(
+                name: "Châtelet",
+                coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.30)
+            ),
+            JourneyPlace(
+                name: "Gare de Lyon",
+                coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.31)
+            ),
+            JourneyPlace(
+                name: "Nation",
+                coordinate: GeoCoordinate(latitude: 48.85, longitude: 2.32)
+            ),
+        ]
+        let stops = places.enumerated().map { index, place in
+            JourneyStop(
+                id: "station:\(index)",
+                stationID: StationID(rawValue: "station:\(index)"),
+                name: place.name,
+                coordinate: place.coordinate,
+                arrivalAt: departureAt.addingTimeInterval(TimeInterval(index * 5 * 60)),
+                departureAt: index == places.count - 1
+                    ? nil
+                    : departureAt.addingTimeInterval(TimeInterval(index * 5 * 60 + 30))
+            )
+        }
+        let section = JourneySection(
+            id: "section:rer-a",
+            kind: .transit,
+            durationSeconds: 10 * 60,
+            from: places[0],
+            to: places[2],
+            departureAt: departureAt,
+            arrivalAt: departureAt.addingTimeInterval(10 * 60),
+            geometry: places.map(\.coordinate),
+            route: JourneyRoute(
+                id: RouteID(rawValue: "route:rer-a"),
+                shortName: "A",
+                longName: "RER A",
+                mode: .rer,
+                colorHex: "E2231A",
+                textColorHex: "FFFFFF"
+            ),
+            direction: "Boissy-Saint-Léger",
+            platform: "2",
+            stops: stops
+        )
+        return Journey(
+            id: JourneyID(rawValue: "journey:alighting-alert"),
+            qualifier: .recommended,
+            durationSeconds: 10 * 60,
+            walkingDurationSeconds: 0,
+            transferCount: 0,
+            departureAt: departureAt,
+            arrivalAt: departureAt.addingTimeInterval(10 * 60),
+            status: .normal,
+            warnings: [],
+            sections: [section]
         )
     }
 
@@ -733,6 +856,7 @@ private actor SuspendedJourneyRepository: JourneyRepository {
 private actor RecordingJourneyActivityManager: JourneyActivityManaging {
     private(set) var lastStart: JourneyActivityAttributes.ContentState?
     private(set) var lastUpdate: JourneyActivityAttributes.ContentState?
+    private(set) var alerts: [JourneyActivityAlert] = []
 
     func start(
         attributes: JourneyActivityAttributes,
@@ -745,9 +869,11 @@ private actor RecordingJourneyActivityManager: JourneyActivityManaging {
     func update(
         journeyID: JourneyID,
         state: JourneyActivityAttributes.ContentState,
-        staleAt: Date
+        staleAt: Date,
+        alert: JourneyActivityAlert?
     ) {
         lastUpdate = state
+        if let alert { alerts.append(alert) }
     }
 
     func end(
@@ -770,7 +896,8 @@ private actor SuspendedJourneyActivityManager: JourneyActivityManaging {
     func update(
         journeyID _: JourneyID,
         state _: JourneyActivityAttributes.ContentState,
-        staleAt _: Date
+        staleAt _: Date,
+        alert _: JourneyActivityAlert?
     ) {}
 
     func end(

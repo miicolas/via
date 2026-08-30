@@ -1,5 +1,7 @@
 export {
+  CAPABILITY_TOKEN_PATTERN,
   accessibilityConditionSchema,
+  capabilityTokenSchema,
   coordinateSchema,
   elevatorReasonSchema,
   elevatorStatusSchema,

@@ -1,24 +1,38 @@
 /**
  * Which stops a journey may start from, or end at, given a point on the map.
  *
- * Pure on purpose: the rule below decides whether a whole town is reachable,
- * and it should be readable — and testable — without a network.
+ * Policy on the planner side of the loader seam: the loader only fetches by
+ * distance, so the rule that decides whether a whole town is reachable stays
+ * readable — and testable — without a network.
  */
 
+import type { Coordinate } from '@via/contract';
+
+import type { GtfsPlannerLoader, PlannerStop } from './planner';
+import type { SearchBudget } from './search-budget';
+
 /**
- * Slots reserved for the nearest métro, RER, Transilien or tram stop, on top of
- * the nearest stops of any mode.
- *
- * Ordering access strictly by distance is right in town, where the eight
- * nearest stops of a dense network already include a métro entrance. It is
- * wrong in a suburb: eight bus poles within four hundred metres crowd out the
- * RER station nine hundred metres away — the one stop that actually leaves the
- * area. The search then starts on bus lines only, needs a connection
- * `transfers.txt` does not declare, and reports that no itinerary exists at
- * all. Reserving slots for the walkable station is what keeps a suburban
- * address connected to the network it is plainly next to.
+ * The stops a search may enter or leave the network through around one point:
+ * the nearest stops of any mode, plus reserved slots for the nearest
+ * structuring station — see `SearchBudget.structuringAccessStops` for why a
+ * suburb needs the reservation at all.
  */
-export const STRUCTURING_ACCESS_STOPS = 4;
+export async function accessStopsAround(
+  nearbyStops: GtfsPlannerLoader['nearbyStops'],
+  coordinate: Coordinate,
+  budget: SearchBudget,
+  stationId?: string
+): Promise<PlannerStop[]> {
+  // A named stop is the traveller's own choice: it wins outright, and no
+  // reserved slot may widen what they pinned.
+  if (stationId) return nearbyStops(coordinate, budget.maxAccessStops, { stationId });
+
+  const [nearest, structuring] = await Promise.all([
+    nearbyStops(coordinate, budget.maxAccessStops, {}),
+    nearbyStops(coordinate, budget.structuringAccessStops, { structuringOnly: true }),
+  ]);
+  return mergeAccessStops(nearest, structuring);
+}
 
 /**
  * The nearest stops of any mode, plus the nearest stations, each list already

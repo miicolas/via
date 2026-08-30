@@ -5,7 +5,10 @@ import SwiftUI
 /// the input field. Restores the state rendering the old `NaturalJourneySheet`
 /// carried, adapted to the bottom container the composer lives in now.
 struct NaturalJourneyStatePanel: View {
-    var viewModel: SearchViewModel
+    var dialogue: NaturalJourneyDialogue
+    /// The criteria the last finished answer produced, shown by the failure
+    /// panel so an offline retry keeps what was already understood.
+    var criteria: NaturalJourneyCriteria?
 
     @State private var contentHeight: CGFloat = 0
 
@@ -31,45 +34,42 @@ struct NaturalJourneyStatePanel: View {
 
     @ViewBuilder
     private var content: some View {
-        switch viewModel.naturalSearchState {
-        case .dismissed, .input, .loading:
+        switch dialogue.state {
+        case .dismissed, .input, .loading, .onboarding:
             // No panel: the field itself carries these states, including the
-            // thinking treatment while a request is in flight.
+            // thinking treatment while a request is in flight. The shell owns
+            // onboarding because it replaces the whole sheet surface.
             EmptyView()
-        case .onboarding:
-            AIOnboardingCard(onTry: viewModel.showNaturalSearchInput)
         case let .clarification(draft, field):
             NaturalJourneyClarificationView(
                 draft: draft,
                 field: field,
                 onResolveTime: { date, meaning in
-                    viewModel.resolveNaturalTime(
+                    dialogue.resolve(
                         draft: draft,
-                        requestedAt: date,
-                        represents: meaning,
+                        with: .time(requestedAt: date, represents: meaning),
                     )
                 },
                 onResolvePlace: { candidate in
-                    viewModel.resolveNaturalPlace(
+                    dialogue.resolve(
                         draft: draft,
-                        field: field,
-                        candidate: candidate,
+                        with: .place(field: field, candidate: candidate),
                     )
                 },
-                onModify: viewModel.modifyNaturalQuery,
+                onModify: dialogue.modifyQuery,
             )
         case let .decision(draft, decision):
             NaturalJourneyDecisionView(
                 decision: decision,
                 onConfirmCurrentLocation: {
-                    viewModel.confirmNaturalCurrentLocation(draft: draft)
+                    dialogue.resolve(draft: draft, with: .currentLocationConfirmed)
                 },
-                onResolveInterpretationConflict: viewModel.modifyNaturalQuery,
+                onResolveInterpretationConflict: dialogue.modifyQuery,
                 onContinueAfterUnexplainedText: {
-                    viewModel.continueNaturalSearchAfterUnexplainedText(draft: draft)
+                    dialogue.resolve(draft: draft, with: .continueAfterUnexplainedText)
                 },
                 onChooseMissingSavedPlace: { target, kind, savesPlace in
-                    viewModel.chooseNaturalSavedPlace(
+                    dialogue.chooseSavedPlace(
                         draft: draft,
                         target: target,
                         kind: kind,
@@ -77,47 +77,47 @@ struct NaturalJourneyStatePanel: View {
                     )
                 },
                 onResolveMode: { mode, constraint in
-                    viewModel.resolveNaturalModeConflict(
+                    dialogue.resolve(
                         draft: draft,
-                        mode: mode,
-                        keeping: constraint,
+                        with: .modeConflict(mode: mode, keeping: constraint),
                     )
                 },
                 onContinueWithoutUnsupported: {
-                    viewModel.continueNaturalSearchWithoutUnsupportedConstraints(
+                    dialogue.resolve(
                         draft: draft,
+                        with: .continueWithoutUnsupportedConstraints,
                     )
                 },
                 onResolveTimeConflict: { constraint in
-                    viewModel.resolveNaturalTimeConflict(
+                    dialogue.resolve(
                         draft: draft,
-                        keeping: constraint,
+                        with: .timeConflict(keeping: constraint),
                     )
                 },
-                onModify: viewModel.modifyNaturalQuery,
+                onModify: dialogue.modifyQuery,
             )
         case let .unsupported(message, suggestions):
             NaturalJourneyUnsupportedView(
                 message: message,
                 suggestions: suggestions,
-                feedbackPhrase: viewModel.naturalQuery,
-                onModify: viewModel.modifyNaturalQuery,
-                onClassicSearch: viewModel.useClassicSearch,
+                feedbackPhrase: dialogue.query,
+                onModify: dialogue.modifyQuery,
+                onClassicSearch: dialogue.useClassicSearch,
             )
         case let .availability(guidance):
             NaturalJourneyAvailabilityView(
                 guidance: guidance,
-                onRetry: viewModel.retryNaturalAvailability,
-                onClassicSearch: viewModel.useClassicSearch,
+                onRetry: dialogue.retryAvailability,
+                onClassicSearch: dialogue.useClassicSearch,
             )
         case let .failed(message):
             NaturalJourneyFailureView(
                 message: message,
-                criteria: viewModel.naturalJourneyCriteria,
-                unresolvedDraft: viewModel.naturalJourneyUnresolvedDraft,
-                feedbackPhrase: viewModel.naturalQuery,
-                onRetry: viewModel.retryNaturalSearch,
-                onClassicSearch: viewModel.useClassicSearch,
+                criteria: criteria,
+                unresolvedDraft: dialogue.unresolvedDraft,
+                feedbackPhrase: dialogue.query,
+                onRetry: dialogue.retry,
+                onClassicSearch: dialogue.useClassicSearch,
             )
         }
     }

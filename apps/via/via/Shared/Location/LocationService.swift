@@ -159,12 +159,13 @@ final class LocationModel {
     /// The stream is registered before the adapter starts so synchronous
     /// preview adapters cannot race the first sample.
     func startJourneyTracking(
-        allowsBackgroundUpdates: Bool
+        allowsBackgroundUpdates: Bool,
+        requestsAlwaysAuthorization: Bool = true
     ) -> AsyncStream<LocationSample> {
         let updates = trackingUpdates()
         allowsJourneyBackgroundUpdates = allowsBackgroundUpdates
         journeyTrackingStartedAt = now()
-        if allowsBackgroundUpdates {
+        if allowsBackgroundUpdates && requestsAlwaysAuthorization {
             adapter.requestBackgroundAuthorization()
         }
         adapter.startUpdatingLocation(allowsBackgroundUpdates: allowsBackgroundUpdates)

@@ -1,6 +1,9 @@
-import type { JourneyInput, JourneyMode } from '@via/contract';
+import type { Journey, JourneyInput, JourneyMode } from '@via/contract';
 
-import { fetchJsonOrNull } from '../../../http/fetch-json-or-null';
+import {
+  fetchJsonResult,
+  type JsonFetchFailure,
+} from '../../../http/fetch-json-or-null';
 import { compactParisDateTime } from '../../../time/paris';
 import type { IdfmJourneyPlanner } from '../service';
 import { parseIdfmJourneys } from './parse';
@@ -26,11 +29,28 @@ import {
  */
 const DEFAULT_TIMEOUT_MS = 5_000;
 
+/**
+ * What one realtime source actually did, named at the seam. The distinction
+ * matters downstream: an `empty` answer is a claim about the route that
+ * deserves a second opinion, while a `refused` round-trip claims nothing.
+ */
+export type SourceAttempt =
+  | { outcome: 'answered'; journeys: Journey[] }
+  /** PRIM answered, and answered nothing — after this many draws from the load balancer. */
+  | { outcome: 'empty'; attempts: 1 | 2 }
+  /** The round-trip itself failed; nothing was learned about the route. */
+  | { outcome: 'refused'; cause: JsonFetchFailure };
+
 type IdfmJourneyPlannerConfig = {
   apiKey: string;
   url: string;
   loadShapes: JourneyShapeLoader;
   timeoutMs?: number;
+  /**
+   * Ask a second time, off the connection pool, when PRIM answers empty — see
+   * the comment inside `plan` for why the fresh socket is the whole point.
+   */
+  retryEmptyAnswerOnFreshConnection?: boolean;
   /** Injectable transport for tests at the HTTP boundary. */
   fetcher?: (url: URL, init?: RequestInit) => Promise<Response>;
 };
@@ -41,13 +61,14 @@ export function createIdfmJourneyPlanner({
   url,
   loadShapes,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  retryEmptyAnswerOnFreshConnection = true,
   fetcher,
 }: IdfmJourneyPlannerConfig): IdfmJourneyPlanner {
   return {
     plan: async (input, requestedAt, signal) => {
-      const attempt = async (onAFreshConnection: boolean) => {
+      const attempt = async (onAFreshConnection: boolean): Promise<SourceAttempt> => {
         const requestUrl = journeyUrl(url, input, requestedAt);
-        const body = await fetchJsonOrNull(requestUrl, {
+        const result = await fetchJsonResult(requestUrl, {
           headers: {
             apikey: apiKey,
             // Opting out of keep-alive costs a handshake and buys a new draw
@@ -61,14 +82,24 @@ export function createIdfmJourneyPlanner({
           telemetry: { provider: 'prim', product: 'journey_planner' },
           ...(fetcher ? { fetcher } : {}),
         });
-        if (body === null) return null;
-        const parsed = parseIdfmJourneys(body, input, requestedAt);
+        if (result.outcome !== 'success') {
+          return { outcome: 'refused', cause: result.outcome };
+        }
+        const parsed = parseIdfmJourneys(result.body, input, requestedAt);
         const journeys = await hydrateSparseJourneyGeometry(parsed, loadShapes);
-        return { status: journeys.length > 0 ? 'ready' : 'no-route', journeys } as const;
+        return journeys.length > 0
+          ? { outcome: 'answered', journeys }
+          : { outcome: 'empty', attempts: 1 };
       };
 
       const first = await attempt(false);
-      if (first === null || first.journeys.length > 0 || signal?.aborted) return first;
+      if (
+        first.outcome !== 'empty' ||
+        !retryEmptyAnswerOnFreshConnection ||
+        signal?.aborted
+      ) {
+        return first;
+      }
       /**
        * A genuine "no line connects these two points" is reproducible; PRIM
        * answering 200 with an empty body is not. Measured against the live
@@ -91,7 +122,8 @@ export function createIdfmJourneyPlanner({
         destinationKind: input.destination.kind,
       });
       const second = await attempt(true);
-      return second?.journeys.length ? second : first;
+      // A refused retry changes nothing: the empty first answer is what stands.
+      return second.outcome === 'answered' ? second : { outcome: 'empty', attempts: 2 };
     },
   };
 }

@@ -12,6 +12,7 @@ struct JourneySheetView: View {
     let journeyNotificationCoordinator: JourneyNotificationCoordinator
     let journeyShareRepository: any JourneyShareRepository
     let departureChoicesRepository: any JourneyDepartureChoicesRepository
+    private let journeyContextSource: JourneyContextSource
     let scheduledReminder: ScheduledJourneyReminder?
     let isPlannedJourney: Bool
     var isLargeScreen: Bool
@@ -37,6 +38,7 @@ struct JourneySheetView: View {
         journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
         journeyShareRepository: any JourneyShareRepository = InMemoryJourneyShareRepository(),
         departureChoicesRepository: any JourneyDepartureChoicesRepository = InMemoryJourneyDepartureChoicesRepository.unavailable,
+        journeyContextSource: JourneyContextSource? = nil,
         scheduledReminder: ScheduledJourneyReminder? = nil,
         isPlannedJourney: Bool = false,
         isLargeScreen: Bool,
@@ -51,6 +53,12 @@ struct JourneySheetView: View {
         self.journeyNotificationCoordinator = journeyNotificationCoordinator
         self.journeyShareRepository = journeyShareRepository
         self.departureChoicesRepository = departureChoicesRepository
+        self.journeyContextSource = journeyContextSource ?? JourneyContextSource(
+            searchViewModel: searchViewModel,
+            plannedJourneyDraftModel: plannedJourneyDraftModel,
+            journeyNotificationCoordinator: journeyNotificationCoordinator,
+            activeJourneyModel: activeJourneyModel
+        )
         self.scheduledReminder = scheduledReminder
         self.isPlannedJourney = isPlannedJourney
         self.isLargeScreen = isLargeScreen
@@ -181,46 +189,10 @@ struct JourneySheetView: View {
     /// search result set is empty; otherwise looks the journey up in the
     /// current proposal.
     private var resolvedJourney: JourneyContext? {
-        JourneyContextResolver.resolve(
-            journeyID: journeyID,
-            active: activeJourneyModel.session.map {
-                JourneyContext(
-                    journey: $0.journey,
-                    destination: $0.destination,
-                    source: $0.source,
-                    planningPolicy: $0.planningPolicy
-                )
-            },
-            reminder: scheduledReminder.flatMap { _ in
-                journeyNotificationCoordinator.reminder(for: journeyID).map {
-                    JourneyContext(
-                        journey: $0.journey,
-                        destination: $0.destination,
-                        source: $0.source,
-                        planningPolicy: $0.planningPolicy
-                    )
-                }
-            },
-            planned: isPlannedJourney ? plannedJourneyDraftModel.draft.map {
-                JourneyContext(
-                    journey: $0.journey,
-                    destination: $0.destination,
-                    source: $0.source,
-                    planningPolicy: $0.planningPolicy
-                )
-            } : nil,
-            search: searchViewModel.journeyResult?.journeys
-                .first(where: { $0.id == journeyID })
-                .flatMap { journey in
-                    searchViewModel.journeyDestination.map {
-                        JourneyContext(
-                            journey: journey,
-                            destination: $0,
-                            source: searchViewModel.journeyResult?.source,
-                            planningPolicy: searchViewModel.journeyPlanningPolicy
-                        )
-                    }
-                }
+        journeyContextSource.context(
+            for: journeyID,
+            isPlanned: isPlannedJourney,
+            isScheduled: scheduledReminder != nil
         )
     }
 

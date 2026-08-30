@@ -53,6 +53,13 @@ export type UpstreamRequestEvent = {
   readonly httpStatus?: number;
 };
 
+/** Every way the round-trip can fail, in the telemetry's own vocabulary. */
+export type JsonFetchFailure = Exclude<PrimRequestEvent['outcome'], 'success'>;
+
+export type JsonFetchResult =
+  | { outcome: 'success'; body: unknown }
+  | { outcome: JsonFetchFailure };
+
 /**
  * One JSON round-trip to an upstream the API must survive losing. Never
  * throws — an upstream outage must degrade the response, not turn it into a
@@ -60,6 +67,18 @@ export type UpstreamRequestEvent = {
  * that costs.
  */
 export async function fetchJsonOrNull(
+  url: URL,
+  options: FetchJsonOptions,
+): Promise<unknown | null> {
+  const result = await fetchJsonResult(url, options);
+  return result.outcome === 'success' ? result.body : null;
+}
+
+/**
+ * The same round-trip for a caller whose fallback policy depends on *why* the
+ * upstream did not answer — a timeout and a 401 do not deserve the same retry.
+ */
+export async function fetchJsonResult(
   url: URL,
   {
     headers,
@@ -70,10 +89,24 @@ export async function fetchJsonOrNull(
     fetcher = fetch,
     recorder,
   }: FetchJsonOptions,
-): Promise<unknown | null> {
+): Promise<JsonFetchResult> {
   const timeout = AbortSignal.timeout(timeoutMs);
   const startedAt = performance.now();
   let httpStatus: number | undefined;
+
+  const failure = (outcome: JsonFetchFailure): JsonFetchResult => {
+    const measured = {
+      outcome,
+      durationMs: elapsedMs(startedAt),
+      ...(httpStatus === undefined ? {} : { httpStatus }),
+    };
+    if (telemetry) {
+      recordTelemetry(telemetry, { level: 'error', ...measured });
+    } else {
+      recordUpstream(recorder, { event: 'upstream_request', logLabel, ...measured });
+    }
+    return { outcome };
+  };
 
   try {
     const response = await fetcher(url, {
@@ -82,25 +115,7 @@ export async function fetchJsonOrNull(
     });
     httpStatus = response.status;
 
-    if (!response.ok) {
-      if (telemetry) {
-        recordTelemetry(telemetry, {
-          level: 'error',
-          outcome: 'http_error',
-          durationMs: elapsedMs(startedAt),
-          httpStatus,
-        });
-      } else {
-        recordUpstream(recorder, {
-          event: 'upstream_request',
-          logLabel,
-          outcome: 'http_error',
-          durationMs: elapsedMs(startedAt),
-          httpStatus,
-        });
-      }
-      return null;
-    }
+    if (!response.ok) return failure('http_error');
 
     try {
       const body: unknown = await response.json();
@@ -110,52 +125,14 @@ export async function fetchJsonOrNull(
         durationMs: elapsedMs(startedAt),
         httpStatus,
       });
-      return body;
+      return { outcome: 'success', body };
     } catch (cause) {
-      if (telemetry) {
-        recordTelemetry(telemetry, {
-          level: 'error',
-          outcome: 'invalid_json',
-          durationMs: elapsedMs(startedAt),
-          httpStatus,
-        });
-      } else {
-        recordUpstream(recorder, {
-          event: 'upstream_request',
-          logLabel,
-          outcome: 'invalid_json',
-          durationMs: elapsedMs(startedAt),
-          httpStatus,
-        });
-      }
-      return null;
+      return failure('invalid_json');
     }
   } catch (cause) {
-    if (telemetry) {
-      recordTelemetry(telemetry, {
-        level: 'error',
-        outcome: signal?.aborted
-          ? 'aborted'
-          : timeout.aborted
-            ? 'timeout'
-            : 'network_error',
-        durationMs: elapsedMs(startedAt),
-        ...(httpStatus === undefined ? {} : { httpStatus }),
-      });
-    } else {
-      recordUpstream(recorder, {
-        event: 'upstream_request',
-        logLabel,
-        outcome: signal?.aborted
-          ? 'aborted'
-          : timeout.aborted
-            ? 'timeout'
-            : 'network_error',
-        durationMs: elapsedMs(startedAt),
-        ...(httpStatus === undefined ? {} : { httpStatus }),
-      });
-    }
-    return null;
+    return failure(
+      signal?.aborted ? 'aborted' : timeout.aborted ? 'timeout' : 'network_error'
+    );
   }
 }
 

@@ -133,6 +133,12 @@ enum LinePlan {
         struct Edge: Hashable {
             let fromSectionID: String
             let toSectionID: String
+            /// The exact physical stations joined by this cross-section rail.
+            /// Section ids alone are not enough: a branch can leave from the
+            /// middle of the main path, as Saint-Germain does at
+            /// Nanterre-Préfecture on RER A.
+            let fromStopID: String
+            let toStopID: String
             let rail: RailStyle
         }
 
@@ -273,6 +279,8 @@ enum LinePlan {
                 Diagram.Edge(
                     fromSectionID: sections[edge.from].id,
                     toSectionID: sections[edge.to].id,
+                    fromStopID: sourceSections[edge.from].stops.last!.id,
+                    toStopID: sourceSections[edge.to].stops.first!.id,
                     rail: diagramRail(
                         from: sourceSections[edge.from].stops.last!.id,
                         to: sourceSections[edge.to].stops.first!.id,

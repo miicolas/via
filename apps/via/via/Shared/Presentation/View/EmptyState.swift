@@ -30,6 +30,54 @@ struct EmptyState {
 // MARK: - The dead ends Via has already worded
 
 extension EmptyState {
+    static let noMeetups = EmptyState(
+        systemImage: "person.2",
+        title: "Aucun rendez-vous",
+        message: "Planifiez un point d’arrivée pour retrouver vos proches en route."
+    )
+
+    static let meetupExpired = EmptyState(
+        systemImage: "clock.badge.xmark",
+        title: "Invitation expirée",
+        message: "Demandez à l’organisateur de créer un nouveau lien."
+    )
+
+    static let meetupFull = EmptyState(
+        systemImage: "person.3.fill",
+        title: "Groupe complet",
+        message: "Ce rendez-vous a déjà ses quatre places, invitations comprises."
+    )
+
+    static let meetupRevoked = EmptyState(
+        systemImage: "link.badge.minus",
+        title: "Invitation révoquée",
+        message: "Ce lien n’accepte plus de nouveau participant."
+    )
+
+    static let meetupCancelled = EmptyState(
+        systemImage: "calendar.badge.minus",
+        title: "Rendez-vous annulé",
+        message: "L’organisateur a annulé ce rendez-vous."
+    )
+
+    static let meetupEventExpired = EmptyState(
+        systemImage: "clock.badge.xmark",
+        title: "Rendez-vous terminé",
+        message: "Le partage en direct est fermé et aucune position n’est conservée."
+    )
+
+    static let meetupCompleted = EmptyState(
+        systemImage: "checkmark.circle.fill",
+        title: "Tout le monde est arrivé",
+        message: "Ce rendez-vous est terminé."
+    )
+
+    static let noFriends = EmptyState(
+        systemImage: "person.2",
+        title: "Aucun ami",
+        message: "Partagez un lien opaque pour ajouter une personne, sans annuaire ni contacts."
+    )
+
     /// No message: the way out is a control on another screen, so the sentence
     /// belongs to an `EmptyStateHint` that can carry that control's symbol
     /// inline instead of describing it in words.

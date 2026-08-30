@@ -1,0 +1,7 @@
+{
+  "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+  "nonce": "oKGio6Slpqeoqaqr",
+  "aad": "meetup-vector:7",
+  "plaintext": "{\"horizontalAccuracy\":8.5,\"latitude\":48.8566,\"longitude\":2.3522,\"recordedAt\":\"2026-08-29T10:00:00.000Z\"}",
+  "combined": "oKGio6Slpqeoqaqrd4kQMD-PuMLOe5J4vZmeju8_sMZhUFiNgfT53RAWqngZ5HOolP3HpP75w4sxcxQpJKMjTHxoDqMdZiVzeRiX5JOJAi1Xm_aVRrGmqzeSm04yryLTJJGkmS8Zerq-_JqLrGlXkL8BT4jr5T7nlxC9NTFKKY9MiYhj"
+}

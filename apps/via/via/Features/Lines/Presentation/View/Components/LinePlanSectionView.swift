@@ -1,19 +1,21 @@
 import SwiftUI
 
-/// One contiguous path of a complete line plan. The main path, every branch,
-/// and every direction-specific loop starts its own rail so visual reading
-/// order can never invent an inter-station connection.
+/// One contiguous physical path rendered with the exact station-row grammar
+/// used by Journey: one wide rail, one bead, and one adjacent label.
 struct LinePlanSectionView: View {
     let section: LinePlan.Diagram.Section
     let lineColorHex: String
+    var showsHeading = true
 
     private var lineColor: Color {
         Color(transitHex: lineColorHex, fallback: .secondary)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            heading
+        VStack(alignment: .leading, spacing: showsHeading ? 6 : 0) {
+            if showsHeading {
+                heading
+            }
 
             VStack(spacing: 0) {
                 ForEach(section.stops, id: \.stop.id) { row in
@@ -34,12 +36,12 @@ struct LinePlanSectionView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(headingTitle)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
 
                 if let headingSubtitle {
                     Text(headingSubtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -51,7 +53,7 @@ struct LinePlanSectionView: View {
             JourneyTimelineRail(
                 above: row.railAbove.timelineStyle(colorHex: lineColorHex),
                 below: row.railBelow.timelineStyle(colorHex: lineColorHex),
-                bead: row.isEnd ? .terminus : .minor,
+                bead: bead(for: row),
                 mark: row.mark,
                 state: .upcoming
             )
@@ -60,15 +62,28 @@ struct LinePlanSectionView: View {
             Text(row.stop.name)
                 .font(.title3.weight(row.isEnd ? .bold : .semibold))
                 .foregroundStyle(row.condition?.tint ?? lineColor)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.trailing, 10)
                 .padding(.vertical, 10)
+
+            if row.isCutEdge, let condition = row.condition {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(condition.tint)
+                    .padding(.trailing, 4)
+                    .padding(.vertical, 10)
+                    .accessibilityHidden(true)
+            }
         }
         .frame(minHeight: 58, alignment: .topLeading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(for: row))
+    }
+
+    private func bead(for row: LinePlan.StopRow) -> JourneyTimelineBead {
+        if row.isEnd { return .terminus }
+        if row.stop.isInterchange { return .major }
+        return .minor
     }
 
     private var headingSymbol: String {
@@ -82,9 +97,9 @@ struct LinePlanSectionView: View {
     private var headingTitle: String {
         switch section.role {
         case .main:
-            "Parcours continu"
+            "Tronc commun"
         case .branch(let name, _):
-            "Branche \(name)"
+            name
         case .loop:
             "Boucle"
         }
@@ -93,16 +108,20 @@ struct LinePlanSectionView: View {
     private var headingSubtitle: String? {
         switch section.role {
         case .main:
-            nil
+            guard let first = section.stops.first?.stop.name,
+                  let last = section.stops.last?.stop.name,
+                  first != last else { return nil }
+            return "\(first) ↔ \(last)"
         case .branch(_, let junction):
-            junction.map { "Depuis \($0)" }
+            return junction.map { "Jonction à \($0)" }
         case .loop(let from, let to):
-            "Entre \(from) et \(to)"
+            return "Entre \(from) et \(to)"
         }
     }
 
     private func accessibilityLabel(for row: LinePlan.StopRow) -> String {
         var labels = [row.stop.name]
+        if row.stop.isInterchange { labels.append("Correspondance") }
         switch row.mark {
         case .open:
             break

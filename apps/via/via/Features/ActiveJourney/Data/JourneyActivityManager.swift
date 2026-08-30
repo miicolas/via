@@ -10,7 +10,8 @@ protocol JourneyActivityManaging: Sendable {
     func update(
         journeyID: JourneyID,
         state: JourneyActivityAttributes.ContentState,
-        staleAt: Date
+        staleAt: Date,
+        alert: JourneyActivityAlert?
     ) async
     func end(
         journeyID: JourneyID,
@@ -26,6 +27,9 @@ final class JourneyActivityManager: JourneyActivityManaging {
         staleAt: Date
     ) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        for meetup in Activity<MeetupActivityAttributes>.activities {
+            await meetup.end(nil, dismissalPolicy: .immediate)
+        }
         if let existing = activity(for: JourneyID(rawValue: attributes.journeyID)) {
             await existing.update(ActivityContent(state: state, staleDate: staleAt))
             return
@@ -46,10 +50,21 @@ final class JourneyActivityManager: JourneyActivityManaging {
     func update(
         journeyID: JourneyID,
         state: JourneyActivityAttributes.ContentState,
-        staleAt: Date
+        staleAt: Date,
+        alert: JourneyActivityAlert?
     ) async {
         guard let current = activity(for: journeyID) else { return }
-        await current.update(ActivityContent(state: state, staleDate: staleAt))
+        let alertConfiguration = alert.map {
+            AlertConfiguration(
+                title: LocalizedStringResource(stringLiteral: $0.title),
+                body: LocalizedStringResource(stringLiteral: $0.body),
+                sound: .default
+            )
+        }
+        await current.update(
+            ActivityContent(state: state, staleDate: staleAt),
+            alertConfiguration: alertConfiguration
+        )
     }
 
     func end(
@@ -85,7 +100,8 @@ struct NoOpJourneyActivityManager: JourneyActivityManaging {
     func update(
         journeyID: JourneyID,
         state: JourneyActivityAttributes.ContentState,
-        staleAt: Date
+        staleAt: Date,
+        alert: JourneyActivityAlert?
     ) async {}
 
     func end(

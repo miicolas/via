@@ -15,6 +15,10 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
     var lastLocationAt: Date?
     var isTrackingStarted: Bool
     var allowsBackgroundTracking: Bool
+    /// Transit sections whose alighting alert has already sounded. Persisting
+    /// this tiny dedup set prevents a restored app or GPS jitter from warning
+    /// twice for the same stop.
+    var alertedAlightingSectionIDs: Set<String>
 
     var id: JourneyID { journey.id }
 
@@ -38,7 +42,8 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         horizontalAccuracy: Double?,
         lastLocationAt: Date? = nil,
         isTrackingStarted: Bool,
-        allowsBackgroundTracking: Bool
+        allowsBackgroundTracking: Bool,
+        alertedAlightingSectionIDs: Set<String> = []
     ) {
         self.activationID = activationID
         self.journey = journey
@@ -51,6 +56,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         self.lastLocationAt = lastLocationAt
         self.isTrackingStarted = isTrackingStarted
         self.allowsBackgroundTracking = allowsBackgroundTracking
+        self.alertedAlightingSectionIDs = alertedAlightingSectionIDs
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -65,6 +71,7 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         case lastLocationAt
         case isTrackingStarted
         case allowsBackgroundTracking
+        case alertedAlightingSectionIDs
     }
 
     /// The pre-policy shape: a bare accessibility flag and nothing else.
@@ -93,6 +100,10 @@ struct ActiveJourneySession: Codable, Sendable, Hashable, Identifiable {
         lastLocationAt = try container.decodeIfPresent(Date.self, forKey: .lastLocationAt)
         isTrackingStarted = try container.decode(Bool.self, forKey: .isTrackingStarted)
         allowsBackgroundTracking = try container.decode(Bool.self, forKey: .allowsBackgroundTracking)
+        alertedAlightingSectionIDs = try container.decodeIfPresent(
+            Set<String>.self,
+            forKey: .alertedAlightingSectionIDs
+        ) ?? []
     }
 }
 

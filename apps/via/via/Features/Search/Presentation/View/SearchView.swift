@@ -6,6 +6,7 @@ import UIKit
 @MainActor
 struct SearchView: View {
   let viewModel: SearchViewModel
+  let dialogue: NaturalJourneyDialogue
   let activeJourneyModel: ActiveJourneyModel
   let plannedJourneyDraftModel: PlannedJourneyDraftModel
   let journeyNotificationCoordinator: JourneyNotificationCoordinator
@@ -39,6 +40,7 @@ struct SearchView: View {
 
   init(
     viewModel: SearchViewModel,
+    dialogue: NaturalJourneyDialogue,
     activeJourneyModel: ActiveJourneyModel,
     plannedJourneyDraftModel: PlannedJourneyDraftModel = PlannedJourneyDraftModel(),
     journeyNotificationCoordinator: JourneyNotificationCoordinator = .preview,
@@ -58,6 +60,7 @@ struct SearchView: View {
     onManageSavedDestinations: (() -> Void)? = nil,
   ) {
     self.viewModel = viewModel
+    self.dialogue = dialogue
     self.activeJourneyModel = activeJourneyModel
     self.plannedJourneyDraftModel = plannedJourneyDraftModel
     self.journeyNotificationCoordinator = journeyNotificationCoordinator
@@ -163,7 +166,7 @@ struct SearchView: View {
         accessibilityHint: request.savesPlace
           ? "Enregistre ce lieu et reprend le trajet"
           : "Choisit ce lieu pour ce trajet uniquement",
-        onSelect: viewModel.completeNaturalSavedPlaceSelection,
+        onSelect: dialogue.completeSavedPlaceSelection,
       )
     }
     .sheet(isPresented: $isNaturalCriteriaFeedbackPresented) {
@@ -178,7 +181,7 @@ struct SearchView: View {
     // The natural-language answer lands after a wait long enough to put the
     // phone down, so both outcomes have to reach the hand.
     .haptic(Haptic.failed, on: hasNaturalSearchFailed) { !$0 && $1 }
-    .haptic(Haptic.saved, on: viewModel.naturalResultJourneyID != nil) { !$0 && $1 }
+    .haptic(Haptic.saved, on: hasNaturalJourneyOutcome) { !$0 && $1 }
     .alert("Rappel non modifié", isPresented: $isReminderErrorPresented) {
       if journeyNotificationCoordinator.authorizationStatus == .denied {
         Button("Ouvrir les réglages iOS") {
@@ -204,17 +207,24 @@ struct SearchView: View {
   }
 
   private var hasNaturalSearchFailed: Bool {
-    switch viewModel.naturalSearchState {
+    switch dialogue.state {
     case .failed, .unsupported, .availability: true
     default: false
     }
   }
 
+  /// Only a resolved journey answers with the saved cue; a line-status
+  /// outcome navigates away and keeps quiet, exactly as before.
+  private var hasNaturalJourneyOutcome: Bool {
+    if case .journey = dialogue.outcome { return true }
+    return false
+  }
+
   private var naturalSavedPlaceSelection: Binding<NaturalSavedPlaceSelectionRequest?> {
     Binding(
-      get: { viewModel.naturalSavedPlaceSelectionRequest },
+      get: { dialogue.savedPlaceSelectionRequest },
       set: { request in
-        if request == nil { viewModel.cancelNaturalSavedPlaceSelection() }
+        if request == nil { dialogue.cancelSavedPlaceSelection() }
       },
     )
   }
@@ -497,13 +507,13 @@ struct SearchView: View {
             viewModel.wrappedValue.updateQuery(newValue)
           }
 
-          if viewModel.wrappedValue.naturalLanguageAccess != .hidden
+          if dialogue.access != .hidden
             && !isSelectingSavedDestination
           {
             AIEntryButton(
-              isDiscoverable: viewModel.wrappedValue.showsNaturalSearchDiscovery,
+              isDiscoverable: dialogue.showsDiscovery,
             ) {
-              viewModel.wrappedValue.openNaturalSearch()
+              dialogue.open()
             }
           }
         }
@@ -649,12 +659,14 @@ struct SearchView: View {
 
 #Preview("Destination") {
   let locationModel = LocationModel(adapter: InMemoryLocationAdapter())
+  let viewModel = SearchViewModel(
+    repository: InMemorySearchRepository.preview,
+    journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
+    locationModel: locationModel,
+  )
   SearchView(
-    viewModel: SearchViewModel(
-      repository: InMemorySearchRepository.preview,
-      journeyRepository: InMemoryJourneyRepository(result: .mapPreview),
-      locationModel: locationModel,
-    ),
+    viewModel: viewModel,
+    dialogue: NaturalJourneyDialogue(locationModel: locationModel, planner: viewModel),
     activeJourneyModel: ActiveJourneyModel(
       locationModel: locationModel,
       journeyRepository: InMemoryJourneyRepository(result: .mapPreview),

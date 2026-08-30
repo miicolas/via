@@ -45,7 +45,7 @@ final class LineDetailViewModel {
     /// joining every branch to its shared stems and trunk.
     var diagram: LinePlan.Diagram {
         guard let detail = detail.value else { return .empty }
-        return LinePlan.diagram(
+        return LinePlan.completeDiagram(
             for: detail.schemaDirections,
             disruptions: detail.disruptions
         )

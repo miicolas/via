@@ -319,6 +319,340 @@ internal struct Client: APIProtocol {
             }
         )
     }
+    /// Lister ses amis
+    ///
+    /// - Remark: HTTP `GET /friends`.
+    /// - Remark: Generated from `#/paths//friends/get(friends.list)`.
+    internal func friends_period_list(_ input: Operations.friends_period_list.Input) async throws -> Operations.friends_period_list.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.friends_period_list.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/friends",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.friends_period_list.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.friends_period_list.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Créer une invitation d'ami
+    ///
+    /// - Remark: HTTP `POST /friends/invitations`.
+    /// - Remark: Generated from `#/paths//friends/invitations/post(friends.createInvitation)`.
+    internal func friends_period_createInvitation(_ input: Operations.friends_period_createInvitation.Input) async throws -> Operations.friends_period_createInvitation.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.friends_period_createInvitation.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/friends/invitations",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.friends_period_createInvitation.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.friends_period_createInvitation.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Prévisualiser une invitation d'ami
+    ///
+    /// - Remark: HTTP `GET /friends/invitations/preview`.
+    /// - Remark: Generated from `#/paths//friends/invitations/preview/get(friends.previewInvitation)`.
+    internal func friends_period_previewInvitation(_ input: Operations.friends_period_previewInvitation.Input) async throws -> Operations.friends_period_previewInvitation.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.friends_period_previewInvitation.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/friends/invitations/preview",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "token",
+                    value: input.query.token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.friends_period_previewInvitation.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.friends_period_previewInvitation.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Accepter une invitation d'ami
+    ///
+    /// - Remark: HTTP `POST /friends/invitations/accept`.
+    /// - Remark: Generated from `#/paths//friends/invitations/accept/post(friends.acceptInvitation)`.
+    internal func friends_period_acceptInvitation(_ input: Operations.friends_period_acceptInvitation.Input) async throws -> Operations.friends_period_acceptInvitation.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.friends_period_acceptInvitation.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/friends/invitations/accept",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.friends_period_acceptInvitation.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.friends_period_acceptInvitation.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Supprimer un ami
+    ///
+    /// - Remark: HTTP `POST /friends/remove`.
+    /// - Remark: Generated from `#/paths//friends/remove/post(friends.remove)`.
+    internal func friends_period_remove(_ input: Operations.friends_period_remove.Input) async throws -> Operations.friends_period_remove.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.friends_period_remove.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/friends/remove",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.friends_period_remove.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.friends_period_remove.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
     /// Calculer des itinéraires
     ///
     /// Calcule plusieurs itinéraires depuis la position courante vers une station ou une adresse. Les horaires en direct restent réservés au panneau de départs de la station proche.
@@ -655,6 +989,1481 @@ internal struct Client: APIProtocol {
                     case "application/json":
                         body = try await converter.getResponseBodyAsJSON(
                             Operations.journeyShares_period_create.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Lister ses rendez-vous
+    ///
+    /// - Remark: HTTP `GET /meetups`.
+    /// - Remark: Generated from `#/paths//meetups/get(meetups.list)`.
+    internal func meetups_period_list(_ input: Operations.meetups_period_list.Input) async throws -> Operations.meetups_period_list.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_list.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_list.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_list.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Créer un rendez-vous
+    ///
+    /// Crée un rendez-vous ponctuel et son Participant organisateur.
+    ///
+    /// - Remark: HTTP `POST /meetups`.
+    /// - Remark: Generated from `#/paths//meetups/post(meetups.create)`.
+    internal func meetups_period_create(_ input: Operations.meetups_period_create.Input) async throws -> Operations.meetups_period_create.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_create.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_create.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_create.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Lire un rendez-vous
+    ///
+    /// - Remark: HTTP `GET /meetups/detail`.
+    /// - Remark: Generated from `#/paths//meetups/detail/get(meetups.get)`.
+    internal func meetups_period_get(_ input: Operations.meetups_period_get.Input) async throws -> Operations.meetups_period_get.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_get.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/detail",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "meetupId",
+                    value: input.query.meetupId
+                )
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_get.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_get.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Modifier un rendez-vous
+    ///
+    /// Modifie la station C ou l'heure puis recalcule le Plan de convergence.
+    ///
+    /// - Remark: HTTP `POST /meetups/update`.
+    /// - Remark: Generated from `#/paths//meetups/update/post(meetups.update)`.
+    internal func meetups_period_update(_ input: Operations.meetups_period_update.Input) async throws -> Operations.meetups_period_update.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_update.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/update",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_update.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_update.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Annuler un rendez-vous
+    ///
+    /// Met fin au Rendez-vous et à tout Partage live.
+    ///
+    /// - Remark: HTTP `POST /meetups/cancel`.
+    /// - Remark: Generated from `#/paths//meetups/cancel/post(meetups.cancel)`.
+    internal func meetups_period_cancel(_ input: Operations.meetups_period_cancel.Input) async throws -> Operations.meetups_period_cancel.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_cancel.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/cancel",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_cancel.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_cancel.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Inviter à un rendez-vous
+    ///
+    /// Crée une Invitation par lien ou ciblée vers un Ami.
+    ///
+    /// - Remark: HTTP `POST /meetups/invitations`.
+    /// - Remark: Generated from `#/paths//meetups/invitations/post(meetups.createInvitation)`.
+    internal func meetups_period_createInvitation(_ input: Operations.meetups_period_createInvitation.Input) async throws -> Operations.meetups_period_createInvitation.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_createInvitation.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/invitations",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_createInvitation.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_createInvitation.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Prévisualiser une invitation
+    ///
+    /// - Remark: HTTP `GET /meetups/invitations/preview`.
+    /// - Remark: Generated from `#/paths//meetups/invitations/preview/get(meetups.previewInvitation)`.
+    internal func meetups_period_previewInvitation(_ input: Operations.meetups_period_previewInvitation.Input) async throws -> Operations.meetups_period_previewInvitation.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_previewInvitation.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/invitations/preview",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "token",
+                    value: input.query.token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_previewInvitation.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_previewInvitation.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Accepter une invitation
+    ///
+    /// Crée un Participant et retourne sa capacité privée.
+    ///
+    /// - Remark: HTTP `POST /meetups/invitations/accept`.
+    /// - Remark: Generated from `#/paths//meetups/invitations/accept/post(meetups.acceptInvitation)`.
+    internal func meetups_period_acceptInvitation(_ input: Operations.meetups_period_acceptInvitation.Input) async throws -> Operations.meetups_period_acceptInvitation.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_acceptInvitation.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/invitations/accept",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_acceptInvitation.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_acceptInvitation.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Refuser une invitation
+    ///
+    /// Refuse une Invitation sans créer de Participant.
+    ///
+    /// - Remark: HTTP `POST /meetups/invitations/decline`.
+    /// - Remark: Generated from `#/paths//meetups/invitations/decline/post(meetups.declineInvitation)`.
+    internal func meetups_period_declineInvitation(_ input: Operations.meetups_period_declineInvitation.Input) async throws -> Operations.meetups_period_declineInvitation.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_declineInvitation.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/invitations/decline",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_declineInvitation.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_declineInvitation.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Révoquer une invitation
+    ///
+    /// Empêche toute future acceptation de cette Invitation.
+    ///
+    /// - Remark: HTTP `POST /meetups/invitations/revoke`.
+    /// - Remark: Generated from `#/paths//meetups/invitations/revoke/post(meetups.revokeInvitation)`.
+    internal func meetups_period_revokeInvitation(_ input: Operations.meetups_period_revokeInvitation.Input) async throws -> Operations.meetups_period_revokeInvitation.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_revokeInvitation.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/invitations/revoke",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_revokeInvitation.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_revokeInvitation.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Configurer sa participation
+    ///
+    /// Met à jour l'origine privée, les préférences ou le Partage live.
+    ///
+    /// - Remark: HTTP `POST /meetups/participant`.
+    /// - Remark: Generated from `#/paths//meetups/participant/post(meetups.configureParticipant)`.
+    internal func meetups_period_configureParticipant(_ input: Operations.meetups_period_configureParticipant.Input) async throws -> Operations.meetups_period_configureParticipant.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_configureParticipant.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/participant",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_configureParticipant.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_configureParticipant.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Quitter un rendez-vous
+    ///
+    /// Retire le Participant courant et invalide sa clé de groupe.
+    ///
+    /// - Remark: HTTP `POST /meetups/leave`.
+    /// - Remark: Generated from `#/paths//meetups/leave/post(meetups.leave)`.
+    internal func meetups_period_leave(_ input: Operations.meetups_period_leave.Input) async throws -> Operations.meetups_period_leave.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_leave.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/leave",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_leave.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_leave.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Retirer un participant
+    ///
+    /// Retire un Participant en tant qu'organisateur.
+    ///
+    /// - Remark: HTTP `POST /meetups/remove`.
+    /// - Remark: Generated from `#/paths//meetups/remove/post(meetups.removeParticipant)`.
+    internal func meetups_period_removeParticipant(_ input: Operations.meetups_period_removeParticipant.Input) async throws -> Operations.meetups_period_removeParticipant.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_removeParticipant.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/remove",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_removeParticipant.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_removeParticipant.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Suivre un rendez-vous
+    ///
+    /// - Remark: HTTP `GET /meetups/live`.
+    /// - Remark: Generated from `#/paths//meetups/live/get(meetups.pollLive)`.
+    internal func meetups_period_pollLive(_ input: Operations.meetups_period_pollLive.Input) async throws -> Operations.meetups_period_pollLive.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_pollLive.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/live",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "meetupId",
+                    value: input.query.meetupId
+                )
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "sinceRevision",
+                    value: input.query.sinceRevision
+                )
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_pollLive.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_pollLive.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Publier sa progression
+    ///
+    /// Publie la progression minimale et, avec consentement, une présence chiffrée.
+    ///
+    /// - Remark: HTTP `POST /meetups/live`.
+    /// - Remark: Generated from `#/paths//meetups/live/post(meetups.publishLive)`.
+    internal func meetups_period_publishLive(_ input: Operations.meetups_period_publishLive.Input) async throws -> Operations.meetups_period_publishLive.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_publishLive.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/live",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_publishLive.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_publishLive.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Enregistrer une clé d'installation
+    ///
+    /// Associe une clé publique Curve25519 au Participant courant.
+    ///
+    /// - Remark: HTTP `POST /meetups/keys/device`.
+    /// - Remark: Generated from `#/paths//meetups/keys/device/post(meetups.registerDeviceKey)`.
+    internal func meetups_period_registerDeviceKey(_ input: Operations.meetups_period_registerDeviceKey.Input) async throws -> Operations.meetups_period_registerDeviceKey.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_registerDeviceKey.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/keys/device",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_registerDeviceKey.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_registerDeviceKey.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Distribuer la clé de groupe
+    ///
+    /// Conserve les enveloppes chiffrées de la révision courante.
+    ///
+    /// - Remark: HTTP `POST /meetups/keys/envelopes`.
+    /// - Remark: Generated from `#/paths//meetups/keys/envelopes/post(meetups.uploadKeyEnvelopes)`.
+    internal func meetups_period_uploadKeyEnvelopes(_ input: Operations.meetups_period_uploadKeyEnvelopes.Input) async throws -> Operations.meetups_period_uploadKeyEnvelopes.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_uploadKeyEnvelopes.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/keys/envelopes",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_uploadKeyEnvelopes.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_uploadKeyEnvelopes.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Synchroniser les clés de groupe
+    ///
+    /// - Remark: HTTP `GET /meetups/keys`.
+    /// - Remark: Generated from `#/paths//meetups/keys/get(meetups.syncKeys)`.
+    internal func meetups_period_syncKeys(_ input: Operations.meetups_period_syncKeys.Input) async throws -> Operations.meetups_period_syncKeys.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_syncKeys.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/keys",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .get
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setQueryItemAsURI(
+                    in: &request,
+                    style: .form,
+                    explode: true,
+                    name: "meetupId",
+                    value: input.query.meetupId
+                )
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                return (request, nil)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_syncKeys.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_syncKeys.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Enregistrer une Live Activity de rendez-vous
+    ///
+    /// Enregistre son jeton APNs sans donnée de position.
+    ///
+    /// - Remark: HTTP `POST /meetups/live-activity`.
+    /// - Remark: Generated from `#/paths//meetups/live-activity/post(meetups.registerActivity)`.
+    internal func meetups_period_registerActivity(_ input: Operations.meetups_period_registerActivity.Input) async throws -> Operations.meetups_period_registerActivity.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_registerActivity.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/live-activity",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_registerActivity.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_registerActivity.Output.Ok.Body.jsonPayload.self,
+                            from: responseBody,
+                            transforming: { value in
+                                .json(value)
+                            }
+                        )
+                    default:
+                        preconditionFailure("bestContentType chose an invalid content type.")
+                    }
+                    return .ok(.init(body: body))
+                default:
+                    return .undocumented(
+                        statusCode: response.status.code,
+                        .init(
+                            headerFields: response.headerFields,
+                            body: responseBody
+                        )
+                    )
+                }
+            }
+        )
+    }
+    /// Retirer une Live Activity de rendez-vous
+    ///
+    /// Supprime le jeton ActivityKit associé.
+    ///
+    /// - Remark: HTTP `POST /meetups/live-activity/unregister`.
+    /// - Remark: Generated from `#/paths//meetups/live-activity/unregister/post(meetups.unregisterActivity)`.
+    internal func meetups_period_unregisterActivity(_ input: Operations.meetups_period_unregisterActivity.Input) async throws -> Operations.meetups_period_unregisterActivity.Output {
+        try await client.send(
+            input: input,
+            forOperation: Operations.meetups_period_unregisterActivity.id,
+            serializer: { input in
+                let path = try converter.renderedPath(
+                    template: "/meetups/live-activity/unregister",
+                    parameters: []
+                )
+                var request: HTTPTypes.HTTPRequest = .init(
+                    soar_path: path,
+                    method: .post
+                )
+                suppressMutabilityWarning(&request)
+                try converter.setHeaderFieldAsURI(
+                    in: &request.headerFields,
+                    name: "x-via-meetup-token",
+                    value: input.headers.x_hyphen_via_hyphen_meetup_hyphen_token
+                )
+                converter.setAcceptHeader(
+                    in: &request.headerFields,
+                    contentTypes: input.headers.accept
+                )
+                let body: OpenAPIRuntime.HTTPBody?
+                switch input.body {
+                case let .json(value):
+                    body = try converter.setRequiredRequestBodyAsJSON(
+                        value,
+                        headerFields: &request.headerFields,
+                        contentType: "application/json; charset=utf-8"
+                    )
+                }
+                return (request, body)
+            },
+            deserializer: { response, responseBody in
+                switch response.status.code {
+                case 200:
+                    let contentType = converter.extractContentTypeIfPresent(in: response.headerFields)
+                    let body: Operations.meetups_period_unregisterActivity.Output.Ok.Body
+                    let chosenContentType = try converter.bestContentType(
+                        received: contentType,
+                        options: [
+                            "application/json"
+                        ]
+                    )
+                    switch chosenContentType {
+                    case "application/json":
+                        body = try await converter.getResponseBodyAsJSON(
+                            Operations.meetups_period_unregisterActivity.Output.Ok.Body.jsonPayload.self,
                             from: responseBody,
                             transforming: { value in
                                 .json(value)

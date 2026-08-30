@@ -15,6 +15,7 @@ struct ApplicationEntry: App {
     @State private var linesViewModel: LinesViewModel
     @State private var selectedStationModel: SelectedStationModel
     @State private var searchViewModel: SearchViewModel
+    @State private var naturalJourneyDialogue: NaturalJourneyDialogue
     @State private var activeJourneyModel: ActiveJourneyModel
     @State private var plannedJourneyDraftModel: PlannedJourneyDraftModel
     @State private var reportViewModel: ReportViewModel
@@ -28,7 +29,10 @@ struct ApplicationEntry: App {
     @State private var pushNotificationManager: PushNotificationManager
     @State private var journeyNotificationCoordinator: JourneyNotificationCoordinator
     @State private var notificationInboxRemote: any NotificationInboxRemote
-    @State private var pendingJourneyShareToken: String?
+    @State private var meetupsModel: MeetupsModel
+    @State private var friendsModel: FriendsModel
+    /// Buffers every deep link until the map shell exists to consume it.
+    @State private var routeInbox = RouteInbox()
     private let journeyShareRepository: any JourneyShareRepository
     private let journeyDepartureChoicesRepository: any JourneyDepartureChoicesRepository
 
@@ -77,15 +81,23 @@ struct ApplicationEntry: App {
                 locationModel: dependencies.locationModel,
             ),
         )
-        _searchViewModel = State(
-            initialValue: SearchViewModel(
-                repository: dependencies.searchRepository,
-                journeyRepository: dependencies.journeyRepository,
+        let searchViewModel = SearchViewModel(
+            repository: dependencies.searchRepository,
+            journeyRepository: dependencies.journeyRepository,
+            locationModel: dependencies.locationModel,
+            account: dependencies.accountModel,
+            naturalLanguageAvailability: dependencies.naturalLanguageAvailability,
+            naturalJourneyMetrics: dependencies.naturalJourneyMetrics,
+        )
+        _searchViewModel = State(initialValue: searchViewModel)
+        _naturalJourneyDialogue = State(
+            initialValue: NaturalJourneyDialogue(
+                repository: dependencies.naturalJourneyRepository,
+                availability: dependencies.naturalLanguageAvailability,
+                metrics: dependencies.naturalJourneyMetrics,
                 locationModel: dependencies.locationModel,
                 account: dependencies.accountModel,
-                naturalJourneyRepository: dependencies.naturalJourneyRepository,
-                naturalLanguageAvailability: dependencies.naturalLanguageAvailability,
-                naturalJourneyMetrics: dependencies.naturalJourneyMetrics,
+                planner: searchViewModel,
             ),
         )
         let activeJourneyModel = ActiveJourneyModel(
@@ -131,17 +143,32 @@ struct ApplicationEntry: App {
         _pushNotificationManager = State(initialValue: dependencies.pushNotificationManager)
         _journeyNotificationCoordinator = State(initialValue: dependencies.journeyNotificationCoordinator)
         _notificationInboxRemote = State(initialValue: dependencies.notificationInboxRemote)
+        let meetupLive = MeetupLiveCoordinator(
+            transport: dependencies.meetupLiveTransport,
+            cryptography: dependencies.meetupCryptography,
+            locationModel: dependencies.locationModel,
+            activityManager: dependencies.meetupActivityManager
+        )
+        _meetupsModel = State(initialValue: MeetupsModel(
+            repository: dependencies.meetupRepository,
+            searchRepository: dependencies.searchRepository,
+            locationModel: dependencies.locationModel,
+            live: meetupLive
+        ))
+        _friendsModel = State(initialValue: FriendsModel(repository: dependencies.friendsRepository))
     }
 
     var body: some Scene {
         WindowGroup {
             applicationRoot
             .onOpenURL { url in
-                guard case .sharedJourney(let token) = MapRoute(url: url) else { return }
-                // MapShellView owns the normal case. Keeping a copy here also
-                // covers a universal link received during launch animation or
-                // onboarding, before the shell exists in the view hierarchy.
-                pendingJourneyShareToken = token
+                routeInbox.receive(url)
+            }
+            // Push routes enter the same inbox as universal links, so the
+            // shell keeps a single presentation switch.
+            .onChange(of: pushNotificationManager.pendingRoute, initial: true) { _, _ in
+                guard let url = pushNotificationManager.consumePendingRoute() else { return }
+                routeInbox.receive(url)
             }
             .task(id: onboardingModel.isCompleted) {
                 guard onboardingModel.isCompleted else { return }
@@ -230,6 +257,7 @@ struct ApplicationEntry: App {
                     linesViewModel: linesViewModel,
                     selectedStationModel: selectedStationModel,
                     searchViewModel: searchViewModel,
+                    naturalJourneyDialogue: naturalJourneyDialogue,
                     activeJourneyModel: activeJourneyModel,
                     plannedJourneyDraftModel: plannedJourneyDraftModel,
                     reportViewModel: reportViewModel,
@@ -241,8 +269,9 @@ struct ApplicationEntry: App {
                     pushNotificationManager: pushNotificationManager,
                     journeyNotificationCoordinator: journeyNotificationCoordinator,
                     journeyShareRepository: journeyShareRepository,
-                    initialSharedJourneyToken: pendingJourneyShareToken,
-                    onConsumeSharedJourney: { pendingJourneyShareToken = nil },
+                    meetupsModel: meetupsModel,
+                    friendsModel: friendsModel,
+                    routeInbox: routeInbox,
                     journeyDepartureChoicesRepository: journeyDepartureChoicesRepository,
                     onReplayOnboarding: replayOnboarding,
                     notificationInboxRemote: notificationInboxRemote,

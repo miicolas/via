@@ -5,6 +5,7 @@ import SwiftUI
 struct JourneyTimelineSectionView: View {
     let nodes: [JourneyTimelineNode]
     let currentSectionIndex: Int?
+    let liveStopProgress: JourneyStopProgress?
     @Binding var isExpanded: Bool
     var departureChoicesGroup: JourneyDepartureChoiceGroup?
     var isDepartureChoicesLoading = false
@@ -31,6 +32,7 @@ struct JourneyTimelineSectionView: View {
                         of: node,
                         currentSectionIndex: currentSectionIndex
                     ),
+                    liveStopProgress: liveStopProgress,
                     isExpanded: $isExpanded,
                     departureChoicesGroup: departureChoicesGroup,
                     isDepartureChoicesLoading: isDepartureChoicesLoading,

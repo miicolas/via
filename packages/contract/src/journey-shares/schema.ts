@@ -4,6 +4,7 @@ import {
   journeyClientPayloadSchema,
   journeySchema,
 } from "../journeys/schema";
+import { capabilityTokenSchema } from "../shared/schema";
 
 /**
  * A journey share is an immutable, deliberately small copy of the journey the
@@ -24,9 +25,7 @@ export const journeyShareClientSnapshotSchema = journeyShareSnapshotSchema.exten
 });
 
 /** A URL-safe 256-bit token. The raw token is never stored by the API. */
-export const journeyShareTokenSchema = z
-  .string()
-  .regex(/^[A-Za-z0-9_-]{43}$/, "Invalid journey share token");
+export const journeyShareTokenSchema = capabilityTokenSchema("journey share token");
 
 export const journeyShareCreateInputSchema = z.object({
   snapshot: journeyShareClientSnapshotSchema,

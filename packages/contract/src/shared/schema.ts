@@ -87,3 +87,16 @@ export const routeBadgeSchema = z.object({
   color: z.string(),
   textColor: z.string(),
 });
+
+/**
+ * A URL-safe 256-bit capability, base64url-encoded. The raw value is only ever
+ * held by its bearer: the API stores nothing but a SHA-256 digest of it.
+ *
+ * The length is a cryptographic property, so it is stated once here and
+ * aliased by every feature that mints one — widening it in a single feature
+ * would silently reject valid links at exactly one surface.
+ */
+export const CAPABILITY_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+export const capabilityTokenSchema = (label: string) =>
+  z.string().regex(CAPABILITY_TOKEN_PATTERN, `Invalid ${label}`);

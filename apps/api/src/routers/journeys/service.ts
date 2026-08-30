@@ -13,6 +13,7 @@ import {
 import { annotatePeakJourneys } from './peak';
 import { annotateWayfinding } from './wayfinding';
 import { applyOperationalElevatorConstraint } from './elevators';
+import type { SourceAttempt } from './idfm/client';
 
 type PlannedJourneys = {
   status: 'ready' | 'no-route' | 'unavailable';
@@ -25,7 +26,7 @@ export type IdfmJourneyPlanner = {
     input: JourneyInput,
     now: Date,
     signal?: AbortSignal
-  ) => Promise<PlannedJourneys | null>;
+  ) => Promise<SourceAttempt>;
 };
 
 export type GtfsJourneyPlanner = {
@@ -144,6 +145,12 @@ export function createJourneyPlanner({
       });
 
       /**
+       * What the upstreams actually did, kept for the empty-plan report. Only
+       * a cache miss consults them, so a cache hit leaves the trace blank.
+       */
+      const trace: UpstreamTrace = {};
+
+      /**
        * Wayfinding rides inside the cached value rather than decorating the
        * response afterwards: it is a pure function of the journeys and the
        * destination, and the destination is already part of the cache key, so
@@ -180,7 +187,9 @@ export function createJourneyPlanner({
           return gtfsFallback();
         }
 
-        let realtime = await planWithIdfm(idfm, input, requestedAt, now, annotators, signal);
+        const attempted = await planWithIdfm(idfm, input, requestedAt, now, annotators, signal);
+        trace.idfm = describeAttempt(attempted.attempt);
+        let realtime = attempted.response;
         if (
           realtime?.status === 'ready' &&
           input.preferredModes?.length &&
@@ -192,18 +201,20 @@ export function createJourneyPlanner({
             counterKeyPrefix: 'prim:budget:journeys',
           });
           if (extraBudget.allowed) {
-            const preferredOnly = await planWithIdfm(
-              idfm,
-              {
-                ...input,
-                requiredModes: input.preferredModes,
-                preferredModes: [],
-              },
-              requestedAt,
-              now,
-              annotators,
-              signal
-            );
+            const preferredOnly = (
+              await planWithIdfm(
+                idfm,
+                {
+                  ...input,
+                  requiredModes: input.preferredModes,
+                  preferredModes: [],
+                },
+                requestedAt,
+                now,
+                annotators,
+                signal
+              )
+            ).response;
             if (preferredOnly?.journeys.length) {
               realtime = await qualify(
                 {
@@ -219,13 +230,13 @@ export function createJourneyPlanner({
           }
         }
         /**
-         * IDFM saying "no route" is not the same as there being none. It gives
-         * up on an address its street fallback cannot connect to the network,
-         * and an empty answer is indistinguishable from a rich one at this
-         * seam. Via's own timetable is the second opinion — and until now it
-         * was only ever consulted when the call itself failed, so a traveller
-         * whose address IDFM would not route from was told that no line
-         * connects the two points, without Via ever having looked.
+         * The single rule for consulting the timetable: realtime left nothing
+         * to ride — whether PRIM answered empty, refused the round-trip, or
+         * its answer did not survive filtering. IDFM saying "no route" is not
+         * the same as there being none: it gives up on an address its street
+         * fallback cannot connect to the network, so Via's own timetable is
+         * asked for a second opinion before the traveller is told that no
+         * line connects the two points.
          *
          * The realtime answer still wins whenever it has anything to ride, and
          * it survives an equally empty second opinion so its own reason — no
@@ -234,7 +245,7 @@ export function createJourneyPlanner({
          */
         const base = realtime?.journeys.length
           ? realtime
-          : await secondOpinion(realtime, () =>
+          : await secondOpinion(realtime, trace, () =>
               planWithGtfsConstraint(
                 gtfs,
                 input,
@@ -281,31 +292,61 @@ export function createJourneyPlanner({
           console.error('[journeys] signalements communautaires indisponibles', cause);
         }
       }
-      reportPlanWithNothingToRide(live, input);
+      reportPlanWithNothingToRide(live, input, trace);
       return live;
     },
   };
 }
 
+/** The adapter itself threw — a hydration or parse failure, not an upstream refusal. */
+type RealtimeAttempt = SourceAttempt | { outcome: 'failed' };
+
+/**
+ * What each upstream actually did on this request, written down only when the
+ * plan ends with nothing to ride. `idfm` speaks the attempt vocabulary —
+ * `empty(2)`, `refused(timeout)` — and `secondOpinion` carries the local
+ * timetable's own verdict when it was consulted and found nothing either.
+ */
+type UpstreamTrace = {
+  idfm?: string;
+  secondOpinion?: { status: JourneysResponse['status']; reason: JourneysResponse['reason'] };
+};
+
+function describeAttempt(attempt: RealtimeAttempt): string {
+  switch (attempt.outcome) {
+    case 'answered': return 'answered';
+    case 'empty': return `empty(${attempt.attempts})`;
+    case 'refused': return `refused(${attempt.cause})`;
+    case 'failed': return 'failed';
+  }
+}
+
 /**
  * A plan with nothing to ride is the one outcome nobody could explain after the
- * fact. The screen says the same sentence either way, and the logs only ever
- * named the moment IDFM was skipped — never the answer that came back empty. So
- * a traveller reporting "there is no itinerary from home" left no trace saying
- * whether a live planner found no line, or the timetable fallback — the one
- * that answers once the IDFM quota is spent — could not build the journey.
+ * fact. The screen says the same sentence either way, so a traveller reporting
+ * "there is no itinerary from home" left no trace saying whether a live planner
+ * found no line, or the timetable fallback — the one that answers once the IDFM
+ * quota is spent — could not build the journey.
  *
- * The source is what settles it, so it is what gets written down. Coordinates
- * stay out: the shape of the request explains the outcome, the traveller's
- * doorstep does not.
+ * The trace is what settles it, so it is what gets written down: which upstream
+ * gave way (empty after how many attempts, refused for which cause), and the
+ * second opinion's own verdict — without it a failing suburb could not be told
+ * apart from a broken import. Coordinates stay out: the shape of the request
+ * explains the outcome, the traveller's doorstep does not.
  */
-function reportPlanWithNothingToRide(response: JourneysResponse, input: JourneyInput) {
+function reportPlanWithNothingToRide(
+  response: JourneysResponse,
+  input: JourneyInput,
+  trace: UpstreamTrace
+) {
   if (response.journeys.some((journey) => !isDirectJourney(journey))) return;
 
   console.info('[journeys] aucun itinéraire en transport', {
     source: response.source,
     status: response.status,
     reason: response.reason,
+    ...(trace.idfm ? { idfm: trace.idfm } : {}),
+    ...(trace.secondOpinion ? { secondOpinion: trace.secondOpinion } : {}),
     destinationKind: input.destination.kind,
     pinnedOrigin: input.originStationId !== undefined,
     requiredModes: input.requiredModes ?? [],
@@ -318,26 +359,17 @@ function reportPlanWithNothingToRide(response: JourneysResponse, input: JourneyI
 /**
  * The theoretical plan, kept only when it has something the realtime one did
  * not. An equally empty second opinion changes nothing, so the first answer —
- * and the reason it carries — is what stands.
+ * and the reason it carries — is what stands; the timetable's own verdict is
+ * recorded on the trace for the final empty-plan report.
  */
 async function secondOpinion(
   realtime: JourneysResponse | null,
+  trace: UpstreamTrace,
   theoretical: () => Promise<JourneysResponse>
 ): Promise<JourneysResponse> {
   const answer = await theoretical();
   if (answer.journeys.length === 0) {
-    /**
-     * The one line that says which safety net gave way. The final log only
-     * carries the answer that reached the screen — realtime's, when both are
-     * empty — so without this the local timetable's own verdict (found
-     * nothing? had no stops to search from? errored into unavailable?) left
-     * no trace, and a failing suburb could not be told apart from a broken
-     * import.
-     */
-    console.info('[journeys] second avis GTFS vide', {
-      status: answer.status,
-      reason: answer.reason,
-    });
+    trace.secondOpinion = { status: answer.status, reason: answer.reason };
   }
   return answer.journeys.length > 0 ? answer : realtime ?? answer;
 }
@@ -349,36 +381,43 @@ async function planWithIdfm(
   now: Date,
   annotators: JourneyPlannerAnnotators,
   signal?: AbortSignal
-): Promise<JourneysResponse | null> {
+): Promise<{ attempt: RealtimeAttempt; response: JourneysResponse | null }> {
   try {
-    const response = await idfm.plan(input, requestedAt, signal);
-    if (!response) return null;
+    const attempt = await idfm.plan(input, requestedAt, signal);
+    if (attempt.outcome === 'refused') return { attempt, response: null };
+    const journeys = attempt.outcome === 'answered' ? attempt.journeys : [];
     if (!input.requiresAccessibleStations) {
-      return qualify(response, 'idfm-realtime', now, input, annotators);
+      return {
+        attempt,
+        response: await qualify(
+          { status: journeys.length > 0 ? 'ready' : 'no-route', journeys },
+          'idfm-realtime',
+          now,
+          input,
+          annotators
+        ),
+      };
     }
     // IDFM has already applied `wheelchair=true`. Missing local rail aliases
     // must not erase a valid, potentially longer bus or tram alternative.
-    const journeys = await annotators.annotateAccessibleJourneys(response.journeys);
-    const status: PlannedJourneys['status'] = response.status === 'unavailable'
-      ? 'unavailable'
-      : journeys.length > 0
-        ? 'ready'
-        : 'no-route';
-    return qualify(
-      {
-        ...response,
-        status,
-        journeys,
-        reason: status === 'no-route' ? 'no-accessible-route' : undefined,
-      },
-      'idfm-realtime',
-      now,
-      input,
-      annotators
-    );
+    const accessible = await annotators.annotateAccessibleJourneys(journeys);
+    return {
+      attempt,
+      response: await qualify(
+        {
+          status: accessible.length > 0 ? 'ready' : 'no-route',
+          journeys: accessible,
+          reason: accessible.length === 0 ? 'no-accessible-route' : undefined,
+        },
+        'idfm-realtime',
+        now,
+        input,
+        annotators
+      ),
+    };
   } catch (cause) {
     console.error('[journeys] planificateur IDFM indisponible', cause);
-    return null;
+    return { attempt: { outcome: 'failed' }, response: null };
   }
 }
 

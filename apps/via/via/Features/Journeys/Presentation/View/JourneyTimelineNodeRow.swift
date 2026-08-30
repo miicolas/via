@@ -5,6 +5,7 @@ import SwiftUI
 struct JourneyTimelineNodeRow: View {
     let node: JourneyTimelineNode
     let state: JourneyTimelineNodeState
+    let liveStopProgress: JourneyStopProgress?
     @Binding var isExpanded: Bool
     var departureChoicesGroup: JourneyDepartureChoiceGroup?
     var isDepartureChoicesLoading = false
@@ -29,7 +30,10 @@ struct JourneyTimelineNodeRow: View {
                     stops: intermediate,
                     rail: node.railBelow,
                     state: state,
-                    isExpanded: isExpanded
+                    isExpanded: isExpanded,
+                    liveStopProgress: isExpanded && liveStopProgress?.sectionID == node.sectionID
+                        ? liveStopProgress
+                        : nil
                 )
             }
         } else if case .board(_, let route, _, _, _) = node.kind,
@@ -93,6 +97,7 @@ struct JourneyTimelineNodeRow: View {
             above: node.railAbove,
             below: node.railBelow,
             bead: node.bead,
+            liveStopStatus: liveStatus(for: node),
             state: state
         )
     }
@@ -341,10 +346,38 @@ struct JourneyTimelineNodeRow: View {
             stopCountTitle(hiddenStopCount(in: intermediate))
         }
 
+        let positioned = [base, liveStopAnnouncement(for: node)]
+            .compactMap(\.self)
+            .joined(separator: ". ")
+
         return switch state {
-        case .done: "\(base). Déjà parcouru."
-        case .current: "\(base). Étape en cours."
-        case .upcoming: base
+        case .done: "\(positioned). Déjà parcouru."
+        case .current: "\(positioned). Étape en cours."
+        case .upcoming: positioned
+        }
+    }
+
+    private var liveStopID: String? {
+        guard liveStopProgress?.sectionID == node.sectionID else { return nil }
+        return liveStopProgress?.stopID
+    }
+
+    private func liveStatus(
+        for node: JourneyTimelineNode
+    ) -> JourneyStopProgress.Status? {
+        let stopID: String? = switch node.kind {
+        case .board(let stop, _, _, _, _), .alight(let stop, _): stop.id
+        case .origin, .walk, .bike, .wait, .transfer, .ride, .destination: nil
+        }
+        guard stopID == liveStopID else { return nil }
+        return liveStopProgress?.status
+    }
+
+    private func liveStopAnnouncement(for node: JourneyTimelineNode) -> String? {
+        guard let status = liveStatus(for: node) else { return nil }
+        return switch status {
+        case .current: "Station actuelle"
+        case .next: "Prochaine station"
         }
     }
 }

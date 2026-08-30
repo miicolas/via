@@ -18,7 +18,10 @@ struct StationsView: View {
     let showsNaturalSearchDiscovery: Bool
     let onOpenNaturalSearch: () -> Void
     let onOpenProfile: () -> Void
+    let onOpenMeetups: () -> Void
+    let onOpenFriends: () -> Void
     let onOpenSettings: () -> Void
+    let onMeetAtStation: (StationOverview) -> Void
     let onOpenSavedDestination: (SearchResult) -> Void
     let onConfigurePlace: (SavedPlace.Role) -> Void
     let onAddSavedDestination: () -> Void
@@ -53,6 +56,8 @@ struct StationsView: View {
                         AccountMenuButton(
                             profile: profileModel,
                             onOpenProfile: onOpenProfile,
+                            onOpenMeetups: onOpenMeetups,
+                            onOpenFriends: onOpenFriends,
                             onOpenSettings: onOpenSettings
                         )
                     }
@@ -70,6 +75,7 @@ struct StationsView: View {
                     selection: selectedStation,
                     isLargeScreen: isLargeScreen,
                     detailDetent: $detailDetent,
+                    onMeetHere: onMeetAtStation
                 )
             }
         }
@@ -431,7 +437,10 @@ struct StationsView: View {
         showsNaturalSearchDiscovery: true,
         onOpenNaturalSearch: {},
         onOpenProfile: {},
+        onOpenMeetups: {},
+        onOpenFriends: {},
         onOpenSettings: {},
+        onMeetAtStation: { _ in },
         onOpenSavedDestination: { _ in },
         onConfigurePlace: { _ in },
         onAddSavedDestination: {},

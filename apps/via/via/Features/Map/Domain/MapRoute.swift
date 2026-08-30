@@ -18,6 +18,14 @@ enum ShareLinkOrigin {
         base.appending(path: "trip").appending(path: token)
     }
 
+    static func meetupURL(token: String, key: String? = nil) -> URL {
+        let invitation = base.appending(path: "meet").appending(path: token)
+        guard let key else { return invitation }
+        var components = URLComponents(url: invitation, resolvingAgainstBaseURL: false)
+        components?.fragment = "k=\(key)"
+        return components?.url ?? invitation
+    }
+
     static func isKnownHost(_ candidate: String) -> Bool {
         candidate == host || candidate == "www.\(host)"
     }
@@ -33,6 +41,9 @@ enum MapRoute: Hashable, Sendable {
     case activeJourney(JourneyID)
     case scheduledJourney(JourneyID)
     case sharedJourney(String)
+    case meetup(String)
+    case meetupInvitation(token: String, key: String?)
+    case friendInvitation(String)
 
     init?(url: URL) {
         guard let scheme = url.scheme?.lowercased() else { return nil }
@@ -44,15 +55,28 @@ enum MapRoute: Hashable, Sendable {
             else { return nil }
 
             let components = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
-            guard
-                components.count == 2,
-                components[0].lowercased() == "trip",
-                let rawToken = components.last,
-                let token = Self.shareToken(from: rawToken)
-            else { return nil }
-
-            self = .sharedJourney(token)
-            return
+            if components.count == 3,
+               components[0].lowercased() == "meet",
+               components[1].lowercased() == "friend",
+               let token = Self.capabilityToken(from: components[2]) {
+                self = .friendInvitation(token)
+                return
+            }
+            guard components.count == 2, let rawToken = components.last else { return nil }
+            switch components[0].lowercased() {
+            case "trip":
+                guard let token = Self.shareToken(from: rawToken) else { return nil }
+                self = .sharedJourney(token)
+                return
+            case "meet":
+                guard let token = Self.capabilityToken(from: rawToken),
+                      let key = Self.meetupFragmentKey(from: url)
+                else { return nil }
+                self = .meetupInvitation(token: token, key: key)
+                return
+            default:
+                return nil
+            }
         }
 
         guard scheme == "via", let host = url.host?.lowercased() else {
@@ -81,6 +105,24 @@ enum MapRoute: Hashable, Sendable {
                 let token = Self.shareToken(from: rawToken)
             else { return nil }
             self = .sharedJourney(token)
+        case "meet":
+            let rawToken = url.pathComponents
+                .first(where: { $0 != "/" && !$0.isEmpty })
+            guard let rawToken,
+                  let token = Self.capabilityToken(from: rawToken),
+                  let key = Self.meetupFragmentKey(from: url)
+            else { return nil }
+            self = .meetupInvitation(token: token, key: key)
+        case "meetup":
+            let meetupID = url.pathComponents
+                .first(where: { $0 != "/" && !$0.isEmpty })
+            guard let meetupID, UUID(uuidString: meetupID) != nil else { return nil }
+            self = .meetup(meetupID.lowercased())
+        case "friend":
+            let rawToken = url.pathComponents
+                .first(where: { $0 != "/" && !$0.isEmpty })
+            guard let rawToken, let token = Self.capabilityToken(from: rawToken) else { return nil }
+            self = .friendInvitation(token)
         case "journey":
             if value("mode")?.lowercased() == "shared",
                let rawToken = value("token"),
@@ -144,5 +186,24 @@ enum MapRoute: Hashable, Sendable {
                 || byte == 45
                 || byte == 95
         }
+    }
+
+    private static func capabilityToken(from value: String) -> String? {
+        guard isValidShareToken(value) else { return nil }
+        return value
+    }
+
+    /// A missing fragment means no precise-position key was shared. Once a
+    /// fragment exists it must be the one supported shape; silently dropping a
+    /// malformed key would make a privacy failure look like a valid invite.
+    private static func meetupFragmentKey(from url: URL) -> String?? {
+        guard let fragment = URLComponents(
+            url: url,
+            resolvingAgainstBaseURL: false
+        )?.fragment else { return .some(nil) }
+        guard fragment.hasPrefix("k=") else { return nil }
+        let value = String(fragment.dropFirst(2))
+        guard isValidShareToken(value) else { return nil }
+        return .some(value)
     }
 }

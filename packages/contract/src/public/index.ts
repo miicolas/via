@@ -20,6 +20,14 @@ export {
   publicJourneyShareResponseSchema,
   publicJourneyShareSnapshotSchema,
 } from './journey-shares';
+export {
+  publicFriendInvitationResponseSchema,
+  publicMeetupInvitationResponseSchema,
+} from './meetups';
+export type {
+  PublicFriendInvitationResponse,
+  PublicMeetupInvitationResponse,
+} from './meetups';
 export type {
   PublicJourney,
   PublicJourneySection,

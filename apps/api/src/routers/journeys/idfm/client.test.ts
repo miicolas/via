@@ -145,8 +145,8 @@ test('asks PRIM a second time when the first answer is empty', async () => {
   const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
 
   expect(requested).toHaveLength(2);
-  expect(response?.status).toBe('ready');
-  expect(response?.journeys).toHaveLength(1);
+  expect(response.outcome).toBe('answered');
+  expect(response.outcome === 'answered' && response.journeys).toHaveLength(1);
 });
 
 /**
@@ -168,7 +168,7 @@ test('a healthy answer costs a single call', async () => {
   const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
 
   expect(requested).toHaveLength(1);
-  expect(response?.status).toBe('ready');
+  expect(response.outcome).toBe('answered');
 });
 
 test('a reproducible dead end stays a dead end after exactly one retry', async () => {
@@ -177,6 +177,60 @@ test('a reproducible dead end stays a dead end after exactly one retry', async (
   const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
 
   expect(requested).toHaveLength(2);
-  expect(response?.status).toBe('no-route');
-  expect(response?.journeys).toEqual([]);
+  expect(response).toEqual({ outcome: 'empty', attempts: 2 });
+});
+
+test('the retry can be turned off at construction, and the answer says one attempt', async () => {
+  const requested: URL[] = [];
+  const planner = createIdfmJourneyPlanner({
+    apiKey: 'test',
+    url: 'https://prim.test/journeys',
+    loadShapes: async () => [],
+    retryEmptyAnswerOnFreshConnection: false,
+    fetcher: async (url) => {
+      requested.push(url);
+      return new Response(JSON.stringify({}), { status: 200 });
+    },
+  });
+
+  const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
+
+  expect(requested).toHaveLength(1);
+  expect(response).toEqual({ outcome: 'empty', attempts: 1 });
+});
+
+/**
+ * A refusal claims nothing about the route, so it is named — not retried:
+ * the fresh-connection retry exists for the empty *answer*, and the caller
+ * decides what a timeout or a 503 costs.
+ */
+test('a failed round-trip is a named refusal, not an empty answer', async () => {
+  const requested: URL[] = [];
+  const planner = createIdfmJourneyPlanner({
+    apiKey: 'test',
+    url: 'https://prim.test/journeys',
+    loadShapes: async () => [],
+    fetcher: async (url) => {
+      requested.push(url);
+      return new Response('rate limited', { status: 429 });
+    },
+  });
+
+  const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
+
+  expect(requested).toHaveLength(1);
+  expect(response).toEqual({ outcome: 'refused', cause: 'http_error' });
+});
+
+test('a body that is not JSON is refused with its own cause', async () => {
+  const planner = createIdfmJourneyPlanner({
+    apiKey: 'test',
+    url: 'https://prim.test/journeys',
+    loadShapes: async () => [],
+    fetcher: async () => new Response('<html>maintenance</html>', { status: 200 }),
+  });
+
+  const response = await planner.plan(suburbanInput, new Date('2026-08-27T12:15:00Z'));
+
+  expect(response).toEqual({ outcome: 'refused', cause: 'invalid_json' });
 });

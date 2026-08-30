@@ -99,6 +99,9 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
     /// Lets a shell-owned control temporarily occupy the tab bar's safe-area
     /// slot without drawing on top of the tab items.
     var hidesTabBar: Bool = false
+    /// A full-screen task owns the sheet until it is explicitly closed. Keeping
+    /// only the expanded detent prevents its content being crushed by a drag.
+    var locksExpandedDetent: Bool = false
     /// Keeps room for the compact content in the collapsed detent. Stays true
     /// for the whole journey so the detent set does not change under the sheet.
     var reservesCompactSpace: Bool = false
@@ -124,6 +127,10 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
         .environment(\.sheetHidesTabBar, showsCompactContent || hidesTabBar)
         .overlay(alignment: .top) { compactOverlay }
         .presentationDetents(detents, selection: .init(get: {
+            if locksExpandedDetent {
+                return expandedDetent
+            }
+
             // A detail sheet cannot stack above a .large parent; pin just below full height.
             if activeDetent == .large && isAnotherSheetPresenting {
                 return isLargeScreen ? .fraction(0.97) : .fraction(0.98)
@@ -134,6 +141,7 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
             activeDetent = detent
         }))
         .presentationCornerRadius(isLargeScreen ? 45 : nil)
+        .presentationDragIndicator(locksExpandedDetent ? .hidden : .automatic)
         .presentationBackgroundInteraction(.enabled)
         // The root sheet is the most-dragged surface in the app: it snaps to a
         // detent under the thumb and, once guidance runs, jumps on its own.
@@ -200,6 +208,10 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
     private var detents: Set<PresentationDetent> {
         let collapsed = SheetTabDetents.collapsed(hasCompactContent: reservesCompactSpace)
 
+        if locksExpandedDetent {
+            return [expandedDetent]
+        }
+
         if isLargeScreen {
             return [collapsed, .fraction(0.97)]
         }
@@ -209,5 +221,9 @@ struct SheetTabView<Selection: Hashable, TabC: TabContent<Selection>, Compact: V
         }
 
         return [collapsed, .fraction(0.45), .large]
+    }
+
+    private var expandedDetent: PresentationDetent {
+        isLargeScreen ? .fraction(0.97) : .large
     }
 }

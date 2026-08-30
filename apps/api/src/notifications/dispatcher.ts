@@ -1,18 +1,17 @@
-import { and, eq, or, isNull, gt } from 'drizzle-orm';
-import {
-  jobDb,
-  notificationMutes,
-  notificationPreferences,
-  notificationSchedules,
-} from '@via/db';
-import type { NotificationDropReason, NotificationSchedule } from '@via/contract';
+import { jobDb } from '@via/db';
+import type { NotificationDropReason } from '@via/contract';
 
 import { getDisruptionsSnapshot, type DisruptionsSnapshot } from '../routers/lines/disruptions/snapshot';
 import type { NormalizedDisruption } from '../routers/lines/disruptions/parse';
 import type { RedisClient } from '../redis';
+import { NotificationCycle } from './cycle';
 import { NotificationDeliveryError, type NotificationDelivery } from './delivery';
 import { createDatabaseNotificationInboxStore, type NotificationInboxStore } from './inbox-store';
 import { createDatabaseNotificationOccurrenceStore, type ClaimedNotificationOccurrence, type NotificationOccurrenceStore } from './occurrence-store';
+import {
+  createDatabaseNotificationDispatcherScheduleStore,
+  type NotificationDispatcherScheduleStore,
+} from './schedule-store';
 import { evaluateDelivery } from './policy';
 import { fitDeviceNotification } from './payload';
 import { renderNotification } from './render';
@@ -39,14 +38,15 @@ type OccurrencePayload = {
   [key: string]: unknown;
 };
 
-export interface NotificationDispatcherScheduleStore {
-  schedule(id: string): Promise<NotificationSchedule & { userId: string } | undefined>;
-  preferences(userId: string): Promise<Parameters<typeof evaluateDelivery>[0]['preferences']>;
-  muted(userId: string, category: string, topicId?: string): Promise<boolean>;
-}
+export type { NotificationDispatcherScheduleStore } from './schedule-store';
 
 export class NotificationDispatcher {
-  private isPolling = false;
+  /**
+   * The dispatcher's cycle claims work through the database (`claimDue`), not
+   * a redis key: the claim itself returns the occurrence rows. The cycle only
+   * owns the poll guard and the delivery fan-out waves.
+   */
+  private readonly cycle: NotificationCycle;
 
   constructor(
     private readonly options: {
@@ -59,13 +59,15 @@ export class NotificationDispatcher {
       now?: () => Date;
       staleMinutes?: number;
     },
-  ) {}
+  ) {
+    this.cycle = new NotificationCycle({
+      concurrency: DELIVERY_CONCURRENCY,
+      now: options.now,
+    });
+  }
 
   async pollOnce(shard: number, options: { reap?: boolean } = {}): Promise<number> {
-    if (this.isPolling) return 0;
-    this.isPolling = true;
-    const now = this.options.now?.() ?? new Date();
-    try {
+    return this.cycle.poll(0, async ({ now }) => {
       if (options.reap !== false) {
         await this.options.occurrences.reapExpired(200, now);
       }
@@ -77,17 +79,11 @@ export class NotificationDispatcher {
             this.options.redis ?? (await import('../redis')).redis,
             now,
           );
-      for (let start = 0; start < claims.length; start += DELIVERY_CONCURRENCY) {
-        await Promise.all(
-          claims
-            .slice(start, start + DELIVERY_CONCURRENCY)
-            .map((claim) => this.dispatchClaim(claim, snapshot, now)),
-        );
-      }
+      await this.cycle.forEachWave(claims, (batch) =>
+        Promise.all(batch.map((claim) => this.dispatchClaim(claim, snapshot, now))),
+      );
       return claims.length;
-    } finally {
-      this.isPolling = false;
-    }
+    });
   }
 
   private async dispatchClaim(
@@ -222,68 +218,6 @@ export function createDatabaseNotificationDispatcher(
     inbox: createDatabaseNotificationInboxStore(jobDb),
     delivery,
     redis,
-    schedules: {
-      async schedule(id) {
-        const rows = await jobDb
-          .select()
-          .from(notificationSchedules)
-          .where(eq(notificationSchedules.id, id))
-          .limit(1);
-        const row = rows[0];
-        return row
-          ? {
-              ...row,
-              origin: row.origin ?? undefined,
-              destination: row.destination ?? undefined,
-              timeZone: 'Europe/Paris' as const,
-              pausedUntil: row.pausedUntil?.toISOString(),
-              savedAt: row.savedAt.toISOString(),
-              updatedAt: row.updatedAt.toISOString(),
-              deletedAt: row.deletedAt?.toISOString(),
-              userId: row.userId,
-            }
-          : undefined;
-      },
-      async preferences(userId) {
-        const rows = await jobDb
-          .select()
-          .from(notificationPreferences)
-          .where(eq(notificationPreferences.userId, userId))
-          .limit(1);
-        const row = rows[0];
-        return row
-          ? {
-              enabled: row.enabled,
-              timeZone: 'Europe/Paris' as const,
-              quietHoursStartMinute: row.quietHoursStartMinute ?? undefined,
-              quietHoursEndMinute: row.quietHoursEndMinute ?? undefined,
-              mutedOnWeekends: row.mutedOnWeekends,
-              mutedOnHolidays: row.mutedOnHolidays,
-              minimumSeverity: row.minimumSeverity,
-              dailyCap: row.dailyCap,
-              categories: row.categories,
-              updatedAt: row.updatedAt.toISOString(),
-            }
-          : null;
-      },
-      async muted(userId, category, topicId) {
-        const rows = await jobDb
-          .select({ key: notificationMutes.key, mutedUntil: notificationMutes.mutedUntil })
-          .from(notificationMutes)
-          .where(
-            and(
-              eq(notificationMutes.userId, userId),
-              or(
-                and(eq(notificationMutes.scope, 'category'), eq(notificationMutes.key, category)),
-                topicId
-                  ? and(eq(notificationMutes.scope, 'topic'), eq(notificationMutes.key, topicId))
-                  : undefined,
-              ),
-              or(isNull(notificationMutes.mutedUntil), gt(notificationMutes.mutedUntil, new Date())),
-            ),
-          );
-        return rows.length > 0;
-      },
-    },
+    schedules: createDatabaseNotificationDispatcherScheduleStore(),
   });
 }
