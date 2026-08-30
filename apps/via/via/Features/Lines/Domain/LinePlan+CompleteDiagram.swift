@@ -249,6 +249,10 @@ private struct CompleteLineGraph {
 
             let mainPath = primaryPath(in: body)
             guard !mainPath.isEmpty else { continue }
+            let orderedTerminalBranches = orderedTerminalBranches(
+                terminalBranches,
+                along: mainPath
+            )
 
             let isFirstComponent = descriptors.isEmpty
             descriptors.append(
@@ -292,8 +296,8 @@ private struct CompleteLineGraph {
                 assign(path, to: &assigned, order: &assignedOrder)
             }
 
-            descriptors += terminalBranches
-            for branch in terminalBranches {
+            descriptors += orderedTerminalBranches
+            for branch in orderedTerminalBranches {
                 assign(branch.stopIDs, to: &assigned, order: &assignedOrder)
             }
         }
@@ -313,6 +317,56 @@ private struct CompleteLineGraph {
                 return left < right
             }
             .compactMap { terminalBranchDescriptor(from: $0, in: component) }
+    }
+
+    /// Keeps arms sharing a physical junction together, with terminal forks
+    /// before lateral branches. Names provide a stable map order without
+    /// leaking the production importer's service-row order into the UI.
+    private func orderedTerminalBranches(
+        _ branches: [PathDescriptor],
+        along mainPath: [String]
+    ) -> [PathDescriptor] {
+        let groupNameByAnchorID = Dictionary(grouping: branches) {
+            $0.anchors.first ?? ""
+        }.mapValues { group in
+            group.map(branchName).min() ?? ""
+        }
+
+        return branches.sorted {
+            terminalBranchSortKey(
+                $0,
+                along: mainPath,
+                groupNameByAnchorID: groupNameByAnchorID
+            ) < terminalBranchSortKey(
+                $1,
+                along: mainPath,
+                groupNameByAnchorID: groupNameByAnchorID
+            )
+        }
+    }
+
+    private func terminalBranchSortKey(
+        _ branch: PathDescriptor,
+        along mainPath: [String],
+        groupNameByAnchorID: [String: String]
+    ) -> (Int, String, String, String, String) {
+        let anchorID = branch.anchors.first ?? ""
+        let isTerminalFork = anchorID == mainPath.first || anchorID == mainPath.last
+        let isLateralBranch = mainPath.contains(anchorID)
+        let topologyRank = isTerminalFork ? 0 : (isLateralBranch ? 1 : 2)
+
+        return (
+            topologyRank,
+            groupNameByAnchorID[anchorID] ?? "",
+            anchorID,
+            branchName(branch),
+            branch.branchEndID ?? ""
+        )
+    }
+
+    private func branchName(_ branch: PathDescriptor) -> String {
+        guard let endID = branch.branchEndID else { return "" }
+        return branchNamesByEndID[endID] ?? stopsByID[endID]?.name ?? ""
     }
 
     private func terminalBranchDescriptor(

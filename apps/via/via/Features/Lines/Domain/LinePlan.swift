@@ -240,6 +240,20 @@ enum LinePlan {
             )
         }
 
+        // A production schema can interleave independent service sections in
+        // its global row order. Never turn that incidental adjacency into
+        // track beyond a declared network end: a terminus has no outgoing
+        // section and an origin has no incoming section. The opposite
+        // direction still contributes the real junction edge.
+        edgeIndexes = Set(edgeIndexes.filter { edge in
+            guard let from = sourceSections[edge.from].stops.last,
+                  let to = sourceSections[edge.to].stops.first else {
+                return false
+            }
+            return !sourceSections[edge.from].termini.contains(from.id)
+                && !sourceSections[edge.to].origins.contains(to.id)
+        })
+
         let incoming = Dictionary(grouping: edgeIndexes, by: \.to).mapValues(\.count)
         let outgoing = Dictionary(grouping: edgeIndexes, by: \.from).mapValues(\.count)
         let sections = strips.enumerated().map { index, strip in
